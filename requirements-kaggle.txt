@@ -1,0 +1,8 @@
+# Human-readable compatible ranges. Normal Kaggle setup uses the generated,
+# hash-locked requirements-kaggle.lock instead.
+datasets>=3.0,<5
+huggingface-hub>=0.27,<2
+numpy>=1.26,<3
+pyyaml>=6.0,<7
+tiktoken>=0.8,<1
+wandb>=0.19,<1

@@ -1,0 +1,55 @@
+[build-system]
+requires = ["hatchling>=1.25"]
+build-backend = "hatchling.build"
+
+[project]
+name = "nanoscope-lab"
+version = "0.1.0"
+description = "A reproducible small-model research laboratory"
+readme = "README.md"
+requires-python = ">=3.10,<3.13"
+dependencies = [
+  "datasets>=3.0,<5",
+  "huggingface-hub>=0.27,<2",
+  "numpy>=1.26,<3",
+  "pyyaml>=6.0,<7",
+  "tiktoken>=0.8,<1",
+  "torch>=2.2,<3",
+  "wandb>=0.19,<1",
+]
+
+[project.optional-dependencies]
+dev = [
+  "pytest>=8.3,<9",
+  "pytest-cov>=6,<8",
+  "pyright>=1.1.390",
+  "ruff>=0.9,<1",
+]
+
+[project.scripts]
+nanoscope = "nanoscope.cli:main"
+
+[tool.hatch.build.targets.wheel]
+packages = ["nanoscope"]
+
+[tool.pytest.ini_options]
+addopts = "-ra"
+testpaths = ["tests"]
+markers = [
+  "gpu: requires a CUDA GPU",
+  "network: requires network access",
+  "cloud: requires HF and W&B credentials",
+]
+
+[tool.ruff]
+line-length = 100
+target-version = "py310"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B", "SIM"]
+
+[tool.pyright]
+pythonVersion = "3.10"
+typeCheckingMode = "basic"
+venvPath = "."
+venv = ".venv"

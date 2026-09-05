@@ -1,0 +1,50 @@
+run:
+  id: m0-local-smoke
+  seed: 1337
+  output_dir: runs
+  require_clean_repo: false
+data:
+  source: fixture
+  sequence_length: 32
+  shuffle_buffer: 64
+  documents:
+    - "Reproducibility turns an experiment into evidence."
+    - "Checkpoint every state that can affect the next update."
+    - "Small models reward careful measurement."
+tokenizer:
+  name: byte
+  eos_token_id: 256
+model:
+  name: toy_lm
+  params:
+    vocab_size: 257
+    hidden_size: 32
+    dropout: 0.1
+optimizer:
+  name: adamw
+  learning_rate: 0.003
+  weight_decay: 0.01
+scheduler:
+  name: cosine
+  warmup_steps: 2
+train:
+  max_steps: 12
+  batch_size: 2
+  gradient_accumulation_steps: 1
+  device: cpu
+  precision: fp32
+  deterministic: true
+  grad_clip: 1.0
+checkpoint:
+  every_steps: 3
+  archive_every_steps: 0
+  keep_last: 3
+  hub_policy: disabled
+  hub_repo: null
+logging:
+  every_steps: 1
+  wandb_mode: disabled
+  project: nanoscope
+  entity: null
+performance:
+  peak_tflops: null
