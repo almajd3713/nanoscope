@@ -28,6 +28,40 @@ place of `auto`.
 
 ## Kaggle acceptance
 
+### VS Code: Run with Kaggle
+
+The `Run with Kaggle` extension can upload the current workspace directly, so
+this path does not require pushing the branch first. Add and enable Kaggle
+secrets named `HF_TOKEN`, `HF_REPO_ID`, `WANDB_API_KEY`, and optionally
+`WANDB_ENTITY`, then open `kaggle_run.py` in VS Code and select **Run with
+Kaggle** in workspace mode. Use:
+
+```bash
+python kaggle_run.py
+```
+
+Select a T4 or P100 GPU, enable Internet, leave extra packages empty, and turn
+off the extension's automatic `requirements.txt` installation. The launcher
+loads secrets without printing them, installs `requirements-kaggle.lock`, runs
+the environment doctor, and starts the strict acceptance profile. On another
+run in the same Kaggle session, installation can be skipped:
+
+```bash
+python kaggle_run.py --skip-install --resume auto
+```
+
+To recover in a fresh session, provide the persistent Hub checkpoint URI:
+
+```bash
+python kaggle_run.py \
+  --resume hf://OWNER/REPOSITORY/runs/m0-kaggle-acceptance
+```
+
+The Kaggle API credential configured in VS Code only authorizes the extension;
+it does not replace the Hugging Face or W&B secrets used by training.
+
+### Kaggle notebook manually
+
 1. Create a private Hugging Face model repository for recovery checkpoints.
 2. Create Kaggle secrets named `HF_TOKEN`, `HF_REPO_ID`, `WANDB_API_KEY`, and
    optionally `WANDB_ENTITY`. The HF token needs write access. Never paste a

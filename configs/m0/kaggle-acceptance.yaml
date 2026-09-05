@@ -7,7 +7,7 @@ data:
   source: fineweb
   dataset_name: HuggingFaceFW/fineweb-edu
   dataset_config: sample-10BT
-  revision: null
+  revision: 1db02b5ece9677c879ceb35ea7da8065ec58f831
   split: train
   text_field: text
   sequence_length: 128
