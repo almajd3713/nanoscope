@@ -40,7 +40,7 @@ Kaggle** in workspace mode. Use:
 python kaggle_run.py
 ```
 
-Select a T4 or P100 GPU, enable Internet, leave extra packages empty, and turn
+Select a T4 GPU, enable Internet, leave extra packages empty, and turn
 off the extension's automatic `requirements.txt` installation. The launcher
 loads secrets without printing them, installs `requirements-kaggle.lock`, runs
 the environment doctor, and starts the strict acceptance profile. On another
@@ -59,6 +59,12 @@ python kaggle_run.py \
 
 The Kaggle API credential configured in VS Code only authorizes the extension;
 it does not replace the Hugging Face or W&B secrets used by training.
+
+If pushing the extension-generated notebook loses secret attachments, use the
+extension only to update the workspace dataset and train from your permanent
+notebook with secrets attached. Update the notebook's dataset version before
+running. For T4 x2 training, use `configs/m0/kaggle-ddp.yaml`; the launcher starts
+both workers automatically. See [distributed training](distributed-training.md).
 
 ### Kaggle notebook manually
 

@@ -1,0 +1,56 @@
+# T4 x2 smoke/acceptance profile. batch_size is global (2 sequences per GPU).
+run:
+  id: m0-kaggle-ddp
+  seed: 1337
+  output_dir: /kaggle/working/nanoscope-runs
+  require_clean_repo: true
+data:
+  source: fineweb
+  dataset_name: HuggingFaceFW/fineweb-edu
+  dataset_config: sample-10BT
+  revision: 1db02b5ece9677c879ceb35ea7da8065ec58f831
+  split: train
+  text_field: text
+  sequence_length: 128
+  shuffle_buffer: 10000
+tokenizer:
+  name: gpt2
+  eos_token_id: 50256
+model:
+  name: toy_lm
+  params:
+    vocab_size: 50257
+    hidden_size: 64
+    dropout: 0.1
+optimizer:
+  name: adamw
+  learning_rate: 0.001
+  weight_decay: 0.01
+scheduler:
+  name: cosine
+  warmup_steps: 10
+train:
+  max_steps: 200
+  batch_size: 4
+  gradient_accumulation_steps: 1
+  device: cuda
+  precision: fp16
+  deterministic: true
+  grad_clip: 1.0
+distributed:
+  strategy: ddp
+  devices: auto
+  find_unused_parameters: false
+checkpoint:
+  every_steps: 25
+  archive_every_steps: 100
+  keep_last: 3
+  hub_policy: required
+  hub_repo: null
+logging:
+  every_steps: 1
+  wandb_mode: online
+  project: nanoscope
+  entity: null
+performance:
+  peak_tflops: null
