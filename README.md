@@ -31,7 +31,17 @@ toy-model defaults, global batch calculations, DDP settings, HF/W&B configuratio
 and local/Kaggle launch and resume instructions. For a local run, change
 `run.output_dir` to `runs`. Commit the edited config before starting a research run.
 
-On Kaggle, after uploading the updated workspace and extracting it in your runner:
+Upload from your local terminal using the Kaggle CLI helper:
+
+```bash
+python3 kaggle_sync.py --dry-run
+python3 kaggle_sync.py -m "Update model experiment"
+```
+
+The target dataset is configured in [kaggle-sync.json](kaggle-sync.json).
+See [workspace sync](docs/kaggle-workspace.md) for authentication and ignore behavior.
+On Kaggle, update the permanent runner's attached dataset to the new version,
+then extract the workspace and run:
 
 ```python
 !python kaggle_run.py --config configs/my-model-seed-1337.yaml --resume none

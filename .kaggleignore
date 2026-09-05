@@ -60,6 +60,8 @@ experiments/**/artifacts/
 /tests/
 /uv.lock
 /requirements-kaggle.txt
+/kaggle_sync.py
+/kaggle-sync.json
 
 # Operating-system metadata
 .DS_Store

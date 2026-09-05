@@ -28,43 +28,39 @@ place of `auto`.
 
 ## Kaggle acceptance
 
-### VS Code: Run with Kaggle
+### Sync with the Kaggle CLI
 
-The `Run with Kaggle` extension can upload the current workspace directly, so
-this path does not require pushing the branch first. Add and enable Kaggle
-secrets named `HF_TOKEN`, `HF_REPO_ID`, `WANDB_API_KEY`, and optionally
-`WANDB_ENTITY`, then open `kaggle_run.py` in VS Code and select **Run with
-Kaggle** in workspace mode. Use:
+Use a permanent notebook with T4/T4 x2, Internet, and enabled `HF_TOKEN`,
+`HF_REPO_ID`, `WANDB_API_KEY`, and optionally `WANDB_ENTITY` secrets.
+From the local workspace (including the VS Code terminal):
 
 ```bash
-python kaggle_run.py
+python3 kaggle_sync.py --dry-run
+python3 kaggle_sync.py -m "Update M0 training workspace"
 ```
 
-Select a T4 GPU, enable Internet, leave extra packages empty, and turn
-off the extension's automatic `requirements.txt` installation. The launcher
-loads secrets without printing them, installs `requirements-kaggle.lock`, runs
-the environment doctor, and starts the strict acceptance profile. On another
-run in the same Kaggle session, installation can be skipped:
+This versions the dataset configured in `kaggle-sync.json`, applying Git ignores
+and `.kaggleignore`. It does not submit or modify any notebook. See
+[workspace sync](kaggle-workspace.md) for CLI authentication and packaging details.
 
-```bash
-python kaggle_run.py --skip-install --resume auto
+Wait for dataset processing, update the attached dataset version in your permanent
+notebook, then run its extraction cell followed by:
+
+```python
+!python kaggle_run.py --config configs/m0/kaggle-ddp.yaml --resume none
 ```
 
-To recover in a fresh session, provide the persistent Hub checkpoint URI:
+The training launcher loads notebook secrets, installs `requirements-kaggle.lock`,
+runs doctor, and starts the configured workers. Use `configs/m0/kaggle-acceptance.yaml`
+for the original single-process run. For recovery in a fresh session:
 
-```bash
-python kaggle_run.py \
-  --resume hf://OWNER/REPOSITORY/runs/m0-kaggle-acceptance
+```python
+!python kaggle_run.py --config configs/m0/kaggle-ddp.yaml \
+    --resume hf://OWNER/REPOSITORY/runs/m0-kaggle-ddp
 ```
 
-The Kaggle API credential configured in VS Code only authorizes the extension;
-it does not replace the Hugging Face or W&B secrets used by training.
-
-If pushing the extension-generated notebook loses secret attachments, use the
-extension only to update the workspace dataset and train from your permanent
-notebook with secrets attached. Update the notebook's dataset version before
-running. For T4 x2 training, use `configs/m0/kaggle-ddp.yaml`; the launcher starts
-both workers automatically. See [distributed training](distributed-training.md).
+For another run in the same still-active session, use `--skip-install --resume auto`.
+See [distributed training](distributed-training.md) for the resume requirements.
 
 ### Kaggle notebook manually
 
