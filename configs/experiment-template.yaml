@@ -1,0 +1,100 @@
+# Copy this file to configs/my-model-seed-1337.yaml before editing.
+# Starting values for a short experiment, not tuned hyperparameters.
+# All sections below are supported by the current harness; no YAML inheritance.
+#
+# Kaggle (T4 x2, Internet on, secrets enabled, updated workspace dataset):
+#   python kaggle_run.py --config configs/my-model-seed-1337.yaml --resume none
+# Local GPU (change run.output_dir to runs and set cloud environment variables):
+#   nanoscope doctor --config configs/my-model-seed-1337.yaml
+#   nanoscope train --config configs/my-model-seed-1337.yaml --resume none
+# Same-session resume: replace --resume none with --resume auto.
+# Fresh-session resume:
+#   --resume hf://OWNER/REPOSITORY/runs/my-model-seed-1337
+#
+# Never put tokens in this file. Set HF_TOKEN, HF_REPO_ID, WANDB_API_KEY,
+# and optionally WANDB_ENTITY in the environment or Kaggle notebook secrets.
+
+run:
+  # CHANGE ME: unique experiment/seed ID; also identifies the W&B run and HF path.
+  # Use a new ID when changing the model, data, seed, or training recipe.
+  id: my-model-seed-1337
+  seed: 1337
+  output_dir: /kaggle/working/nanoscope-runs  # Local machine: runs
+  require_clean_repo: true  # Commit your experiment before training in a Git checkout.
+
+data:
+  source: fineweb
+  dataset_name: HuggingFaceFW/fineweb-edu
+  dataset_config: sample-10BT
+  # Pinned dataset commit for reproducibility; update deliberately for a new experiment.
+  revision: 1db02b5ece9677c879ceb35ea7da8065ec58f831
+  split: train
+  text_field: text
+  sequence_length: 128  # Prediction tokens per sequence; adjust to your model context size.
+  shuffle_buffer: 10000
+
+tokenizer:
+  name: gpt2
+  eos_token_id: 50256
+
+model:
+  # Replace with your registered model name and its accepted builder parameters.
+  # toy_lm is an executable placeholder, not a production language-model baseline.
+  name: toy_lm
+  params:
+    vocab_size: 50257  # Match the tokenizer, including its special tokens.
+    hidden_size: 64
+    dropout: 0.1
+
+optimizer:
+  name: adamw
+  learning_rate: 0.0003
+  weight_decay: 0.1
+  betas: [0.9, 0.95]
+  eps: 0.00000001
+
+scheduler:
+  name: cosine  # Supported: cosine or constant.
+  warmup_steps: 100  # Keep below max_steps for this cosine schedule.
+
+train:
+  # Plan the full schedule before starting: max_steps is part of the resume digest.
+  max_steps: 1000
+  batch_size: 4  # GLOBAL microbatch, split across workers; must divide by worker count.
+  gradient_accumulation_steps: 4
+  # Effective batch = 4 * 4 = 16 sequences/optimizer step, even with two GPUs.
+  # Tokens/step = 16 * 128 = 2048; total budget here = 2,048,000 tokens.
+  device: cuda  # cuda, cpu, or auto. For CPU use fp32 and fixture data for quick tests.
+  precision: fp16  # Supported: fp16 (CUDA) or fp32. T4 supports this FP16 profile.
+  deterministic: true
+  grad_clip: 1.0
+
+distributed:
+  strategy: ddp  # none for the original single-process path.
+  devices: auto  # All visible GPUs; 1 to limit to one; 2 to require two.
+  # Each GPU holds a full model/optimizer replica; VRAM is not pooled.
+  find_unused_parameters: false  # true for models with conditionally unused parameters.
+
+checkpoint:
+  every_steps: 100  # Recovery checkpoint interval; each save is uploaded when Hub is enabled.
+  archive_every_steps: 500  # Archives are retained separately; 0 disables archiving.
+  keep_last: 3  # Number of non-archive LOCAL checkpoints retained.
+  hub_policy: required  # required, best_effort, or disabled (local-only experiments).
+  hub_repo: null  # Reads HF_REPO_ID, e.g. your-username/nanoscope-checkpoints.
+
+logging:
+  every_steps: 10  # W&B interval; local metrics.jsonl still records every step.
+  wandb_mode: online  # online, offline, or disabled.
+  project: nanoscope
+  entity: null  # Reads WANDB_ENTITY; otherwise W&B chooses the account's default.
+
+performance:
+  peak_tflops: null  # Auto-detected for T4/P100; explicit values are PER GPU.
+
+# Resume rules:
+# - Keep the same run ID, recipe, and worker count for exact resume.
+# - Changing devices:auto to devices:2 also changes the configuration digest.
+# - Use --stop-after-step N with nanoscope train to stop early without changing max_steps.
+# - HF/W&B tokens being present does not prove remote write permissions; verify a short run.f
+# - For local offline work: output_dir: runs, hub_policy: disabled, wandb_mode: disabled.
+#   Launch those runs with nanoscope train; kaggle_run.py always expects Kaggle secrets.
