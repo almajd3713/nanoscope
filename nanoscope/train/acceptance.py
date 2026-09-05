@@ -177,6 +177,7 @@ def run_acceptance(config: Config, work_dir: str | Path | None = None) -> dict[s
         "rng",
         "step",
         "tokens_seen",
+        "rank_rng",
     }
     state_mismatches = [
         mismatch

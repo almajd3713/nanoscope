@@ -10,6 +10,7 @@ from typing import Any
 import torch
 
 from nanoscope.config import Config
+from nanoscope.train.distributed import worker_count
 
 
 def doctor(config: Config) -> dict[str, Any]:
@@ -25,8 +26,28 @@ def doctor(config: Config) -> dict[str, Any]:
         ["git", "status", "--porcelain"], capture_output=True, text=True, check=False
     )
     issues: list[str] = []
-    if requested == "cuda" and not cuda_ok:
-        issues.append("CUDA was requested but is unavailable")
+    workers = None
+    cuda_execution_ok = None
+    try:
+        workers = worker_count(config)
+    except (ValueError, RuntimeError) as exc:
+        issues.append(str(exc))
+    if cuda_ok and requested != "cpu" and workers is not None:
+        cuda_execution_ok = True
+        for index in range(workers):
+            try:
+                # Device discovery alone passes on unsupported GPUs (e.g. P100/cu128).
+                dtype = torch.float16 if config.train.precision == "fp16" else torch.float32
+                sample = torch.ones((2, 2), device=f"cuda:{index}", dtype=dtype)
+                result = (sample + 1) @ sample
+                torch.cuda.synchronize(index)
+                del result, sample
+            except Exception as exc:
+                cuda_execution_ok = False
+                issues.append(
+                    f"CUDA execution failed on GPU {index}: {exc}. "
+                    "On Kaggle select T4 instead of P100, or install a compatible PyTorch build."
+                )
     hub_repo = config.checkpoint.hub_repo or os.getenv("HF_REPO_ID")
     if config.checkpoint.hub_policy == "required" and not hub_repo:
         issues.append("required Hub persistence needs checkpoint.hub_repo or HF_REPO_ID")
@@ -53,6 +74,11 @@ def doctor(config: Config) -> dict[str, Any]:
         "run_id": config.run.id,
         "requested_device": requested,
         "cuda_available": cuda_ok,
+        "cuda_execution_ok": cuda_execution_ok,
+        "distributed_strategy": config.distributed.strategy,
+        "training_workers": workers,
+        "global_batch_size": config.train.batch_size,
+        "per_rank_batch_size": config.train.batch_size // workers if workers else None,
         "cuda_version": torch.version.cuda,
         "gpu_count": torch.cuda.device_count() if cuda_ok else 0,
         "gpus": [torch.cuda.get_device_name(i) for i in range(torch.cuda.device_count())]

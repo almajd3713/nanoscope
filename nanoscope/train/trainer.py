@@ -14,6 +14,7 @@ from typing import Any, Literal, cast
 
 import torch
 import torch.nn.functional as F
+from torch.nn.parallel import DistributedDataParallel
 
 from nanoscope.config import Config, dump_config
 from nanoscope.data import build_batch_stream
@@ -28,6 +29,7 @@ from nanoscope.train.determinism import (
     configure_reproducibility,
     restore_rng_state,
 )
+from nanoscope.train.distributed import DistributedContext
 from nanoscope.train.hub import HubCheckpointStore, download_hub_checkpoint
 from nanoscope.train.metrics import JsonlLogger, WandbLogger
 
@@ -43,9 +45,7 @@ class TrainResult:
 
 def _git_provenance() -> dict[str, Any]:
     def run(*args: str) -> str:
-        result = subprocess.run(
-            ["git", *args], capture_output=True, text=True, check=False
-        )
+        result = subprocess.run(["git", *args], capture_output=True, text=True, check=False)
         return result.stdout.strip()
 
     return {
@@ -72,14 +72,6 @@ def _runtime_provenance(device: torch.device) -> dict[str, Any]:
         "gpu": gpu,
         "git": _git_provenance(),
     }
-
-
-def _resolve_device(requested: str) -> torch.device:
-    if requested == "auto":
-        requested = "cuda" if torch.cuda.is_available() else "cpu"
-    if requested == "cuda" and not torch.cuda.is_available():
-        raise RuntimeError("CUDA was requested but is not available")
-    return torch.device(requested)
 
 
 def _peak_tflops(config: Config, device: torch.device) -> float | None:
@@ -139,26 +131,67 @@ def _resume_path(resume: str, manager: CheckpointManager, run_dir: Path) -> Path
 
 def train(config: Config, resume: str = "auto", stop_after_step: int | None = None) -> TrainResult:
     configure_reproducibility(seed=config.run.seed, deterministic=config.train.deterministic)
-    device = _resolve_device(config.train.device)
-    run_dir = Path(config.run.output_dir) / config.run.id
-    run_dir.mkdir(parents=True, exist_ok=True)
-    dump_config(config, run_dir / "resolved-config.yaml")
+    context = DistributedContext.create(config)
+    try:
+        with contextlib.ExitStack() as resources:
+            return _train(config, resume, stop_after_step, context, resources)
+    finally:
+        context.close()
 
+
+def _train(
+    config: Config,
+    resume: str,
+    stop_after_step: int | None,
+    context: DistributedContext,
+    resources: contextlib.ExitStack,
+) -> TrainResult:
+    device = context.device
+    run_dir = Path(config.run.output_dir) / config.run.id
     provenance = _runtime_provenance(device)
+    provenance["world_size"] = context.world_size
     if config.run.require_clean_repo and provenance["git"]["dirty"]:
         raise RuntimeError("run.require_clean_repo is true but the Git worktree is dirty")
-    (run_dir / "environment.json").write_text(
-        json.dumps(provenance, indent=2, sort_keys=True), encoding="utf-8"
-    )
 
-    stream = build_batch_stream(
-        config.data,
-        config.tokenizer,
-        seed=config.run.seed,
-        batch_size=config.train.batch_size,
-    )
+    def prepare_run() -> None:
+        run_dir.mkdir(parents=True, exist_ok=True)
+        if resume == "none" and (
+            (run_dir / "metrics.jsonl").exists() or (run_dir / "latest.json").exists()
+        ):
+            raise RuntimeError("run already exists; choose a new run.id or resume it")
+        dump_config(config, run_dir / "resolved-config.yaml")
+        (run_dir / "environment.json").write_text(
+            json.dumps(provenance, indent=2, sort_keys=True), encoding="utf-8"
+        )
+
+    context.primary_call(prepare_run)
+    stream = None
+
+    def prepare_stream() -> str | None:
+        nonlocal stream
+        stream = build_batch_stream(
+            config.data, config.tokenizer, seed=config.run.seed, batch_size=config.train.batch_size
+        )
+        resources.callback(stream.close)
+        return stream.source_revision
+
+    source_revision = context.primary_call(prepare_stream)
     model, model_spec = build_model(config.model.name, config.model.params)
     model.to(device)
+    training_model = (
+        DistributedDataParallel(
+            model,
+            device_ids=[device.index] if device.type == "cuda" else None,
+            find_unused_parameters=config.distributed.find_unused_parameters,
+        )
+        if context.enabled
+        else model
+    )
+    if context.enabled:
+        # Initialize replicas identically, then give dropout independent rank streams.
+        configure_reproducibility(
+            seed=config.run.seed + context.rank, deterministic=config.train.deterministic
+        )
     groups = (
         model_spec.parameter_groups(model, config.optimizer.weight_decay)
         if model_spec.parameter_groups
@@ -181,12 +214,19 @@ def train(config: Config, resume: str = "auto", stop_after_step: int | None = No
     tokens_seen = 0
     active_seconds = 0.0
     metrics_history: list[dict[str, Any]] = []
-    selected_resume = _resume_path(resume, manager, run_dir)
+    selected_resume = context.primary_call(lambda: _resume_path(resume, manager, run_dir))
     if selected_resume is not None:
-        state, metadata = manager.load(selected_resume, device)
+        # RNG byte tensors must stay on CPU; optimizer.load_state_dict moves its tensors.
+        state, metadata = manager.load(selected_resume, torch.device("cpu"))
+        saved_world_size = int(metadata.get("world_size", 1))
+        if saved_world_size != context.world_size:
+            raise RuntimeError(
+                f"exact resume requires {saved_world_size} workers; got {context.world_size}. "
+                "Model weights remain portable, but training RNG topology cannot be changed."
+            )
         if metadata["config_digest"] != config.digest:
             raise RuntimeError("checkpoint configuration is incompatible with this run")
-        if metadata.get("source_revision") != stream.source_revision:
+        if metadata.get("source_revision") != source_revision:
             raise RuntimeError(
                 "checkpoint dataset revision differs from the configured/resolved revision"
             )
@@ -194,28 +234,47 @@ def train(config: Config, resume: str = "auto", stop_after_step: int | None = No
         optimizer.load_state_dict(state["optimizer"])
         scheduler.load_state_dict(state["scheduler"])
         scaler.load_state_dict(state["scaler"])
-        stream.load_state_dict(state["stream"])
+
+        def restore_stream() -> None:
+            assert stream is not None
+            stream.load_state_dict(state["stream"])
+
+        context.primary_call(restore_stream)
         step = int(state["step"])
         tokens_seen = int(state["tokens_seen"])
         active_seconds = float(state["active_seconds"])
         metrics_history = list(state.get("metrics", []))
-        restore_rng_state(state["rng"])
+        rank_rng = state.get("rank_rng", [state["rng"]])[context.rank]
+        restore_rng_state(rank_rng, device)
+        del state
 
     metrics_path = run_dir / "metrics.jsonl"
-    metrics_path.write_text(
-        "".join(json.dumps(row, sort_keys=True) + "\n" for row in metrics_history),
-        encoding="utf-8",
-    )
-    local_logger = JsonlLogger(metrics_path, resume_step=step)
-    cloud_logger = WandbLogger(
-        cast(Literal["disabled", "offline", "online"], config.logging.wandb_mode),
-        config.run.id,
-        config.logging.project,
-        config.logging.entity or os.getenv("WANDB_ENTITY"),
-        run_dir,
-        config.to_dict(),
-        resumed=selected_resume is not None,
-    )
+    local_logger = None
+    cloud_logger = None
+
+    def prepare_logging() -> None:
+        nonlocal local_logger, cloud_logger
+        metrics_path.write_text(
+            "".join(json.dumps(row, sort_keys=True) + "\n" for row in metrics_history),
+            encoding="utf-8",
+        )
+        local_logger = JsonlLogger(metrics_path, resume_step=step)
+        cloud_logger = WandbLogger(
+            cast(Literal["disabled", "offline", "online"], config.logging.wandb_mode),
+            config.run.id,
+            config.logging.project,
+            config.logging.entity or os.getenv("WANDB_ENTITY"),
+            run_dir,
+            config.to_dict(),
+            resumed=selected_resume is not None,
+        )
+        resources.callback(cloud_logger.finish)
+
+    # Logging SDK initialization must not perturb model/dropout RNG, particularly
+    # after restoring a checkpoint in a new process.
+    training_rng = capture_rng_state(device)
+    context.primary_call(prepare_logging)
+    restore_rng_state(training_rng, device)
 
     stop_requested = False
 
@@ -226,59 +285,93 @@ def train(config: Config, resume: str = "auto", stop_after_step: int | None = No
     old_sigint = signal.signal(signal.SIGINT, request_stop)
     old_sigterm = signal.signal(signal.SIGTERM, request_stop)
     peak_tflops = _peak_tflops(config, device)
+    if peak_tflops is not None:
+        peak_tflops = context.reduce(peak_tflops)
     last_checkpoint: Path | None = selected_resume
     interval_start = time.perf_counter()
 
     def save_checkpoint() -> Path:
-        state = {
-            "model": model.state_dict(),
-            "optimizer": optimizer.state_dict(),
-            "scheduler": scheduler.state_dict(),
-            "scaler": scaler.state_dict(),
-            "stream": stream.state_dict(),
-            "rng": capture_rng_state(),
-            "step": step,
-            "tokens_seen": tokens_seen,
-            "active_seconds": active_seconds,
-            "metrics": metrics_history,
-        }
-        metadata = {
-            "config_digest": config.digest,
-            "run_id": config.run.id,
-            "step": step,
-            "source_revision": stream.source_revision,
-            "provenance": provenance,
-        }
-        archive_every = config.checkpoint.archive_every_steps
-        archive = bool(archive_every and step % archive_every == 0)
-        path = manager.save(step, state, metadata, archive=archive)
-        hub.upload(path, step)
+        rank_rng = context.gather(capture_rng_state(device))
+
+        def persist() -> Path:
+            assert stream is not None
+            state = {
+                "model": model.state_dict(),
+                "optimizer": optimizer.state_dict(),
+                "scheduler": scheduler.state_dict(),
+                "scaler": scaler.state_dict(),
+                "stream": stream.state_dict(),
+                "rng": rank_rng[0],
+                "rank_rng": rank_rng,
+                "step": step,
+                "tokens_seen": tokens_seen,
+                "active_seconds": active_seconds,
+                "metrics": metrics_history,
+            }
+            metadata = {
+                "config_digest": config.digest,
+                "run_id": config.run.id,
+                "step": step,
+                "source_revision": source_revision,
+                "provenance": provenance,
+                "world_size": context.world_size,
+            }
+            archive_every = config.checkpoint.archive_every_steps
+            archive = bool(archive_every and step % archive_every == 0)
+            path = manager.save(step, state, metadata, archive=archive)
+            hub.upload(path, step)
+            return path
+
+        path = context.primary_call(persist)
+        # Upload retries and third-party clients may use global random generators.
+        # The next forward must see the RNG state that the checkpoint contains.
+        restore_rng_state(rank_rng[context.rank], device)
         return path
 
     try:
         while step < config.train.max_steps:
-            model.train()
+            training_model.train()
             optimizer.zero_grad(set_to_none=True)
             losses: list[float] = []
             batch_hashes: list[str] = []
             step_tokens = 0
 
-            for _ in range(config.train.gradient_accumulation_steps):
-                batch = stream.next_batch()
-                batch_hashes.append(_batch_hash(batch))
-                batch = batch.to(device, non_blocking=False)
+            for microstep in range(config.train.gradient_accumulation_steps):
+                global_batch = None
+
+                def read_batch() -> str:
+                    nonlocal global_batch
+                    assert stream is not None
+                    global_batch = stream.next_batch()
+                    return _batch_hash(global_batch)
+
+                batch_hashes.append(context.primary_call(read_batch))
+                batch = context.scatter_batch(
+                    global_batch,
+                    (
+                        config.train.batch_size // context.world_size,
+                        config.data.sequence_length + 1,
+                    ),
+                )
                 inputs, targets = batch[:, :-1], batch[:, 1:]
                 step_tokens += targets.numel()
-                with _autocast(device, config.train.precision):
-                    output = model(inputs)
-                    if not isinstance(output, LMOutput):
-                        raise TypeError("models must return nanoscope.model.LMOutput")
-                    base_loss = F.cross_entropy(
-                        output.logits.reshape(-1, output.logits.size(-1)), targets.reshape(-1)
-                    )
-                    total_loss = base_loss + sum(output.auxiliary_losses.values())
-                    scaled_loss = total_loss / config.train.gradient_accumulation_steps
-                scaler.scale(scaled_loss).backward()
+                sync = (
+                    training_model.no_sync()
+                    if isinstance(training_model, DistributedDataParallel)
+                    and microstep + 1 < config.train.gradient_accumulation_steps
+                    else contextlib.nullcontext()
+                )
+                with sync:
+                    with _autocast(device, config.train.precision):
+                        output = training_model(inputs)
+                        if not isinstance(output, LMOutput):
+                            raise TypeError("models must return nanoscope.model.LMOutput")
+                        base_loss = F.cross_entropy(
+                            output.logits.reshape(-1, output.logits.size(-1)), targets.reshape(-1)
+                        )
+                        total_loss = base_loss + sum(output.auxiliary_losses.values())
+                        scaled_loss = total_loss / config.train.gradient_accumulation_steps
+                    scaler.scale(scaled_loss).backward()
                 losses.append(float(total_loss.detach()))
 
             scaler.unscale_(optimizer)
@@ -299,16 +392,20 @@ def train(config: Config, resume: str = "auto", stop_after_step: int | None = No
             if device.type == "cuda":
                 torch.cuda.synchronize(device)
             now = time.perf_counter()
-            elapsed = now - interval_start
+            elapsed = context.reduce(now - interval_start, "max")
             interval_start = now
             active_seconds += elapsed
             step += 1
+            step_tokens = int(context.reduce(step_tokens))
             tokens_seen += step_tokens
             flops = estimate_training_flops(model, model_spec, step_tokens)
             mfu = flops / (elapsed * peak_tflops * 1e12) if peak_tflops and elapsed else None
             row: dict[str, Any] = {
                 "step": step,
-                "loss": sum(losses) / len(losses),
+                "loss": context.reduce(sum(losses) / len(losses)) / context.world_size,
+                "world_size": context.world_size,
+                "global_batch_size": config.train.batch_size,
+                "per_rank_batch_size": config.train.batch_size // context.world_size,
                 "learning_rate": optimizer.param_groups[0]["lr"],
                 "gradient_norm": float(grad_norm),
                 "loss_scale": float(scaler.get_scale()),
@@ -325,12 +422,21 @@ def train(config: Config, resume: str = "auto", stop_after_step: int | None = No
                 "active_seconds": active_seconds,
             }
             if device.type == "cuda":
-                row["gpu_peak_allocated_bytes"] = torch.cuda.max_memory_allocated(device)
-                row["gpu_peak_reserved_bytes"] = torch.cuda.max_memory_reserved(device)
+                row["gpu_peak_allocated_bytes"] = int(
+                    context.reduce(torch.cuda.max_memory_allocated(device), "max")
+                )
+                row["gpu_peak_reserved_bytes"] = int(
+                    context.reduce(torch.cuda.max_memory_reserved(device), "max")
+                )
             metrics_history.append(row)
-            local_logger.log(row)
-            if step % config.logging.every_steps == 0:
-                cloud_logger.log(row)
+
+            def log_metrics(values: dict[str, Any] = row, current_step: int = step) -> None:
+                assert local_logger is not None and cloud_logger is not None
+                local_logger.log(values)
+                if current_step % config.logging.every_steps == 0:
+                    cloud_logger.log(values)
+
+            context.primary_call(log_metrics)
 
             acceptance_delay = float(os.getenv("NANOSCOPE_ACCEPTANCE_STEP_DELAY", "0"))
             if acceptance_delay:
@@ -344,6 +450,9 @@ def train(config: Config, resume: str = "auto", stop_after_step: int | None = No
             should_stop = stop_requested or (
                 stop_after_step is not None and step >= stop_after_step
             )
+            stop_file = os.getenv("NANOSCOPE_STOP_FILE")
+            should_stop = should_stop or bool(stop_file and Path(stop_file).exists())
+            should_stop = bool(context.reduce(float(should_stop), "max"))
             if should_checkpoint or should_archive or should_stop or step == config.train.max_steps:
                 last_checkpoint = save_checkpoint()
             if should_stop:
@@ -351,8 +460,6 @@ def train(config: Config, resume: str = "auto", stop_after_step: int | None = No
     finally:
         signal.signal(signal.SIGINT, old_sigint)
         signal.signal(signal.SIGTERM, old_sigterm)
-        cloud_logger.finish()
-        stream.close()
 
     if last_checkpoint is None:
         last_checkpoint = save_checkpoint()

@@ -5,6 +5,7 @@ from __future__ import annotations
 import argparse
 import importlib
 import os
+import signal
 import subprocess
 import sys
 from pathlib import Path
@@ -79,7 +80,23 @@ def _load_secrets() -> None:
 
 
 def _run(*args: str) -> None:
-    subprocess.run(args, cwd=ROOT, check=True)
+    # Forward notebook/launcher stop signals to the CLI, which coordinates a
+    # checkpoint boundary across its DDP workers.
+    with subprocess.Popen(args, cwd=ROOT) as child:
+
+        def forward(signum: int, _frame: object) -> None:
+            if child.poll() is None:
+                child.send_signal(signum)
+
+        old_int = signal.signal(signal.SIGINT, forward)
+        old_term = signal.signal(signal.SIGTERM, forward)
+        try:
+            status = child.wait()
+        finally:
+            signal.signal(signal.SIGINT, old_int)
+            signal.signal(signal.SIGTERM, old_term)
+        if status:
+            raise subprocess.CalledProcessError(status, args)
 
 
 def main(argv: list[str] | None = None) -> None:

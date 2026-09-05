@@ -19,3 +19,8 @@ def test_unknown_key_is_rejected(tmp_path: Path) -> None:
     with pytest.raises(ConfigError, match="unknown keys in run"):
         load_config(path)
 
+
+def test_existing_single_process_digest_is_preserved() -> None:
+    config = load_config("configs/m0/kaggle-acceptance.yaml")
+    assert config.distributed.strategy == "none"
+    assert config.digest == "6609c374aa3dd02f1c721e06638be0ce25d1d2af011c6a3f4b922f8045fc3ac0"

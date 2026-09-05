@@ -97,6 +97,13 @@ class PerformanceConfig:
 
 
 @dataclass
+class DistributedConfig:
+    strategy: str = "none"
+    devices: int | str = "auto"
+    find_unused_parameters: bool = False
+
+
+@dataclass
 class Config:
     run: RunConfig
     data: DataConfig
@@ -108,6 +115,7 @@ class Config:
     checkpoint: CheckpointConfig
     logging: LoggingConfig
     performance: PerformanceConfig
+    distributed: DistributedConfig = field(default_factory=DistributedConfig)
 
     def to_dict(self) -> dict[str, Any]:
         return dataclasses.asdict(self)
@@ -119,6 +127,10 @@ class Config:
         value["logging"].pop("entity", None)
         value["checkpoint"].pop("hub_policy", None)
         value["checkpoint"].pop("hub_repo", None)
+        # Preserve existing single-process checkpoint digests. Runtime topology
+        # is checked separately against checkpoint metadata on resume.
+        if self.distributed == DistributedConfig():
+            value.pop("distributed")
         return value
 
     @property
@@ -157,20 +169,32 @@ def load_config(path: str | Path) -> Config:
         "checkpoint": CheckpointConfig,
         "logging": LoggingConfig,
         "performance": PerformanceConfig,
+        "distributed": DistributedConfig,
     }
     unknown = set(raw) - set(section_types)
-    missing = set(section_types) - set(raw)
+    missing = set(section_types) - set(raw) - {"distributed"}
     if unknown:
         raise ConfigError(f"unknown top-level sections: {', '.join(sorted(unknown))}")
     if missing:
         raise ConfigError(f"missing top-level sections: {', '.join(sorted(missing))}")
 
-    config = Config(**{name: _section(cls, raw[name], name) for name, cls in section_types.items()})
+    config = Config(
+        **{name: _section(cls, raw.get(name, {}), name) for name, cls in section_types.items()}
+    )
     validate_config(config)
     return config
 
 
 def validate_config(config: Config) -> None:
+    if config.distributed.strategy not in {"none", "ddp"}:
+        raise ConfigError("distributed.strategy must be none or ddp")
+    devices = config.distributed.devices
+    if devices != "auto" and (type(devices) is not int or devices < 1):
+        raise ConfigError("distributed.devices must be auto or a positive integer")
+    if config.distributed.strategy == "none" and devices not in {"auto", 1}:
+        raise ConfigError("multiple devices require distributed.strategy: ddp")
+    if type(config.distributed.find_unused_parameters) is not bool:
+        raise ConfigError("distributed.find_unused_parameters must be a boolean")
     if not config.run.id or "/" in config.run.id or ".." in config.run.id:
         raise ConfigError("run.id must be a non-empty filesystem-safe identifier")
     if config.run.seed < 0:

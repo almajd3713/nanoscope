@@ -2,6 +2,8 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
+import sys
 from pathlib import Path
 
 import torch
@@ -10,6 +12,7 @@ from nanoscope.config import load_config
 from nanoscope.train.acceptance import run_acceptance
 from nanoscope.train.checkpoint import validate_checkpoint
 from nanoscope.train.doctor import print_doctor
+from nanoscope.train.launcher import launch_training
 from nanoscope.train.trainer import train
 
 
@@ -23,6 +26,7 @@ def _parser() -> argparse.ArgumentParser:
     training = commands.add_parser("train", help="run or resume training")
     training.add_argument("--config", required=True)
     training.add_argument("--resume", default="auto")
+    training.add_argument("--stop-after-step", type=int, help="checkpoint and stop at this step")
 
     inspect = commands.add_parser("inspect-checkpoint", help="inspect checkpoint metadata")
     inspect.add_argument("path")
@@ -38,8 +42,13 @@ def main(argv: list[str] | None = None) -> None:
     if args.command == "doctor":
         raise SystemExit(print_doctor(load_config(args.config)))
     if args.command == "train":
-        result = train(load_config(args.config), resume=args.resume)
-        print(json.dumps({"step": result.final_step, "checkpoint": str(result.checkpoint)}))
+        config = load_config(args.config)
+        exit_code = launch_training(config, list(argv if argv is not None else sys.argv[1:]))
+        if exit_code is not None:
+            raise SystemExit(exit_code)
+        result = train(config, resume=args.resume, stop_after_step=args.stop_after_step)
+        if int(os.getenv("RANK", "0")) == 0:
+            print(json.dumps({"step": result.final_step, "checkpoint": str(result.checkpoint)}))
         return
     if args.command == "inspect-checkpoint":
         path = Path(args.path)
