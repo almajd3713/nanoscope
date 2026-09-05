@@ -14,6 +14,12 @@ uv run nanoscope doctor --config configs/m0/local-smoke.yaml
 uv run nanoscope train --config configs/m0/local-smoke.yaml --resume none
 ```
 
+Or you may use the Makefile provided:
+
+```bash
+make help
+```
+
 See [the M0 runbook](docs/m0-runbook.md) for Kaggle, cloud credentials, resume,
 and the model-only handoff.
 
