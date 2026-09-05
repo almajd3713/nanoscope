@@ -11,4 +11,5 @@ runs/
 checkpoints/
 experiments/**/artifacts/
 *.tmp
-
+.kaggle/
+.vscode/

@@ -1,0 +1,66 @@
+# Nanoscope's Kaggle runtime needs only the package, training configuration,
+# launcher, project metadata, and hash-locked Kaggle requirements.
+
+# Version-control and local agent/editor state
+.git/
+.github/
+.agents/
+.codex/
+.vscode/
+.idea/
+
+# Credentials and local Kaggle authentication
+.env*
+.kaggle/
+kaggle.json
+credentials*.json
+*.key
+*.pem
+*.p12
+*.token
+
+# Python environments, caches, coverage, and build products
+.venv/
+venv/
+env/
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+.pyright/
+.coverage
+htmlcov/
+build/
+dist/
+*.egg-info/
+
+# Local experiment state and generated outputs
+.kaggle-outputs/
+runs/
+checkpoints/
+wandb/
+artifacts/
+outputs/
+reports/
+experiments/**/artifacts/
+*.tmp
+*.log
+*.pt
+*.pth
+*.ckpt
+*.safetensors
+
+# Local datasets must be streamed or attached through Kaggle, not uploaded
+/data/
+/datasets/
+
+# Development-only files are unnecessary in the remote training image
+/docs/
+/tests/
+/uv.lock
+/requirements-kaggle.txt
+
+# Operating-system metadata
+.DS_Store
+Thumbs.db
