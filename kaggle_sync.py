@@ -89,10 +89,21 @@ def upload_dataset(dataset: str, directory: Path, message: str = "") -> None:
         raise RuntimeError("Kaggle CLI not found; install it with: uv tool install kaggle")
     # Fetch existing metadata: no guessed title/license, no implicit dataset creation.
     subprocess.run([cli, "datasets", "metadata", dataset, "-p", str(directory)], check=True)
+    
     metadata = json.loads((directory / "dataset-metadata.json").read_text(encoding="utf-8"))
-    if str(metadata.get("id", "")).lower() != dataset.lower():
+    metadata_info = metadata["info"]
+    metadata_dataset_name = f"{metadata_info.get('ownerUser', '')}/{metadata_info.get('datasetSlug', '')}"
+    if metadata_dataset_name != dataset:
         raise ValueError("downloaded dataset metadata does not match the configured dataset ID")
-    subprocess.run([cli, "datasets", "version", "-p", str(directory), "-m", message], check=True)
+    # Kaggle uses a different format for the dataset ID in the metadata than in the CLI commands.
+    output_dataset_dict = {
+        "title": metadata_info.get("title", ""),
+        "id": metadata_dataset_name,
+        "licenses": metadata_info.get("licenses", []),
+    } 
+    output_dataset_path = directory / "dataset-metadata.json"
+    output_dataset_path.write_text(json.dumps(output_dataset_dict, indent=2), encoding="utf-8")
+    subprocess.run([cli, "datasets", "version", "-p", str(directory), "-m", message], check=True)    
 
 
 def main(argv: list[str] | None = None) -> None:

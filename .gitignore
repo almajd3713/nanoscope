@@ -13,3 +13,4 @@ experiments/**/artifacts/
 *.tmp
 .kaggle/
 .vscode/
+kaggle-sync.json
