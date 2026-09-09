@@ -25,6 +25,9 @@ and the model-only handoff.
 
 ## Start an experiment
 
+Use the [evaluator workflow](docs/evaluation.md) to freeze held-out data, score
+checkpoints, and compare model increments at a fixed token or estimated FLOP budget.
+
 Copy the [commented experiment template](configs/experiment-template.yaml):
 
 ```bash

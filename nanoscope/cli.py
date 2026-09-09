@@ -34,11 +34,50 @@ def _parser() -> argparse.ArgumentParser:
     acceptance = commands.add_parser("m0-acceptance", help="run the interruption comparison")
     acceptance.add_argument("--config", required=True)
     acceptance.add_argument("--work-dir")
+
+    corpus = commands.add_parser("prepare-eval", help="freeze a held-out token corpus")
+    corpus.add_argument("--config", required=True)
+
+    evaluation = commands.add_parser("evaluate", help="score a saved checkpoint on a frozen corpus")
+    evaluation.add_argument("--checkpoint", required=True)
+    evaluation.add_argument("--eval-config", required=True)
+    evaluation.add_argument("--training-config", help="original config for a legacy checkpoint")
+
+    comparison = commands.add_parser(
+        "compare", help="compare evaluations at a fixed training budget"
+    )
+    comparison.add_argument("--study", required=True)
+    comparison.add_argument("--output", required=True)
+    comparison.add_argument("--plots", action="store_true", help="write PNG/SVG plots (eval extra)")
     return parser
 
 
 def main(argv: list[str] | None = None) -> None:
     args = _parser().parse_args(argv)
+    if args.command in {"prepare-eval", "evaluate", "compare"}:
+        from nanoscope.eval.compare import build_comparison
+        from nanoscope.eval.config import load_corpus_config, load_eval_config
+        from nanoscope.eval.corpus import prepare_corpus
+        from nanoscope.eval.report import write_report
+        from nanoscope.eval.runner import evaluate_checkpoint
+
+        try:
+            if args.command == "prepare-eval":
+                corpus = prepare_corpus(load_corpus_config(args.config))
+                print(json.dumps({"corpus": str(corpus.path), "fingerprint": corpus.fingerprint}))
+            elif args.command == "evaluate":
+                path = evaluate_checkpoint(
+                    args.checkpoint, load_eval_config(args.eval_config), args.training_config
+                )
+                print(json.dumps({"result": str(path)}))
+            else:
+                path = write_report(
+                    build_comparison(args.study), Path(args.output), plots=args.plots
+                )
+                print(json.dumps({"report": str(path)}))
+        except (ValueError, OSError, RuntimeError, KeyError) as exc:
+            raise SystemExit(str(exc)) from exc
+        return
     if args.command == "doctor":
         raise SystemExit(print_doctor(load_config(args.config)))
     if args.command == "train":

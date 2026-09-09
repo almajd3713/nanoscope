@@ -23,6 +23,30 @@ class RunConfig:
     require_clean_repo: bool = False
 
 
+@dataclass(frozen=True)
+class PartitionConfig:
+    salt: str = "nanoscope-m1-v1"
+    buckets: int = 10_000
+    validation_buckets: int = 100
+    test_buckets: int = 100
+    split: str = "train"
+
+    def __post_init__(self) -> None:
+        if not isinstance(self.salt, str) or not self.salt:
+            raise ValueError("partition.salt must be a non-empty string")
+        sizes = (self.buckets, self.validation_buckets, self.test_buckets)
+        if any(type(value) is not int or value < 1 for value in sizes):
+            raise ValueError("partition bucket counts must be positive integers")
+        if self.validation_buckets + self.test_buckets >= self.buckets:
+            raise ValueError("partition must leave at least one training bucket")
+        if self.split not in {"train", "validation", "test"}:
+            raise ValueError("partition.split must be train, validation, or test")
+
+    def scheme(self) -> dict[str, Any]:
+        return {key: value for key, value in dataclasses.asdict(self).items() if key != "split"}
+
+
+
 @dataclass
 class DataConfig:
     source: str = "fixture"
@@ -34,6 +58,7 @@ class DataConfig:
     sequence_length: int = 128
     shuffle_buffer: int = 10_000
     documents: list[str] = field(default_factory=list)
+    partition: PartitionConfig | None = None
 
 
 @dataclass
@@ -122,6 +147,9 @@ class Config:
 
     def immutable_dict(self) -> dict[str, Any]:
         value = self.to_dict()
+        # Preserve the exact digests of existing unpartitioned checkpoints.
+        if self.data.partition is None:
+            value["data"].pop("partition")
         value["run"].pop("output_dir", None)
         value["logging"].pop("wandb_mode", None)
         value["logging"].pop("entity", None)
@@ -140,21 +168,30 @@ class Config:
 
 
 def _section(cls: type[Any], raw: Mapping[str, Any], name: str) -> Any:
+    if not isinstance(raw, Mapping):
+        raise ConfigError(f"{name} section must be a mapping")
     allowed = {item.name for item in dataclasses.fields(cls)}
     unknown = set(raw) - allowed
     if unknown:
         raise ConfigError(f"unknown keys in {name}: {', '.join(sorted(unknown))}")
     try:
+        if cls is DataConfig and raw.get("partition") is not None:
+            raw = {**raw, "partition": _section(PartitionConfig, raw["partition"], "partition")}
         if cls is OptimizerConfig and isinstance(raw.get("betas"), list):
             raw = {**raw, "betas": tuple(raw["betas"])}
         return cls(**raw)
-    except TypeError as exc:
+    except (TypeError, ValueError) as exc:
         raise ConfigError(f"invalid {name} section: {exc}") from exc
 
 
 def load_config(path: str | Path) -> Config:
     config_path = Path(path)
     raw = yaml.safe_load(config_path.read_text(encoding="utf-8"))
+    return config_from_dict(raw)
+
+
+def config_from_dict(raw: Any) -> Config:
+    """Parse both YAML input and resolved configs embedded in checkpoints."""
     if not isinstance(raw, dict):
         raise ConfigError("configuration root must be a mapping")
 
@@ -203,6 +240,8 @@ def validate_config(config: Config) -> None:
         raise ConfigError("data.source must be fixture or fineweb")
     if config.data.source == "fixture" and not config.data.documents:
         raise ConfigError("fixture data requires at least one document")
+    if config.data.partition is not None and config.data.partition.split != "train":
+        raise ConfigError("training data.partition.split must be train")
     if config.data.sequence_length < 2:
         raise ConfigError("data.sequence_length must be at least 2")
     if config.data.shuffle_buffer < 1:

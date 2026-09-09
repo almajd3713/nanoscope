@@ -18,6 +18,7 @@ from torch.nn.parallel import DistributedDataParallel
 
 from nanoscope.config import Config, dump_config
 from nanoscope.data import build_batch_stream
+from nanoscope.data.tokenizer import tokenizer_identity
 from nanoscope.model import LMOutput, build_model
 from nanoscope.model.registry import (
     default_parameter_groups,
@@ -176,6 +177,7 @@ def _train(
         return stream.source_revision
 
     source_revision = context.primary_call(prepare_stream)
+    tokenizer_provenance = tokenizer_identity(config.tokenizer)
     model, model_spec = build_model(config.model.name, config.model.params)
     model.to(device)
     training_model = (
@@ -297,6 +299,7 @@ def _train(
             assert stream is not None
             state = {
                 "model": model.state_dict(),
+                "config": config.to_dict(),
                 "optimizer": optimizer.state_dict(),
                 "scheduler": scheduler.state_dict(),
                 "scaler": scaler.state_dict(),
@@ -313,6 +316,11 @@ def _train(
                 "run_id": config.run.id,
                 "step": step,
                 "source_revision": source_revision,
+                "tokenizer": tokenizer_provenance,
+                "partition_version": 1 if config.data.partition is not None else None,
+                "flop_estimator": (
+                    "6ND-non-embedding-v1" if model_spec.flop_estimator is None else None
+                ),
                 "provenance": provenance,
                 "world_size": context.world_size,
             }

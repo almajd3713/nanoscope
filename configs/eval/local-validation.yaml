@@ -1,0 +1,6 @@
+# Paths are relative to this file. Pin corpus_hash after preparation for research.
+corpus: ../../runs/eval-corpora/local-validation
+output: ../../runs/evaluations
+batch_size: 3
+device: cpu
+precision: fp32

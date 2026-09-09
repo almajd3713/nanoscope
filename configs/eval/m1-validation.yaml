@@ -1,0 +1,6 @@
+# Pin corpus_hash to the value printed by prepare-eval.
+corpus: ../../runs/eval-corpora/m1-validation
+output: ../../runs/evaluations
+batch_size: 4
+device: cuda
+precision: fp32

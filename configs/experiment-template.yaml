@@ -32,6 +32,14 @@ data:
   text_field: text
   sequence_length: 128  # Prediction tokens per sequence; adjust to your model context size.
   shuffle_buffer: 10000
+  # For new evaluator studies, enable the training partition before the first run.
+  # Use the same scheme as configs/eval/m1-corpus.yaml (see docs/evaluation.md).
+  # partition:
+  #   salt: nanoscope-m1-v1
+  #   buckets: 10000
+  #   validation_buckets: 100
+  #   test_buckets: 100
+  #   split: train
 
 tokenizer:
   name: gpt2
