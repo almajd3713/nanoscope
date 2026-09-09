@@ -24,6 +24,10 @@ def file_hash(path: Path) -> str:
 def write_json(path: Path, value: Any) -> None:
     """Publish complete JSON with a same-filesystem atomic rename."""
     payload = json.dumps(value, indent=2, sort_keys=True, allow_nan=False) + "\n"
+    write_text_atomic(path, payload)
+
+
+def write_text_atomic(path: Path, payload: str) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
     fd, name = tempfile.mkstemp(prefix=f".{path.name}-", dir=path.parent)
     temporary = Path(name)

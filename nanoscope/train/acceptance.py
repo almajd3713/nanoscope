@@ -22,6 +22,9 @@ from nanoscope.train.metrics import read_metrics
 def _scientific_rows(rows: list[dict[str, Any]]) -> list[dict[str, Any]]:
     ignored = {
         "tokens_per_second",
+        "train_tokens_per_second",
+        "train_step_seconds",
+        "train_seconds",
         "mfu",
         "active_seconds",
         "gpu_peak_allocated_bytes",
@@ -49,9 +52,7 @@ def _state_differences(left: Any, right: Any, path: str = "state") -> list[str]:
         return [
             difference
             for index, (left_item, right_item) in enumerate(zip(left, right, strict=True))
-            for difference in _state_differences(
-                left_item, right_item, f"{path}[{index}]"
-            )
+            for difference in _state_differences(left_item, right_item, f"{path}[{index}]")
         ]
     return [] if left == right else [path]
 
@@ -161,10 +162,7 @@ def run_acceptance(config: Config, work_dir: str | Path | None = None) -> dict[s
         weights_only=False,
     )
     interrupted_state = torch.load(
-        interrupted_dir
-        / "checkpoints"
-        / f"step_{config.train.max_steps:08d}"
-        / "state.pt",
+        interrupted_dir / "checkpoints" / f"step_{config.train.max_steps:08d}" / "state.pt",
         map_location="cpu",
         weights_only=False,
     )

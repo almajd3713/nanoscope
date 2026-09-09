@@ -26,6 +26,7 @@ def _parser() -> argparse.ArgumentParser:
     training = commands.add_parser("train", help="run or resume training")
     training.add_argument("--config", required=True)
     training.add_argument("--resume", default="auto")
+    training.add_argument("--eval-config", help="periodic frozen-corpus validation configuration")
     training.add_argument("--stop-after-step", type=int, help="checkpoint and stop at this step")
 
     inspect = commands.add_parser("inspect-checkpoint", help="inspect checkpoint metadata")
@@ -85,7 +86,14 @@ def main(argv: list[str] | None = None) -> None:
         exit_code = launch_training(config, list(argv if argv is not None else sys.argv[1:]))
         if exit_code is not None:
             raise SystemExit(exit_code)
-        result = train(config, resume=args.resume, stop_after_step=args.stop_after_step)
+        from nanoscope.eval.config import load_eval_config
+
+        result = train(
+            config,
+            resume=args.resume,
+            stop_after_step=args.stop_after_step,
+            eval_config=load_eval_config(args.eval_config) if args.eval_config else None,
+        )
         if int(os.getenv("RANK", "0")) == 0:
             print(json.dumps({"step": result.final_step, "checkpoint": str(result.checkpoint)}))
         return

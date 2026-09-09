@@ -8,6 +8,7 @@ from typing import Any
 from nanoscope.eval.artifacts import fingerprint
 from nanoscope.eval.config import check_keys, read_yaml, relative_path
 from nanoscope.eval.runner import load_result
+from nanoscope.eval.statistics import curve_summaries, paired_summaries
 
 
 def _flatten(value: dict[str, Any], prefix: str = "") -> dict[str, Any]:
@@ -269,10 +270,18 @@ def build_comparison(study_path: str | Path) -> dict[str, Any]:
         "rows": rows,
         "curves": curves,
         "config_differences": diffs,
+        "paired_summaries": paired_summaries(rows, list(selected), baseline),
+        "curve_summaries": curve_summaries(curves, list(selected)),
         "notes": [
             "Negative loss deltas mean improvement.",
-            "Raw seed results; uncertainty aggregation is not implemented yet.",
+            "Paired 95% Student-t intervals use independent training seeds, not "
+            "tokens/checkpoints.",
+            "Fewer than three pairs or zero observed variation: exploratory; no interval.",
+            "Curve bands are pointwise at shared measured budgets; no interpolation or "
+            "multiple-comparison correction. Intervals describe seed variation on this "
+            "fixed corpus.",
             "FLOPs are estimates; 6ND omits architecture-dependent work.",
-            "Training throughput uses legacy inter-step timing, not kernel-only timing.",
+            "Timing definitions are recorded per result; v2 excludes "
+            "evaluation/checkpoint/logging work.",
         ],
     }

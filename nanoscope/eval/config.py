@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import math
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
@@ -92,9 +93,21 @@ class EvalConfig:
     device: str = "cpu"
     precision: str = "fp32"
     corpus_hash: str | None = None
+    every_steps: int = 100
+    final: bool = True
+    max_seconds: float = 300.0
 
     def __post_init__(self) -> None:
         positive_int(self.batch_size, "batch_size")
+        positive_int(self.every_steps, "every_steps")
+        if type(self.final) is not bool:
+            raise ValueError("final must be a boolean")
+        if (
+            type(self.max_seconds) not in {int, float}
+            or not math.isfinite(self.max_seconds)
+            or self.max_seconds <= 0
+        ):
+            raise ValueError("max_seconds must be finite and positive")
         if self.device not in {"cpu", "cuda", "auto"}:
             raise ValueError("device must be cpu, cuda, or auto")
         if self.precision not in {"fp32", "fp16"}:
@@ -113,7 +126,17 @@ def load_eval_config(path: str | Path) -> EvalConfig:
     raw = read_yaml(path)
     check_keys(
         raw,
-        {"corpus", "output", "batch_size", "device", "precision", "corpus_hash"},
+        {
+            "corpus",
+            "output",
+            "batch_size",
+            "device",
+            "precision",
+            "corpus_hash",
+            "every_steps",
+            "final",
+            "max_seconds",
+        },
         {"corpus", "output"},
     )
     return EvalConfig(

@@ -3,6 +3,7 @@ from __future__ import annotations
 import contextlib
 import math
 import time
+from collections.abc import Callable
 from pathlib import Path
 from typing import Any
 
@@ -15,15 +16,19 @@ from nanoscope.config import config_from_dict, load_config
 from nanoscope.data.tokenizer import tokenizer_identity
 from nanoscope.eval.artifacts import file_hash, fingerprint, read_json, write_json
 from nanoscope.eval.config import EvalConfig, positive_int
-from nanoscope.eval.corpus import load_corpus, source_identity
+from nanoscope.eval.corpus import FrozenCorpus, load_corpus, source_identity
 from nanoscope.model import LMOutput, build_model
 from nanoscope.model.registry import non_embedding_parameter_count
+from nanoscope.provenance import runtime_provenance as _runtime_provenance
 from nanoscope.train.checkpoint import validate_checkpoint
 from nanoscope.train.determinism import capture_rng_state, restore_rng_state
-from nanoscope.train.trainer import _runtime_provenance
 
 EVALUATOR_VERSION = "next-token-cross-entropy-v1"
 CPU = torch.device("cpu")
+
+
+class EvaluationCancelled(RuntimeError):
+    """A stop request interrupted evaluation; no partial score may be published."""
 
 
 def score_model(
@@ -34,6 +39,8 @@ def score_model(
     device: torch.device = CPU,
     precision: str = "fp32",
     expected_vocab_size: int | None = None,
+    max_seconds: float | None = None,
+    cancelled: Callable[[], bool] | None = None,
 ) -> dict[str, Any]:
     """Score fixed blocks without repacking, dropout, or auxiliary penalties."""
     positive_int(batch_size, "batch_size")
@@ -44,6 +51,12 @@ def score_model(
     if precision not in {"fp32", "fp16"} or (precision == "fp16" and device.type != "cuda"):
         raise ValueError("fp16 evaluation requires CUDA; otherwise select fp32")
     flags = [(module, module.training) for module in model.modules()]
+    # Restore registered buffers even when a model replaces/creates them in forward.
+    buffers = [
+        (module, dict(module._buffers), set(module._non_persistent_buffers_set))
+        for module in model.modules()
+    ]
+    saved_buffers = [(buffer, buffer.detach().clone()) for buffer in model.buffers()]
     rng = capture_rng_state(device)
     nll_sum = 0.0
     count = 0
@@ -52,6 +65,10 @@ def score_model(
         model.eval()
         with torch.inference_mode():
             for offset in range(0, len(tokens), batch_size):
+                if cancelled is not None and cancelled():
+                    raise EvaluationCancelled("evaluation interrupted by a stop request")
+                if max_seconds is not None and time.perf_counter() - started > max_seconds:
+                    raise TimeoutError("evaluation exceeded max_seconds; no score was published")
                 # Copy read-only mmap data, keeping only one batch on the accelerator.
                 batch = torch.tensor(
                     np.array(tokens[offset : offset + batch_size]), dtype=torch.long, device=device
@@ -84,7 +101,20 @@ def score_model(
                 nll_sum += subtotal
                 count += targets.numel()
                 del output, losses, batch, inputs, targets
+            if cancelled is not None and cancelled():
+                raise EvaluationCancelled("evaluation interrupted by a stop request")
+            if max_seconds is not None and time.perf_counter() - started > max_seconds:
+                raise TimeoutError("evaluation exceeded max_seconds; no score was published")
     finally:
+        with torch.no_grad():
+            for buffer, saved in saved_buffers:
+                if buffer.shape != saved.shape:
+                    buffer.resize_(saved.shape)
+                buffer.copy_(saved)
+        for module, original, non_persistent in buffers:
+            module._buffers.clear()
+            module._buffers.update(original)
+            module._non_persistent_buffers_set = non_persistent
         for module, training in flags:
             module.training = training
         restore_rng_state(rng, device)
@@ -120,14 +150,28 @@ def evaluate_checkpoint(
     checkpoint: str | Path,
     config: EvalConfig,
     training_config: str | Path | None = None,
+    *,
+    model: nn.Module | None = None,
+    corpus: FrozenCorpus | None = None,
+    snapshot: dict[str, Any] | None = None,
+    output_dir: Path | None = None,
+    cancelled: Callable[[], bool] | None = None,
 ) -> Path:
     checkpoint = Path(checkpoint).resolve()
     if not validate_checkpoint(checkpoint):
         raise ValueError(f"invalid or corrupt checkpoint: {checkpoint}")
-    corpus = load_corpus(config.corpus, config.corpus_hash)
+    corpus = corpus if corpus is not None else load_corpus(config.corpus, config.corpus_hash)
     metadata = read_json(checkpoint / "metadata.json")
-    checkpoint_hash = fingerprint(read_json(checkpoint / "manifest.json"))
-    state = torch.load(checkpoint / "state.pt", map_location="cpu", weights_only=False)
+    manifest = read_json(checkpoint / "manifest.json")
+    # Evaluation sidecars may be attached later without changing the scored checkpoint.
+    checkpoint_hash = fingerprint(
+        {name: manifest["files"][name] for name in ("state.pt", "metadata.json")}
+    )
+    state = (
+        snapshot
+        if snapshot is not None
+        else torch.load(checkpoint / "state.pt", map_location="cpu", weights_only=False)
+    )
     if training_config is not None:
         training = load_config(training_config)
     elif "config" in state:
@@ -178,14 +222,16 @@ def evaluate_checkpoint(
         "training_config_digest": training.digest,
     }
     result_id = fingerprint(identity)
-    destination = config.output / training.run.id / f"{result_id}.json"
+    destination = (output_dir or config.output / training.run.id) / f"{result_id}.json"
     if destination.exists():
         existing = load_result(destination)
         if existing["identity"] != identity:
             raise ValueError("existing evaluation identity mismatch")
         return destination
-    model, _spec = build_model(training.model.name, training.model.params)
-    model.load_state_dict(state["model"], strict=True)
+    live_model = model is not None
+    if model is None:
+        model, _spec = build_model(training.model.name, training.model.params)
+        model.load_state_dict(state["model"], strict=True)
     parameters = sum(parameter.numel() for parameter in model.parameters())
     non_embedding = non_embedding_parameter_count(model)
     history = state.get("metrics", [])
@@ -198,9 +244,10 @@ def evaluate_checkpoint(
         "total_parameters": parameters,
         "non_embedding_parameters": non_embedding,
         "active_seconds": state.get("active_seconds"),
-        "tokens_per_second": last.get("tokens_per_second"),
+        "tokens_per_second": last.get("train_tokens_per_second", last.get("tokens_per_second")),
+        "train_seconds": state.get("train_seconds"),
         "gpu_peak_allocated_bytes": last.get("gpu_peak_allocated_bytes"),
-        "timing_definition": "legacy-inter-step-wall-v1",
+        "timing_definition": last.get("timing_definition", "legacy-inter-step-wall-v1"),
         "source": source_identity(training.data, metadata.get("source_revision")),
         "tokenizer_verified": metadata.get("tokenizer") == token_identity,
     }
@@ -217,7 +264,13 @@ def evaluate_checkpoint(
     )
     # Do not move optimizer state or allocate a second model replica on the GPU.
     del state, history
-    model.to(device=device, dtype=torch.float32)
+    if not live_model:
+        model.to(device=device, dtype=torch.float32)
+    elif any(
+        parameter.device.type != device.type or parameter.dtype != torch.float32
+        for parameter in model.parameters()
+    ):
+        raise ValueError("periodic evaluation requires FP32 model weights on the training device")
     if device.type == "cuda":
         torch.cuda.synchronize(device)
         torch.cuda.reset_peak_memory_stats(device)
@@ -228,6 +281,8 @@ def evaluate_checkpoint(
         device=device,
         precision=config.precision,
         expected_vocab_size=int(token_identity["vocab_size"]),
+        max_seconds=config.max_seconds,
+        cancelled=cancelled,
     )
     if device.type == "cuda":
         metrics["eval_peak_allocated_bytes"] = torch.cuda.max_memory_allocated(device)

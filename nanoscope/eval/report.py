@@ -59,6 +59,47 @@ def write_report(comparison: dict[str, Any], output: Path, *, plots: bool = Fals
             for value in values
         ]
         lines.append("| " + " | ".join(formatted) + " |")
+    summaries = comparison["paired_summaries"]
+    if summaries:
+        with (output / "paired-summary.csv").open("w", newline="", encoding="utf-8") as handle:
+            writer = csv.DictWriter(handle, fieldnames=list(summaries[0]))
+            writer.writeheader()
+            writer.writerows(summaries)
+        lines.extend(
+            [
+                "",
+                "## Paired seed differences",
+                "",
+                "Negative values favor the variant. Intervals measure seed variation on "
+                "the fixed corpus.",
+                "",
+                "| Variant | Reference | Relation | Pairs | Mean delta | Sample SD | 95% "
+                "CI | Status |",
+                "|---|---|---|---:|---:|---:|---|---|",
+            ]
+        )
+        for summary in summaries:
+            interval = (
+                "unavailable"
+                if summary["ci95_low"] is None
+                else f"[{summary['ci95_low']:.6g}, {summary['ci95_high']:.6g}]"
+            )
+            sd = "unknown" if summary["sample_sd"] is None else f"{summary['sample_sd']:.6g}"
+            fields = [
+                summary["variant"],
+                summary["reference"],
+                summary["relation"],
+                str(summary["n"]),
+                f"{summary['mean']:.6g}",
+                sd,
+                interval,
+                summary["status"],
+            ]
+            lines.append(
+                "| "
+                + " | ".join(str(v).replace("|", "\\|").replace("\n", " ") for v in fields)
+                + " |"
+            )
     lines.extend(
         [
             "",
@@ -98,6 +139,35 @@ def write_report(comparison: dict[str, Any], output: Path, *, plots: bool = Fals
                             marker="o",
                             label=f"{name}, seed {seed}",
                         )
+                aggregate = sorted(
+                    (
+                        point
+                        for point in comparison["curve_summaries"]
+                        if point["variant"] == name and point["axis"] == axis
+                    ),
+                    key=lambda point: point["budget"],
+                )
+                if aggregate and aggregate[0]["n"] > 1:
+                    (line,) = axes.plot(
+                        [p["budget"] for p in aggregate],
+                        [p["mean"] for p in aggregate],
+                        linewidth=2.5,
+                        label=f"{name}, seed mean",
+                    )
+                    # NaNs break bands across budgets without an estimable interval.
+                    axes.fill_between(
+                        [p["budget"] for p in aggregate],
+                        [
+                            p["ci95_low"] if p["ci95_low"] is not None else float("nan")
+                            for p in aggregate
+                        ],
+                        [
+                            p["ci95_high"] if p["ci95_high"] is not None else float("nan")
+                            for p in aggregate
+                        ],
+                        color=line.get_color(),
+                        alpha=0.18,
+                    )
             axes.set(xlabel=label, ylabel="Held-out cross-entropy (nats/token)")
             if axes.lines:
                 axes.legend()

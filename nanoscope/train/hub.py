@@ -43,7 +43,10 @@ class HubCheckpointStore:
                     CommitOperationAdd(
                         path_in_repo=f"{prefix}/{name}", path_or_fileobj=checkpoint / name
                     )
-                    for name in ("state.pt", "metadata.json", "manifest.json")
+                    for name in [
+                        *json.loads((checkpoint / "manifest.json").read_text())["files"],
+                        "manifest.json",
+                    ]
                 ]
                 operations.append(
                     CommitOperationAdd(
