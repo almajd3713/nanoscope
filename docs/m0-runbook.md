@@ -7,8 +7,8 @@ Prerequisites are Git, Python 3.10–3.12, and `uv`.
 ```bash
 uv sync --extra dev
 uv run pytest -m "not gpu and not network and not cloud"
-uv run nanoscope doctor --config configs/m0/local-smoke.yaml
-uv run nanoscope m0-acceptance --config configs/m0/local-smoke.yaml
+uv run nanoscope doctor --config configs/test/m0/local-smoke.yaml
+uv run nanoscope m0-acceptance --config configs/test/m0/local-smoke.yaml
 ```
 
 The acceptance command trains an uninterrupted control and a run restored at
@@ -18,7 +18,7 @@ rates, counters, and FLOP accounting while excluding wall-clock measurements.
 Run a normal smoke test and inspect its final checkpoint:
 
 ```bash
-uv run nanoscope train --config configs/m0/local-smoke.yaml --resume none
+uv run nanoscope train --config configs/test/m0/local-smoke.yaml --resume none
 uv run nanoscope inspect-checkpoint runs/m0-local-smoke/checkpoints/step_00000012
 ```
 
@@ -48,7 +48,7 @@ Wait for dataset processing, then update the attached version in your permanent
 acceptance profile (which has no held-out partition), set:
 
 ```python
-TRAIN_CONFIG = "configs/m0/kaggle-ddp.yaml"
+TRAIN_CONFIG = "configs/test/m0/kaggle-ddp.yaml"
 CORPUS_CONFIG = None
 EVAL_CONFIG = None
 RESUME = "none"
@@ -56,7 +56,7 @@ RESUME = "none"
 
 The notebook loads enabled secrets, installs `requirements-kaggle.lock`, runs doctor,
 and starts the configured workers through `python -m nanoscope train`. Use
-`configs/m0/kaggle-acceptance.yaml` for the original single-process run. In a fresh
+`configs/test/m0/kaggle-acceptance.yaml` for the original single-process run. In a fresh
 session set:
 
 ```python
@@ -80,8 +80,8 @@ git clone https://github.com/almajd3713/nanoscope.git
 cd nanoscope
 python -m pip install --require-hashes -r requirements-kaggle.lock
 python -m pip install -e . --no-deps
-nanoscope doctor --config configs/m0/kaggle-acceptance.yaml
-nanoscope train --config configs/m0/kaggle-acceptance.yaml --resume none
+nanoscope doctor --config configs/test/m0/kaggle-acceptance.yaml
+nanoscope train --config configs/test/m0/kaggle-acceptance.yaml --resume none
 ```
 
 Before the first accepted run, replace the null `data.revision` with the
@@ -95,7 +95,7 @@ Interrupt with the notebook stop control only after at least one checkpoint has
 been published. A fresh session resumes using:
 
 ```bash
-nanoscope train --config configs/m0/kaggle-acceptance.yaml \
+nanoscope train --config configs/test/m0/kaggle-acceptance.yaml \
   --resume hf://OWNER/REPOSITORY/runs/m0-kaggle-acceptance
 ```
 

@@ -23,7 +23,7 @@ ROOT = Path(__file__).resolve().parents[1]
 
 
 def config_for(tmp_path: Path):
-    config = load_config(ROOT / "configs/m0/local-smoke.yaml")
+    config = load_config(ROOT / "configs/test/m0/local-smoke.yaml")
     config.run.output_dir = str(tmp_path)
     config.train.max_steps = 4
     config.train.batch_size = 4
@@ -212,7 +212,7 @@ def test_changed_world_size_is_rejected(tmp_path):
 
 
 def test_worker_count_validates_topology(monkeypatch):
-    config = load_config(ROOT / "configs/m0/local-smoke.yaml")
+    config = load_config(ROOT / "configs/test/m0/local-smoke.yaml")
     config.train.device = "cuda"
     config.distributed = DistributedConfig(strategy="ddp")
     monkeypatch.setattr(torch.cuda, "is_available", lambda: True)
@@ -231,7 +231,7 @@ def test_worker_count_validates_topology(monkeypatch):
 
 
 def test_doctor_catches_visible_but_incompatible_cuda(monkeypatch):
-    config = load_config(ROOT / "configs/m0/local-smoke.yaml")
+    config = load_config(ROOT / "configs/test/m0/local-smoke.yaml")
     config.train.device = "cuda"
     monkeypatch.setattr(torch.cuda, "is_available", lambda: True)
     monkeypatch.setattr(torch.cuda, "device_count", lambda: 1)

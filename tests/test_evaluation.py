@@ -79,7 +79,7 @@ def test_partition_is_disjoint_seed_independent_and_resume_safe():
 
 
 def test_partition_config_validation_and_legacy_digest(tmp_path):
-    base = load_config("configs/m0/local-smoke.yaml")
+    base = load_config("configs/test/m0/local-smoke.yaml")
     digest = base.digest
     base.data.partition = PARTITION
     assert base.digest != digest
@@ -203,7 +203,7 @@ def evaluated_runs(tmp_path, corpus_config):
     evaluation = EvalConfig(corpus.path, tmp_path / "evaluations", batch_size=2)
     outputs = {}
     for name, dropout in (("base", 0.1), ("variant", 0.2)):
-        config = load_config("configs/m0/local-smoke.yaml")
+        config = load_config("configs/test/m0/local-smoke.yaml")
         config.run.id = name
         config.run.output_dir = str(tmp_path / "runs")
         config.data = replace(corpus_config.data, partition=PARTITION)

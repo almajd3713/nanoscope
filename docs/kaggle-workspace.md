@@ -59,9 +59,9 @@ run its cells (or save and run the notebook through Kaggle's UI). For the initia
 GPU/evaluation smoke run, keep these notebook parameters:
 
 ```python
-TRAIN_CONFIG = "configs/eval/kaggle-smoke.yaml"
-CORPUS_CONFIG = "configs/eval/local-corpus.yaml"
-EVAL_CONFIG = "configs/eval/kaggle-validation.yaml"
+TRAIN_CONFIG = "configs/test/eval/kaggle-smoke.yaml"
+CORPUS_CONFIG = "configs/test/eval/local-corpus.yaml"
+EVAL_CONFIG = "configs/test/eval/kaggle-validation.yaml"
 RESUME = "auto"
 ```
 

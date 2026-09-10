@@ -2,7 +2,7 @@
 # PURPOSE: choose and freeze the held-out text ONCE for the whole comparison.
 # RUN: uv run nanoscope prepare-eval --config configs/my-corpus.yaml
 # Pair with experiment-template.yaml, eval-template.yaml and eval-study-template.yaml.
-# FineWeb preparation needs network access; use configs/eval/local-corpus.yaml offline.
+# FineWeb preparation needs network access; use configs/test/eval/local-corpus.yaml offline.
 
 data:
   # Match these fields, sequence_length and tokenizer in EVERY training config.

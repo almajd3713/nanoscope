@@ -64,7 +64,7 @@ def test_notebook_command_interrupt_requests_graceful_stop(monkeypatch):
 
 @pytest.mark.parametrize("missing", [False, True])
 def test_notebook_secrets_are_loaded_without_printing_values(monkeypatch, capsys, missing):
-    config = load_config(ROOT / "configs/eval/kaggle-smoke.yaml")
+    config = load_config(ROOT / "configs/test/eval/kaggle-smoke.yaml")
     monkeypatch.setattr(subprocess, "check_output", lambda *a, **kw: json.dumps(config.to_dict()))
     monkeypatch.setattr(os, "environ", dict(os.environ))
     labels = []
@@ -106,7 +106,7 @@ def test_notebook_cpu_flow_uses_real_workspace_and_exports_results(tmp_path, mon
     code = sources()
     files = workspace_files(ROOT)
     assert Path("notebooks/kaggle-runner.ipynb") not in files
-    assert Path("configs/eval/kaggle-smoke.yaml") in files
+    assert Path("configs/test/eval/kaggle-smoke.yaml") in files
     archive = tmp_path / "workspace.zip"
     package_workspace(ROOT, files, archive)
     # Simulate the extracted dataset Kaggle exposes to the notebook.
@@ -122,8 +122,8 @@ def test_notebook_cpu_flow_uses_real_workspace_and_exports_results(tmp_path, mon
         WORKSPACE_INPUT=extracted,
         PROJECT_BASE=tmp_path / "projects",
         EXPORT_DIR=tmp_path / "exports",
-        TRAIN_CONFIG="configs/eval/local-base.yaml",
-        EVAL_CONFIG="configs/eval/local-validation.yaml",
+        TRAIN_CONFIG="configs/test/eval/local-base.yaml",
+        EVAL_CONFIG="configs/test/eval/local-validation.yaml",
         INSTALL_DEPENDENCIES=False,
     )
     for cell in (

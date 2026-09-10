@@ -1,4 +1,4 @@
-# Shared fixture corpus prepared by configs/eval/local-corpus.yaml.
+# Shared fixture corpus prepared by configs/test/eval/local-corpus.yaml.
 corpus: "@/runs/eval-corpora/local-validation"
 output: "@/runs/evaluations"
 batch_size: 3

@@ -10,8 +10,8 @@ focused on model architecture.
 ```bash
 uv sync --extra dev
 uv run pytest -m "not gpu and not network and not cloud"
-uv run nanoscope doctor --config configs/m0/local-smoke.yaml
-uv run nanoscope train --config configs/m0/local-smoke.yaml --resume none
+uv run nanoscope doctor --config configs/test/m0/local-smoke.yaml
+uv run nanoscope train --config configs/test/m0/local-smoke.yaml --resume none
 ```
 
 Or you may use the Makefile provided:
@@ -22,6 +22,13 @@ make help
 
 See [the M0 runbook](docs/m0-runbook.md) for Kaggle, cloud credentials, resume,
 and the model-only handoff.
+
+Configuration files are grouped by purpose:
+
+- `configs/test/m0/`: M0 smoke, GPU, distributed, and acceptance checks.
+- `configs/test/eval/`: local and Kaggle evaluation smoke runs and comparison examples.
+- `configs/eval/`: M1 validation corpus and evaluation configs.
+- `configs/*-template.yaml`: commented templates for new experiments and evaluations.
 
 ## Start an experiment
 

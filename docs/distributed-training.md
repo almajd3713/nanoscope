@@ -19,8 +19,8 @@ to require two GPUs. CPU DDP is also supported with `train.device: cpu`,
 `train.precision: fp32`, and `devices: 2` for local integration tests.
 
 ```bash
-nanoscope doctor --config configs/m0/kaggle-ddp.yaml
-nanoscope train --config configs/m0/kaggle-ddp.yaml --resume none
+nanoscope doctor --config configs/test/m0/kaggle-ddp.yaml
+nanoscope train --config configs/test/m0/kaggle-ddp.yaml --resume none
 ```
 
 On Kaggle, select **T4 x2**, enable Internet and the notebook's HF/W&B secrets,
@@ -28,7 +28,7 @@ upload the current workspace, and update its attached dataset version. In the
 example notebook, select the existing M0 training profile without evaluation:
 
 ```python
-TRAIN_CONFIG = "configs/m0/kaggle-ddp.yaml"
+TRAIN_CONFIG = "configs/test/m0/kaggle-ddp.yaml"
 CORPUS_CONFIG = None
 EVAL_CONFIG = None
 RESUME = "none"
