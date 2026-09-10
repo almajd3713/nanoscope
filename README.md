@@ -57,7 +57,8 @@ The target dataset is configured in [kaggle-sync.json](kaggle-sync.json).
 See [workspace sync](docs/kaggle-workspace.md) for authentication and ignore behavior.
 Use the [example Kaggle notebook](notebooks/kaggle-runner.ipynb) as your permanent
 runner. Import it once, attach the workspace dataset, enable GPU/Internet and your
-HF/W&B secrets in Kaggle, then run its cells. The notebook installs dependencies,
+HF/W&B secrets in Kaggle, then run its cells. The notebook copies the extracted input
+into a writable workspace, installs dependencies,
 loads enabled secrets, prepares validation data, trains with periodic evaluation,
 and exports result ZIPs for local comparison. Its default is a four-step GPU smoke run.
 

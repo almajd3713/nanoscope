@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import json
 import os
+import shutil
 import signal
 import subprocess
 import sys
@@ -108,10 +109,17 @@ def test_notebook_cpu_flow_uses_real_workspace_and_exports_results(tmp_path, mon
     assert Path("configs/eval/kaggle-smoke.yaml") in files
     archive = tmp_path / "workspace.zip"
     package_workspace(ROOT, files, archive)
+    # Simulate the extracted dataset Kaggle exposes to the notebook.
+    extracted = tmp_path / "input/dataset/workspace"
+    with zipfile.ZipFile(archive) as uploaded:
+        uploaded.extractall(extracted)
+    for path in extracted.rglob("*"):
+        if path.is_file():
+            path.chmod(0o444)
     namespace = {}
     exec(code["parameters"], namespace)
     namespace.update(
-        WORKSPACE_ZIP=archive,
+        WORKSPACE_INPUT=extracted,
         PROJECT_BASE=tmp_path / "projects",
         EXPORT_DIR=tmp_path / "exports",
         TRAIN_CONFIG="configs/eval/local-base.yaml",
@@ -119,7 +127,7 @@ def test_notebook_cpu_flow_uses_real_workspace_and_exports_results(tmp_path, mon
         INSTALL_DEPENDENCIES=False,
     )
     for cell in (
-        "extract-workspace",
+        "prepare-workspace",
         "run-command",
         "load-secrets",
         "prepare-corpus",
@@ -139,20 +147,63 @@ def test_notebook_cpu_flow_uses_real_workspace_and_exports_results(tmp_path, mon
         assert all(json.loads(result.read(name))["complete"] for name in evaluations)
         assert "runs/eval-local-base/workspace-provenance.json" in names
         assert not any(name.endswith(".pt") or ".env" in name for name in names)
-    # Re-running extraction reuses the same complete archive rather than overlaying source.
+    assert not (extracted / "runs").exists()
+    assert namespace["find_workspace"](tmp_path / "input") == extracted
+    # Working files stay writable even though the input files are read-only.
+    assert (namespace["PROJECT"] / "pyproject.toml").stat().st_mode & 0o200
+    # Re-running preparation reuses the same complete tree rather than overlaying source.
     project = namespace["PROJECT"]
-    exec(code["extract-workspace"], namespace)
+    exec(code["prepare-workspace"], namespace)
     assert namespace["PROJECT"] == project
 
 
-def test_notebook_rejects_archive_paths_outside_project(tmp_path):
+def input_workspace(root):
+    (root / "nanoscope").mkdir(parents=True)
+    (root / "nanoscope/__init__.py").write_text("")
+    (root / "configs").mkdir()
+    (root / "pyproject.toml").write_text("")
+    return root
+
+
+def test_notebook_input_discovery_and_updated_tree(tmp_path, monkeypatch):
+    monkeypatch.chdir(tmp_path)
+    code = sources()
+    source = input_workspace(tmp_path / "input/first/workspace")
+    (source / "old.py").write_text("old = True")
+    namespace = {}
+    exec(code["parameters"], namespace)
+    namespace.update(
+        WORKSPACE_INPUT=source,
+        PROJECT_BASE=tmp_path / "projects",
+        TRAIN_CONFIG=None,
+        EVAL_CONFIG=None,
+        CORPUS_CONFIG=None,
+    )
+    exec(code["prepare-workspace"], namespace)
+    project = namespace["PROJECT"]
+    assert namespace["find_workspace"](tmp_path / "input") == source
+    with pytest.raises(RuntimeError, match="found 0"):
+        namespace["find_workspace"](tmp_path / "missing")
+    copied = tmp_path / "input/second/workspace"
+    shutil.copytree(source, copied)
+    with pytest.raises(RuntimeError, match="found 2"):
+        namespace["find_workspace"](tmp_path / "input")
+    namespace["WORKSPACE_INPUT"] = copied
+    exec(code["prepare-workspace"], namespace)
+    assert namespace["PROJECT"] == project  # Mount path does not change the content hash.
+    (copied / "old.py").unlink()
+    (copied / "new.py").write_text("new = True")
+    exec(code["prepare-workspace"], namespace)
+    assert namespace["PROJECT"] != project
+    assert (namespace["PROJECT"] / "new.py").exists()
+    assert not (namespace["PROJECT"] / "old.py").exists()
+    assert (project / "old.py").exists()
+
+
+def test_notebook_rejects_non_workspace_directory(tmp_path):
     code = sources()
     namespace = {}
     exec(code["parameters"], namespace)
-    archive = tmp_path / "workspace.zip"
-    with zipfile.ZipFile(archive, "w") as handle:
-        handle.writestr("../outside.txt", "bad")
-    namespace.update(WORKSPACE_ZIP=archive, PROJECT_BASE=tmp_path / "projects")
-    with pytest.raises(ValueError, match="outside the project"):
-        exec(code["extract-workspace"], namespace)
-    assert not (tmp_path / "projects/outside.txt").exists()
+    namespace.update(WORKSPACE_INPUT=tmp_path, PROJECT_BASE=tmp_path / "projects")
+    with pytest.raises(ValueError, match="must contain"):
+        exec(code["prepare-workspace"], namespace)

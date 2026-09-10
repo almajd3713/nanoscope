@@ -35,12 +35,19 @@ EVAL_CONFIG = "configs/eval/kaggle-validation.yaml"
 RESUME = "auto"
 ```
 
-`WORKSPACE_ZIP = None` finds the archive when exactly one attached `workspace.zip`
-exists. Set its explicit path if there are several. Extraction goes to
-`/kaggle/working/nanoscope-workspaces/<zip-sha256>/`; the hash is printed and included
-in the result export. Each source version gets a separate directory. The notebook
-itself is excluded from workspace sync; import it separately when deliberately
-updating runner cells.
+`WORKSPACE_INPUT = None` searches the extracted input directories under
+`/kaggle/input` for a project containing `pyproject.toml`, `nanoscope/`, and `configs/`.
+If more than one matches, set `WORKSPACE_INPUT` to the exact project directory,
+including any nested `workspace/` folder. No archive extraction is needed.
+
+The notebook copies the selected directory to
+`/kaggle/working/nanoscope-workspaces/<tree-sha256>/` so package installation,
+config edits and `@/runs` artifacts have a writable location. It leaves the input
+dataset untouched. The hash covers relative filenames and file contents, not the
+ZIP or mount location; it is printed and included in the result export. Updated
+source gets a separate working copy, preventing stale files from a prior version.
+The notebook itself is excluded from workspace sync; import it separately when
+deliberately updating runner cells.
 
 The environment installs the hashed Kaggle requirements and Nanoscope with
 `--no-deps`, preserving the image's PyTorch. Training runs in a fresh subprocess.
@@ -63,13 +70,13 @@ fixture text. Switch all three configs together. Give every variant/seed a uniqu
 run ID; keep training settings and evaluation corpus/profile matched for comparisons.
 Keep training `run.output_dir: /kaggle/working/nanoscope-runs` for a stable output root.
 
-`@/` refers to the extracted project root. Corpus preparation can write beneath
+`@/` refers to the writable project copy. Corpus preparation can write beneath
 that root, or you can attach an already-prepared corpus and set its absolute path
 in the evaluation config. For an attachment set `CORPUS_CONFIG = None`. Pin
 `corpus_hash` to the expected fingerprint for every research variant. Workspace
 sync excludes local `runs/`; it does not transfer prepared corpora automatically.
 
-A changed source ZIP gets a different extracted root. The notebook can rebuild the
+Changed input source gets a different working-copy root. The notebook can rebuild the
 corpus from its pinned recipe and verify the expected fingerprint. Preserve the
 frozen corpus separately to avoid preparation work in every new session.
 
