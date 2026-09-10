@@ -53,4 +53,4 @@ tokenizer:
   name: byte
   eos_token_id: 256
 sequences: 8
-output: ../../runs/eval-corpora/local-validation
+output: "@/runs/eval-corpora/local-validation"

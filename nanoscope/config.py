@@ -10,6 +10,8 @@ from typing import Any
 
 import yaml
 
+from nanoscope.paths import config_path as resolve_config_path
+
 
 class ConfigError(ValueError):
     """Raised when a run configuration is invalid."""
@@ -187,7 +189,12 @@ def _section(cls: type[Any], raw: Mapping[str, Any], name: str) -> Any:
 def load_config(path: str | Path) -> Config:
     config_path = Path(path)
     raw = yaml.safe_load(config_path.read_text(encoding="utf-8"))
-    return config_from_dict(raw)
+    config = config_from_dict(raw)
+    # Keep ordinary training output paths relative to cwd for backward compatibility.
+    # output_dir is excluded from the recipe digest, so relocation preserves resume.
+    if isinstance(config.run.output_dir, str) and config.run.output_dir.startswith("@"):
+        config.run.output_dir = str(resolve_config_path(config.run.output_dir, config_path))
+    return config
 
 
 def config_from_dict(raw: Any) -> Config:

@@ -20,17 +20,17 @@ allow_changes:
 variants:
   - name: base
     results:
-      - ../runs/my-base-seed-*/evaluations/*.json
+      - "@/runs/my-base-seed-*/evaluations/*.json"
   - name: plus-component
     results:
-      - ../runs/my-plus-component-seed-*/evaluations/*.json
+      - "@/runs/my-plus-component-seed-*/evaluations/*.json"
   # Add another variant here after training the next increment.
 
 # Use identical seed sets, e.g. 1337, 2024, 42, for every variant; one run per seed.
 # One seed works for a quick check. At least three pairs are needed for a 95% interval
 # (and observed variation must be nonzero). More seeds improve uncertainty estimates.
 # Periodic paths above assume training run.output_dir: runs. Change them for other roots.
-# For standalone evaluate outputs, use ../runs/evaluations/my-base-seed-*/*.json instead.
+# For standalone evaluate outputs, use "@/runs/evaluations/my-base-seed-*/*.json" instead.
 # Avoid mixing periodic and standalone scores for the same step in a single study.
 # For matched estimated FLOPs: axis: flops, choose a FLOP budget, and explicitly set
 # parameter_tolerance: 0.01 (maximum relative non-embedding parameter-count difference).

@@ -8,7 +8,7 @@ allow_changes:
 variants:
 - name: base
   results:
-  - ../../runs/evaluations/eval-local-base/*.json
+  - "@/runs/evaluations/eval-local-base/*.json"
 - name: variant
   results:
-  - ../../runs/evaluations/eval-local-variant/*.json
+  - "@/runs/evaluations/eval-local-variant/*.json"

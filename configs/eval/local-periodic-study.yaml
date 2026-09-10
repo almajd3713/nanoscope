@@ -11,7 +11,7 @@ allow_changes:
 variants:
   - name: base
     results:
-      - ../../runs/eval-local-base/evaluations/*.json
+      - "@/runs/eval-local-base/evaluations/*.json"
   - name: variant
     results:
-      - ../../runs/eval-local-variant/evaluations/*.json
+      - "@/runs/eval-local-variant/evaluations/*.json"

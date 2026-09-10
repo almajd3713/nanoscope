@@ -22,7 +22,7 @@ run:
   # Use a new ID when changing the model, data, seed, or training recipe.
   id: my-model-seed-1337
   seed: 1337
-  output_dir: /kaggle/working/nanoscope-runs  # Local machine: runs
+  output_dir: /kaggle/working/nanoscope-runs  # Local machine: "@/runs"
   require_clean_repo: true  # Commit your experiment before training in a Git checkout.
 
 data:
@@ -107,5 +107,5 @@ performance:
 # - Changing devices:auto to devices:2 also changes the configuration digest.
 # - Use --stop-after-step N with nanoscope train to stop early without changing max_steps.
 # - HF/W&B tokens being present does not prove remote write permissions; verify a short run.f
-# - For local offline work: output_dir: runs, hub_policy: disabled, wandb_mode: disabled.
+# - For local offline work: output_dir: "@/runs", hub_policy: disabled, wandb_mode: disabled.
 #   Launch those runs with nanoscope train; kaggle_run.py always expects Kaggle secrets.

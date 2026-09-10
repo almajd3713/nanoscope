@@ -8,6 +8,7 @@ from typing import Any
 import yaml
 
 from nanoscope.config import DataConfig, TokenizerConfig, _section
+from nanoscope.paths import config_path as relative_path
 
 
 def read_yaml(path: str | Path) -> dict[str, Any]:
@@ -27,14 +28,6 @@ def check_keys(raw: dict[str, Any], allowed: set[str], required: set[str]) -> No
 def positive_int(value: Any, name: str) -> None:
     if type(value) is not int or value < 1:
         raise ValueError(f"{name} must be a positive integer")
-
-
-def relative_path(value: str, config_path: str | Path) -> Path:
-    """Evaluation/study paths are relative to their configuration file."""
-    if not isinstance(value, str) or not value:
-        raise ValueError("paths must be non-empty strings")
-    path = Path(value).expanduser()
-    return path.resolve() if path.is_absolute() else (Path(config_path).parent / path).resolve()
 
 
 @dataclass(frozen=True)

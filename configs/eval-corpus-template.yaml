@@ -1,4 +1,4 @@
-# COPY TO: configs/my-corpus.yaml (keep it in configs/ so relative paths still work).
+# COPY TO: configs/my-corpus.yaml (you can put this copy anywhere inside the project).
 # PURPOSE: choose and freeze the held-out text ONCE for the whole comparison.
 # RUN: uv run nanoscope prepare-eval --config configs/my-corpus.yaml
 # Pair with experiment-template.yaml, eval-template.yaml and eval-study-template.yaml.
@@ -29,8 +29,8 @@ tokenizer:
 # This is independent of the TRAINING token budget in eval-study-template.yaml.
 sequences: 8192
 max_documents: 1000000  # Fail rather than cycle text if too little validation data is found.
-# Relative to THIS YAML, not the shell's current directory.
-output: ../runs/eval-corpora/my-validation
+# @/ starts at the project root (nearest parent pyproject.toml or .git). Quote it in YAML.
+output: "@/runs/eval-corpora/my-validation"
 # Reuse this frozen corpus for every variant/seed. A changed recipe needs a new output.
 # For the final test: copy this config, set partition.split: test and use a new output.
 # Score final-test data with the standalone evaluate command, not periodic validation.

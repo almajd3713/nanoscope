@@ -7,7 +7,7 @@
 #   uv run nanoscope evaluate --checkpoint runs/my-base-seed-1337/checkpoints/step_00001000 \
 #     --eval-config configs/my-eval.yaml
 
-corpus: ../runs/eval-corpora/my-validation  # Matches my-corpus.yaml output.
+corpus: "@/runs/eval-corpora/my-validation"  # Matches my-corpus.yaml output.
 # Replace null with the fingerprint printed by prepare-eval to pin the exact corpus.
 corpus_hash: null
 batch_size: 4  # Evaluation sequences per batch; lower for GPU memory pressure.
@@ -21,6 +21,6 @@ max_seconds: 300  # Scoring time limit; periodic evaluation requires <540 second
 
 # Used ONLY by standalone evaluate: <output>/<run ID>/<result ID>.json.
 # Periodic results always go to <training run.output_dir>/<run ID>/evaluations/.
-output: ../runs/evaluations
+output: "@/runs/evaluations"
 # On Kaggle, point corpus at your prepared corpus's actual location. Periodic results
 # follow run.output_dir automatically; copy/download those runs before comparing locally.

@@ -76,7 +76,10 @@ need to name yourself. Study files can select all result files with `*.json`.
 
 ## 2. Copy the templates for your own experiment
 
-Keep the copies in `configs/` so their relative paths remain correct:
+The templates use quoted `@/` paths, so you can move their copies anywhere inside
+the project without counting `../` levels. For example, `"@/runs/evaluations"`
+means the project's `runs/evaluations` directory. The root is the nearest parent
+of the YAML containing `pyproject.toml` or `.git`. Start with these copies:
 
 ```bash
 cp configs/experiment-template.yaml configs/my-base-seed-1337.yaml
@@ -98,7 +101,7 @@ registered base transformer when it exists. No YAML inheritance or placeholder
 substitution happens automatically.
 
 In the training copy, set `run.id: my-base-seed-1337`. For local runs, also set
-`run.output_dir: runs`, `checkpoint.hub_policy: disabled` and
+`run.output_dir: "@/runs"`, `checkpoint.hub_policy: disabled` and
 `logging.wandb_mode: disabled`. Choose the training device and worker count for your
 machine. The template defaults to CUDA/FP16 and enables the training partition.
 It requires a clean Git worktree, so commit your model and edited configs before
@@ -204,6 +207,6 @@ uv run nanoscope evaluate \
 ```
 
 Repeat for the other runs, then change the study's result globs to
-`../runs/evaluations/my-base-seed-*/*.json` and the corresponding increment path.
+`"@/runs/evaluations/my-base-seed-*/*.json"` and the corresponding increment path.
 Standalone scores use `output` from `my-eval.yaml`; periodic scores use each training
 run's `evaluations/` directory. Choose one source per checkpoint to avoid ambiguity.

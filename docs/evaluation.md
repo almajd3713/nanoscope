@@ -105,8 +105,28 @@ device. Keep the model implementation available in the checkout. Scores record
 checkpoint checksums, model/config/seed, dataset and tokenizer identity, evaluator
 version and source hashes, training budget, and hardware/software provenance.
 
-Evaluation/study paths are relative to the YAML file; the existing training
-`run.output_dir` remains relative to the current working directory. Results go to
+Use quoted `@/` paths in config files to start at the project root:
+
+```yaml
+corpus: "@/runs/eval-corpora/my-validation"
+output: "@/runs/evaluations"
+# In a study variant:
+# results: ["@/runs/my-base-seed-*/evaluations/*.json"]
+# In a training config:
+# run:
+#   output_dir: "@/runs"
+```
+
+The root is the nearest parent of the YAML containing `pyproject.toml` or `.git`.
+This works in source exports without Git metadata. `"@"` alone means the root.
+A config outside a marked project must use ordinary relative or absolute paths;
+there is no fallback to the current working directory. Quote `@` values because
+YAML reserves an unquoted leading `@`.
+
+Ordinary evaluation/study paths remain relative to the YAML. Ordinary training
+`run.output_dir` paths remain relative to the current working directory. Absolute
+paths continue to work. The alias applies to these YAML path values, not shell
+arguments, model names, dataset IDs, or HF repository IDs. Results go to
 `<evaluation output>/<run ID>/<result ID>.json`. Copy that directory and the frozen
 corpus off ephemeral machines explicitly when using standalone evaluation. Periodic
 results are included in the checkpoint uploads described below. Resolved model
@@ -179,13 +199,13 @@ allow_changes:
   - model
 variants:
   - name: gpt2
-    results: [../../runs/evaluations/gpt2-seed-*/*.json]
+    results: ["@/runs/evaluations/gpt2-seed-*/*.json"]
   - name: rope
-    results: [../../runs/evaluations/rope-seed-*/*.json]
+    results: ["@/runs/evaluations/rope-seed-*/*.json"]
 ```
 
 For periodic results, use paths such as
-`../../runs/gpt2-seed-*/evaluations/*.json`.
+`"@/runs/gpt2-seed-*/evaluations/*.json"`.
 
 Use one run per seed per variant, with identical seed sets. Results for successive
 checkpoints of one run form its curve. If multiple evaluations exist for one step
