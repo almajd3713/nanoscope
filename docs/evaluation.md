@@ -1,5 +1,8 @@
 # Evaluate and compare model increments
 
+New to the workflow? Start with the [hands-on walkthrough](evaluation-quickstart.md)
+for a runnable example, commented templates, and how to interpret your report.
+
 The evaluator scores saved checkpoints on an immutable held-out token corpus.
 It reports next-token cross-entropy in nats/token and perplexity, excluding z-loss
 and other auxiliary training penalties. The comparison command produces JSON,

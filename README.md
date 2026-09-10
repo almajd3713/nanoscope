@@ -25,8 +25,14 @@ and the model-only handoff.
 
 ## Start an experiment
 
-Use the [evaluator workflow](docs/evaluation.md) to freeze held-out data, score
-checkpoints, and compare model increments at a fixed token or estimated FLOP budget.
+Start with [the hands-on evaluation walkthrough](docs/evaluation-quickstart.md):
+freeze validation text once, train each increment with automatic scoring, then compare
+the saved scores. It includes a runnable CPU example and explains what to edit.
+
+Copy the commented [corpus template](configs/eval-corpus-template.yaml),
+[evaluation template](configs/eval-template.yaml), and
+[comparison template](configs/eval-study-template.yaml) for your own study.
+See the [evaluation reference](docs/evaluation.md) for scoring and statistics details.
 
 Copy the [commented experiment template](configs/experiment-template.yaml):
 

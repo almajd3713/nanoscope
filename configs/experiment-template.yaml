@@ -7,6 +7,9 @@
 # Local GPU (change run.output_dir to runs and set cloud environment variables):
 #   nanoscope doctor --config configs/my-model-seed-1337.yaml
 #   nanoscope train --config configs/my-model-seed-1337.yaml --resume none
+# Periodic validation: append --eval-config configs/my-eval.yaml to nanoscope train.
+# First copy configs/eval-corpus-template.yaml and configs/eval-template.yaml,
+# then prepare the corpus as described in docs/evaluation-quickstart.md.
 # Same-session resume: replace --resume none with --resume auto.
 # Fresh-session resume:
 #   --resume hf://OWNER/REPOSITORY/runs/my-model-seed-1337
@@ -32,14 +35,14 @@ data:
   text_field: text
   sequence_length: 128  # Prediction tokens per sequence; adjust to your model context size.
   shuffle_buffer: 10000
-  # For new evaluator studies, enable the training partition before the first run.
-  # Use the same scheme as configs/eval/m1-corpus.yaml (see docs/evaluation.md).
-  # partition:
-  #   salt: nanoscope-m1-v1
-  #   buckets: 10000
-  #   validation_buckets: 100
-  #   test_buckets: 100
-  #   split: train
+  # Exclude held-out text from the FIRST training step. This matches eval-corpus-template.yaml.
+  # Existing runs cannot add/change this partition on resume; start a new run ID.
+  partition:
+    salt: nanoscope-m1-v1
+    buckets: 10000
+    validation_buckets: 100
+    test_buckets: 100
+    split: train
 
 tokenizer:
   name: gpt2

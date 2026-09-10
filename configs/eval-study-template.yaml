@@ -1,0 +1,36 @@
+# COPY TO: configs/my-study.yaml. Edit this AFTER choosing your variants and training budget.
+# PURPOSE: read completed scores and compare them; this does NOT train or evaluate models.
+# RUN: uv run nanoscope compare --study configs/my-study.yaml --output runs/my-comparison --plots
+# Install report dependencies first: uv sync --extra eval
+
+name: My incremental architecture study
+baseline: base  # Must match one variant name below.
+axis: tokens
+# TRAINING tokens at the comparison endpoint, not the number of validation tokens.
+# Matches experiment-template.yaml: 1000 steps * 4 global batch * 4 accumulation * 128 context.
+budget: 2048000
+tolerance: 0.0  # Require this exact budget; 0.01 permits up to 1% below, never above.
+# Everything else (data, tokenizer, optimizer, schedule, training recipe) must match.
+allow_changes:
+  - model
+
+# List increments in order: delta_previous compares against the preceding entry.
+# Each glob collects ALL seeds for that variant and their evaluated checkpoints.
+# The variant label is independent of the model registry name; paths match run.id.
+variants:
+  - name: base
+    results:
+      - ../runs/my-base-seed-*/evaluations/*.json
+  - name: plus-component
+    results:
+      - ../runs/my-plus-component-seed-*/evaluations/*.json
+  # Add another variant here after training the next increment.
+
+# Use identical seed sets, e.g. 1337, 2024, 42, for every variant; one run per seed.
+# One seed works for a quick check. At least three pairs are needed for a 95% interval
+# (and observed variation must be nonzero). More seeds improve uncertainty estimates.
+# Periodic paths above assume training run.output_dir: runs. Change them for other roots.
+# For standalone evaluate outputs, use ../runs/evaluations/my-base-seed-*/*.json instead.
+# Avoid mixing periodic and standalone scores for the same step in a single study.
+# For matched estimated FLOPs: axis: flops, choose a FLOP budget, and explicitly set
+# parameter_tolerance: 0.01 (maximum relative non-embedding parameter-count difference).
