@@ -24,7 +24,7 @@ from nanoscope.train.trainer import train
 @pytest.fixture
 def setup(tmp_path):
     torch.set_num_threads(1)
-    config = load_config("configs/m0/local-smoke.yaml")
+    config = load_config("configs/test/m0/local-smoke.yaml")
     config.run.id = "periodic"
     config.run.output_dir = str(tmp_path / "runs")
     config.data.documents = [f"Document {i} contains enough text to evaluate." for i in range(50)]

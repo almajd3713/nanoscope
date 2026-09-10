@@ -1,4 +1,4 @@
-# Scores written by train --eval-config configs/eval/local-validation.yaml.
+# Scores written by train --eval-config configs/test/eval/local-validation.yaml.
 # The existing local-study.yaml reads standalone evaluate outputs instead.
 name: Offline periodic evaluation walkthrough
 baseline: base

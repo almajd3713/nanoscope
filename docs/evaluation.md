@@ -18,18 +18,18 @@ Run from the repository root. Install plotting support if you want figures:
 
 ```bash
 uv sync --extra dev --extra eval
-uv run nanoscope prepare-eval --config configs/eval/local-corpus.yaml
+uv run nanoscope prepare-eval --config configs/test/eval/local-corpus.yaml
 
 for variant in base variant; do
-  uv run nanoscope train --config "configs/eval/local-${variant}.yaml" --resume none
+  uv run nanoscope train --config "configs/test/eval/local-${variant}.yaml" --resume none
   for step in 00000002 00000004; do
     uv run nanoscope evaluate \
       --checkpoint "runs/eval-local-${variant}/checkpoints/step_${step}" \
-      --eval-config configs/eval/local-validation.yaml
+      --eval-config configs/test/eval/local-validation.yaml
   done
 done
 
-uv run nanoscope compare --study configs/eval/local-study.yaml \
+uv run nanoscope compare --study configs/test/eval/local-study.yaml \
   --output runs/eval-comparison --plots
 ```
 
@@ -142,8 +142,8 @@ or truncates the corpus. Compare results using the same scoring profile.
 Pass the same evaluation config to training:
 
 ```bash
-uv run nanoscope train --config configs/eval/local-base.yaml \
-  --eval-config configs/eval/local-validation.yaml --resume auto
+uv run nanoscope train --config configs/test/eval/local-base.yaml \
+  --eval-config configs/test/eval/local-validation.yaml --resume auto
 ```
 
 Evaluation settings are separate from the training recipe/digest:
@@ -186,7 +186,7 @@ result history survives pruning. W&B receives separate `eval/*` metrics.
 
 ## Declare the comparison
 
-Copy `configs/eval/local-study.yaml` and list the baseline and increments in their
+Copy `configs/test/eval/local-study.yaml` and list the baseline and increments in their
 intended order. Each `results` entry can be a JSON path, directory, or glob:
 
 ```yaml

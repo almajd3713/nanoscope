@@ -50,7 +50,7 @@ def test_nearest_project_marker_wins(tmp_path):
 
 
 def test_training_alias_is_relocatable_without_changing_digest(tmp_path, monkeypatch):
-    original = load_config(ROOT / "configs/m0/local-smoke.yaml")
+    original = load_config(ROOT / "configs/test/m0/local-smoke.yaml")
     raw = original.to_dict()
     raw["run"]["output_dir"] = "@/runs"
     configs = []

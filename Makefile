@@ -1,6 +1,6 @@
 # Makefile for Nanoscope
 
-CONFIG ?= configs/m0/local-smoke.yaml
+CONFIG ?= configs/test/m0/local-smoke.yaml
 
 .PHONY: help
 help:

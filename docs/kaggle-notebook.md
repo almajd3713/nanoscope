@@ -29,9 +29,9 @@ required secret stops setup before training.
 The default parameters are:
 
 ```python
-TRAIN_CONFIG = "configs/eval/kaggle-smoke.yaml"
-CORPUS_CONFIG = "configs/eval/local-corpus.yaml"
-EVAL_CONFIG = "configs/eval/kaggle-validation.yaml"
+TRAIN_CONFIG = "configs/test/eval/kaggle-smoke.yaml"
+CORPUS_CONFIG = "configs/test/eval/local-corpus.yaml"
+EVAL_CONFIG = "configs/test/eval/kaggle-validation.yaml"
 RESUME = "auto"
 ```
 

@@ -40,18 +40,18 @@ spend time training M1. Dependency installation may require Internet access.
 uv sync --extra dev --extra eval
 
 # Freeze the validation text once.
-uv run nanoscope prepare-eval --config configs/eval/local-corpus.yaml
+uv run nanoscope prepare-eval --config configs/test/eval/local-corpus.yaml
 
 # Train the baseline and score it automatically every two steps and at the end.
-uv run nanoscope train --config configs/eval/local-base.yaml \
-  --eval-config configs/eval/local-validation.yaml --resume auto
+uv run nanoscope train --config configs/test/eval/local-base.yaml \
+  --eval-config configs/test/eval/local-validation.yaml --resume auto
 
 # Train the second variant with the SAME evaluation config.
-uv run nanoscope train --config configs/eval/local-variant.yaml \
-  --eval-config configs/eval/local-validation.yaml --resume auto
+uv run nanoscope train --config configs/test/eval/local-variant.yaml \
+  --eval-config configs/test/eval/local-validation.yaml --resume auto
 
 # Read both runs' scores and generate the report.
-uv run nanoscope compare --study configs/eval/local-periodic-study.yaml \
+uv run nanoscope compare --study configs/test/eval/local-periodic-study.yaml \
   --output runs/eval-walkthrough --plots
 ```
 
@@ -64,12 +64,12 @@ training it again. Do not edit that run's training config and then try to resume
 The files connect like this:
 
 ```text
-configs/eval/local-corpus.yaml       -> runs/eval-corpora/local-validation/
-configs/eval/local-validation.yaml   -> reads that frozen corpus
-configs/eval/local-base.yaml         -> runs/eval-local-base/evaluations/*.json
-configs/eval/local-variant.yaml      -> runs/eval-local-variant/evaluations/*.json
-configs/eval/local-periodic-study.yaml -> reads those two result directories
-compare                             -> runs/eval-walkthrough/report.md
+configs/test/eval/local-corpus.yaml         -> runs/eval-corpora/local-validation/
+configs/test/eval/local-validation.yaml     -> reads that frozen corpus
+configs/test/eval/local-base.yaml           -> runs/eval-local-base/evaluations/*.json
+configs/test/eval/local-variant.yaml        -> runs/eval-local-variant/evaluations/*.json
+configs/test/eval/local-periodic-study.yaml -> reads those two result directories
+compare                                   -> runs/eval-walkthrough/report.md
 ```
 
 You do not need to run `evaluate` separately when `train --eval-config` has already
