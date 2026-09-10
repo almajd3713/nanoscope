@@ -1,0 +1,20 @@
+# Copy to configs/inference/my-run.yaml and point it at your trained run.
+# RUN: uv run nanoscope generate --config configs/inference/my-run.yaml --prompt "Once upon a time"
+# BATCH: replace --prompt with --prompts configs/test/inference/prompts.jsonl.
+# Quoted @/ paths start at the project root; other relative paths are YAML-relative.
+run_dir: "@/runs/my-run"
+checkpoint: latest  # Highest complete step; skips corrupt checkpoints.
+# Or select an explicit directory (run_dir is then ignored):
+# checkpoint: "@/runs/my-run/checkpoints/step_00001000"
+# On Kaggle, an absolute checkpoint directory under /kaggle/input also works.
+training_config: null  # Original resolved config, only needed for some legacy checkpoints.
+
+device: auto  # auto, cpu, cuda. FP32 weights and computation on one device.
+max_new_tokens: 128  # Includes EOS if emitted; EOS stops generation early.
+temperature: 0.8  # 0 = greedy; positive values enable sampling.
+top_p: 0.95  # Nucleus probability mass in (0, 1]; ignored in greedy mode.
+seed: 1337  # Reset for each prompt; independent of notebook/global sampling RNG.
+
+# Append one JSON object per completed sample; null disables file saving.
+# Use a writable /kaggle/working/... path on Kaggle.
+output: "@/runs/generations/my-run.jsonl"

@@ -27,10 +27,14 @@ Configuration files are grouped by purpose:
 
 - `configs/test/m0/`: M0 smoke, GPU, distributed, and acceptance checks.
 - `configs/test/eval/`: local and Kaggle evaluation smoke runs and comparison examples.
+- `configs/test/inference/`: generation smoke configs and shared sample prompts.
 - `configs/eval/`: M1 validation corpus and evaluation configs.
 - `configs/*-template.yaml`: commented templates for new experiments and evaluations.
 
 ## Start an experiment
+
+For text generation from a trained checkpoint, see [the inference walkthrough](docs/inference.md)
+and [inference config template](configs/inference-template.yaml).
 
 Start with [the hands-on evaluation walkthrough](docs/evaluation-quickstart.md):
 freeze validation text once, train each increment with automatic scoring, then compare

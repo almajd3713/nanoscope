@@ -50,11 +50,36 @@ def _parser() -> argparse.ArgumentParser:
     comparison.add_argument("--study", required=True)
     comparison.add_argument("--output", required=True)
     comparison.add_argument("--plots", action="store_true", help="write PNG/SVG plots (eval extra)")
+    generation = commands.add_parser("generate", help="generate text from a saved checkpoint")
+    generation.add_argument("--config", required=True)
+    generation.add_argument(
+        "--json", action="store_true", help="print full sample records as JSONL"
+    )
+    prompts = generation.add_mutually_exclusive_group(required=True)
+    prompts.add_argument("--prompt", help="text to continue (empty string starts with EOS)")
+    prompts.add_argument("--prompts", help="JSONL file containing one JSON string per line")
     return parser
 
 
 def main(argv: list[str] | None = None) -> None:
     args = _parser().parse_args(argv)
+    if args.command == "generate":
+        from nanoscope.inference import GenerationSession
+        from nanoscope.inference.runner import read_prompts
+
+        try:
+            prompts = read_prompts(args.prompts) if args.prompts is not None else [args.prompt]
+            session = GenerationSession.from_config(args.config)
+            for prompt in prompts:
+                result = session.generate(prompt)
+                print(
+                    json.dumps(result, ensure_ascii=True, allow_nan=False)
+                    if args.json
+                    else result["text"]
+                )
+        except (ValueError, OSError, RuntimeError, KeyError, TypeError) as exc:
+            raise SystemExit(str(exc)) from exc
+        return
     if args.command in {"prepare-eval", "evaluate", "compare"}:
         from nanoscope.eval.compare import build_comparison
         from nanoscope.eval.config import load_corpus_config, load_eval_config

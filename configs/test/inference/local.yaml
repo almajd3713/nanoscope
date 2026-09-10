@@ -1,0 +1,9 @@
+# First train configs/test/eval/local-base.yaml. This toy model tests the plumbing.
+run_dir: "@/runs/eval-local-base"
+checkpoint: latest
+device: cpu
+max_new_tokens: 16
+temperature: 0.8
+top_p: 0.95
+seed: 1337
+output: "@/runs/generations/eval-local-base.jsonl"

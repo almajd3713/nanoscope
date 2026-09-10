@@ -12,6 +12,8 @@ class Tokenizer(Protocol):
 
     def encode(self, text: str) -> list[int]: ...
 
+    def decode(self, tokens: list[int]) -> str: ...
+
 
 class ByteTokenizer:
     def __init__(self, eos_token_id: int = 256) -> None:
@@ -19,6 +21,11 @@ class ByteTokenizer:
 
     def encode(self, text: str) -> list[int]:
         return list(text.encode("utf-8"))
+
+    def decode(self, tokens: list[int]) -> str:
+        return bytes(token for token in tokens if token != self.eos_token_id).decode(
+            "utf-8", errors="replace"
+        )
 
 
 class GPT2Tokenizer:
@@ -32,6 +39,9 @@ class GPT2Tokenizer:
 
     def encode(self, text: str) -> list[int]:
         return self._encoding.encode_ordinary(text)
+
+    def decode(self, tokens: list[int]) -> str:
+        return self._encoding.decode([token for token in tokens if token != self.eos_token_id])
 
 
 def build_tokenizer(config: TokenizerConfig) -> Tokenizer:
