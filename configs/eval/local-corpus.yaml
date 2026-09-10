@@ -1,0 +1,56 @@
+data:
+  source: fixture
+  sequence_length: 16
+  shuffle_buffer: 64
+  documents:
+  - 'Document 0: reproducible experiments compare the same held-out text, tokens,
+    and training budget.'
+  - 'Document 1: reproducible experiments compare the same held-out text, tokens,
+    and training budget.'
+  - 'Document 2: reproducible experiments compare the same held-out text, tokens,
+    and training budget.'
+  - 'Document 3: reproducible experiments compare the same held-out text, tokens,
+    and training budget.'
+  - 'Document 4: reproducible experiments compare the same held-out text, tokens,
+    and training budget.'
+  - 'Document 5: reproducible experiments compare the same held-out text, tokens,
+    and training budget.'
+  - 'Document 6: reproducible experiments compare the same held-out text, tokens,
+    and training budget.'
+  - 'Document 7: reproducible experiments compare the same held-out text, tokens,
+    and training budget.'
+  - 'Document 8: reproducible experiments compare the same held-out text, tokens,
+    and training budget.'
+  - 'Document 9: reproducible experiments compare the same held-out text, tokens,
+    and training budget.'
+  - 'Document 10: reproducible experiments compare the same held-out text, tokens,
+    and training budget.'
+  - 'Document 11: reproducible experiments compare the same held-out text, tokens,
+    and training budget.'
+  - 'Document 12: reproducible experiments compare the same held-out text, tokens,
+    and training budget.'
+  - 'Document 13: reproducible experiments compare the same held-out text, tokens,
+    and training budget.'
+  - 'Document 14: reproducible experiments compare the same held-out text, tokens,
+    and training budget.'
+  - 'Document 15: reproducible experiments compare the same held-out text, tokens,
+    and training budget.'
+  - 'Document 16: reproducible experiments compare the same held-out text, tokens,
+    and training budget.'
+  - 'Document 17: reproducible experiments compare the same held-out text, tokens,
+    and training budget.'
+  - 'Document 18: reproducible experiments compare the same held-out text, tokens,
+    and training budget.'
+  - 'Document 19: reproducible experiments compare the same held-out text, tokens,
+    and training budget.'
+  partition:
+    salt: nanoscope-local-eval-v1
+    buckets: 10
+    validation_buckets: 2
+    test_buckets: 2
+    split: validation
+tokenizer:
+  name: byte
+  eos_token_id: 256
+sequences: 8
+output: "@/runs/eval-corpora/local-validation"

@@ -1,0 +1,11 @@
+# Pin corpus_hash to the value printed by prepare-eval.
+corpus: "@/runs/eval-corpora/m1-validation"
+output: "@/runs/evaluations"
+batch_size: 4
+device: cuda
+precision: fp32
+
+# Used by train --eval-config; standalone scoring ignores cadence.
+every_steps: 100
+final: true
+max_seconds: 300

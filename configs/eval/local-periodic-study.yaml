@@ -1,0 +1,17 @@
+# Scores written by train --eval-config configs/eval/local-validation.yaml.
+# The existing local-study.yaml reads standalone evaluate outputs instead.
+name: Offline periodic evaluation walkthrough
+baseline: base
+axis: tokens
+# 4 training steps * 2 global batch * 1 accumulation * 16 context = 128 tokens.
+budget: 128
+tolerance: 0.0
+allow_changes:
+  - model.params.dropout
+variants:
+  - name: base
+    results:
+      - "@/runs/eval-local-base/evaluations/*.json"
+  - name: variant
+    results:
+      - "@/runs/eval-local-variant/evaluations/*.json"

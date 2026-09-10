@@ -11,6 +11,8 @@ from typing import Any
 
 import torch
 
+from nanoscope.eval.artifacts import fingerprint, read_json, write_json
+
 SCHEMA_VERSION = 1
 
 
@@ -63,9 +65,7 @@ class CheckpointManager:
             (temporary / "metadata.json").write_text(
                 json.dumps(metadata, indent=2, sort_keys=True), encoding="utf-8"
             )
-            files = {
-                name: _sha256(temporary / name) for name in ("state.pt", "metadata.json")
-            }
+            files = {name: _sha256(temporary / name) for name in ("state.pt", "metadata.json")}
             (temporary / "manifest.json").write_text(
                 json.dumps(
                     {
@@ -105,7 +105,7 @@ class CheckpointManager:
 
     def valid_checkpoints(self) -> list[Path]:
         return sorted(
-            (path for path in self.root.glob("step_*" ) if validate_checkpoint(path)),
+            (path for path in self.root.glob("step_*") if validate_checkpoint(path)),
             key=lambda path: path.name,
         )
 
@@ -118,4 +118,30 @@ class CheckpointManager:
             raise CheckpointError(f"checkpoint is incomplete or corrupt: {path}")
         state = torch.load(path / "state.pt", map_location=device, weights_only=False)
         metadata = json.loads((path / "metadata.json").read_text(encoding="utf-8"))
+        manifest = read_json(path / "manifest.json")
+        if "evaluation_file" in manifest:
+            name = manifest["evaluation_file"]
+            if name not in manifest["files"]:
+                raise CheckpointError(
+                    "evaluation sidecar is not covered by the checkpoint manifest"
+                )
+            state["evaluation"] = read_json(path / name)
         return state, metadata
+
+    def attach_evaluation(self, path: Path, evaluation: dict[str, Any]) -> None:
+        """Publish a sidecar without a checksum cycle or invalidating the previous manifest."""
+        manifest = read_json(path / "manifest.json")
+        name = f"evaluation-{fingerprint(evaluation)}.json"
+        write_json(path / name, evaluation)
+        previous = manifest.get("evaluation_file")
+        if previous is not None:
+            manifest["files"].pop(previous, None)
+        manifest["files"][name] = _sha256(path / name)
+        manifest["evaluation_file"] = name
+        write_json(path / "manifest.json", manifest)
+
+    def reconcile(self, step: int) -> None:
+        """Keep abandoned future checkpoints out of an explicitly rolled-back run."""
+        for path in self.valid_checkpoints():
+            if int(path.name.removeprefix("step_")) > step:
+                os.replace(path, self.root / f".superseded-{path.name}-{uuid.uuid4().hex}")

@@ -25,6 +25,15 @@ and the model-only handoff.
 
 ## Start an experiment
 
+Start with [the hands-on evaluation walkthrough](docs/evaluation-quickstart.md):
+freeze validation text once, train each increment with automatic scoring, then compare
+the saved scores. It includes a runnable CPU example and explains what to edit.
+
+Copy the commented [corpus template](configs/eval-corpus-template.yaml),
+[evaluation template](configs/eval-template.yaml), and
+[comparison template](configs/eval-study-template.yaml) for your own study.
+See the [evaluation reference](docs/evaluation.md) for scoring and statistics details.
+
 Copy the [commented experiment template](configs/experiment-template.yaml):
 
 ```bash
@@ -46,12 +55,17 @@ python3 kaggle_sync.py -m "Update model experiment"
 
 The target dataset is configured in [kaggle-sync.json](kaggle-sync.json).
 See [workspace sync](docs/kaggle-workspace.md) for authentication and ignore behavior.
-On Kaggle, update the permanent runner's attached dataset to the new version,
-then extract the workspace and run:
+Use the [example Kaggle notebook](notebooks/kaggle-runner.ipynb) as your permanent
+runner. Import it once, attach the workspace dataset, enable GPU/Internet and your
+HF/W&B secrets in Kaggle, then run its cells. The notebook copies the extracted input
+into a writable workspace, installs dependencies,
+loads enabled secrets, prepares validation data, trains with periodic evaluation,
+and exports result ZIPs for local comparison. Its default is a four-step GPU smoke run.
 
-```python
-!python kaggle_run.py --config configs/my-model-seed-1337.yaml --resume none
-```
+For subsequent experiments, sync source with the CLI, update the notebook's attached
+dataset version, and change its config parameters. The CLI does not submit kernels
+or attach secrets. See [the Kaggle notebook guide](docs/kaggle-notebook.md) for setup,
+resume and downloading results.
 
 See [the distributed runbook](docs/distributed-training.md) for resume, model
 constraints, CPU testing, and GPU validation for multi-worker training.

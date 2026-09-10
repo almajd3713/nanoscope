@@ -1,0 +1,21 @@
+# Select your M1 context length before freezing this recipe.
+data:
+  source: fineweb
+  dataset_name: HuggingFaceFW/fineweb-edu
+  dataset_config: sample-10BT
+  revision: 1db02b5ece9677c879ceb35ea7da8065ec58f831
+  split: train
+  text_field: text
+  sequence_length: 128
+  partition:
+    salt: nanoscope-m1-v1
+    buckets: 10000
+    validation_buckets: 100
+    test_buckets: 100
+    split: validation
+tokenizer:
+  name: gpt2
+  eos_token_id: 50256
+sequences: 8192
+max_documents: 1000000
+output: "@/runs/eval-corpora/m1-validation"

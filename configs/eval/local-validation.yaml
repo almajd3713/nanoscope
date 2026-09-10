@@ -1,0 +1,11 @@
+# Quoted @/ paths start at the project root. Pin corpus_hash after preparation for research.
+corpus: "@/runs/eval-corpora/local-validation"
+output: "@/runs/evaluations"
+batch_size: 3
+device: cpu
+precision: fp32
+
+# Used by train --eval-config; standalone scoring ignores cadence.
+every_steps: 2
+final: true
+max_seconds: 300

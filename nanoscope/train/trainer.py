@@ -6,7 +6,6 @@ import json
 import math
 import os
 import signal
-import subprocess
 import time
 from dataclasses import dataclass
 from pathlib import Path
@@ -18,11 +17,14 @@ from torch.nn.parallel import DistributedDataParallel
 
 from nanoscope.config import Config, dump_config
 from nanoscope.data import build_batch_stream
+from nanoscope.data.tokenizer import tokenizer_identity
+from nanoscope.eval.config import EvalConfig
 from nanoscope.model import LMOutput, build_model
 from nanoscope.model.registry import (
     default_parameter_groups,
     estimate_training_flops,
 )
+from nanoscope.provenance import runtime_provenance as _runtime_provenance
 from nanoscope.train.checkpoint import CheckpointManager
 from nanoscope.train.determinism import (
     capture_rng_state,
@@ -41,37 +43,6 @@ class TrainResult:
     checkpoint: Path
     metrics: list[dict[str, Any]]
     stopped_early: bool
-
-
-def _git_provenance() -> dict[str, Any]:
-    def run(*args: str) -> str:
-        result = subprocess.run(["git", *args], capture_output=True, text=True, check=False)
-        return result.stdout.strip()
-
-    return {
-        "sha": run("rev-parse", "HEAD") or None,
-        "branch": run("branch", "--show-current") or None,
-        "dirty": bool(run("status", "--porcelain")),
-    }
-
-
-def _runtime_provenance(device: torch.device) -> dict[str, Any]:
-    gpu = None
-    if device.type == "cuda":
-        gpu = {
-            "name": torch.cuda.get_device_name(device),
-            "capability": list(torch.cuda.get_device_capability(device)),
-            "memory_bytes": torch.cuda.get_device_properties(device).total_memory,
-        }
-    return {
-        "python": __import__("platform").python_version(),
-        "torch": torch.__version__,
-        "cuda": torch.version.cuda,
-        "cudnn": torch.backends.cudnn.version(),
-        "device": str(device),
-        "gpu": gpu,
-        "git": _git_provenance(),
-    }
 
 
 def _peak_tflops(config: Config, device: torch.device) -> float | None:
@@ -129,12 +100,17 @@ def _resume_path(resume: str, manager: CheckpointManager, run_dir: Path) -> Path
     return Path(resume)
 
 
-def train(config: Config, resume: str = "auto", stop_after_step: int | None = None) -> TrainResult:
+def train(
+    config: Config,
+    resume: str = "auto",
+    stop_after_step: int | None = None,
+    eval_config: EvalConfig | None = None,
+) -> TrainResult:
     configure_reproducibility(seed=config.run.seed, deterministic=config.train.deterministic)
     context = DistributedContext.create(config)
     try:
         with contextlib.ExitStack() as resources:
-            return _train(config, resume, stop_after_step, context, resources)
+            return _train(config, resume, stop_after_step, context, resources, eval_config)
     finally:
         context.close()
 
@@ -145,7 +121,11 @@ def _train(
     stop_after_step: int | None,
     context: DistributedContext,
     resources: contextlib.ExitStack,
+    eval_config: EvalConfig | None = None,
 ) -> TrainResult:
+    from nanoscope.eval.periodic import PeriodicEvaluation
+    from nanoscope.eval.runner import EvaluationCancelled
+
     device = context.device
     run_dir = Path(config.run.output_dir) / config.run.id
     provenance = _runtime_provenance(device)
@@ -176,6 +156,7 @@ def _train(
         return stream.source_revision
 
     source_revision = context.primary_call(prepare_stream)
+    tokenizer_provenance = tokenizer_identity(config.tokenizer)
     model, model_spec = build_model(config.model.name, config.model.params)
     model.to(device)
     training_model = (
@@ -213,6 +194,8 @@ def _train(
     step = 0
     tokens_seen = 0
     active_seconds = 0.0
+    train_seconds: float | None = 0.0
+    evaluation_state: dict[str, Any] = {}
     metrics_history: list[dict[str, Any]] = []
     selected_resume = context.primary_call(lambda: _resume_path(resume, manager, run_dir))
     if selected_resume is not None:
@@ -243,10 +226,28 @@ def _train(
         step = int(state["step"])
         tokens_seen = int(state["tokens_seen"])
         active_seconds = float(state["active_seconds"])
+        train_seconds = state.get("train_seconds")
+        evaluation_state = state.get("evaluation", {})
         metrics_history = list(state.get("metrics", []))
         rank_rng = state.get("rank_rng", [state["rng"]])[context.rank]
         restore_rng_state(rank_rng, device)
         del state
+
+    periodic = None
+
+    def prepare_evaluation() -> None:
+        nonlocal periodic
+        if selected_resume is not None:
+            manager.reconcile(step)
+        if eval_config is not None or evaluation_state or (run_dir / "evaluations").exists():
+            periodic = PeriodicEvaluation(run_dir, config, eval_config, device, source_revision)
+            periodic.restore(evaluation_state, step)
+
+    training_rng = capture_rng_state(device)
+    try:
+        context.primary_call(prepare_evaluation)
+    finally:
+        restore_rng_state(training_rng, device)
 
     metrics_path = run_dir / "metrics.jsonl"
     local_logger = None
@@ -288,15 +289,15 @@ def _train(
     if peak_tflops is not None:
         peak_tflops = context.reduce(peak_tflops)
     last_checkpoint: Path | None = selected_resume
-    interval_start = time.perf_counter()
 
-    def save_checkpoint() -> Path:
+    def save_checkpoint(evaluate: bool = False) -> Path:
         rank_rng = context.gather(capture_rng_state(device))
 
         def persist() -> Path:
             assert stream is not None
             state = {
                 "model": model.state_dict(),
+                "config": config.to_dict(),
                 "optimizer": optimizer.state_dict(),
                 "scheduler": scheduler.state_dict(),
                 "scaler": scaler.state_dict(),
@@ -306,30 +307,72 @@ def _train(
                 "step": step,
                 "tokens_seen": tokens_seen,
                 "active_seconds": active_seconds,
+                "train_seconds": train_seconds,
                 "metrics": metrics_history,
+                "evaluation": periodic.state_dict() if periodic is not None else {},
             }
             metadata = {
                 "config_digest": config.digest,
                 "run_id": config.run.id,
                 "step": step,
                 "source_revision": source_revision,
+                "tokenizer": tokenizer_provenance,
+                "partition_version": 1 if config.data.partition is not None else None,
+                "flop_estimator": (
+                    "6ND-non-embedding-v1" if model_spec.flop_estimator is None else None
+                ),
                 "provenance": provenance,
                 "world_size": context.world_size,
             }
             archive_every = config.checkpoint.archive_every_steps
             archive = bool(archive_every and step % archive_every == 0)
             path = manager.save(step, state, metadata, archive=archive)
+            if periodic is not None:
+                if evaluate and not periodic.completed(step):
+                    try:
+                        result = periodic.evaluate(path, model, state, lambda: stop_requested)
+                    except EvaluationCancelled:
+                        pass
+                    else:
+                        assert cloud_logger is not None
+                        cloud_logger.log(
+                            {
+                                "step": step,
+                                **{
+                                    f"eval/{key}": value for key, value in result["metrics"].items()
+                                },
+                            }
+                        )
+                manager.attach_evaluation(path, periodic.state_dict())
+                periodic.publish()
             hub.upload(path, step)
             return path
 
-        path = context.primary_call(persist)
-        # Upload retries and third-party clients may use global random generators.
-        # The next forward must see the RNG state that the checkpoint contains.
-        restore_rng_state(rank_rng[context.rank], device)
-        return path
+        try:
+            return context.primary_call(persist)
+        finally:
+            # Evaluation, logging and upload clients must not perturb dropout RNG.
+            restore_rng_state(rank_rng[context.rank], device)
+
+    def evaluation_due() -> bool:
+        return (
+            eval_config is not None
+            and step > 0
+            and (
+                step % eval_config.every_steps == 0
+                or (eval_config.final and step == config.train.max_steps)
+            )
+        )
 
     try:
-        while step < config.train.max_steps:
+        if selected_resume is not None and evaluation_due():
+            last_checkpoint = save_checkpoint(evaluate=True)
+        stop_requested = bool(context.reduce(float(stop_requested), "max"))
+        while step < config.train.max_steps and not stop_requested:
+            if device.type == "cuda":
+                torch.cuda.synchronize(device)
+                torch.cuda.reset_peak_memory_stats(device)
+            interval_start = time.perf_counter()
             training_model.train()
             optimizer.zero_grad(set_to_none=True)
             losses: list[float] = []
@@ -393,8 +436,9 @@ def _train(
                 torch.cuda.synchronize(device)
             now = time.perf_counter()
             elapsed = context.reduce(now - interval_start, "max")
-            interval_start = now
             active_seconds += elapsed
+            if train_seconds is not None:
+                train_seconds += elapsed
             step += 1
             step_tokens = int(context.reduce(step_tokens))
             tokens_seen += step_tokens
@@ -413,6 +457,10 @@ def _train(
                 "tokens": step_tokens,
                 "tokens_seen": tokens_seen,
                 "tokens_per_second": step_tokens / elapsed,
+                "train_tokens_per_second": step_tokens / elapsed,
+                "train_step_seconds": elapsed,
+                "train_seconds": train_seconds,
+                "timing_definition": "training-step-v2",
                 "training_flops": flops,
                 "cumulative_training_flops": estimate_training_flops(
                     model, model_spec, tokens_seen
@@ -453,8 +501,15 @@ def _train(
             stop_file = os.getenv("NANOSCOPE_STOP_FILE")
             should_stop = should_stop or bool(stop_file and Path(stop_file).exists())
             should_stop = bool(context.reduce(float(should_stop), "max"))
-            if should_checkpoint or should_archive or should_stop or step == config.train.max_steps:
-                last_checkpoint = save_checkpoint()
+            if (
+                should_checkpoint
+                or should_archive
+                or should_stop
+                or evaluation_due()
+                or step == config.train.max_steps
+            ):
+                last_checkpoint = save_checkpoint(evaluate=evaluation_due() and not should_stop)
+            should_stop = should_stop or bool(context.reduce(float(stop_requested), "max"))
             if should_stop:
                 break
     finally:

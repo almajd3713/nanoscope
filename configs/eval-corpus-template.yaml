@@ -1,0 +1,36 @@
+# COPY TO: configs/my-corpus.yaml (you can put this copy anywhere inside the project).
+# PURPOSE: choose and freeze the held-out text ONCE for the whole comparison.
+# RUN: uv run nanoscope prepare-eval --config configs/my-corpus.yaml
+# Pair with experiment-template.yaml, eval-template.yaml and eval-study-template.yaml.
+# FineWeb preparation needs network access; use configs/eval/local-corpus.yaml offline.
+
+data:
+  # Match these fields, sequence_length and tokenizer in EVERY training config.
+  source: fineweb
+  dataset_name: HuggingFaceFW/fineweb-edu
+  dataset_config: sample-10BT
+  revision: 1db02b5ece9677c879ceb35ea7da8065ec58f831
+  split: train  # Hugging Face dataset split; this is separate from partition.split below.
+  text_field: text
+  sequence_length: 128
+  partition:
+    # Match this entire scheme in training; only partition.split changes to train there.
+    salt: nanoscope-m1-v1
+    buckets: 10000
+    validation_buckets: 100
+    test_buckets: 100
+    split: validation  # Use validation while developing model increments.
+
+tokenizer:
+  name: gpt2
+  eos_token_id: 50256
+
+# 8192 sequences * 128 prediction tokens = 1,048,576 VALIDATION tokens per score.
+# This is independent of the TRAINING token budget in eval-study-template.yaml.
+sequences: 8192
+max_documents: 1000000  # Fail rather than cycle text if too little validation data is found.
+# @/ starts at the project root (nearest parent pyproject.toml or .git). Quote it in YAML.
+output: "@/runs/eval-corpora/my-validation"
+# Reuse this frozen corpus for every variant/seed. A changed recipe needs a new output.
+# For the final test: copy this config, set partition.split: test and use a new output.
+# Score final-test data with the standalone evaluate command, not periodic validation.

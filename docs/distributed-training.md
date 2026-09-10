@@ -3,8 +3,8 @@
 ## Running
 
 The CLI automatically uses `python -m torch.distributed.run` (torchrun) for more
-than one worker. The Kaggle launcher already calls this CLI, so dependency
-installation and secret loading happen once before workers start.
+than one worker. The [example Kaggle notebook](../notebooks/kaggle-runner.ipynb)
+installs dependencies and loads enabled secrets once, then calls this CLI.
 
 ```yaml
 distributed:
@@ -25,10 +25,13 @@ nanoscope train --config configs/m0/kaggle-ddp.yaml --resume none
 
 On Kaggle, select **T4 x2**, enable Internet and the notebook's HF/W&B secrets,
 upload the current workspace, and update its attached dataset version. In the
-permanent runner, after workspace extraction:
+example notebook, select the existing M0 training profile without evaluation:
 
 ```python
-!python kaggle_run.py --config configs/m0/kaggle-ddp.yaml --resume none
+TRAIN_CONFIG = "configs/m0/kaggle-ddp.yaml"
+CORPUS_CONFIG = None
+EVAL_CONFIG = None
+RESUME = "none"
 ```
 
 Doctor executes a small tensor operation and matrix multiplication on each
@@ -67,8 +70,7 @@ uploads checkpoints. A rank-0 I/O error is reported to all workers.
 Resume inside the same session with `--resume auto`. From a fresh Kaggle session:
 
 ```python
-!python kaggle_run.py --config configs/m0/kaggle-ddp.yaml \
-    --resume hf://OWNER/REPOSITORY/runs/m0-kaggle-ddp
+RESUME = "hf://OWNER/REPOSITORY/runs/m0-kaggle-ddp"
 ```
 
 The Hub download happens once, followed by loading on each worker from the shared

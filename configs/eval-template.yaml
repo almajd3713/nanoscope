@@ -1,0 +1,26 @@
+# COPY TO: configs/my-eval.yaml. Share this file across EVERY variant and seed.
+# PURPOSE: choose how and when to score on the corpus prepared by my-corpus.yaml.
+# PERIODIC (recommended):
+#   uv run nanoscope train --config configs/my-base-seed-1337.yaml \
+#     --eval-config configs/my-eval.yaml --resume auto
+# STANDALONE (for an already-saved checkpoint):
+#   uv run nanoscope evaluate --checkpoint runs/my-base-seed-1337/checkpoints/step_00001000 \
+#     --eval-config configs/my-eval.yaml
+
+corpus: "@/runs/eval-corpora/my-validation"  # Matches my-corpus.yaml output.
+# Replace null with the fingerprint printed by prepare-eval to pin the exact corpus.
+corpus_hash: null
+batch_size: 4  # Evaluation sequences per batch; lower for GPU memory pressure.
+device: auto  # Periodic evaluation must use the training device; CPU requires fp32.
+precision: fp32  # Keep the same evaluation precision across all compared runs.
+
+# Periodic training settings (ignored by standalone evaluate):
+every_steps: 100  # Score every 100 training steps, saving a checkpoint first.
+final: true  # Also score the configured last training step.
+max_seconds: 300  # Scoring time limit; periodic evaluation requires <540 seconds.
+
+# Used ONLY by standalone evaluate: <output>/<run ID>/<result ID>.json.
+# Periodic results always go to <training run.output_dir>/<run ID>/evaluations/.
+output: "@/runs/evaluations"
+# On Kaggle, point corpus at your prepared corpus's actual location. Periodic results
+# follow run.output_dir automatically; copy/download those runs before comparing locally.

@@ -3,10 +3,14 @@
 # All sections below are supported by the current harness; no YAML inheritance.
 #
 # Kaggle (T4 x2, Internet on, secrets enabled, updated workspace dataset):
-#   python kaggle_run.py --config configs/my-model-seed-1337.yaml --resume none
+#   Import notebooks/kaggle-runner.ipynb once; set TRAIN_CONFIG to this config copy.
+#   Select matching CORPUS_CONFIG and EVAL_CONFIG in its parameter cell.
 # Local GPU (change run.output_dir to runs and set cloud environment variables):
 #   nanoscope doctor --config configs/my-model-seed-1337.yaml
 #   nanoscope train --config configs/my-model-seed-1337.yaml --resume none
+# Periodic validation: append --eval-config configs/my-eval.yaml to nanoscope train.
+# First copy configs/eval-corpus-template.yaml and configs/eval-template.yaml,
+# then prepare the corpus as described in docs/evaluation-quickstart.md.
 # Same-session resume: replace --resume none with --resume auto.
 # Fresh-session resume:
 #   --resume hf://OWNER/REPOSITORY/runs/my-model-seed-1337
@@ -19,7 +23,7 @@ run:
   # Use a new ID when changing the model, data, seed, or training recipe.
   id: my-model-seed-1337
   seed: 1337
-  output_dir: /kaggle/working/nanoscope-runs  # Local machine: runs
+  output_dir: /kaggle/working/nanoscope-runs  # Local machine: "@/runs"
   require_clean_repo: true  # Commit your experiment before training in a Git checkout.
 
 data:
@@ -32,6 +36,14 @@ data:
   text_field: text
   sequence_length: 128  # Prediction tokens per sequence; adjust to your model context size.
   shuffle_buffer: 10000
+  # Exclude held-out text from the FIRST training step. This matches eval-corpus-template.yaml.
+  # Existing runs cannot add/change this partition on resume; start a new run ID.
+  partition:
+    salt: nanoscope-m1-v1
+    buckets: 10000
+    validation_buckets: 100
+    test_buckets: 100
+    split: train
 
 tokenizer:
   name: gpt2
@@ -95,6 +107,6 @@ performance:
 # - Keep the same run ID, recipe, and worker count for exact resume.
 # - Changing devices:auto to devices:2 also changes the configuration digest.
 # - Use --stop-after-step N with nanoscope train to stop early without changing max_steps.
-# - HF/W&B tokens being present does not prove remote write permissions; verify a short run.f
-# - For local offline work: output_dir: runs, hub_policy: disabled, wandb_mode: disabled.
-#   Launch those runs with nanoscope train; kaggle_run.py always expects Kaggle secrets.
+# - HF/W&B tokens being present does not prove remote write permissions; verify a short run.
+# - For local offline work: output_dir: "@/runs", hub_policy: disabled, wandb_mode: disabled.
+#   Launch local runs with nanoscope train; the example notebook loads enabled Kaggle secrets.

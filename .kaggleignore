@@ -1,5 +1,5 @@
 # Nanoscope's Kaggle runtime needs only the package, training configuration,
-# launcher, project metadata, and hash-locked Kaggle requirements.
+# CLI, project metadata, and hash-locked Kaggle requirements.
 
 # Version-control and local agent/editor state
 .git/
@@ -57,6 +57,7 @@ experiments/**/artifacts/
 
 # Development-only files are unnecessary in the remote training image
 /docs/
+/notebooks/
 /tests/
 /uv.lock
 /requirements-kaggle.txt
