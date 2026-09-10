@@ -1,5 +1,11 @@
 # Use a permanent Kaggle notebook
 
+For text generation after training or from an attached checkpoint, see
+[the inference walkthrough](inference.md). Enable `RUN_INFERENCE` and select
+`INFERENCE_CONFIG` in the notebook parameters; the optional cells load the model
+once and let you rerun prompts. Generation JSONL files are downloaded separately
+from the evaluation results ZIP.
+
 Import [notebooks/kaggle-runner.ipynb](../notebooks/kaggle-runner.ipynb) into a Kaggle
 notebook once and keep using that notebook. The CLI uploads workspace dataset
 versions; you control the notebook's GPU, Internet, attached data and enabled

@@ -1,0 +1,10 @@
+# Matches the permanent notebook's configs/test/eval/kaggle-smoke.yaml run.
+# Update run_dir when selecting a different training config or attached run.
+run_dir: /kaggle/working/nanoscope-runs/eval-kaggle-smoke
+checkpoint: latest
+device: auto
+max_new_tokens: 16
+temperature: 0.8
+top_p: 0.95
+seed: 1337
+output: /kaggle/working/nanoscope-exports/eval-kaggle-smoke-generations.jsonl

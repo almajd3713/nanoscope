@@ -124,6 +124,8 @@ def test_notebook_cpu_flow_uses_real_workspace_and_exports_results(tmp_path, mon
         EXPORT_DIR=tmp_path / "exports",
         TRAIN_CONFIG="configs/test/eval/local-base.yaml",
         EVAL_CONFIG="configs/test/eval/local-validation.yaml",
+        RUN_INFERENCE=True,
+        INFERENCE_CONFIG="configs/test/inference/local.yaml",
         INSTALL_DEPENDENCIES=False,
     )
     for cell in (
@@ -132,10 +134,21 @@ def test_notebook_cpu_flow_uses_real_workspace_and_exports_results(tmp_path, mon
         "load-secrets",
         "prepare-corpus",
         "train",
+        "load-inference",
+        "generate-samples",
         "export-results",
     ):
         exec(code[cell], namespace)
     result_zip = tmp_path / "exports/eval-local-base-results.zip"
+    samples = [
+        json.loads(line)
+        for line in (namespace["PROJECT"] / "runs/generations/eval-local-base.jsonl")
+        .read_text()
+        .splitlines()
+    ]
+    assert len(samples) == 2
+    assert all(sample["checkpoint"]["step"] == 4 for sample in samples)
+    assert all(sample["run_id"] == "eval-local-base" for sample in samples)
     with zipfile.ZipFile(result_zip) as result:
         names = result.namelist()
         evaluations = [name for name in names if "/evaluations/" in name]
