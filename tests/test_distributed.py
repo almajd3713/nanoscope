@@ -159,19 +159,21 @@ def test_conditional_model_and_auxiliary_loss_contract(tmp_path):
     assert len(state["metrics"]) == config.train.max_steps
 
 
-def test_kaggle_launcher_forwards_sigterm(tmp_path):
+def test_training_cli_forwards_sigterm(tmp_path):
     config = config_for(tmp_path)
     config.train.max_steps = 40
     path = tmp_path / "config.yaml"
     dump_config(config, path)
-    # Exercise the real launcher forwarding without cloud credentials or pip installation.
+    # Exercise the supported training CLI directly; notebook bootstrap is tested separately.
     command = [
         sys.executable,
-        "-c",
-        "import sys; from kaggle_run import _run; "
-        "_run(sys.executable, '-m', 'nanoscope', 'train', '--config', sys.argv[1], "
-        "'--resume', 'none')",
+        "-m",
+        "nanoscope",
+        "train",
+        "--config",
         str(path),
+        "--resume",
+        "none",
     ]
     process = subprocess.Popen(
         command,

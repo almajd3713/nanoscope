@@ -1,7 +1,9 @@
 # Sync a workspace with the Kaggle CLI
 
-Use the CLI to upload source, then run your permanent Kaggle notebook; no generated notebook or disposable GPU run is
-needed. The notebook retains its own GPU, Internet, and secret settings.
+Use the CLI to upload source, then run your permanent Kaggle notebook. Import
+[the example runner](../notebooks/kaggle-runner.ipynb) once and keep its GPU, Internet,
+attached dataset and enabled secret settings in Kaggle. The CLI does not submit
+kernels or attach secrets. See [notebook setup](kaggle-notebook.md).
 
 ## One-time setup
 
@@ -35,7 +37,7 @@ an existing dataset. It never creates or renames a dataset, changes its visibili
 or deletes old versions. An inaccessible dataset fails the command.
 
 Kaggle API credentials authorize local uploads. HF/W&B credentials remain in
-Kaggle notebook secrets and are loaded by `kaggle_run.py` during training.
+Kaggle notebook secrets and are loaded by the example notebook before training.
 
 ## Daily workflow
 
@@ -53,16 +55,21 @@ kaggle datasets status redhouanelazib/vscode-run-nanoscope
 ```
 
 Open the permanent runner, update its attached dataset to the new version, and
-select **Save Version → Save & Run All**. Its existing `workspace.zip` extraction
-cell continues to work. For DDP, select T4 x2 and use:
+run its cells (or save and run the notebook through Kaggle's UI). For the initial
+GPU/evaluation smoke run, keep these notebook parameters:
 
 ```python
-!python kaggle_run.py --config configs/m0/kaggle-ddp.yaml --resume none
+TRAIN_CONFIG = "configs/eval/kaggle-smoke.yaml"
+CORPUS_CONFIG = "configs/eval/local-corpus.yaml"
+EVAL_CONFIG = "configs/eval/kaggle-validation.yaml"
+RESUME = "auto"
 ```
 
-Replace the config path with your own experiment. After a session ends, use the
-appropriate `hf://OWNER/REPOSITORY/runs/RUN_ID` resume URI. Dataset sync does not
-upload checkpoints or training logs, and it does not start the notebook.
+Replace these with your own training and matching evaluation configs for research.
+After a session ends, set `RESUME` to the appropriate
+`hf://OWNER/REPOSITORY/runs/RUN_ID` URI. Dataset sync does not upload checkpoints,
+local corpora, or training logs, and it does not start the notebook. The runner's
+export cell packages evaluation results for local comparison.
 
 ## What is uploaded
 

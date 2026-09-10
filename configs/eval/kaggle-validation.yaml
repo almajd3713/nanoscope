@@ -1,0 +1,9 @@
+# Shared fixture corpus prepared by configs/eval/local-corpus.yaml.
+corpus: "@/runs/eval-corpora/local-validation"
+output: "@/runs/evaluations"
+batch_size: 3
+device: auto
+precision: fp32
+every_steps: 2
+final: true
+max_seconds: 300

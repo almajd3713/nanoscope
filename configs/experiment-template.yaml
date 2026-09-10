@@ -3,7 +3,8 @@
 # All sections below are supported by the current harness; no YAML inheritance.
 #
 # Kaggle (T4 x2, Internet on, secrets enabled, updated workspace dataset):
-#   python kaggle_run.py --config configs/my-model-seed-1337.yaml --resume none
+#   Import notebooks/kaggle-runner.ipynb once; set TRAIN_CONFIG to this config copy.
+#   Select matching CORPUS_CONFIG and EVAL_CONFIG in its parameter cell.
 # Local GPU (change run.output_dir to runs and set cloud environment variables):
 #   nanoscope doctor --config configs/my-model-seed-1337.yaml
 #   nanoscope train --config configs/my-model-seed-1337.yaml --resume none
@@ -106,6 +107,6 @@ performance:
 # - Keep the same run ID, recipe, and worker count for exact resume.
 # - Changing devices:auto to devices:2 also changes the configuration digest.
 # - Use --stop-after-step N with nanoscope train to stop early without changing max_steps.
-# - HF/W&B tokens being present does not prove remote write permissions; verify a short run.f
+# - HF/W&B tokens being present does not prove remote write permissions; verify a short run.
 # - For local offline work: output_dir: "@/runs", hub_policy: disabled, wandb_mode: disabled.
-#   Launch those runs with nanoscope train; kaggle_run.py always expects Kaggle secrets.
+#   Launch local runs with nanoscope train; the example notebook loads enabled Kaggle secrets.

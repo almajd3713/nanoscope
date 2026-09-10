@@ -43,24 +43,29 @@ This versions the dataset configured in `kaggle-sync.json`, applying Git ignores
 and `.kaggleignore`. It does not submit or modify any notebook. See
 [workspace sync](kaggle-workspace.md) for CLI authentication and packaging details.
 
-Wait for dataset processing, update the attached dataset version in your permanent
-notebook, then run its extraction cell followed by:
+Wait for dataset processing, then update the attached version in your permanent
+[example runner notebook](../notebooks/kaggle-runner.ipynb). To use the original M0
+acceptance profile (which has no held-out partition), set:
 
 ```python
-!python kaggle_run.py --config configs/m0/kaggle-ddp.yaml --resume none
+TRAIN_CONFIG = "configs/m0/kaggle-ddp.yaml"
+CORPUS_CONFIG = None
+EVAL_CONFIG = None
+RESUME = "none"
 ```
 
-The training launcher loads notebook secrets, installs `requirements-kaggle.lock`,
-runs doctor, and starts the configured workers. Use `configs/m0/kaggle-acceptance.yaml`
-for the original single-process run. For recovery in a fresh session:
+The notebook loads enabled secrets, installs `requirements-kaggle.lock`, runs doctor,
+and starts the configured workers through `python -m nanoscope train`. Use
+`configs/m0/kaggle-acceptance.yaml` for the original single-process run. In a fresh
+session set:
 
 ```python
-!python kaggle_run.py --config configs/m0/kaggle-ddp.yaml \
-    --resume hf://OWNER/REPOSITORY/runs/m0-kaggle-ddp
+RESUME = "hf://OWNER/REPOSITORY/runs/m0-kaggle-ddp"
 ```
 
-For another run in the same still-active session, use `--skip-install --resume auto`.
-See [distributed training](distributed-training.md) for the resume requirements.
+For another run in the same active session, use `INSTALL_DEPENDENCIES = False`
+and `RESUME = "auto"`. See [notebook setup](kaggle-notebook.md) for the default
+GPU smoke run with periodic evaluation and result export.
 
 ### Kaggle notebook manually
 

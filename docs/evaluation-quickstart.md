@@ -27,6 +27,9 @@ Evaluation performs forward passes without learning from the validation text.
 The training partition excludes that text. A checkpoint is the model at a particular
 training step; an evaluation result is its score on the frozen corpus.
 
+For GPU execution, use the [permanent Kaggle notebook](kaggle-notebook.md). It runs
+the same CLI flow and exports result ZIPs for comparison on your local machine.
+
 ## 1. Try a small example on your machine
 
 Run these commands from the repository root. They use the included tiny CPU model

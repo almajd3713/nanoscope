@@ -1,0 +1,99 @@
+# Four-step GPU + HF/W&B + evaluation smoke run for notebooks/kaggle-runner.ipynb.
+# Fixture text; toy_lm is not the M1 baseline. Uses all visible GPUs.
+run:
+  id: eval-kaggle-smoke
+  seed: 1337
+  output_dir: /kaggle/working/nanoscope-runs
+  require_clean_repo: true
+data:
+  source: fixture
+  sequence_length: 16
+  shuffle_buffer: 64
+  documents:
+  - 'Document 0: reproducible experiments compare the same held-out text, tokens,
+    and training budget.'
+  - 'Document 1: reproducible experiments compare the same held-out text, tokens,
+    and training budget.'
+  - 'Document 2: reproducible experiments compare the same held-out text, tokens,
+    and training budget.'
+  - 'Document 3: reproducible experiments compare the same held-out text, tokens,
+    and training budget.'
+  - 'Document 4: reproducible experiments compare the same held-out text, tokens,
+    and training budget.'
+  - 'Document 5: reproducible experiments compare the same held-out text, tokens,
+    and training budget.'
+  - 'Document 6: reproducible experiments compare the same held-out text, tokens,
+    and training budget.'
+  - 'Document 7: reproducible experiments compare the same held-out text, tokens,
+    and training budget.'
+  - 'Document 8: reproducible experiments compare the same held-out text, tokens,
+    and training budget.'
+  - 'Document 9: reproducible experiments compare the same held-out text, tokens,
+    and training budget.'
+  - 'Document 10: reproducible experiments compare the same held-out text, tokens,
+    and training budget.'
+  - 'Document 11: reproducible experiments compare the same held-out text, tokens,
+    and training budget.'
+  - 'Document 12: reproducible experiments compare the same held-out text, tokens,
+    and training budget.'
+  - 'Document 13: reproducible experiments compare the same held-out text, tokens,
+    and training budget.'
+  - 'Document 14: reproducible experiments compare the same held-out text, tokens,
+    and training budget.'
+  - 'Document 15: reproducible experiments compare the same held-out text, tokens,
+    and training budget.'
+  - 'Document 16: reproducible experiments compare the same held-out text, tokens,
+    and training budget.'
+  - 'Document 17: reproducible experiments compare the same held-out text, tokens,
+    and training budget.'
+  - 'Document 18: reproducible experiments compare the same held-out text, tokens,
+    and training budget.'
+  - 'Document 19: reproducible experiments compare the same held-out text, tokens,
+    and training budget.'
+  partition:
+    salt: nanoscope-local-eval-v1
+    buckets: 10
+    validation_buckets: 2
+    test_buckets: 2
+    split: train
+tokenizer:
+  name: byte
+  eos_token_id: 256
+model:
+  name: toy_lm
+  params:
+    vocab_size: 257
+    hidden_size: 32
+    dropout: 0.1
+optimizer:
+  name: adamw
+  learning_rate: 0.003
+  weight_decay: 0.01
+scheduler:
+  name: cosine
+  warmup_steps: 0
+train:
+  max_steps: 4
+  batch_size: 2
+  gradient_accumulation_steps: 1
+  device: cuda
+  precision: fp16
+  deterministic: true
+  grad_clip: 1.0
+checkpoint:
+  every_steps: 2
+  archive_every_steps: 2
+  keep_last: 3
+  hub_policy: required
+  hub_repo: null
+logging:
+  every_steps: 1
+  wandb_mode: online
+  project: nanoscope
+  entity: null
+performance:
+  peak_tflops: null
+distributed:
+  strategy: ddp
+  devices: auto
+  find_unused_parameters: false
