@@ -45,6 +45,10 @@ def _parse_set(items: list[str]) -> dict:
     return result
 
 
+def _parse_compile(value: str | None) -> bool | str:
+    return False if value is None else (True if value == "true" else value)
+
+
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(prog="nanoscope", description="Nanoscope CLI")
     sub = parser.add_subparsers(dest="command")
@@ -57,9 +61,20 @@ def build_parser() -> argparse.ArgumentParser:
     run_parser.add_argument("--device", default=None)
     run_parser.add_argument("--output-dir", default=None)
     run_parser.add_argument("--set", nargs="*", default=[], dest="overrides")
+    run_parser.add_argument("--compile", nargs="?", const="true", default=None,
+                            help="torch.compile; or --compile reduce-overhead for CUDA graphs")
     run_parser.add_argument("--no-resume", action="store_true")
 
     sub.add_parser("presets", help="List available presets")
+
+    bench_parser = sub.add_parser("bench", help="Measure training speed and find the bottleneck")
+    bench_parser.add_argument("model", help="bigram, gpt2, modern, or path/to/model.py:ClassName")
+    bench_parser.add_argument("--preset", default="tinystories-5min")
+    bench_parser.add_argument("--device", default=None)
+    bench_parser.add_argument("--steps", type=int, default=60)
+    bench_parser.add_argument("--compile", nargs="?", const="true", default=None,
+                              help="torch.compile; or --compile reduce-overhead for CUDA graphs")
+    bench_parser.add_argument("--set", nargs="*", default=[], dest="overrides")
 
     prep_parser = sub.add_parser("prepare-data", help="Download or tokenize a preset's data now")
     prep_parser.add_argument("preset")
@@ -76,6 +91,12 @@ def build_parser() -> argparse.ArgumentParser:
     study_parser.add_argument("file", help="path/to/study.py")
     study_parser.add_argument("--name", default=None, help="which Study, if the file has several")
     study_parser.add_argument("--devices", default=None, help="comma-separated, e.g. cuda:0,cuda:1")
+    study_parser.add_argument("--workers-per-device", type=int, default=1,
+                              help="runs at once on each device; more keeps a GPU busier")
+    study_parser.add_argument("--threads", type=int, default=None,
+                              help="CPU threads per worker (default: cores split between workers)")
+    study_parser.add_argument("--compile", nargs="?", const="true", default=None,
+                              help="torch.compile; or --compile reduce-overhead for CUDA graphs")
     study_parser.add_argument("--push-to-hub", default=None, metavar="REPO",
                               help="mirror runs to this Hub repo and resume from it")
     study_parser.add_argument("--shard", default=None, help=argparse.SUPPRESS)
@@ -102,6 +123,16 @@ def main(argv: list[str] | None = None) -> None:
     if args.command == "presets":
         for name in list_presets():
             print(name)
+        return
+
+    if args.command == "bench":
+        from nanoscope import models
+        from nanoscope.bench import bench
+
+        named = {"bigram": models.Bigram, "gpt2": models.GPT2, "modern": models.Modern}
+        model_cls = named.get(args.model) or _load_model_class(args.model)
+        print(bench(model_cls, args.preset, steps=args.steps, device=args.device,
+                    compile=_parse_compile(args.compile), **_parse_set(args.overrides)))
         return
 
     if args.command in ("prepare-data", "publish-data"):
@@ -132,7 +163,10 @@ def main(argv: list[str] | None = None) -> None:
             shard = tuple(int(x) for x in args.shard.split("/")) if args.shard else None
             if args.push_to_hub:
                 study.push_to_hub = args.push_to_hub
-            study.run(devices=devices, shard=shard)
+            if args.compile:
+                study.compile = _parse_compile(args.compile)
+            study.run(devices=devices, shard=shard, workers_per_device=args.workers_per_device,
+                      threads=args.threads)
             if shard is not None:
                 return
         print(study.report())
@@ -155,6 +189,7 @@ def main(argv: list[str] | None = None) -> None:
             device=args.device,
             output_dir=args.output_dir,
             resume=not args.no_resume,
+            compile=_parse_compile(args.compile),
             **kwargs,
         )
 

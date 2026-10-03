@@ -278,6 +278,7 @@ def run(
     wandb: bool | str = False,
     push_to_hub: str | None = None,
     progress: bool = True,
+    compile: bool | str = False,
     study: dict[str, Any] | None = None,
     **model_kwargs: Any,
 ) -> RunResult | RunGroup:
@@ -288,6 +289,8 @@ def run(
     push_to_hub="user/repo" mirrors the run (checkpoints included) in a private Hub repo and
     resumes from it when the local folder is empty, e.g. in a new Kaggle session.
     `study` is set by nanoscope.Study and recorded in config.json.
+    compile=True speeds up training with torch.compile (see train_loop.train); it doesn't
+    change the run's identity, so a run can resume with it on or off.
     """
     if seeds is not None:
         if output_dir is not None:
@@ -296,7 +299,7 @@ def run(
         return RunGroup([
             run(model_cls, preset, seed=s, device=device, resume=resume, on_step=on_step,
                 on_eval=on_eval, wandb=wandb, push_to_hub=push_to_hub, progress=progress,
-                study=study,
+                study=study, compile=compile,
                 **model_kwargs)
             for s in seed_list
         ])
@@ -318,6 +321,7 @@ def run(
     from_data = {"vocab_size": vocab_size, "context_length": preset.context_length}
     model_params = inspect.signature(model_cls).parameters
     model_kwargs = {k: v for k, v in from_data.items() if k in model_params} | model_kwargs
+    torch.manual_seed(seed)  # the seed decides the initial weights too, not just the batches
     model = model_cls(**model_kwargs)
     full_kwargs = {
         name: p.default for name, p in inspect.signature(model_cls).parameters.items()
@@ -378,6 +382,7 @@ def run(
         on_step=on_step,
         on_eval=on_eval,
         on_checkpoint=hub,
+        compile=compile,
     )
     if bar:
         bar.close()

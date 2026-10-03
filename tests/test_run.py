@@ -114,3 +114,10 @@ def test_token_files_hold_documents_separated_by_eos():
     assert int((tokens == eos).sum()) == 10
     first_doc = tokens[: int((tokens == eos).nonzero()[0])].tolist()
     assert data.tokenizer.decode(first_doc).startswith("Once upon a time")
+
+
+def test_a_seed_gives_the_same_initial_weights_whatever_ran_before(fake_data):
+    first = run(Bigram, tiny(), output_dir="a", seed=3, progress=False)
+    run(Bigram, tiny(), output_dir="other", seed=9, progress=False)  # disturbs the global RNG
+    again = run(Bigram, tiny(), output_dir="b", seed=3, progress=False)
+    assert again.metrics[0]["loss"] == first.metrics[0]["loss"]

@@ -310,3 +310,32 @@ def test_interrupted_cuda_run_resumes_exactly():
     run(GPT2, tiny(), output_dir="resumed", on_step=interrupt, **kw)
     resumed = run(GPT2, tiny(), output_dir="resumed", **kw)
     assert [r["loss"] for r in resumed.metrics] == [r["loss"] for r in straight.metrics]
+
+
+def test_several_workers_can_share_one_device(tmp_path, monkeypatch):
+    path = tmp_path / "study.py"
+    write_study(path, seeds=2)
+    study = load_study(path)
+    load_data(study.preset)
+    monkeypatch.setenv("NANOSCOPE_DATA_DIR", str(dataset.CACHE_DIR))
+
+    study.run(devices=["cpu"], workers_per_device=2)
+
+    assert len(list(study.dir.glob("*/seed-*/latest.json"))) == 4
+    assert {p.name for p in (study.dir / "logs").iterdir()} == {"worker-0.log", "worker-1.log"}
+
+
+def test_too_many_workers_for_the_free_gpu_memory_are_refused(monkeypatch):
+    from nanoscope.hardware import check_gpu_fits
+
+    gib = 2**30
+    monkeypatch.setattr(torch.cuda, "mem_get_info", lambda device: (4 * gib, 8 * gib))
+    check_gpu_fits("cuda:0", 3, gib)  # 3 GiB of 4 free fits
+    with pytest.raises(ValueError, match="fewer --workers-per-device"):
+        check_gpu_fits("cuda:0", 4, gib)
+
+
+def test_studies_sample_text_only_at_the_last_step():
+    study = Study("s", preset=tiny(sample_interval=10), seeds=1)
+    study.add("a", Bigram)
+    assert all(j.preset.sample_interval == j.preset.max_steps for j in study.jobs())
