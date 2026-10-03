@@ -4,22 +4,24 @@ build-backend = "hatchling.build"
 
 [project]
 name = "nanoscope-lab"
-version = "0.1.0"
-description = "A reproducible small-model research laboratory"
+version = "0.2.0"
+description = "See what your language model learns"
 readme = "README.md"
 requires-python = ">=3.10,<3.13"
 dependencies = [
   "datasets>=3.0,<5",
   "huggingface-hub>=0.27,<2",
+  "matplotlib>=3.8,<4",
   "numpy>=1.26,<3",
   "pyyaml>=6.0,<7",
+  "scipy>=1.11,<2",
   "tiktoken>=0.8,<1",
+  "tokenizers>=0.20,<1",
   "torch>=2.2,<3",
   "wandb>=0.19,<1",
 ]
 
 [project.optional-dependencies]
-eval = ["matplotlib>=3.8,<4", "scipy>=1.11,<2"]
 dev = [
   "nbformat>=5.10,<6",
   "pytest>=8.3,<9",
@@ -29,7 +31,7 @@ dev = [
 ]
 
 [project.scripts]
-nanoscope = "nanoscope.cli:main"
+nanoscope = "nanoscope.cli_new:main"
 
 [tool.hatch.build.targets.wheel]
 packages = ["nanoscope"]
