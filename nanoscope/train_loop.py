@@ -18,6 +18,7 @@ import torch.nn.functional as F
 
 from nanoscope.dataset import Data
 from nanoscope.presets import Preset
+from nanoscope.sizing import flops_per_token
 from nanoscope.tokenizer import Tokenizer
 
 
@@ -65,14 +66,6 @@ def _peak_tflops(device: torch.device) -> float | None:
     if "p100" in name:
         return 21.2
     return None
-
-
-def _non_embedding_params(model: nn.Module) -> int:
-    emb_ids = {
-        id(p) for m in model.modules() if isinstance(m, nn.Embedding)
-        for p in m.parameters(recurse=False)
-    }
-    return sum(p.numel() for p in model.parameters() if id(p) not in emb_ids)
 
 
 def _param_groups(model: nn.Module, weight_decay: float) -> list[dict[str, Any]]:
@@ -208,6 +201,7 @@ def train(
     resume: bool = True,
     on_step: Any = None,
     on_eval: Any = None,
+    on_checkpoint: Any = None,
 ) -> TrainResult:
     torch.manual_seed(seed)
     if device.type == "cuda":
@@ -263,7 +257,8 @@ def train(
         }, preset.keep_checkpoints)
 
     peak = _peak_tflops(device)
-    n_params = _non_embedding_params(model)
+    flops_per_tok = flops_per_token(model, preset.context_length)
+    tokens_per_step = preset.batch_size * preset.context_length
 
     # Ctrl-C finishes the current step, saves a checkpoint and returns.
     stop_requested = False
@@ -303,14 +298,15 @@ def train(
                 torch.cuda.synchronize(device)
             elapsed = time.perf_counter() - t0
             tokens = targets.numel()
-            flops = 6 * n_params * tokens
-            mfu = flops / (elapsed * peak * 1e12) if peak and elapsed else None
+            mfu = flops_per_tok * tokens / (elapsed * peak * 1e12) if peak and elapsed else None
 
             row: dict[str, Any] = {
                 "step": step,
                 "loss": loss.item(),
                 "lr": optimizer.param_groups[0]["lr"],
                 "grad_norm": float(grad_norm),
+                "tokens": step * tokens_per_step,
+                "flops": step * tokens_per_step * flops_per_tok,
                 "tokens_per_sec": tokens / elapsed,
                 "mfu": mfu,
                 "elapsed": elapsed,
@@ -338,6 +334,8 @@ def train(
 
             if step % preset.checkpoint_interval == 0 or last or stop_requested:
                 checkpoint(step)
+                if on_checkpoint:
+                    on_checkpoint(step, last or stop_requested)
             if stop_requested:
                 break
     finally:

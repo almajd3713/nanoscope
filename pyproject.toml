@@ -13,15 +13,14 @@ dependencies = [
   "huggingface-hub>=0.27,<2",
   "matplotlib>=3.8,<4",
   "numpy>=1.26,<3",
-  "pyyaml>=6.0,<7",
   "scipy>=1.11,<2",
   "tiktoken>=0.8,<1",
   "tokenizers>=0.20,<1",
   "torch>=2.2,<3",
-  "wandb>=0.19,<1",
 ]
 
 [project.optional-dependencies]
+wandb = ["wandb>=0.19,<1"]
 dev = [
   "nbformat>=5.10,<6",
   "pytest>=8.3,<9",
@@ -31,7 +30,7 @@ dev = [
 ]
 
 [project.scripts]
-nanoscope = "nanoscope.cli_new:main"
+nanoscope = "nanoscope.cli:main"
 
 [tool.hatch.build.targets.wheel]
 packages = ["nanoscope"]

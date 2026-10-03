@@ -11,7 +11,10 @@ import torch
 from torch import nn
 
 from nanoscope.dataset import Data, load_data, tokenizer_id
+from nanoscope.integrations import HubSync, chain, wandb_hook
 from nanoscope.presets import Preset, get_preset, list_presets
+from nanoscope.progress import ProgressBar
+from nanoscope.sizing import count_params, flops_per_token
 from nanoscope.train_loop import TrainResult, generate, train
 
 RUNS_DIR = Path("runs")
@@ -241,6 +244,11 @@ def _run_name(
 
 def _check_config(run_dir: Path, config: dict[str, Any], resume: bool) -> None:
     path = run_dir / "config.json"
+    if not resume and path.exists():
+        saved = json.loads(path.read_text(encoding="utf-8"))
+        if saved.get("study", {}).get("mode") == "record":
+            raise ValueError(f"{run_dir} is a record-mode result; record results are never "
+                             "overwritten. Delete the folder by hand if you really mean it.")
     if resume and path.exists():
         saved = json.loads(path.read_text(encoding="utf-8"))
         saved.pop("stats", None)
@@ -267,11 +275,19 @@ def run(
     resume: bool = True,
     on_step: Any = None,
     on_eval: Any = None,
+    wandb: bool | str = False,
+    push_to_hub: str | None = None,
+    progress: bool = True,
+    study: dict[str, Any] | None = None,
     **model_kwargs: Any,
 ) -> RunResult | RunGroup:
     """Train model_cls on a preset; returns a RunResult, or a RunGroup when seeds= is given.
 
     Keywords that match model_cls's __init__ go to the model; the rest override preset fields.
+    progress=False hides the progress bar. wandb=True (or a project name) logs live curves;
+    push_to_hub="user/repo" mirrors the run (checkpoints included) in a private Hub repo and
+    resumes from it when the local folder is empty, e.g. in a new Kaggle session.
+    `study` is set by nanoscope.Study and recorded in config.json.
     """
     if seeds is not None:
         if output_dir is not None:
@@ -279,7 +295,9 @@ def run(
         seed_list = list(range(seeds)) if isinstance(seeds, int) else list(seeds)
         return RunGroup([
             run(model_cls, preset, seed=s, device=device, resume=resume, on_step=on_step,
-                on_eval=on_eval, **model_kwargs)
+                on_eval=on_eval, wandb=wandb, push_to_hub=push_to_hub, progress=progress,
+                study=study,
+                **model_kwargs)
             for s in seed_list
         ])
     if isinstance(preset, str):
@@ -311,12 +329,28 @@ def run(
         "preset": asdict(preset),
         "tokenizer": tokenizer_id(preset),
         "seed": seed,
+        **({"study": study} if study else {}),
     }, default=str))
+    hub = None
+    if push_to_hub:
+        try:
+            path_in_repo = run_dir.relative_to(RUNS_DIR).as_posix()
+        except ValueError:
+            path_in_repo = "/".join(run_dir.parts[-3:])
+        hub = HubSync(push_to_hub, run_dir, path_in_repo)
+        if resume:
+            hub.pull()
     _check_config(run_dir, config, resume)
     run_dir.mkdir(parents=True, exist_ok=True)
+    n_params, n_non_embedding = count_params(model)
     stats = {
-        "n_params": sum(p.numel() for p in model.parameters()),
+        "n_params": n_params,
+        "n_non_embedding_params": n_non_embedding,
+        "flops_per_token": flops_per_token(model, preset.context_length),
         "vocab_size": vocab_size,
+        "device": (torch.cuda.get_device_name(resolved_device)
+                   if resolved_device.type == "cuda" else resolved_device.type),
+        "torch": torch.__version__,
     }
     (run_dir / "config.json").write_text(
         json.dumps({**config, "stats": stats}, indent=2), encoding="utf-8"
@@ -324,6 +358,15 @@ def run(
 
     _log(f"{model_cls.__name__} ({stats['n_params']:,} params) on {preset.name}, "
          f"{resolved_device} -> {run_dir}")
+    bar = None
+    if progress:
+        bar = ProgressBar(preset.max_steps, f"{model_cls.__name__} seed {seed}")
+    on_step = chain(on_step, bar)
+    finish = None
+    if wandb:
+        project = wandb if isinstance(wandb, str) else "nanoscope"
+        wandb_step, finish = wandb_hook(project, "-".join(run_dir.parts[-3:]), config)
+        on_step = chain(on_step, wandb_step)
     result = train(
         model=model,
         data=data,
@@ -334,7 +377,12 @@ def run(
         resume=resume,
         on_step=on_step,
         on_eval=on_eval,
+        on_checkpoint=hub,
     )
+    if bar:
+        bar.close()
+    if finish:
+        finish()
 
     return RunResult(
         preset=preset,

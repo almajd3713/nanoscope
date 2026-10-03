@@ -5,6 +5,8 @@ Every component has a switch, so a leave-one-out ablation is one keyword:
 Modern(rope=False) uses learned positions instead, swiglu=False a GELU MLP,
 rmsnorm=False LayerNorm, qk_norm=False no QK-norm, n_kv_heads=n_heads plain
 multi-head attention, z_loss=0 no z-loss, tie_weights=False a separate output matrix.
+ffn_hidden sets the MLP width, e.g. to match another model's parameter count
+(see nanoscope.sizing.match_params).
 """
 
 from __future__ import annotations
@@ -14,6 +16,8 @@ import math
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
+
+from nanoscope.sizing import count_params
 
 
 class RMSNorm(nn.Module):
@@ -90,9 +94,9 @@ class Attention(nn.Module):
 class SwiGLU(nn.Module):
     """silu(x W1) * (x W3), then W2. Hidden size 8d/3 keeps the parameter count of a 4d GELU MLP."""
 
-    def __init__(self, d_model: int) -> None:
+    def __init__(self, d_model: int, hidden: int | None = None) -> None:
         super().__init__()
-        hidden = 8 * ((8 * d_model // 3 + 7) // 8)
+        hidden = hidden or 8 * ((8 * d_model // 3 + 7) // 8)
         self.w1 = nn.Linear(d_model, hidden, bias=False)
         self.w3 = nn.Linear(d_model, hidden, bias=False)
         self.proj = nn.Linear(hidden, d_model, bias=False)
@@ -102,10 +106,11 @@ class SwiGLU(nn.Module):
 
 
 class GELUMLP(nn.Module):
-    def __init__(self, d_model: int) -> None:
+    def __init__(self, d_model: int, hidden: int | None = None) -> None:
         super().__init__()
-        self.fc = nn.Linear(d_model, 4 * d_model, bias=False)
-        self.proj = nn.Linear(4 * d_model, d_model, bias=False)
+        hidden = hidden or 4 * d_model
+        self.fc = nn.Linear(d_model, hidden, bias=False)
+        self.proj = nn.Linear(hidden, d_model, bias=False)
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         return self.proj(F.gelu(self.fc(x), approximate="tanh"))
@@ -114,12 +119,13 @@ class GELUMLP(nn.Module):
 class Block(nn.Module):
     def __init__(
         self, d_model, n_heads, n_kv_heads, rope, swiglu, rmsnorm, qk_norm, context_length,
+        ffn_hidden,
     ) -> None:
         super().__init__()
         self.norm1 = _norm(d_model, rmsnorm)
         self.attn = Attention(d_model, n_heads, n_kv_heads, rope, qk_norm, context_length)
         self.norm2 = _norm(d_model, rmsnorm)
-        self.mlp = SwiGLU(d_model) if swiglu else GELUMLP(d_model)
+        self.mlp = SwiGLU(d_model, ffn_hidden) if swiglu else GELUMLP(d_model, ffn_hidden)
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         x = x + self.attn(self.norm1(x))
@@ -141,14 +147,17 @@ class Modern(nn.Module):
         qk_norm: bool = True,
         z_loss: float = 1e-4,
         tie_weights: bool = True,
+        ffn_hidden: int | None = None,  # default: 8d/3 for SwiGLU, 4d for GELU
     ) -> None:
         super().__init__()
         self.context_length = context_length
+        self.d_model = d_model
         self.z_loss = z_loss
         self.tok_emb = nn.Embedding(vocab_size, d_model)
         self.pos_emb = None if rope else nn.Embedding(context_length, d_model)
         self.blocks = nn.ModuleList(
-            Block(d_model, n_heads, n_kv_heads, rope, swiglu, rmsnorm, qk_norm, context_length)
+            Block(d_model, n_heads, n_kv_heads, rope, swiglu, rmsnorm, qk_norm, context_length,
+                  ffn_hidden)
             for _ in range(n_layers)
         )
         self.norm = _norm(d_model, rmsnorm)
@@ -160,6 +169,14 @@ class Modern(nn.Module):
             if p.ndim == 2:
                 std = 0.02 / math.sqrt(2 * n_layers) if name.endswith("proj.weight") else 0.02
                 nn.init.normal_(p, mean=0.0, std=std)
+
+    def flops_per_token(self, context_length: int) -> int:
+        """Training FLOPs per token (PaLM, appendix B): 6 per weight used, including the
+        tied output matrix, plus 12 * layers * d_model * context for attention scores."""
+        _, non_embedding = count_params(self)
+        tied = self.head.weight is self.tok_emb.weight
+        unembed = self.head.weight.numel() if tied else 0
+        return 6 * (non_embedding + unembed) + 12 * len(self.blocks) * self.d_model * context_length
 
     def forward(self, idx: torch.Tensor) -> torch.Tensor | tuple[torch.Tensor, torch.Tensor]:
         T = idx.size(1)

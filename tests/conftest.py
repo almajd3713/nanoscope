@@ -8,7 +8,7 @@ ANIMALS = ["cat", "dog", "bird", "fox", "frog"]
 VERBS = ["saw", "liked", "chased", "found", "hugged"]
 
 
-def _fake_texts(dataset_name, split, max_docs):
+def _fake_texts(dataset_name, config, split, max_docs):
     rng = random.Random(0 if split == "train" else 1)
     n = max_docs or 500
     for i in range(n):

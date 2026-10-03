@@ -11,6 +11,8 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
+from nanoscope.sizing import count_params
+
 
 class CausalSelfAttention(nn.Module):
     def __init__(self, d_model: int, n_heads: int) -> None:
@@ -63,6 +65,7 @@ class GPT2(nn.Module):
     ) -> None:
         super().__init__()
         self.context_length = context_length
+        self.d_model = d_model
         self.tok_emb = nn.Embedding(vocab_size, d_model)
         self.pos_emb = nn.Embedding(context_length, d_model)
         self.blocks = nn.ModuleList(Block(d_model, n_heads) for _ in range(n_layers))
@@ -77,6 +80,14 @@ class GPT2(nn.Module):
             elif p.ndim == 2:
                 std = 0.02 / math.sqrt(2 * n_layers) if name.endswith("proj.weight") else 0.02
                 nn.init.normal_(p, mean=0.0, std=std)
+
+    def flops_per_token(self, context_length: int) -> int:
+        """Training FLOPs per token (PaLM, appendix B): 6 per weight used, including the
+        tied output matrix, plus 12 * layers * d_model * context for attention scores."""
+        _, non_embedding = count_params(self)
+        tied = self.head.weight is self.tok_emb.weight
+        unembed = self.head.weight.numel() if tied else 0
+        return 6 * (non_embedding + unembed) + 12 * len(self.blocks) * self.d_model * context_length
 
     def forward(self, idx: torch.Tensor) -> torch.Tensor:
         T = idx.size(1)

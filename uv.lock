@@ -1105,14 +1105,12 @@ dependencies = [
     { name = "numpy", version = "2.2.6", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.11'" },
     { name = "numpy", version = "2.4.6", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version == '3.11.*'" },
     { name = "numpy", version = "2.5.2", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.12'" },
-    { name = "pyyaml" },
     { name = "scipy", version = "1.15.3", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.11'" },
     { name = "scipy", version = "1.17.1", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version == '3.11.*'" },
     { name = "scipy", version = "1.18.1", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.12'" },
     { name = "tiktoken" },
     { name = "tokenizers" },
     { name = "torch" },
-    { name = "wandb" },
 ]
 
 [package.optional-dependencies]
@@ -1122,6 +1120,9 @@ dev = [
     { name = "pytest" },
     { name = "pytest-cov" },
     { name = "ruff" },
+]
+wandb = [
+    { name = "wandb" },
 ]
 
 [package.metadata]
@@ -1134,15 +1135,14 @@ requires-dist = [
     { name = "pyright", marker = "extra == 'dev'", specifier = ">=1.1.390" },
     { name = "pytest", marker = "extra == 'dev'", specifier = ">=8.3,<9" },
     { name = "pytest-cov", marker = "extra == 'dev'", specifier = ">=6,<8" },
-    { name = "pyyaml", specifier = ">=6.0,<7" },
     { name = "ruff", marker = "extra == 'dev'", specifier = ">=0.9,<1" },
     { name = "scipy", specifier = ">=1.11,<2" },
     { name = "tiktoken", specifier = ">=0.8,<1" },
     { name = "tokenizers", specifier = ">=0.20,<1" },
     { name = "torch", specifier = ">=2.2,<3" },
-    { name = "wandb", specifier = ">=0.19,<1" },
+    { name = "wandb", marker = "extra == 'wandb'", specifier = ">=0.19,<1" },
 ]
-provides-extras = ["dev"]
+provides-extras = ["wandb", "dev"]
 
 [[package]]
 name = "nbformat"

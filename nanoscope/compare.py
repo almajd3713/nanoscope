@@ -91,6 +91,10 @@ class RunSet:
     def seeds(self) -> list[int]:
         return [r.seed for r in self.runs]
 
+    @property
+    def mode(self) -> str:
+        return self.config.get("study", {}).get("mode", "explore")
+
 
 def load_runs(path: str | Path) -> list[SeedRun]:
     """A seed folder (holding config.json), or a folder of seed-* folders."""
@@ -161,7 +165,8 @@ class Comparison:
         preset = self.sets[0].config["preset"]
         header = (f"{METRICS[self.metric]} on the first {preset['eval_docs']} validation "
                   f"documents of {preset['dataset']} (lower is better)")
-        table = [["model", "seeds", "params", "tokens", self.metric, f"Δ vs {self.baseline}", ""]]
+        table = [["model", "seeds", "non-emb params", "tokens", self.metric,
+                  f"Δ vs {self.baseline}", ""]]
         for row in self.rows:
             s, d = row["summary"], row["delta"]
             value = _fmt(s["mean"])
@@ -259,8 +264,13 @@ def compare(
                     f"{r.run_dir} stopped at step {r.final_step} of {r.preset['max_steps']}"
                 )
 
+    modes = {s.mode for s in sets}
+    if len(modes) > 1:
+        notes.append("mixes record and explore runs; only record runs belong in a claim")
     for s in sets:
-        s.label = _label(s, sets)
+        s.label = s.label or _label(s, sets)
+        if len(modes) > 1 and s.mode == "explore":
+            s.label += " [explore]"
     ref = {r.seed: r.final(metric) for r in sets[base_index].runs}
     rows = []
     for i, s in enumerate(sets):
@@ -272,11 +282,13 @@ def compare(
                                           [ref[k] for k in sorted(ref)])
             else:
                 delta = unpaired_difference(list(values.values()), list(ref.values()))
+        stats = s.config["stats"]
         rows.append({
             "label": s.label,
             "source": s.source,
             "seeds": s.seeds,
-            "params": s.config["stats"]["n_params"],
+            # studies match non-embedding parameters, so that is the number to show
+            "params": stats.get("n_non_embedding_params", stats["n_params"]),
             "tokens": s.runs[0].final_step * s.runs[0].tokens_per_step,
             "summary": summarize(list(values.values())),
             "delta": delta,

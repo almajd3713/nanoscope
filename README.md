@@ -1,82 +1,74 @@
 # nanoscope
 
-`nanoscope` is a small-model research laboratory built around reproducible,
-falsifiable experiments. Milestone zero provides deterministic data packing,
-training, metrics, and crash-safe checkpoint/resume so later work can stay
-focused on model architecture.
+See what your language model learns. You write an `nn.Module`; nanoscope handles the
+data, the training loop, evaluation, checkpoints and comparison against baselines.
 
-## Start locally
+It has two levels that share one core. Learners call `run()`. Researchers write a `Study`
+with seeds, budgets, parameter matching and preregistration. The level changes what you
+see, never which code runs.
 
-```bash
-uv sync --extra dev
-uv run pytest -m "not gpu and not network and not cloud"
-uv run nanoscope doctor --config configs/test/m0/local-smoke.yaml
-uv run nanoscope train --config configs/test/m0/local-smoke.yaml --resume none
-```
-
-Or you may use the Makefile provided:
+## Learn
 
 ```bash
-make help
+pip install git+https://github.com/almajd3713/nanoscope
 ```
 
-See [the M0 runbook](docs/m0-runbook.md) for Kaggle, cloud credentials, resume,
-and the model-only handoff.
+```python
+import torch.nn as nn
+from nanoscope import compare, run
 
-Configuration files are grouped by purpose:
+class Bigram(nn.Module):
+    def __init__(self, vocab_size: int, d_model: int = 32):
+        super().__init__()
+        self.token_embedding = nn.Embedding(vocab_size, d_model)
+        self.head = nn.Linear(d_model, vocab_size, bias=False)
 
-- `configs/test/m0/`: M0 smoke, GPU, distributed, and acceptance checks.
-- `configs/test/eval/`: local and Kaggle evaluation smoke runs and comparison examples.
-- `configs/test/inference/`: generation smoke configs and shared sample prompts.
-- `configs/eval/`: M1 validation corpus and evaluation configs.
-- `configs/*-template.yaml`: commented templates for new experiments and evaluations.
+    def forward(self, idx):
+        return self.head(self.token_embedding(idx))
 
-## Start an experiment
+result = run(Bigram, preset="tinystories-5min")   # about a minute on a laptop CPU
+result.plot()
+compare(result, "gpt2")                          # against a shipped 3-seed baseline
+```
 
-For text generation from a trained checkpoint, see [the inference walkthrough](docs/inference.md)
-and [inference config template](configs/inference-template.yaml).
+Work through the notebooks in order:
 
-Start with [the hands-on evaluation walkthrough](docs/evaluation-quickstart.md):
-freeze validation text once, train each increment with automatic scoring, then compare
-the saved scores. It includes a runnable CPU example and explains what to edit.
+1. [`01-first-model`](notebooks/01-first-model.ipynb): write a bigram model and train it.
+2. [`02-gpt2`](notebooks/02-gpt2.ipynb): a real transformer.
+3. [`03-modern-block`](notebooks/03-modern-block.ipynb): RoPE, RMSNorm, SwiGLU, GQA, QK-norm, z-loss.
+4. [`04-ablations`](notebooks/04-ablations.ipynb): which part matters, with seeds and confidence intervals.
 
-Copy the commented [corpus template](configs/eval-corpus-template.yaml),
-[evaluation template](configs/eval-template.yaml), and
-[comparison template](configs/eval-study-template.yaml) for your own study.
-See the [evaluation reference](docs/evaluation.md) for scoring and statistics details.
+Token data downloads from the Hub (`RedhouaneLazib/nanoscope-tokens`) when a preset has
+it, and is tokenized locally otherwise. Everything is cached under `~/.nanoscope/data`.
 
-Copy the [commented experiment template](configs/experiment-template.yaml):
+## Research
+
+See the [research guide](docs/research.md). The research program itself is in
+[`docs/project-nanoscope.md`](docs/project-nanoscope.md).
+
+## Command line
 
 ```bash
-cp configs/experiment-template.yaml configs/my-model-seed-1337.yaml
+nanoscope presets                                   # available presets
+nanoscope run nanoscope/models/gpt2.py:GPT2 --seeds 3
+nanoscope compare modern gpt2 --preset tinystories-5min
+nanoscope study studies/m1_ablation.py --devices cuda:0
+nanoscope report studies/m1_ablation.py             # writes experiments/<name>/
+nanoscope status runs                               # what is running and how far along
+nanoscope prepare-data tinystories-5min             # download or tokenize now
+nanoscope publish-data tinystories-5min user/repo   # upload tokens to a Hub dataset
 ```
 
-Set a unique `run.id`, replace `model.name` and `model.params` with your registered
-model, and choose your data and training budget. The template includes working
-toy-model defaults, global batch calculations, DDP settings, HF/W&B configuration,
-and local/Kaggle launch and resume instructions. For a local run, change
-`run.output_dir` to `runs`. Commit the edited config before starting a research run.
-
-Upload from your local terminal using the Kaggle CLI helper:
+## Develop
 
 ```bash
-python3 kaggle_sync.py --dry-run
-python3 kaggle_sync.py -m "Update model experiment"
+uv sync --all-extras
+make test      # offline tests
+make lint
 ```
 
-The target dataset is configured in [kaggle-sync.json](kaggle-sync.json).
-See [workspace sync](docs/kaggle-workspace.md) for authentication and ignore behavior.
-Use the [example Kaggle notebook](notebooks/kaggle-runner.ipynb) as your permanent
-runner. Import it once, attach the workspace dataset, enable GPU/Internet and your
-HF/W&B secrets in Kaggle, then run its cells. The notebook copies the extracted input
-into a writable workspace, installs dependencies,
-loads enabled secrets, prepares validation data, trains with periodic evaluation,
-and exports result ZIPs for local comparison. Its default is a four-step GPU smoke run.
+## Data credits
 
-For subsequent experiments, sync source with the CLI, update the notebook's attached
-dataset version, and change its config parameters. The CLI does not submit kernels
-or attach secrets. See [the Kaggle notebook guide](docs/kaggle-notebook.md) for setup,
-resume and downloading results.
-
-See [the distributed runbook](docs/distributed-training.md) for resume, model
-constraints, CPU testing, and GPU validation for multi-worker training.
+Tokens are derived from [TinyStories](https://huggingface.co/datasets/roneneldan/TinyStories)
+(CDLA-Sharing-1.0) and [FineWeb-Edu](https://huggingface.co/datasets/HuggingFaceFW/fineweb-edu)
+(ODC-By 1.0).
