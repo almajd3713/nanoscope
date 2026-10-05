@@ -5,6 +5,7 @@ from __future__ import annotations
 import math
 
 import torch
+import torch.nn as nn
 
 
 def naive_causal_attention(q, k, v):
@@ -53,3 +54,14 @@ def silu(x):
 def swiglu(x, w1, w3, w2):
     """silu(x W1) * (x W3), then W2. Weights are laid out (out_features, in_features)."""
     return (silu(x @ w1.T) * (x @ w3.T)) @ w2.T
+
+
+def count_params(model: nn.Module) -> tuple[int, int]:
+    """(total, non-embedding) parameter counts; shared tensors are counted once."""
+    params = {id(p): p for p in model.parameters()}
+    emb = {
+        id(p) for m in model.modules() if isinstance(m, nn.Embedding)
+        for p in m.parameters(recurse=False)
+    }
+    total = sum(p.numel() for p in params.values())
+    return total, total - sum(params[i].numel() for i in emb if i in params)
