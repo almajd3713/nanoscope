@@ -223,3 +223,63 @@ def test_stop_then_resume_matches_an_uninterrupted_run(tmp_path):
     assert json.loads((victim / "status.json").read_text())["state"] == "done"
     assert not (victim / "STOP").exists()
     assert [r["loss"] for r in resumed.metrics] == [r["loss"] for r in straight.metrics]
+
+
+MODEL_FILE = """
+import torch.nn as nn
+from nanoscope.models import Bigram
+
+
+class FromFile(Bigram):
+    pass  # {marker}
+"""
+
+
+def test_model_ref_is_recorded_in_config(tmp_path):
+    from helpers import assert_valid
+
+    from nanoscope.cli import _load_model_class
+
+    result = run(Bigram, tiny(), device="cpu", progress=False)
+    model = json.loads((result.run_dir / "config.json").read_text())["model"]
+    assert model["ref"] == "nanoscope.models.bigram:Bigram" and model["rebuildable"] is True
+    assert len(model["source_sha256"]) == 64
+
+    path = tmp_path / "mine.py"
+    path.write_text(MODEL_FILE.format(marker="v1"))
+    custom = run(_load_model_class(f"{path}:FromFile"), tiny(), device="cpu", progress=False)
+    config = json.loads((custom.run_dir / "config.json").read_text())
+    assert config["model"]["ref"] == f"{path.resolve()}:FromFile"
+    assert config["model"]["rebuildable"] is True
+    assert_valid("config", config)
+
+
+def test_a_changed_model_source_is_logged_as_drift_and_still_resumes(tmp_path, capsys):
+    from nanoscope.cli import _load_model_class
+
+    path = tmp_path / "mine.py"
+    path.write_text(MODEL_FILE.format(marker="v1"))
+    run(_load_model_class(f"{path}:FromFile"), tiny(), device="cpu", output_dir=out("drift"),
+        progress=False)
+    path.write_text(MODEL_FILE.format(marker="v2"))  # edited after the run
+    capsys.readouterr()
+    again = run(_load_model_class(f"{path}:FromFile"), tiny(), device="cpu",
+                output_dir=out("drift"), progress=False)
+    assert again.final_step == 20  # it resumed (nothing left to train), it did not refuse
+    assert "the source of FromFile changed since this run started" in capsys.readouterr().out
+
+
+def test_main_class_source_is_saved_and_not_rebuildable(monkeypatch):
+    class Local(Bigram):
+        pass
+
+    Local.__module__ = "__main__"
+    import sys
+
+    monkeypatch.setattr(sys.modules["nanoscope.run"], "class_source",
+                        lambda cls: "class Local: ...\n")
+    result = run(Local, tiny(), device="cpu", progress=False)
+    model = json.loads((result.run_dir / "config.json").read_text())["model"]
+    assert model["rebuildable"] is False and model["ref"].startswith("__main__:")
+    assert model["ref"].endswith("Local")
+    assert (result.run_dir / "model_source.py").read_text() == "class Local: ...\n"

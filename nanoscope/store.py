@@ -9,6 +9,7 @@ set of seeds, `studies/m1-ablation/no-rope/seed-2` is a study run. Refs starting
 from __future__ import annotations
 
 from pathlib import Path, PurePosixPath
+from typing import Any
 
 from nanoscope import paths
 from nanoscope.progress import RunState, snapshot
@@ -101,3 +102,64 @@ def request_stop(target: str | Path) -> list[str]:
             (state.run_dir / STOP_FILE).write_text("", encoding="utf-8")
             refs.append(ref_of(state.run_dir))
     return refs
+
+
+class LoadedRun:
+    """A trained run rebuilt from its folder: the model with its latest checkpoint loaded."""
+
+    def __init__(self, ref: str, run_dir: Path, config: dict, model: Any, preset: Any,
+                 tokenizer: Any, step: int) -> None:
+        self.ref, self.run_dir, self.config = ref, run_dir, config
+        self.model, self.preset, self.tokenizer, self.step = model, preset, tokenizer, step
+
+    def generate(self, prompt: str = "", max_new_tokens: int = 200, temperature: float = 0.8,
+                 seed: int = 42) -> str:
+        from nanoscope.train_loop import generate
+
+        return generate(self.model, self.tokenizer, prompt, max_new_tokens, temperature,
+                        self.preset.context_length, seed)
+
+
+def load_run(ref: str | Path, device: str = "cpu") -> LoadedRun:
+    """Rebuild a trained run from its ref: import its model class, load the latest checkpoint."""
+    import torch
+
+    from nanoscope.dataset import load_tokenizer
+    from nanoscope.modelref import load_class
+    from nanoscope.presets import Preset
+    from nanoscope.schemas.upgrade import read_json
+    from nanoscope.train_loop import _load_checkpoint
+
+    run_dir = resolve(ref)
+    if not (run_dir / "config.json").exists():
+        seeds = sorted(p.name for p in run_dir.glob("seed-*") if (p / "config.json").exists())
+        if not seeds:
+            raise FileNotFoundError(f"{ref} holds no run (no config.json)")
+        raise ValueError(f"{ref} is a set of {len(seeds)} seeds; load one, e.g. "
+                         f"{str(ref).rstrip('/')}/{seeds[0]}")
+    if str(ref).startswith(BASELINES_PREFIX):
+        raise FileNotFoundError(
+            f"{ref} is a shipped baseline: it keeps the curves, not the checkpoints. "
+            "Load a run you trained.")
+    config = read_json(run_dir / "config.json", "config")
+    model_info = config["model"]
+    if "ref" not in model_info:
+        raise ValueError(
+            f"{ref} was trained before runs recorded where their model came from; "
+            f"build {model_info['class']}(**config['model']['kwargs']) yourself and load "
+            f"the checkpoint from {run_dir / 'checkpoints'}")
+    if not model_info.get("rebuildable", True):
+        raise ValueError(
+            f"{ref} was trained from a class defined in a notebook or script, so it can't be "
+            f"imported again. Its source is saved in {run_dir / 'model_source.py'}: define the "
+            f"class from that, then build it with config['model']['kwargs'].")
+    state = _load_checkpoint(run_dir, torch.device(device))
+    if state is None:
+        raise FileNotFoundError(f"{ref} has no checkpoint to load yet")
+    cls = load_class(model_info["ref"])
+    model = cls(**model_info["kwargs"])
+    model.load_state_dict(state["model"])
+    model.to(device).eval()
+    preset = Preset.from_dict(config["preset"])
+    return LoadedRun(str(ref), run_dir, config, model, preset, load_tokenizer(preset),
+                     int(state["step"]))

@@ -11,8 +11,10 @@ import torch
 from torch import nn
 
 from nanoscope import paths
+from nanoscope.compare import IDENTITY_KEYS
 from nanoscope.dataset import Data, load_data, tokenizer_id
 from nanoscope.integrations import HubSync, chain, wandb_hook
+from nanoscope.modelref import class_source, model_ref, source_sha256
 from nanoscope.presets import Preset, get_preset, list_presets
 from nanoscope.progress import ProgressBar
 from nanoscope.schemas.upgrade import read_json
@@ -271,12 +273,22 @@ def _refuse_record_overwrite(run_dir: Path, resume: bool) -> None:
                              "overwritten. Delete the folder by hand if you really mean it.")
 
 
-def _check_config(run_dir: Path, config: dict[str, Any], resume: bool) -> None:
+def _check_config(run_dir: Path, config: dict[str, Any], resume: bool,
+                  identity: dict[str, Any] | None = None) -> None:
     path = run_dir / "config.json"
     if resume and path.exists():
         saved = read_json(path, "config")
         for key in ("stats", "schema", "nanoscope"):  # facts about the file, not the run
             saved.pop(key, None)
+        saved_model = dict(saved.get("model", {}))
+        before = saved_model.get("source_sha256")
+        for key in IDENTITY_KEYS:  # where the model came from, not what it is
+            saved_model.pop(key, None)
+        saved["model"] = saved_model
+        after = (identity or {}).get("source_sha256")
+        if before and after and before != after:
+            _log(f"note: the source of {config['model']['class']} changed since this run "
+                 f"started ({before[:8]} -> {after[:8]}); resuming with the current code")
         if saved != config:
             changed = sorted(k for k in config if saved.get(k) != config[k])
             raise ConfigMismatch(
@@ -373,8 +385,13 @@ def run(
             hub = HubSync(push_to_hub, run_dir, path_in_repo)
             if resume:
                 hub.pull()
-        _check_config(run_dir, config, resume)
+        ref, rebuildable = model_ref(model_cls)
+        identity = {"ref": ref, "rebuildable": rebuildable,
+                    "source_sha256": source_sha256(model_cls)}
+        _check_config(run_dir, config, resume, identity)
         run_dir.mkdir(parents=True, exist_ok=True)
+        if not rebuildable and (source := class_source(model_cls)):
+            (run_dir / "model_source.py").write_text(source, encoding="utf-8")
         n_params, n_non_embedding = count_params(model)
         stats = {
             "n_params": n_params,
@@ -388,7 +405,9 @@ def run(
         from nanoscope import __version__
 
         (run_dir / "config.json").write_text(
-            json.dumps({"schema": 1, "nanoscope": __version__, **config, "stats": stats}, indent=2),
+            json.dumps({"schema": 1, "nanoscope": __version__,
+                        **config, "model": {**config["model"], **identity}, "stats": stats},
+                       indent=2),
             encoding="utf-8",
         )
 

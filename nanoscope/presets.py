@@ -34,6 +34,11 @@ class Preset:
     checkpoint_interval: int = 500
     keep_checkpoints: int = 2
 
+    @classmethod
+    def from_dict(cls, data: dict[str, Any]) -> Preset:
+        """Rebuild a preset from its JSON form (a config.json's `preset`)."""
+        return cls(**{**data, "betas": tuple(data.get("betas", cls.betas))})
+
     def override(self, **kwargs: Any) -> Preset:
         known = {f.name for f in fields(self)}
         unknown = set(kwargs) - known

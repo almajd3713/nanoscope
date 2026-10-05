@@ -64,8 +64,14 @@ class SeedRun:
         return points[-1][1]
 
 
+IDENTITY_KEYS = ("ref", "rebuildable", "source_sha256")  # where a model came from, not what it is
+
+
 def _without_seed(config: dict[str, Any]) -> dict[str, Any]:
-    return {k: v for k, v in config.items() if k not in ("seed", "stats")}
+    plain = {k: v for k, v in config.items() if k not in ("seed", "stats")}
+    if isinstance(plain.get("model"), dict):
+        plain["model"] = {k: v for k, v in plain["model"].items() if k not in IDENTITY_KEYS}
+    return plain
 
 
 @dataclass

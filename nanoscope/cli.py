@@ -6,11 +6,11 @@ nanoscope report studies/m1_ablation.py"""
 from __future__ import annotations
 
 import argparse
-import importlib.util
 from pathlib import Path
 
 from nanoscope import paths
 from nanoscope.compare import compare
+from nanoscope.modelref import load_class
 from nanoscope.presets import list_presets
 from nanoscope.run import RunGroup, run
 
@@ -22,14 +22,7 @@ def _load_model_class(spec: str):
     path = Path(file_part).resolve()
     if not path.exists():
         raise FileNotFoundError(f"model file not found: {path}")
-    module_spec = importlib.util.spec_from_file_location("_user_model", path)
-    if module_spec is None or module_spec.loader is None:
-        raise ImportError(f"cannot load a model from {path}")
-    module = importlib.util.module_from_spec(module_spec)
-    module_spec.loader.exec_module(module)
-    if not hasattr(module, class_name):
-        raise AttributeError(f"{class_name} not found in {path}")
-    return getattr(module, class_name)
+    return load_class(f"{path}:{class_name}")
 
 
 def _parse_set(items: list[str]) -> dict:

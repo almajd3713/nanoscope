@@ -19,6 +19,18 @@
         },
         "kwargs": {
           "type": "object"
+        },
+        "ref": {
+          "type": "string"
+        },
+        "rebuildable": {
+          "type": "boolean"
+        },
+        "source_sha256": {
+          "type": [
+            "string",
+            "null"
+          ]
         }
       },
       "required": [
