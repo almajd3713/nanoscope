@@ -19,6 +19,7 @@ from nanoscope.presets import Preset, get_preset, list_presets
 from nanoscope.progress import ProgressBar
 from nanoscope.schemas.upgrade import read_json
 from nanoscope.sizing import count_params, flops_per_token
+from nanoscope.specs import validate_run_request
 from nanoscope.status import STOP_FILE, StatusFile
 from nanoscope.store import ref_of
 from nanoscope.train_loop import TrainResult, generate, train
@@ -209,22 +210,15 @@ def _split_kwargs(
     model_cls: type[nn.Module], preset: Preset, kwargs: dict[str, Any],
 ) -> tuple[dict[str, Any], dict[str, Any]]:
     """Route each keyword to the model constructor or to the preset."""
+    problems = validate_run_request(model_cls, preset, kwargs)
+    if problems:
+        raise TypeError(problems[0].message)  # the first one; the API reports them all
     params = {
-        name: p for name, p in inspect.signature(model_cls).parameters.items()
+        name for name, p in inspect.signature(model_cls).parameters.items()
         if name not in _FROM_DATA and p.kind in (p.POSITIONAL_OR_KEYWORD, p.KEYWORD_ONLY)
     }
-    preset_fields = {f.name for f in fields(preset)}
-    model_kwargs, overrides = {}, {}
-    for key, value in kwargs.items():
-        if key in params:
-            model_kwargs[key] = value
-        elif key in preset_fields:
-            overrides[key] = value
-        else:
-            raise TypeError(
-                f"{key!r} is neither a parameter of {model_cls.__name__}.__init__ "
-                f"nor a preset field (see nanoscope.Preset)"
-            )
+    model_kwargs = {k: v for k, v in kwargs.items() if k in params}
+    overrides = {k: v for k, v in kwargs.items() if k not in params}
     return model_kwargs, overrides
 
 

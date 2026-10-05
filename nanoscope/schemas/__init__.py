@@ -12,7 +12,7 @@ from functools import cache
 from pathlib import Path
 from typing import Any
 
-CURRENT = {"config": 1, "status": 1, "plan": 1, "study": 1, "results": 1}
+CURRENT = {"config": 1, "status": 1, "plan": 1, "study": 1, "results": 1, "problem": 1}
 
 
 @cache

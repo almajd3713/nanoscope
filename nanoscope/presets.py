@@ -1,38 +1,55 @@
 from __future__ import annotations
 
-from dataclasses import dataclass, fields
+from dataclasses import dataclass, field, fields
 from typing import Any
+
+
+def _help(text: str, **kwargs: Any) -> Any:
+    return field(metadata={"help": text}, **kwargs)
 
 
 @dataclass(frozen=True)
 class Preset:
-    name: str
-    dataset: str  # a Hugging Face dataset with a "text" column
-    tokenizer: str  # "bpe" (trained on this dataset), "gpt2" or "bytes"
-    vocab_size: int | None  # target size for "bpe"; fixed by the tokenizer otherwise
-    context_length: int
-    max_steps: int
-    batch_size: int
-    learning_rate: float
-    weight_decay: float = 0.1
-    betas: tuple[float, float] = (0.9, 0.999)
-    eps: float = 1e-8
-    warmup_steps: int = 100
-    grad_clip: float = 1.0
-    precision: str = "fp32"
-    dataset_config: str | None = None
-    hub_data: str | None = None  # Hub dataset repo with this preset's tokens, see publish_data
-    train_docs: int | None = None  # None = the whole train split
-    holdout_docs: int = 0  # >0: hold out the first N train documents as validation
-    tokenizer_train_docs: int = 20_000
-    eval_interval: int = 50
-    eval_docs: int = 200  # the first N validation documents, the same for every run
-    sample_interval: int = 100
-    sample_length: int = 200
-    sample_prompt: str = ""
-    sample_temperature: float = 0.8
-    checkpoint_interval: int = 500
-    keep_checkpoints: int = 2
+    name: str = _help("Name the preset is registered and listed under.")
+    dataset: str = _help('A Hugging Face dataset with a "text" column.')
+    tokenizer: str = _help('"bpe" (trained on this dataset), "gpt2" or "bytes".')
+    vocab_size: int | None = _help('Target vocabulary size for "bpe"; fixed by the tokenizer '
+                                   "otherwise.")
+    context_length: int = _help("Tokens the model sees at once.")
+    max_steps: int = _help("Training steps. Each step reads batch_size sequences.")
+    batch_size: int = _help("Sequences per training step.")
+    learning_rate: float = _help("Peak learning rate; it warms up, then decays on a cosine.")
+    weight_decay: float = _help("AdamW weight decay (not applied to norms and biases).",
+                                default=0.1)
+    betas: tuple[float, float] = _help("AdamW beta1 and beta2.", default=(0.9, 0.999))
+    eps: float = _help("AdamW epsilon.", default=1e-8)
+    warmup_steps: int = _help("Steps over which the learning rate rises from zero.", default=100)
+    grad_clip: float = _help("Largest gradient norm; bigger gradients are scaled down.",
+                             default=1.0)
+    precision: str = _help('"fp32", or "fp16" for mixed precision on a CUDA GPU.', default="fp32")
+    dataset_config: str | None = _help("The dataset's configuration name, if it has one.",
+                                       default=None)
+    hub_data: str | None = _help("Hub dataset repo holding this preset's tokens (see "
+                                 "publish_data), so they download instead of tokenizing.",
+                                 default=None)
+    train_docs: int | None = _help("Documents to train on; None is the whole train split.",
+                                   default=None)
+    holdout_docs: int = _help("When above 0, hold out the first N train documents as "
+                              "validation.", default=0)
+    tokenizer_train_docs: int = _help('Documents used to train a "bpe" tokenizer.',
+                                      default=20_000)
+    eval_interval: int = _help("Evaluate on the validation documents every N steps.",
+                               default=50)
+    eval_docs: int = _help("Validation documents used: the first N, the same for every run.",
+                           default=200)
+    sample_interval: int = _help("Generate sample text every N steps.", default=100)
+    sample_length: int = _help("Tokens in each generated sample.", default=200)
+    sample_prompt: str = _help("Text the samples continue; empty starts from scratch.",
+                               default="")
+    sample_temperature: float = _help("Sampling temperature; lower is more predictable.",
+                                      default=0.8)
+    checkpoint_interval: int = _help("Save a checkpoint every N steps.", default=500)
+    keep_checkpoints: int = _help("How many recent checkpoints to keep.", default=2)
 
     @classmethod
     def from_dict(cls, data: dict[str, Any]) -> Preset:
