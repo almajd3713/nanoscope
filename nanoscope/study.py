@@ -26,6 +26,7 @@ import importlib.util
 import inspect
 import json
 import math
+import os
 import subprocess
 import sys
 import time
@@ -38,10 +39,10 @@ from typing import Any, cast
 import torch
 from torch import nn
 
-from nanoscope import __version__, paths
+from nanoscope import __version__, paths, queue, store
 from nanoscope.compare import METRICS, Comparison, RunSet, compare, load_runs
 from nanoscope.dataset import load_tokenizer
-from nanoscope.hardware import check_gpu_fits, cpu_threads, probe_memory
+from nanoscope.jobs.payload import preset_fields
 from nanoscope.log import info
 from nanoscope.modelref import model_ref
 from nanoscope.presets import Preset, get_preset
@@ -313,51 +314,27 @@ class Study:
             }, indent=2), encoding="utf-8")
         return provenance
 
-    def _check_memory(self, devices: list[str]) -> None:
-        """Refuse to put more workers on a GPU than its free memory holds."""
-        workers = {d: devices.count(d) for d in set(devices) if d.startswith("cuda")}
-        if not any(n > 1 for n in workers.values()):
-            return
-        costliest = max(self.variants.values(), key=lambda v: self._flops_per_token(v))
-        vocab_size = load_tokenizer(self.preset).vocab_size
-        params = inspect.signature(costliest.model_cls).parameters
-        from_data = {"vocab_size": vocab_size, "context_length": self.preset.context_length}
-        kwargs = {k: x for k, x in from_data.items() if k in params} | costliest.kwargs
-        for device, n in workers.items():
-            per_worker = probe_memory(lambda: costliest.model_cls(**kwargs), self.preset,
-                                      torch.device(device))
-            check_gpu_fits(device, n, per_worker)
-
-    def _flops_per_token(self, variant: Variant) -> int:
-        return self.sizes()[variant.name]["flops_per_token"]
-
     def run(
-        self, devices: list[str] | None = None, shard: tuple[int, int] | None = None,
-        workers_per_device: int = 1, threads: int | None = None,
+        self, devices: list[str] | None = None, workers_per_device: int = 1,
+        threads: int | None = None,
     ) -> None:
-        """Train every job not yet finished. Several workers run jobs side by side.
+        """Train every job not yet finished.
 
-        workers_per_device > 1 puts that many runs on each device at once, which keeps a GPU
-        busy when one small model can't (the CPU is the limit, not the GPU). threads caps the
-        CPU threads each worker uses; the default splits the cores between CPU workers.
+        With one device (or none) the runs go one after another in this process. With several
+        devices, or workers_per_device > 1, they go through the job queue: local workers
+        (one process per device, workers_per_device runs at once on each) take them in turn,
+        which keeps a GPU busy when one small model can't. threads caps the CPU threads each
+        run uses; the default splits the cores between the runs sharing a CPU.
         """
-        if workers_per_device > 1:
-            devices = [d for d in (devices or ["cuda:0" if torch.cuda.is_available() else "cpu"])
-                       for _ in range(workers_per_device)]
+        if (devices and len(devices) > 1) or workers_per_device > 1:
+            self._run_queued(devices or ["cuda:0" if torch.cuda.is_available() else "cpu"],
+                             workers_per_device, threads)
+            return
         if threads:
             torch.set_num_threads(threads)
-        if shard is None and devices:
-            self._check_memory(devices)
         provenance = self._provenance() if self.mode == "record" else {}
         jobs = self.jobs()
-        if shard is None:
-            self._write_plan(jobs)
-        if devices and len(devices) > 1 and shard is None:
-            self._run_parallel(devices, threads)
-            return
-        if shard is not None:
-            index, count = shard
-            jobs = jobs[index::count]
+        self._write_plan(jobs)
         device = devices[0] if devices else None
         for i, job in enumerate(jobs, 1):
             if (self.dir / STOP_FILE).exists():
@@ -395,41 +372,96 @@ class Study:
                       "max_steps": j.preset.max_steps} for j in jobs],
         }, indent=2), encoding="utf-8")
 
-    def _run_parallel(self, devices: list[str], threads: int | None) -> None:
-        """One worker process per device, each taking every n-th job."""
-        if self.source is None:
-            raise ValueError("running on several devices needs the study in a .py or .toml file")
+    def enqueue(self, lane: str = "batch") -> list[int]:
+        """Put every unfinished run on the queue, seed by seed, and write plan.json.
+
+        Returns the ids of the jobs that stand for this study's unfinished runs. A run that
+        is already done gets no job; one already queued or running keeps its job."""
+        provenance = self._provenance() if self.mode == "record" else {}
+        jobs = self.jobs()
+        for job in jobs:
+            _, rebuildable = model_ref(job.variant.model_cls)
+            if not rebuildable:
+                raise ValueError(
+                    f"variant {job.variant.name!r}: {job.variant.model_cls.__name__} was "
+                    "defined in a notebook or script, so a worker can't load it. Put the "
+                    "model in a .py file and import it.")
+        self._write_plan(jobs)
+        ids = []
+        for job in jobs:
+            payload: dict[str, Any] = {
+                "model": model_ref(job.variant.model_cls)[0], "seed": job.seed,
+                "kwargs": job.variant.kwargs, "compile": self.compile,
+                "study": {"name": self.name, "variant": job.variant.name, "mode": self.mode,
+                          **provenance},
+                **preset_fields(job.preset),
+            }
+            if self.push_to_hub:
+                payload["push_to_hub"] = self.push_to_hub
+            job_id = queue.enqueue("run", payload, lane=lane, ref=store.ref_of(job.output_dir))
+            if job_id is not None:
+                ids.append(job_id)
+        return ids
+
+    def _run_queued(self, devices: list[str], workers_per_device: int,
+                    threads: int | None) -> None:
+        """Enqueue, start one local worker process per device, and watch until all are done."""
+        ids = self.enqueue()
+        total = len(self.jobs())
+        slots = {d: devices.count(d) * workers_per_device for d in dict.fromkeys(devices)}
         logs = self.dir / "logs"
         logs.mkdir(parents=True, exist_ok=True)
+        env = {**os.environ, **({"NANOSCOPE_THREADS": str(threads)} if threads else {})}
         workers = []
-        on_cpu = sum(d == "cpu" for d in devices)
-        for i, device in enumerate(devices):
+        for i, (device, count) in enumerate(slots.items()):
             log = logs / f"worker-{i}.log"
-            cmd = [sys.executable, "-m", "nanoscope.cli", "study", str(self.source),
-                   "--name", self.name, "--devices", device, "--shard", f"{i}/{len(devices)}"]
-            if self.push_to_hub:
-                cmd += ["--push-to-hub", self.push_to_hub]
-            if self.compile:
-                cmd += ["--compile", str(self.compile).lower()]
-            worker_threads = threads or (cpu_threads(on_cpu) if device == "cpu" else None)
-            if worker_threads:
-                cmd += ["--threads", str(worker_threads)]
-            info(f"worker {i} on {device}, log: {log}")
+            cmd = [sys.executable, "-m", "nanoscope.cli", "worker", "--device", device,
+                   "--slots", str(count), "--exit-when-idle"]
+            info(f"worker {i} on {device} ({count} at a time), log: {log}")
             with log.open("w") as fh:
-                workers.append((log, subprocess.Popen(cmd, stdout=fh, stderr=subprocess.STDOUT)))
-        total = len(self.jobs())
-        last = None
-        while any(proc.poll() is None for _, proc in workers):
-            line = one_line(snapshot(self.dir), total)
-            if line != last:
-                info(f"{line}")
-                last = line
-            time.sleep(PROGRESS_EVERY)
-        info(f"{one_line(snapshot(self.dir), total)}")
-        failed = [log for log, proc in workers if proc.returncode != 0]
+                workers.append(subprocess.Popen(cmd, stdout=fh, stderr=subprocess.STDOUT, env=env))
+        try:
+            self._watch(ids, workers, total)
+        except KeyboardInterrupt:
+            info("study interrupted: stopping the workers (runs keep their checkpoints)")
+            for proc in workers:
+                proc.terminate()
+            for proc in workers:
+                proc.wait()
+            queue.cancel_prefix(store.ref_of(self.dir))
+            raise
+        finally:
+            for proc in workers:
+                if proc.poll() is None:
+                    proc.kill()
+        failed = [queue.get(i) for i in ids if queue.get(i)["state"] == "failed"]
         if failed:
-            tail = "\n".join(failed[0].read_text(encoding="utf-8").splitlines()[-15:])
-            raise RuntimeError(f"{len(failed)} worker(s) failed; end of {failed[0]}:\n{tail}")
+            first = failed[0]
+            log = paths.job_logs_dir() / f"{first['id']}.log"
+            tail = ("\n".join(log.read_text(encoding="utf-8").splitlines()[-15:])
+                    if log.exists() else first["error"])
+            raise RuntimeError(f"{len(failed)} job(s) failed ({first['error']}); "
+                               f"end of {log}:\n{tail}")
+
+    def _watch(self, ids: list[int], workers: list[subprocess.Popen[bytes]], total: int) -> None:
+        """Print the progress line every PROGRESS_EVERY seconds until every job has ended."""
+        last, last_print = None, float("-inf")
+        while True:
+            states = {queue.get(i)["state"] for i in ids}
+            finished = states <= {"done", "failed", "cancelled"}
+            if finished or time.time() - last_print >= PROGRESS_EVERY:
+                line = one_line(snapshot(self.dir), total)
+                if line != last or finished:
+                    info(f"{line}")
+                    last = line
+                last_print = time.time()
+            if finished:
+                return
+            if all(proc.poll() is not None for proc in workers):
+                raise RuntimeError(
+                    f"every worker exited but {len(ids)} job(s) are not finished; see the logs "
+                    f"in {self.dir / 'logs'}")
+            time.sleep(min(1.0, PROGRESS_EVERY))
 
     def report(self, write: bool = True) -> StudyReport:
         sets = []

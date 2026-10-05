@@ -90,10 +90,13 @@ def request_stop(target: str | Path) -> list[str]:
 
     A study (a folder with plan.json) also gets its own STOP file, so the jobs that have not
     started are skipped. Returns the refs it wrote to; the runs stop at their next step."""
+    from nanoscope import queue
     from nanoscope.status import STOP_FILE
 
     root = locate(target)
     refs = []
+    if paths.queue_db().exists():
+        queue.cancel_prefix(ref_of(root))  # queued jobs never start; running ones get STOP
     if (root / "plan.json").exists():
         (root / STOP_FILE).write_text("", encoding="utf-8")
         refs.append(ref_of(root))

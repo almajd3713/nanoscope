@@ -326,3 +326,29 @@ def cache_memory(key: str, nbytes: int, *, path: Path | None = None) -> None:
     with closing(connect(path)) as conn:
         conn.execute("INSERT OR REPLACE INTO memory_cache (key, bytes) VALUES (?, ?)",
                      (key, nbytes))
+
+
+def cancel_prefix(ref: str, *, path: Path | None = None) -> list[int]:
+    """Cancel every queued or running job whose ref is `ref` or lies under it (a study)."""
+    under = ref.rstrip("/") + "/"
+    with closing(connect(path)) as conn:
+        rows = conn.execute(
+            "SELECT id FROM jobs WHERE state IN ('queued', 'running') "
+            "AND (ref = ? OR substr(ref, 1, ?) = ?)", (ref, len(under), under)).fetchall()
+    ids = [int(r["id"]) for r in rows]
+    for job_id in ids:
+        cancel(job_id, path=path)
+    return ids
+
+
+def format_jobs(rows: list[sqlite3.Row]) -> str:
+    if not rows:
+        return "no jobs"
+    lines = []
+    for r in rows:
+        where = f" on {r['device']}" if r["device"] else ""
+        what = r["ref"] or json.loads(r["payload"]).get("preset") or ""
+        note = f"  ({r['error']})" if r["error"] else ""
+        lines.append(f"#{r['id']}  {r['state']:<10} {r['lane']:<11} {r['kind']:<13} "
+                     f"{what}{where}{note}")
+    return "\n".join(lines)

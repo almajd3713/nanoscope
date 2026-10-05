@@ -206,7 +206,7 @@ touch or create (new ones marked `(new)`).
 - [ ] P7.17 Add `Study.enqueue()`: every unfinished job goes on the batch lane in seed-major order with ref `studies/<name>/<variant>/seed-<n>`, and `plan.json` is written. · files: nanoscope/study.py · deps: P7.06 · done: `uv run pytest tests/test_study.py -k enqueue` passes
 - [ ] P7.18 Make `nanoscope study --devices ...` enqueue the study, start `devices × workers-per-device` local worker slots, print the existing one-line progress every `PROGRESS_EVERY`, exit when every job is terminal, and report failures with the end of the log. · files: nanoscope/study.py, nanoscope/cli.py · deps: P7.17, P7.12 · done: `uv run pytest tests/test_study.py -k several_devices` passes
 - [ ] P7.19 Keep `Study.run()` without devices in-process: no SQLite, no subprocess. · files: nanoscope/study.py, tests/test_study.py · deps: P7.18 · done: `uv run pytest tests/test_study.py -k in_process_no_queue` asserts that no `queue.db` exists
-- [ ] P7.20 Remove `--shard`, `Study.run(shard=)` and `_run_parallel`. · files: nanoscope/study.py, nanoscope/cli.py · deps: P7.18 · done: `grep -rn shard nanoscope` is empty and `make test` passes
+- [ ] P7.20 Remove `--shard`, `Study.run(shard=)` and `_run_parallel`. · files: nanoscope/study.py, nanoscope/cli.py · deps: P7.18 · done: `grep -rnE -- "--shard|_run_parallel|shard=" nanoscope` is empty (data shards in dataset.py are unrelated, so the check was narrowed on 2026-10-05) and `make test` passes
 - [ ] P7.21 Add `nanoscope jobs [--state S]` and `nanoscope jobs cancel <id>`. · files: nanoscope/cli.py, tests/test_queue.py · deps: P7.05 · done: `uv run pytest tests/test_queue.py -k jobs_command` asserts the output
 
 ### P7 · Tests and docs

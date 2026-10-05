@@ -86,6 +86,12 @@ def build_parser() -> argparse.ArgumentParser:
     worker_parser.add_argument("--exit-when-idle", action="store_true",
                                help="exit once nothing is queued or running")
 
+    jobs_parser = sub.add_parser("jobs", help="List queued and running jobs, or cancel one")
+    jobs_parser.add_argument("action", nargs="?", choices=["cancel"], default=None)
+    jobs_parser.add_argument("id", nargs="?", type=int, default=None, help="job id (for cancel)")
+    jobs_parser.add_argument("--state", default=None,
+                             help="queued, running, done, failed or cancelled")
+
     prep_parser = sub.add_parser("prepare-data", help="Download or tokenize a preset's data now")
     prep_parser.add_argument("preset")
 
@@ -114,7 +120,6 @@ def build_parser() -> argparse.ArgumentParser:
                               help="torch.compile; or --compile reduce-overhead for CUDA graphs")
     study_parser.add_argument("--push-to-hub", default=None, metavar="REPO",
                               help="mirror runs to this Hub repo and resume from it")
-    study_parser.add_argument("--shard", default=None, help=argparse.SUPPRESS)
 
     report_parser = sub.add_parser("report", help="Write a study's report to experiments/")
     report_parser.add_argument("file", help="path/to/study.py or study.toml")
@@ -154,6 +159,17 @@ def main(argv: list[str] | None = None) -> None:
         from nanoscope.jobs.execute import main as run_job
 
         run_job(args.id)
+        return
+
+    if args.command == "jobs":
+        from nanoscope import queue
+
+        if args.action == "cancel":
+            if args.id is None:
+                parser.error("jobs cancel needs a job id")
+            print(f"job {args.id}: {queue.cancel(args.id)}")
+            return
+        print(queue.format_jobs(queue.list_jobs(args.state)))
         return
 
     if args.command == "worker":
@@ -226,18 +242,12 @@ def main(argv: list[str] | None = None) -> None:
         study = load_study(args.file, args.name)
         if args.command == "study":
             devices = args.devices.split(",") if args.devices else None
-            shard = None
-            if args.shard:
-                index, count = (int(x) for x in args.shard.split("/"))
-                shard = (index, count)
             if args.push_to_hub:
                 study.push_to_hub = args.push_to_hub
             if args.compile:
                 study.compile = _parse_compile(args.compile)
-            study.run(devices=devices, shard=shard, workers_per_device=args.workers_per_device,
+            study.run(devices=devices, workers_per_device=args.workers_per_device,
                       threads=args.threads)
-            if shard is not None:
-                return
         print(study.report())
         print(f"Written to {paths.reports_dir() / study.name}/")
         return

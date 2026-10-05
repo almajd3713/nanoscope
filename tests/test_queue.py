@@ -184,3 +184,22 @@ def test_devices_required_over_one_is_refused(home):
     job_id = add("run", RUN, owner="alice")
     row = queue.get(job_id)
     assert (row["owner"], row["devices_required"]) == ("alice", 1)
+
+
+def test_jobs_command_lists_and_cancels(home, capsys):
+    from nanoscope.cli import main
+
+    main(["jobs"])
+    assert capsys.readouterr().out.strip() == "no jobs"
+    first = add("prepare-data", {"preset": "tinystories-5min"})
+    second = add("run", RUN, lane="interactive", ref="r9")
+    main(["jobs"])
+    out = capsys.readouterr().out
+    assert f"#{first}  queued" in out and "prepare-data" in out and "tinystories-5min" in out
+    assert f"#{second}  queued     interactive run" in out and "r9" in out
+
+    main(["jobs", "cancel", str(first)])
+    assert capsys.readouterr().out.strip() == f"job {first}: cancelled"
+    main(["jobs", "--state", "queued"])
+    out = capsys.readouterr().out
+    assert f"#{first}" not in out and f"#{second}" in out

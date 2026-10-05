@@ -206,10 +206,8 @@ def test_studies_run_on_several_devices_in_parallel(tmp_path, monkeypatch, capsy
     finished = sorted(p.parent.relative_to(study.dir).as_posix()
                       for p in study.dir.glob("*/seed-*/latest.json"))
     assert finished == ["small/seed-0", "small/seed-1", "wide/seed-0", "wide/seed-1"]
-    assert (study.dir / "logs" / "worker-1.log").exists()
+    assert (study.dir / "logs" / "worker-0.log").exists()
     assert "[nanoscope] 4/4 done" in capsys.readouterr().out
-
-
 def test_wandb_logs_every_step(monkeypatch):
     logged, finished = [], []
 
@@ -312,7 +310,7 @@ def test_interrupted_cuda_run_resumes_exactly():
     assert [r["loss"] for r in resumed.metrics] == [r["loss"] for r in straight.metrics]
 
 
-def test_several_workers_can_share_one_device(tmp_path, monkeypatch):
+def test_several_workers_can_share_one_device(tmp_path, monkeypatch, capsys):
     path = tmp_path / "study.py"
     write_study(path, seeds=2)
     study = load_study(path)
@@ -321,17 +319,32 @@ def test_several_workers_can_share_one_device(tmp_path, monkeypatch):
     study.run(devices=["cpu"], workers_per_device=2)
 
     assert len(list(study.dir.glob("*/seed-*/latest.json"))) == 4
-    assert {p.name for p in (study.dir / "logs").iterdir()} == {"worker-0.log", "worker-1.log"}
+    assert {p.name for p in (study.dir / "logs").iterdir()} == {"worker-0.log"}
+    assert "2 at a time" in capsys.readouterr().out
 
 
-def test_too_many_workers_for_the_free_gpu_memory_are_refused(monkeypatch):
-    from nanoscope.hardware import check_gpu_fits
+def test_too_many_workers_for_the_free_gpu_memory_stay_queued(tmp_path):
+    from nanoscope import queue
+    from nanoscope.jobs.worker import Worker
 
+    path = tmp_path / "study.py"
+    write_study(path, seeds=2)
+    study = load_study(path)
+    ids = study.enqueue()
     gib = 2**30
-    monkeypatch.setattr(torch.cuda, "mem_get_info", lambda device: (4 * gib, 8 * gib))
-    check_gpu_fits("cuda:0", 3, gib)  # 3 GiB of 4 free fits
-    with pytest.raises(ValueError, match="fewer --workers-per-device"):
-        check_gpu_fits("cuda:0", 4, gib)
+
+    class Idle:
+        def start(self, job_id, log, env): ...
+        def poll(self): return None
+        def terminate(self, kill=False): ...
+
+    free = iter([5 * gib] + [1 * gib] * 10)
+    worker = Worker("cuda:0", 4, runner_factory=Idle, probe=lambda job, payload: 4 * gib,
+                    free_memory=lambda device: next(free))
+    worker.tick()
+    states = [queue.get(i)["state"] for i in ids]
+    assert states.count("running") == 1 and states.count("queued") == len(ids) - 1
+    assert "failed" not in states
 
 
 def test_studies_sample_text_only_at_the_last_step():
@@ -422,3 +435,60 @@ def test_ctrl_c_in_one_run_ends_the_whole_study(monkeypatch, capsys):
     study.run(devices=["cpu"])
     assert "stopped at step 2; skipping the rest" in capsys.readouterr().out
     assert not list(study.dir.glob("a/seed-1/metrics.jsonl"))
+
+
+def test_enqueue_puts_every_unfinished_run_on_the_batch_lane_seed_major(tmp_path):
+    from nanoscope import queue
+
+    path = tmp_path / "study.py"
+    write_study(path, seeds=2)
+    study = load_study(path)
+
+    ids = study.enqueue()
+
+    rows = [queue.get(i) for i in ids]
+    assert [r["ref"] for r in rows] == [
+        "studies/toy/small/seed-0", "studies/toy/wide/seed-0",
+        "studies/toy/small/seed-1", "studies/toy/wide/seed-1"]
+    assert {r["lane"] for r in rows} == {"batch"}
+    payload = json.loads(rows[1]["payload"])
+    assert payload["seed"] == 0 and payload["kwargs"] == {"d_model": 32}
+    assert payload["study"]["variant"] == "wide"
+    assert payload["model"].endswith("Bigram") or ":" in payload["model"]
+    assert_valid("plan", json.loads((study.dir / "plan.json").read_text()))
+    assert study.enqueue() == ids  # the same jobs, not new ones
+
+
+def test_enqueue_skips_finished_runs(tmp_path):
+    path = tmp_path / "study.py"
+    write_study(path, seeds=1)
+    study = load_study(path)
+    study.run()  # in process: both runs finish
+
+    assert study.enqueue() == []
+
+
+def test_in_process_no_queue(tmp_path):
+    path = tmp_path / "study.py"
+    write_study(path, seeds=1)
+    study = load_study(path)
+
+    study.run()
+    study.run(devices=["cpu"])
+
+    assert not paths.queue_db().exists()
+    assert not list(study.dir.glob("logs"))
+
+
+def test_stopping_a_study_cancels_its_queued_jobs(tmp_path):
+    from nanoscope import queue
+    from nanoscope.store import request_stop
+
+    path = tmp_path / "study.py"
+    write_study(path, seeds=1)
+    study = load_study(path)
+    ids = study.enqueue()
+
+    request_stop("studies/toy")
+
+    assert [queue.get(i)["state"] for i in ids] == ["cancelled", "cancelled"]
