@@ -4,14 +4,14 @@ The build list for [`plan-tool.md`](plan-tool.md), sections 4-10, with the decis
 2026-10-05 (plan section 11) applied. Phase numbers follow the plan's section 10. Every
 item is one line, so scripts and agents can grep and edit it.
 
-**Current focus:** P7 queue and workers. Next item: P7.03.
+**Current focus:** P7 queue and workers. Next item: P7.09.
 
 ## Progress
 
 | Phase | Title | Done / total | Status |
 |---|---|---|---|
 | P6 | Servable library + CI baseline (9-11 d) | 67 / 67 | done |
-| P7 | Queue and workers (5-6 d) | 2 / 28 | in progress |
+| P7 | Queue and workers (5-6 d) | 8 / 28 | in progress |
 | P8 | Blocks, describe, rebuilt models (10-13 d) | 0 / 52 | not started |
 | P9 | Curriculum engine, gating, two paths (14-17 d) | 0 / 61 | not started |
 | P10 | HTTP API (8-10 d) | 0 / 47 | not started |
@@ -185,12 +185,12 @@ touch or create (new ones marked `(new)`).
 ### P7 · Queue
 - [x] P7.01 Create `nanoscope/queue.py`: SQLite at `home()/queue.db` in WAL mode. Table `jobs` has id, kind, lane, payload, state, ref, owner, devices_required, device, worker_id, lease_until, attempts, error and timestamps; table `meta` holds the schema version. · files: nanoscope/queue.py (new), tests/test_queue.py (new) · deps: P6.99 · done: `uv run pytest tests/test_queue.py -k create` passes and `sqlite3 queue.db 'pragma journal_mode'` prints wal ✓ 2026-10-05 715ec89: queue.db in WAL mode, jobs + meta tables, paths.queue_db()
 - [x] P7.02 Add `enqueue(kind, payload, lane="batch", ref=None)`, which validates the payload against the `job.v1` schema of its kind. · files: nanoscope/queue.py, nanoscope/schemas/job.v1.json (new) · deps: P7.01 · done: `uv run pytest tests/test_queue.py -k enqueue` passes, including an invalid payload ✓ 2026-10-05 cf48c54: enqueue() validates against job.v1 (run, prepare-data, bench)
-- [ ] P7.03 Add `claim(worker_id, device, lanes)`: atomic under `BEGIN IMMEDIATE`, interactive lane before batch, first in first out within a lane. · files: nanoscope/queue.py · deps: P7.02 · done: `uv run pytest tests/test_queue.py -k "claim or lanes"` passes, including a two-thread no-double-claim test
-- [ ] P7.04 Add `renew(job_id, worker_id)` and `requeue_expired()`. Expired running jobs return to queued with `attempts+1`; after `max_attempts=3` they fail. · files: nanoscope/queue.py · deps: P7.03 · done: `uv run pytest tests/test_queue.py -k lease` passes
-- [ ] P7.05 Add `cancel(job_id)`: a queued job becomes cancelled; a running job gets STOP written to its run dir and becomes cancelled when its child exits. · files: nanoscope/queue.py · deps: P7.04 · done: `uv run pytest tests/test_queue.py -k cancel` passes
-- [ ] P7.06 Handle duplicate submits: enqueueing a run whose `status.json` is done returns the run with no job, and one already queued or running returns that job's id. · files: nanoscope/queue.py · deps: P7.03 · done: `uv run pytest tests/test_queue.py -k duplicate` passes
-- [ ] P7.07 Folders win: `claim()` marks a job done without running it when its run folder is already done. · files: nanoscope/queue.py · deps: P7.06 · done: `uv run pytest tests/test_queue.py -k folders_win` passes
-- [ ] P7.08 Add `owner` (default `local`) and `devices_required` (1; more than 1 is refused with "multi-device jobs need DDP (M2)"). · files: nanoscope/queue.py · deps: P7.02 · done: `uv run pytest tests/test_queue.py -k devices_required` asserts the message
+- [x] P7.03 Add `claim(worker_id, device, lanes)`: atomic under `BEGIN IMMEDIATE`, interactive lane before batch, first in first out within a lane. · files: nanoscope/queue.py · deps: P7.02 · done: `uv run pytest tests/test_queue.py -k "claim or lanes"` passes, including a two-thread no-double-claim test ✓ 2026-10-05 f22e9ee: queue claim/renew/requeue/cancel/duplicates/folders win/owner+devices_required
+- [x] P7.04 Add `renew(job_id, worker_id)` and `requeue_expired()`. Expired running jobs return to queued with `attempts+1`; after `max_attempts=3` they fail. · files: nanoscope/queue.py · deps: P7.03 · done: `uv run pytest tests/test_queue.py -k lease` passes ✓ 2026-10-05 f22e9ee: queue claim/renew/requeue/cancel/duplicates/folders win/owner+devices_required
+- [x] P7.05 Add `cancel(job_id)`: a queued job becomes cancelled; a running job gets STOP written to its run dir and becomes cancelled when its child exits. · files: nanoscope/queue.py · deps: P7.04 · done: `uv run pytest tests/test_queue.py -k cancel` passes ✓ 2026-10-05 f22e9ee: queue claim/renew/requeue/cancel/duplicates/folders win/owner+devices_required
+- [x] P7.06 Handle duplicate submits: enqueueing a run whose `status.json` is done returns the run with no job, and one already queued or running returns that job's id. · files: nanoscope/queue.py · deps: P7.03 · done: `uv run pytest tests/test_queue.py -k duplicate` passes ✓ 2026-10-05 f22e9ee: queue claim/renew/requeue/cancel/duplicates/folders win/owner+devices_required
+- [x] P7.07 Folders win: `claim()` marks a job done without running it when its run folder is already done. · files: nanoscope/queue.py · deps: P7.06 · done: `uv run pytest tests/test_queue.py -k folders_win` passes ✓ 2026-10-05 f22e9ee: queue claim/renew/requeue/cancel/duplicates/folders win/owner+devices_required
+- [x] P7.08 Add `owner` (default `local`) and `devices_required` (1; more than 1 is refused with "multi-device jobs need DDP (M2)"). · files: nanoscope/queue.py · deps: P7.02 · done: `uv run pytest tests/test_queue.py -k devices_required` asserts the message ✓ 2026-10-05 f22e9ee: queue claim/renew/requeue/cancel/duplicates/folders win/owner+devices_required
 
 ### P7 · Runner and worker
 - [ ] P7.09 Create the `nanoscope/jobs/` package with a `JobRunner` protocol (start, poll, terminate), a `SubprocessRunner`, and a `ContainerRunner` stub that raises `NotImplementedError` naming deployments B/C. · files: nanoscope/jobs/__init__.py (new), nanoscope/jobs/runner.py (new), tests/test_jobs.py (new) · deps: P7.01 · done: `uv run pytest tests/test_jobs.py -k runner` passes
