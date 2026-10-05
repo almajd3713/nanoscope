@@ -4,7 +4,7 @@ The build list for [`plan-tool.md`](plan-tool.md), sections 4-10, with the decis
 2026-10-05 (plan section 11) applied. Phase numbers follow the plan's section 10. Every
 item is one line, so scripts and agents can grep and edit it.
 
-**Current focus:** P8 blocks library, describe, rebuilt models. Next item: P8.05.
+**Current focus:** P8 blocks library, describe, rebuilt models. Next item: P8.09.
 
 ## Progress
 
@@ -12,7 +12,7 @@ item is one line, so scripts and agents can grep and edit it.
 |---|---|---|---|
 | P6 | Servable library + CI baseline (9-11 d) | 67 / 67 | done |
 | P7 | Queue and workers (5-6 d) | 28 / 28 | done |
-| P8 | Blocks, describe, rebuilt models (10-13 d) | 4 / 52 | in progress |
+| P8 | Blocks, describe, rebuilt models (10-13 d) | 8 / 52 | in progress |
 | P9 | Curriculum engine, gating, two paths (14-17 d) | 0 / 61 | not started |
 | P10 | HTTP API (8-10 d) | 0 / 47 | not started |
 | P11 | Release prep: PyPI + GHCR (2-3 d) | 0 / 17 | not started |
@@ -231,10 +231,10 @@ touch or create (new ones marked `(new)`).
 - [x] P8.04 Add naive references for the remaining MVP blocks (one-hot-matmul embedding, learned position, tied head, causal mask, softmax, weighted sum, GQA by explicit repeated heads, QK-norm, z-loss), each checked on a hand-computed tiny case. · files: nanoscope/reference/functional.py, tests/test_reference.py · deps: P8.01 · done: `uv run pytest tests/test_reference.py -k hand_computed` passes ✓ 2026-10-05 9ca5d31: frozen GPT2Ref/ModernRef (state of models/ before rebuild, count_params copied in); AST independence test; hand-computed naive references
 
 ### P8 · Block core
-- [ ] P8.05 Create `nanoscope/blocks/__init__.py`, which exports through a PEP 562 `__getattr__` over an export table, and `blocks/registry.py` with `BlockInfo` (name, family, tier primitive or composite, module, reference, features) and an internal `_register`. · files: nanoscope/blocks/__init__.py (new), nanoscope/blocks/registry.py (new), tests/test_blocks.py (new) · deps: P6.99 · done: `uv run pytest tests/test_blocks.py -k registry` passes
-- [ ] P8.06 Define the spec protocol: calling a block class with only its own options returns a `BlockSpec` with no tensors; `Decoder` and `Block` instantiate specs per layer with `d_model` and context; `spec.to_dict()` serves describe and the graph. · files: nanoscope/blocks/spec.py (new), tests/test_blocks.py · deps: P8.05 · done: `uv run pytest tests/test_blocks.py -k spec_builds_independent_params` passes
-- [ ] P8.07 Test that no module in `nanoscope/` except `blocks/__init__.py` imports from the `nanoscope.blocks` package root (library code imports submodules), so gating can never affect shipped code. · files: tests/test_blocks.py · deps: P8.05 · done: `uv run pytest tests/test_blocks.py -k library_imports_submodules` passes
-- [ ] P8.08 Add a `shipped` class marker (decorator) for library models, applied to Bigram, GPT2 and Modern, for the gating build check. · files: nanoscope/blocks/registry.py, nanoscope/models/*.py · deps: P8.05 · done: `uv run python -c "from nanoscope.models import GPT2; assert GPT2.__nanoscope_shipped__"` exits 0
+- [x] P8.05 Create `nanoscope/blocks/__init__.py`, which exports through a PEP 562 `__getattr__` over an export table, and `blocks/registry.py` with `BlockInfo` (name, family, tier primitive or composite, module, reference, features) and an internal `_register`. · files: nanoscope/blocks/__init__.py (new), nanoscope/blocks/registry.py (new), tests/test_blocks.py (new) · deps: P6.99 · done: `uv run pytest tests/test_blocks.py -k registry` passes ✓ 2026-10-05 9edec21: blocks/{__init__,registry,spec}.py: PEP 562 exports, BlockInfo registry, BlockSpec/BlockModule (options-only call gives a spec; deepcopy/pickle safe), shipped marker (subclasses inherit it)
+- [x] P8.06 Define the spec protocol: calling a block class with only its own options returns a `BlockSpec` with no tensors; `Decoder` and `Block` instantiate specs per layer with `d_model` and context; `spec.to_dict()` serves describe and the graph. · files: nanoscope/blocks/spec.py (new), tests/test_blocks.py · deps: P8.05 · done: `uv run pytest tests/test_blocks.py -k spec_builds_independent_params` passes ✓ 2026-10-05 9edec21: blocks/{__init__,registry,spec}.py: PEP 562 exports, BlockInfo registry, BlockSpec/BlockModule (options-only call gives a spec; deepcopy/pickle safe), shipped marker (subclasses inherit it)
+- [x] P8.07 Test that no module in `nanoscope/` except `blocks/__init__.py` imports from the `nanoscope.blocks` package root (library code imports submodules), so gating can never affect shipped code. · files: tests/test_blocks.py · deps: P8.05 · done: `uv run pytest tests/test_blocks.py -k library_imports_submodules` passes ✓ 2026-10-05 9edec21: blocks/{__init__,registry,spec}.py: PEP 562 exports, BlockInfo registry, BlockSpec/BlockModule (options-only call gives a spec; deepcopy/pickle safe), shipped marker (subclasses inherit it)
+- [x] P8.08 Add a `shipped` class marker (decorator) for library models, applied to Bigram, GPT2 and Modern, for the gating build check. · files: nanoscope/blocks/registry.py, nanoscope/models/*.py · deps: P8.05 · done: `uv run python -c "from nanoscope.models import GPT2; assert GPT2.__nanoscope_shipped__"` exits 0 ✓ 2026-10-05 9edec21: blocks/{__init__,registry,spec}.py: PEP 562 exports, BlockInfo registry, BlockSpec/BlockModule (options-only call gives a spec; deepcopy/pickle safe), shipped marker (subclasses inherit it)
 
 ### P8 · Blocks (each: implementation, `flops_per_token`, a naive-reference test)
 - [ ] P8.09 Primitives `Linear` and `Activation(gelu|silu|relu)`. · files: nanoscope/blocks/primitives.py (new), tests/test_blocks.py · deps: P8.06 · done: `uv run pytest tests/test_blocks.py -k "linear or activation"` passes
