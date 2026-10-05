@@ -120,15 +120,52 @@ Close other GPU programs first; anything else running skews the numbers. Then:
   Modern went from about 25 ms to 10 ms per step and GPT-2 from about 12 ms to 8 ms. The first
   steps pay a compile cost of up to a minute, so it pays off on longer runs. Checkpoints,
   evaluation and sampling use the plain module, so a run can resume with compile on or off.
-- `--devices cuda:0,cuda:1` starts one worker process per device.
-- `--workers-per-device N` puts N workers on each device. Four small GPT-2 runs on one GPU
-  took 1.85 times as long as one run. nanoscope checks one training step's memory first and
-  refuses if N workers don't fit in the free GPU memory. Processes share a GPU by time slicing,
-  so the gain is smaller once `--compile reduce-overhead` already keeps it busy.
-- `--threads N` caps CPU threads per worker. CPU workers split the cores by default.
+- `--devices cuda:0,cuda:1` starts one worker process per device; they take the study's runs
+  from the job queue (below).
+- `--workers-per-device N` puts N runs at once on each device. Four small GPT-2 runs on one
+  GPU took 1.85 times as long as one run. A worker measures one training step's memory first
+  (cached in the queue) and leaves a run queued until it fits the free GPU memory. Processes
+  share a GPU by time slicing, so the gain is smaller once `--compile reduce-overhead` already
+  keeps it busy.
+- `--threads N` caps CPU threads per run. Runs sharing a CPU split the cores by default.
 
-Each worker takes a share of the runs listed in `runs/studies/<name>/plan.json`. Studies write
-a text sample only at each run's last step. Distributed data parallel is not supported yet.
+Studies write a text sample only at each run's last step. Distributed data parallel is not
+supported yet.
+
+## The job queue and workers
+
+Anything long that is not run in your own process goes through one SQLite queue,
+`$NANOSCOPE_HOME/queue.db` (WAL mode). Back it up by copying `queue.db` together with its
+`-wal` file while no worker runs, or with `sqlite3 queue.db ".backup copy.db"`. Finished
+runs live in their folders, so losing the queue loses only what was waiting.
+
+```bash
+nanoscope worker --device cuda:0 --slots 2   # claim jobs, one child process per job
+nanoscope jobs                               # every job: id, state, lane, kind, ref, error
+nanoscope jobs --state queued
+nanoscope jobs cancel 7                      # queued: cancelled now; running: STOP, then cancelled
+nanoscope status --workers                   # each worker's device, slots, jobs, last heartbeat
+```
+
+- **Lanes.** `interactive` jobs (what a person is waiting for) are claimed before `batch`
+  jobs (a study's runs); inside a lane the oldest job goes first.
+- **Leases.** A claimed job is leased for 60 seconds and the worker renews it while the child
+  makes progress. If a worker dies (even `kill -9`), the lease expires, the job returns to the
+  queue with `attempts + 1` and the next worker resumes the run from its last checkpoint.
+  After 3 attempts it fails.
+- **Folders win.** A run whose folder already says `done` is never run twice: enqueueing it
+  gives no job, and a queued job for it is marked done without running.
+- **Stopping.** `SIGTERM` makes a worker write STOP to its runs, wait for their checkpoints and
+  hand the jobs back to the queue. `--timeout N` (or a job's own `timeout`) stops a run after
+  N seconds and fails the job with `timeout after Ns`. `--exit-when-idle` ends the worker when
+  the queue is empty.
+- **Secrets.** `HF_TOKEN` and `WANDB_API_KEY` reach only the jobs that use them (a run with
+  `push_to_hub` or `wandb`, `prepare-data`).
+
+`Study.run()` with no devices, or with one, still runs everything in your own process, with no
+queue and no subprocess. `--shard` is gone: use `--devices` (and `--workers-per-device`).
+`Study.enqueue()` puts a study's unfinished runs on the batch lane without starting workers,
+for a worker you run yourself.
 
 ## Seeing progress
 
