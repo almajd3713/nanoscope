@@ -4,7 +4,7 @@ The build list for [`plan-tool.md`](plan-tool.md), sections 4-10, with the decis
 2026-10-05 (plan section 11) applied. Phase numbers follow the plan's section 10. Every
 item is one line, so scripts and agents can grep and edit it.
 
-**Current focus:** P8 blocks library, describe, rebuilt models. Next item: P8.02.
+**Current focus:** P8 blocks library, describe, rebuilt models. Next item: P8.05.
 
 ## Progress
 
@@ -12,7 +12,7 @@ item is one line, so scripts and agents can grep and edit it.
 |---|---|---|---|
 | P6 | Servable library + CI baseline (9-11 d) | 67 / 67 | done |
 | P7 | Queue and workers (5-6 d) | 28 / 28 | done |
-| P8 | Blocks, describe, rebuilt models (10-13 d) | 1 / 52 | in progress |
+| P8 | Blocks, describe, rebuilt models (10-13 d) | 4 / 52 | in progress |
 | P9 | Curriculum engine, gating, two paths (14-17 d) | 0 / 61 | not started |
 | P10 | HTTP API (8-10 d) | 0 / 47 | not started |
 | P11 | Release prep: PyPI + GHCR (2-3 d) | 0 / 17 | not started |
@@ -226,9 +226,9 @@ touch or create (new ones marked `(new)`).
 
 ### P8 · Naive references
 - [x] P8.01 Create the `nanoscope/reference/` package and move `naive_causal_attention`, `naive_rope` and the RMSNorm, LayerNorm, SwiGLU and GELU formulas into it from `tests/test_models.py`; the tests import them from there. · files: nanoscope/reference/__init__.py (new), nanoscope/reference/functional.py (new), tests/test_models.py · deps: P6.99 · done: `grep -n "def naive_" tests/test_models.py` is empty and `uv run pytest tests/test_models.py` passes ✓ 2026-10-05 edaeefd: reference/functional.py: naive attention, rope, rms/layer norm, gelu, swiglu
-- [ ] P8.02 Freeze today's `models/gpt2.py` and `models/modern.py` verbatim as `reference/gpt2_ref.py` (`GPT2Ref`) and `reference/modern_ref.py` (`ModernRef`), each headed "frozen reference, do not edit". · files: nanoscope/reference/gpt2_ref.py (new), nanoscope/reference/modern_ref.py (new) · deps: P8.01 · done: `uv run pytest tests/test_reference.py -k frozen_models_pass_existing_checks` passes
-- [ ] P8.03 Test that modules in `nanoscope/reference` import only torch, math and each other (by AST scan). · files: tests/test_reference.py (new) · deps: P8.02 · done: `uv run pytest tests/test_reference.py -k independent` passes
-- [ ] P8.04 Add naive references for the remaining MVP blocks (one-hot-matmul embedding, learned position, tied head, causal mask, softmax, weighted sum, GQA by explicit repeated heads, QK-norm, z-loss), each checked on a hand-computed tiny case. · files: nanoscope/reference/functional.py, tests/test_reference.py · deps: P8.01 · done: `uv run pytest tests/test_reference.py -k hand_computed` passes
+- [x] P8.02 Freeze today's `models/gpt2.py` and `models/modern.py` verbatim as `reference/gpt2_ref.py` (`GPT2Ref`) and `reference/modern_ref.py` (`ModernRef`), each headed "frozen reference, do not edit". · files: nanoscope/reference/gpt2_ref.py (new), nanoscope/reference/modern_ref.py (new) · deps: P8.01 · done: `uv run pytest tests/test_reference.py -k frozen_models_pass_existing_checks` passes ✓ 2026-10-05 9ca5d31: frozen GPT2Ref/ModernRef (state of models/ before rebuild, count_params copied in); AST independence test; hand-computed naive references
+- [x] P8.03 Test that modules in `nanoscope/reference` import only torch, math and each other (by AST scan). · files: tests/test_reference.py (new) · deps: P8.02 · done: `uv run pytest tests/test_reference.py -k independent` passes ✓ 2026-10-05 9ca5d31: frozen GPT2Ref/ModernRef (state of models/ before rebuild, count_params copied in); AST independence test; hand-computed naive references
+- [x] P8.04 Add naive references for the remaining MVP blocks (one-hot-matmul embedding, learned position, tied head, causal mask, softmax, weighted sum, GQA by explicit repeated heads, QK-norm, z-loss), each checked on a hand-computed tiny case. · files: nanoscope/reference/functional.py, tests/test_reference.py · deps: P8.01 · done: `uv run pytest tests/test_reference.py -k hand_computed` passes ✓ 2026-10-05 9ca5d31: frozen GPT2Ref/ModernRef (state of models/ before rebuild, count_params copied in); AST independence test; hand-computed naive references
 
 ### P8 · Block core
 - [ ] P8.05 Create `nanoscope/blocks/__init__.py`, which exports through a PEP 562 `__getattr__` over an export table, and `blocks/registry.py` with `BlockInfo` (name, family, tier primitive or composite, module, reference, features) and an internal `_register`. · files: nanoscope/blocks/__init__.py (new), nanoscope/blocks/registry.py (new), tests/test_blocks.py (new) · deps: P6.99 · done: `uv run pytest tests/test_blocks.py -k registry` passes
