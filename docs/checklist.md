@@ -4,14 +4,14 @@ The build list for [`plan-tool.md`](plan-tool.md), sections 4-10, with the decis
 2026-10-05 (plan section 11) applied. Phase numbers follow the plan's section 10. Every
 item is one line, so scripts and agents can grep and edit it.
 
-**Current focus:** P7 queue and workers. Next item: P7.17.
+**Current focus:** P7 queue and workers. Next item: P7.23.
 
 ## Progress
 
 | Phase | Title | Done / total | Status |
 |---|---|---|---|
 | P6 | Servable library + CI baseline (9-11 d) | 67 / 67 | done |
-| P7 | Queue and workers (5-6 d) | 16 / 28 | in progress |
+| P7 | Queue and workers (5-6 d) | 22 / 28 | in progress |
 | P8 | Blocks, describe, rebuilt models (10-13 d) | 0 / 52 | not started |
 | P9 | Curriculum engine, gating, two paths (14-17 d) | 0 / 61 | not started |
 | P10 | HTTP API (8-10 d) | 0 / 47 | not started |
@@ -203,14 +203,14 @@ touch or create (new ones marked `(new)`).
 - [x] P7.16 Admission: cache `probe_memory` results in the queue, keyed by (model ref, kwargs hash, preset, device name). A job that doesn't fit the free memory stays queued; it is skipped, not failed. · files: nanoscope/queue.py, nanoscope/jobs/worker.py, nanoscope/hardware.py · deps: P7.12 · done: `uv run pytest tests/test_jobs.py -k admission` passes with fake free memory ✓ 2026-10-05 367a418: jobs package: runners, env allowlist, run-job, worker + status --workers, timeout, device config, admission
 
 ### P7 · Studies on the queue
-- [ ] P7.17 Add `Study.enqueue()`: every unfinished job goes on the batch lane in seed-major order with ref `studies/<name>/<variant>/seed-<n>`, and `plan.json` is written. · files: nanoscope/study.py · deps: P7.06 · done: `uv run pytest tests/test_study.py -k enqueue` passes
-- [ ] P7.18 Make `nanoscope study --devices ...` enqueue the study, start `devices × workers-per-device` local worker slots, print the existing one-line progress every `PROGRESS_EVERY`, exit when every job is terminal, and report failures with the end of the log. · files: nanoscope/study.py, nanoscope/cli.py · deps: P7.17, P7.12 · done: `uv run pytest tests/test_study.py -k several_devices` passes
-- [ ] P7.19 Keep `Study.run()` without devices in-process: no SQLite, no subprocess. · files: nanoscope/study.py, tests/test_study.py · deps: P7.18 · done: `uv run pytest tests/test_study.py -k in_process_no_queue` asserts that no `queue.db` exists
-- [ ] P7.20 Remove `--shard`, `Study.run(shard=)` and `_run_parallel`. · files: nanoscope/study.py, nanoscope/cli.py · deps: P7.18 · done: `grep -rnE -- "--shard|_run_parallel|shard=" nanoscope` is empty (data shards in dataset.py are unrelated, so the check was narrowed on 2026-10-05) and `make test` passes
-- [ ] P7.21 Add `nanoscope jobs [--state S]` and `nanoscope jobs cancel <id>`. · files: nanoscope/cli.py, tests/test_queue.py · deps: P7.05 · done: `uv run pytest tests/test_queue.py -k jobs_command` asserts the output
+- [x] P7.17 Add `Study.enqueue()`: every unfinished job goes on the batch lane in seed-major order with ref `studies/<name>/<variant>/seed-<n>`, and `plan.json` is written. · files: nanoscope/study.py · deps: P7.06 · done: `uv run pytest tests/test_study.py -k enqueue` passes ✓ 2026-10-05 1ebc518: Study.enqueue, queued multi-device studies, shard removed, nanoscope jobs, ported tests
+- [x] P7.18 Make `nanoscope study --devices ...` enqueue the study, start `devices × workers-per-device` local worker slots, print the existing one-line progress every `PROGRESS_EVERY`, exit when every job is terminal, and report failures with the end of the log. · files: nanoscope/study.py, nanoscope/cli.py · deps: P7.17, P7.12 · done: `uv run pytest tests/test_study.py -k several_devices` passes ✓ 2026-10-05 1ebc518: Study.enqueue, queued multi-device studies, shard removed, nanoscope jobs, ported tests
+- [x] P7.19 Keep `Study.run()` without devices in-process: no SQLite, no subprocess. · files: nanoscope/study.py, tests/test_study.py · deps: P7.18 · done: `uv run pytest tests/test_study.py -k in_process_no_queue` asserts that no `queue.db` exists ✓ 2026-10-05 1ebc518: Study.enqueue, queued multi-device studies, shard removed, nanoscope jobs, ported tests
+- [x] P7.20 Remove `--shard`, `Study.run(shard=)` and `_run_parallel`. · files: nanoscope/study.py, nanoscope/cli.py · deps: P7.18 · done: `grep -rnE -- "--shard|_run_parallel|shard=" nanoscope` is empty (data shards in dataset.py are unrelated, so the check was narrowed on 2026-10-05) and `make test` passes ✓ 2026-10-05 1ebc518: Study.enqueue, queued multi-device studies, shard removed, nanoscope jobs, ported tests
+- [x] P7.21 Add `nanoscope jobs [--state S]` and `nanoscope jobs cancel <id>`. · files: nanoscope/cli.py, tests/test_queue.py · deps: P7.05 · done: `uv run pytest tests/test_queue.py -k jobs_command` asserts the output ✓ 2026-10-05 1ebc518: Study.enqueue, queued multi-device studies, shard removed, nanoscope jobs, ported tests
 
 ### P7 · Tests and docs
-- [ ] P7.22 Port `test_studies_run_on_several_devices_in_parallel`, `test_several_workers_can_share_one_device` and `test_too_many_workers_for_the_free_gpu_memory_are_refused` onto the queue. · files: tests/test_study.py · deps: P7.18, P7.16 · done: `uv run pytest tests/test_study.py -k "devices or workers"` passes
+- [x] P7.22 Port `test_studies_run_on_several_devices_in_parallel`, `test_several_workers_can_share_one_device` and `test_too_many_workers_for_the_free_gpu_memory_are_refused` onto the queue. · files: tests/test_study.py · deps: P7.18, P7.16 · done: `uv run pytest tests/test_study.py -k "devices or workers"` passes ✓ 2026-10-05 1ebc518: Study.enqueue, queued multi-device studies, shard removed, nanoscope jobs, ported tests
 - [ ] P7.23 Plan done-when: a worker killed with SIGKILL mid-job has its lease expire and its job requeued and resumed, and the study completes with results equal to an uninterrupted study. · files: tests/test_jobs.py · deps: P7.18 · done: `uv run pytest tests/test_jobs.py -k sigkill` passes
 - [ ] P7.24 Test that an interactive job is claimed before already-queued batch jobs, end to end through a worker. · files: tests/test_jobs.py · deps: P7.12 · done: `uv run pytest tests/test_jobs.py -k interactive_first` passes
 - [ ] P7.25 Test that the Kaggle notebook's `--devices cuda:0,cuda:1` command parses and enqueues with fake CUDA. · files: tests/test_first_model_notebook.py, tests/test_study.py · deps: P7.18 · done: `uv run pytest -k kaggle` passes
