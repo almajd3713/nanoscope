@@ -65,3 +65,72 @@ def count_params(model: nn.Module) -> tuple[int, int]:
     }
     total = sum(p.numel() for p in params.values())
     return total, total - sum(params[i].numel() for i in emb if i in params)
+
+
+def embed_one_hot(ids, table):
+    """A lookup is a one-hot row times the table: (..., vocab) @ (vocab, d)."""
+    vocab = table.size(0)
+    one_hot = (ids.unsqueeze(-1) == torch.arange(vocab)).to(table.dtype)
+    return one_hot @ table
+
+
+def add_learned_position(x, table):
+    """Position t of every sequence gets table[t] added; x is (batch, time, d)."""
+    out = x.clone()
+    for t in range(x.size(1)):
+        out[:, t] = x[:, t] + table[t]
+    return out
+
+
+def tied_head(x, embedding_table):
+    """Logits from the same matrix the embedding reads: one dot product per vocabulary row."""
+    return x @ embedding_table.T
+
+
+def causal_mask(length):
+    """mask[t][s] is True when query t may look at key s, that is when s <= t."""
+    mask = torch.zeros(length, length, dtype=torch.bool)
+    for t in range(length):
+        for s in range(t + 1):
+            mask[t, s] = True
+    return mask
+
+
+def softmax(x):
+    """exp(x - max) over its sum, along the last dimension."""
+    e = torch.exp(x - x.max(-1, keepdim=True).values)
+    return e / e.sum(-1, keepdim=True)
+
+
+def weighted_sum(weights, values):
+    """out[t] = sum over s of weights[t][s] * values[s]; (T, S) and (S, D) give (T, D)."""
+    out = torch.zeros(weights.size(0), values.size(1), dtype=values.dtype)
+    for t in range(weights.size(0)):
+        for s in range(weights.size(1)):
+            out[t] += weights[t, s] * values[s]
+    return out
+
+
+def repeat_kv_heads(kv, n_heads):
+    """Grouped-query attention: query head h reads key/value head h // (n_heads / n_kv).
+
+    kv is (n_kv, ...); the result lists each key/value head for every query head."""
+    n_kv = kv.size(0)
+    assert n_heads % n_kv == 0, "n_heads must be a multiple of n_kv_heads"
+    group = n_heads // n_kv
+    return torch.stack([kv[h // group] for h in range(n_heads)])
+
+
+def qk_norm(x, weight, eps=1e-6):
+    """RMS-normalise each query or key vector over its head dimension."""
+    return rms_norm(x, weight, eps)
+
+
+def log_sum_exp(x):
+    m = x.max(-1, keepdim=True).values
+    return (m + torch.log(torch.exp(x - m).sum(-1, keepdim=True))).squeeze(-1)
+
+
+def z_loss(logits, coefficient):
+    """coefficient * mean(log Z squared), with Z the softmax normaliser of each position."""
+    return coefficient * (log_sum_exp(logits) ** 2).mean()
