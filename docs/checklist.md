@@ -4,13 +4,13 @@ The build list for [`plan-tool.md`](plan-tool.md), sections 4-10, with the decis
 2026-10-05 (plan section 11) applied. Phase numbers follow the plan's section 10. Every
 item is one line, so scripts and agents can grep and edit it.
 
-**Current focus:** P6 servable library + CI baseline. Next item: P6.63.
+**Current focus:** P6 servable library + CI baseline. Next item: P6.99 (phase gate; the user merges PR #6).
 
 ## Progress
 
 | Phase | Title | Done / total | Status |
 |---|---|---|---|
-| P6 | Servable library + CI baseline (9-11 d) | 62 / 67 | in progress |
+| P6 | Servable library + CI baseline (9-11 d) | 66 / 67 | gate pending |
 | P7 | Queue and workers (5-6 d) | 0 / 28 | not started |
 | P8 | Blocks, describe, rebuilt models (10-13 d) | 0 / 52 | not started |
 | P9 | Curriculum engine, gating, two paths (14-17 d) | 0 / 61 | not started |
@@ -170,10 +170,10 @@ touch or create (new ones marked `(new)`).
 - [x] P6.62 Add `checkpoint_steps=[...]` to `run()`/`train()`. These checkpoints go to `checkpoints/archive/step_N.pt`, are never pruned, and are not part of the run's identity. · files: nanoscope/run.py, nanoscope/train_loop.py, tests/test_run.py · deps: P6.02 · done: `uv run pytest tests/test_run.py -k checkpoint_steps` passes (the archive survives pruning; the run dir name is unchanged) ✓ 2026-10-05 f41f970: checkpoint_steps archive; not part of identity; out-of-range steps refused
 
 ### P6 · Docs
-- [ ] P6.63 Update `docs/research.md` with `NANOSCOPE_HOME`, `status.json` states, `nanoscope stop`, TOML studies, `nanoscope spec`, `prepare.json` and `bench --save`. · files: docs/research.md · deps: P6.37, P6.54, P6.56, P6.58 · done: `grep -cE 'nanoscope stop|status\.json|\.toml|NANOSCOPE_HOME' docs/research.md` prints at least 4
-- [ ] P6.64 Add a "Files on disk" section to `docs/research.md` that lists every run, study and data file, its schema, and the N/N-1 policy. · files: docs/research.md · deps: P6.24 · done: `grep -c 'schema' docs/research.md` prints at least 3
-- [ ] P6.65 Rewrite the "Repo layout" section of `docs/project-nanoscope.md` to describe the current modules, and mark M0 and the M1 pipeline done (plan 13). · files: docs/project-nanoscope.md · deps: P6.02 · done: `grep -nE 'configs/|train/|infer/' docs/project-nanoscope.md` is empty
-- [ ] P6.66 Run `git mv docs/roadmap-v2.md docs/archive/roadmap-v2.md` and fix links to it. · files: docs/roadmap-v2.md → docs/archive/roadmap-v2.md · deps: P6.02 · done: `grep -rn 'roadmap-v2' --include=*.md . | grep -v archive/` is empty
+- [x] P6.63 Update `docs/research.md` with `NANOSCOPE_HOME`, `status.json` states, `nanoscope stop`, TOML studies, `nanoscope spec`, `prepare.json` and `bench --save`. · files: docs/research.md · deps: P6.37, P6.54, P6.56, P6.58 · done: `grep -cE 'nanoscope stop|status\.json|\.toml|NANOSCOPE_HOME' docs/research.md` prints at least 4 ✓ 2026-10-05 4fea73d: research.md covers NANOSCOPE_HOME, refs, status.json, stop, TOML, spec, prepare.json, bench --save
+- [x] P6.64 Add a "Files on disk" section to `docs/research.md` that lists every run, study and data file, its schema, and the N/N-1 policy. · files: docs/research.md · deps: P6.24 · done: `grep -c 'schema' docs/research.md` prints at least 3 ✓ 2026-10-05 4fea73d: Files on disk section with schemas and the N/N-1 policy
+- [x] P6.65 Rewrite the "Repo layout" section of `docs/project-nanoscope.md` to describe the current modules, and mark M0 and the M1 pipeline done (plan 13). · files: docs/project-nanoscope.md · deps: P6.02 · done: `grep -nE 'configs/|train/|infer/' docs/project-nanoscope.md` is empty ✓ 2026-10-05 4fea73d: Repo layout rewritten; M0 done, M1 pipeline done
+- [x] P6.66 Run `git mv docs/roadmap-v2.md docs/archive/roadmap-v2.md` and fix links to it. · files: docs/roadmap-v2.md → docs/archive/roadmap-v2.md · deps: P6.02 · done: `grep -rn 'roadmap-v2' --include=*.md . | grep -v archive/` is empty ✓ 2026-10-05 4fea73d: roadmap-v2 moved to docs/archive/; references updated
 
 ### P6 · Gate
 - [ ] P6.99 PHASE GATE P6. Exit criteria: plan section 10 phase 6. · files: — · deps: P6.* · done: `make check` exits 0; `uv run pytest tests/test_first_model_notebook.py` passes (3 cells, <120 s, with cached data); `git diff main -- notebooks/` is empty; CI green on the PR; P6.37, P6.29, P6.43, P6.53, P6.24 and P6.25 are ticked; **USER ACTION** merge the PR
