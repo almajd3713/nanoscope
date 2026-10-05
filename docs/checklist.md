@@ -4,13 +4,13 @@ The build list for [`plan-tool.md`](plan-tool.md), sections 4-10, with the decis
 2026-10-05 (plan section 11) applied. Phase numbers follow the plan's section 10. Every
 item is one line, so scripts and agents can grep and edit it.
 
-**Current focus:** P6 servable library + CI baseline. Next item: P6.38.
+**Current focus:** P6 servable library + CI baseline. Next item: P6.44.
 
 ## Progress
 
 | Phase | Title | Done / total | Status |
 |---|---|---|---|
-| P6 | Servable library + CI baseline (9-11 d) | 37 / 67 | in progress |
+| P6 | Servable library + CI baseline (9-11 d) | 43 / 67 | in progress |
 | P7 | Queue and workers (5-6 d) | 0 / 28 | not started |
 | P8 | Blocks, describe, rebuilt models (10-13 d) | 0 / 52 | not started |
 | P9 | Curriculum engine, gating, two paths (14-17 d) | 0 / 61 | not started |
@@ -137,12 +137,12 @@ touch or create (new ones marked `(new)`).
 - [x] P6.37 Plan done-when: a run in a subprocess, then `nanoscope stop`, gives `cancelled` with a checkpoint; resuming reaches `done` with metrics equal to an uninterrupted run (extends `test_interrupted_run_resumes_exactly`). · files: tests/test_run.py · deps: P6.35 · done: `uv run pytest tests/test_run.py -k stop_then_resume` passes ✓ 2026-10-05 cee346f: subprocess stop then resume equals the straight run
 
 ### P6 · Rebuildable identity
-- [ ] P6.38 Record `model.ref` (`module:qualname`, or `path.py:Class` for file-loaded classes from `cli._load_model_class`) and `model.source_sha256` in `config.json`. · files: nanoscope/run.py, nanoscope/cli.py, nanoscope/schemas/config.v1.json · deps: P6.20 · done: `uv run pytest tests/test_run.py -k model_ref` passes
-- [ ] P6.39 Keep `model.ref` and `source_sha256` out of the run hash and the resume comparison, and log a changed source hash as drift. · files: nanoscope/run.py, tests/test_run.py · deps: P6.38 · done: `uv run pytest tests/test_run.py -k drift` passes (after a source edit the run resumes and the drift line is printed)
-- [ ] P6.40 For classes defined in `__main__` or a notebook, write their source to `run_dir/model_source.py` and set `model.rebuildable=false`. · files: nanoscope/run.py, tests/test_run.py · deps: P6.38 · done: `uv run pytest tests/test_run.py -k main_class_source` passes
-- [ ] P6.41 Add `load_run(ref, device="cpu")`, exported from `nanoscope`. It imports `model.ref`, builds the model with the recorded kwargs, loads the latest checkpoint and returns an object with `generate()`. · files: nanoscope/store.py, nanoscope/__init__.py, tests/test_store.py · deps: P6.38, P6.14 · done: `uv run pytest tests/test_store.py -k load_run` passes
-- [ ] P6.42 Make `load_run` explain baselines (no checkpoints) and non-rebuildable runs in its error messages. · files: nanoscope/store.py, tests/test_store.py · deps: P6.41 · done: `uv run pytest tests/test_store.py -k load_run_errors` asserts both messages
-- [ ] P6.43 Plan done-when: a trained run's `load_run` generates text in a fresh subprocess. · files: tests/test_store.py · deps: P6.41 · done: `uv run pytest tests/test_store.py -k fresh_process` passes
+- [x] P6.38 Record `model.ref` (`module:qualname`, or `path.py:Class` for file-loaded classes from `cli._load_model_class`) and `model.source_sha256` in `config.json`. · files: nanoscope/run.py, nanoscope/cli.py, nanoscope/schemas/config.v1.json · deps: P6.20 · done: `uv run pytest tests/test_run.py -k model_ref` passes ✓ 2026-10-05 db079a1: config model.ref/source_sha256/rebuildable via nanoscope/modelref.py; cli loads through it
+- [x] P6.39 Keep `model.ref` and `source_sha256` out of the run hash and the resume comparison, and log a changed source hash as drift. · files: nanoscope/run.py, tests/test_run.py · deps: P6.38 · done: `uv run pytest tests/test_run.py -k drift` passes (after a source edit the run resumes and the drift line is printed) ✓ 2026-10-05 db079a1: identity keys excluded from resume and set comparison; drift note logged
+- [x] P6.40 For classes defined in `__main__` or a notebook, write their source to `run_dir/model_source.py` and set `model.rebuildable=false`. · files: nanoscope/run.py, tests/test_run.py · deps: P6.38 · done: `uv run pytest tests/test_run.py -k main_class_source` passes ✓ 2026-10-05 db079a1: __main__ classes: rebuildable false + model_source.py
+- [x] P6.41 Add `load_run(ref, device="cpu")`, exported from `nanoscope`. It imports `model.ref`, builds the model with the recorded kwargs, loads the latest checkpoint and returns an object with `generate()`. · files: nanoscope/store.py, nanoscope/__init__.py, tests/test_store.py · deps: P6.38, P6.14 · done: `uv run pytest tests/test_store.py -k load_run` passes ✓ 2026-10-05 db079a1: store.load_run + LoadedRun.generate, exported from nanoscope
+- [x] P6.42 Make `load_run` explain baselines (no checkpoints) and non-rebuildable runs in its error messages. · files: nanoscope/store.py, tests/test_store.py · deps: P6.41 · done: `uv run pytest tests/test_store.py -k load_run_errors` asserts both messages ✓ 2026-10-05 db079a1: errors for baselines, seed sets, notebook classes, legacy runs
+- [x] P6.43 Plan done-when: a trained run's `load_run` generates text in a fresh subprocess. · files: tests/test_store.py · deps: P6.41 · done: `uv run pytest tests/test_store.py -k fresh_process` passes ✓ 2026-10-05 db079a1: fresh-process generation test
 
 ### P6 · Specs and validation
 - [ ] P6.44 Create `nanoscope/specs.py` with `ModelSpec.from_class(cls)`: params, annotations as strings, defaults, from-data flags (`vocab_size`, `context_length`) and the docstring. · files: nanoscope/specs.py (new), tests/test_specs.py (new) · deps: P6.02 · done: `uv run pytest tests/test_specs.py -k model_spec` passes for Bigram, GPT2 and Modern
