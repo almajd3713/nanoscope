@@ -1,0 +1,41 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://nanoscope.dev/schemas/plan.v1.json",
+  "title": "plan.v1",
+  "description": "A study's plan.json: every planned run, so runs not yet started can be listed.",
+  "type": "object",
+  "properties": {
+    "schema": {
+      "const": 1
+    },
+    "nanoscope": {
+      "type": "string"
+    },
+    "study": {
+      "type": "string"
+    },
+    "runs": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "dir": {
+            "type": "string"
+          },
+          "max_steps": {
+            "type": "integer"
+          }
+        },
+        "required": [
+          "dir",
+          "max_steps"
+        ]
+      }
+    }
+  },
+  "required": [
+    "schema",
+    "study",
+    "runs"
+  ]
+}

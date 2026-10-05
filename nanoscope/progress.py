@@ -9,10 +9,15 @@ from __future__ import annotations
 import json
 import time
 from dataclasses import dataclass
+from datetime import datetime
 from pathlib import Path
 from typing import Any
 
-RUNNING_IF_UPDATED_WITHIN = 120  # seconds
+from nanoscope.schemas.upgrade import read_json
+
+RUNNING_IF_UPDATED_WITHIN = 120  # seconds, for folders without a status.json
+STALE_HEARTBEAT = 60  # seconds without a heartbeat before a "running" run looks dead
+STATE_ORDER = ("done", "running", "preparing", "stopped", "cancelled", "failed", "queued")
 
 
 class ProgressBar:
@@ -46,9 +51,25 @@ class RunState:
     max_steps: int
     val_bpb: float | None
     updated: float  # seconds since the last metrics row
+    status: str | None = None  # the state in status.json, when the run has one
+    error: dict[str, Any] | None = None
+    heartbeat_age: float | None = None  # seconds since status.json was last refreshed
+
+    @property
+    def source(self) -> str:
+        """Where `state` comes from: status.json, or (older runs) file times."""
+        return "status" if self.status else "files"
+
+    @property
+    def stale(self) -> bool:
+        """Says running, but nothing has refreshed status.json lately: the process is gone."""
+        return (self.state == "running" and self.heartbeat_age is not None
+                and self.heartbeat_age > STALE_HEARTBEAT)
 
     @property
     def state(self) -> str:
+        if self.status:
+            return self.status
         if self.step >= self.max_steps:
             return "done"
         if self.step == 0:
@@ -65,13 +86,24 @@ def _last_line(path: Path, block: int = 4096) -> str | None:
     return lines[-1] if lines else None
 
 
+def _with_status(state: RunState, now: float) -> RunState:
+    """Add what status.json says, when the run has one."""
+    path = state.run_dir / "status.json"
+    if path.exists():
+        doc = read_json(path, "status")
+        beat = doc.get("heartbeat_at") or doc["updated_at"]
+        state.status, state.error = doc["state"], doc.get("error")
+        state.heartbeat_age = max(0.0, now - datetime.fromisoformat(beat).timestamp())
+    return state
+
+
 def snapshot(root: str | Path) -> list[RunState]:
     """The state of every run under root, from its config.json and metrics.jsonl."""
     states = []
     now = time.time()
     for config_path in sorted(Path(root).glob("**/config.json")):
         run_dir = config_path.parent
-        config = json.loads(config_path.read_text(encoding="utf-8"))
+        config = read_json(config_path, "config")
         metrics = run_dir / "metrics.jsonl"
         step, updated, bpb = 0, float("inf"), None
         if metrics.exists() and metrics.stat().st_size:
@@ -79,11 +111,20 @@ def snapshot(root: str | Path) -> list[RunState]:
             line = _last_line(metrics)
             step = json.loads(line)["step"] if line else 0
             bpb = _latest_bpb(metrics)
-        states.append(RunState(run_dir, step, config["preset"]["max_steps"], bpb, updated))
+        states.append(_with_status(
+            RunState(run_dir, step, config["preset"]["max_steps"], bpb, updated), now))
+    # A run that is still preparing (or failed doing so) has a status.json but no config yet.
+    listed = {s.run_dir.resolve() for s in states}
+    for status_path in sorted(Path(root).glob("**/status.json")):
+        if status_path.parent.resolve() not in listed:
+            doc = read_json(status_path, "status")
+            states.append(_with_status(
+                RunState(status_path.parent, doc.get("step", 0), doc.get("max_steps") or 0, None,
+                         float("inf")), now))
     # Studies list their planned runs; show the ones that haven't started as queued.
     seen = {s.run_dir.resolve() for s in states}
     for plan_path in sorted(Path(root).glob("**/plan.json")):
-        plan = json.loads(plan_path.read_text(encoding="utf-8"))
+        plan = read_json(plan_path, "plan")
         for job in plan["runs"]:
             run_dir = plan_path.parent / job["dir"]
             if run_dir.resolve() not in seen:
@@ -108,25 +149,35 @@ def _ago(seconds: float) -> str:
     return f"{seconds / 3600:.0f}h ago"
 
 
+def _state_cell(r: RunState) -> str:
+    if r.stale and r.heartbeat_age is not None:
+        quiet = _ago(r.heartbeat_age).removesuffix(" ago")
+        return f"{r.state} (no heartbeat for {quiet})"
+    return r.state
+
+
 def format_snapshot(states: list[RunState], root: str | Path) -> str:
     if not states:
         return f"no runs under {root}"
-    counts = {s: sum(1 for r in states if r.state == s)
-              for s in ("done", "running", "stopped", "queued")}
+    counts = {s: sum(1 for r in states if r.state == s) for s in STATE_ORDER}
     summary = ", ".join(f"{n} {s}" for s, n in counts.items() if n)
     rows = [["run", "state", "step", "val bpb", "updated"]]
     for r in states:
         rows.append([
             str(r.run_dir.relative_to(root)) if r.run_dir.is_relative_to(root) else str(r.run_dir),
-            r.state,
-            f"{r.step}/{r.max_steps} ({r.step / r.max_steps:.0%})",
+            _state_cell(r),
+            f"{r.step}/{r.max_steps} ({r.step / r.max_steps:.0%})" if r.max_steps else str(r.step),
             f"{r.val_bpb:.3f}" if r.val_bpb is not None else "-",
             _ago(r.updated),
         ])
     widths = [max(len(row[i]) for row in rows) for i in range(len(rows[0]))]
     lines = ["  ".join(c.ljust(w) for c, w in zip(row, widths, strict=True)).rstrip()
              for row in rows]
-    return "\n".join([f"{len(states)} runs under {root}: {summary}", "", *lines])
+    errors = [f"{r.run_dir.relative_to(root) if r.run_dir.is_relative_to(root) else r.run_dir} "
+              f"failed: {r.error['type']}: {r.error['message']}"
+              for r in states if r.state == "failed" and r.error]
+    out = [f"{len(states)} runs under {root}: {summary}", "", *lines]
+    return "\n".join(out + ([""] + errors if errors else []))
 
 
 def one_line(states: list[RunState], total: int | None = None) -> str:

@@ -7,6 +7,8 @@ from collections.abc import Callable
 from pathlib import Path
 from typing import Any
 
+from nanoscope.log import info
+
 StepHook = Callable[[int, dict[str, Any]], None]
 
 
@@ -62,7 +64,7 @@ class HubSync:
             return False
         if f"{self.path}/latest.json" not in files:
             return False
-        print(f"[nanoscope] resuming {self.path} from hf.co/{self.repo_id}", flush=True)
+        info(f"resuming {self.path} from hf.co/{self.repo_id}")
         root = self.run_dir
         for _ in Path(self.path).parts:
             root = root.parent
@@ -80,8 +82,7 @@ class HubSync:
         if not self.created:
             api.create_repo(self.repo_id, exist_ok=True, private=True)
             self.created = True
-        print(f"[nanoscope] uploading {self.path} at step {step} to hf.co/{self.repo_id}",
-              flush=True)
+        info(f"uploading {self.path} at step {step} to hf.co/{self.repo_id}")
         for attempt in range(attempts):
             try:
                 api.upload_folder(
@@ -93,7 +94,7 @@ class HubSync:
                 return
             except Exception as exc:
                 if attempt == attempts - 1:  # training goes on; the next checkpoint retries
-                    print(f"[nanoscope] upload failed ({type(exc).__name__}); will retry at "
-                          "the next checkpoint", flush=True)
+                    info(f"upload failed ({type(exc).__name__}); will retry at "
+                          "the next checkpoint")
                     return
                 time.sleep(2**attempt)

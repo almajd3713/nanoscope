@@ -1,0 +1,88 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://nanoscope.dev/schemas/comparison.v1.json",
+  "title": "comparison.v1",
+  "description": "The result of compare(): one row per run set, each with a verdict against the baseline.",
+  "type": "object",
+  "properties": {
+    "schema": {
+      "const": 1
+    },
+    "nanoscope": {
+      "type": "string"
+    },
+    "metric": {
+      "enum": [
+        "val_bpb",
+        "val_loss"
+      ]
+    },
+    "baseline": {
+      "type": "string"
+    },
+    "rows": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "label": {
+            "type": "string"
+          },
+          "source": {
+            "type": "string"
+          },
+          "seeds": {
+            "type": "array",
+            "items": {
+              "type": "integer"
+            }
+          },
+          "params": {
+            "type": "integer"
+          },
+          "tokens": {
+            "type": "integer"
+          },
+          "summary": {
+            "type": "object"
+          },
+          "delta": {
+            "type": [
+              "object",
+              "null"
+            ]
+          },
+          "verdict": {
+            "enum": [
+              "baseline",
+              "better",
+              "worse",
+              "within noise",
+              "no CI"
+            ]
+          }
+        },
+        "required": [
+          "label",
+          "seeds",
+          "summary",
+          "delta",
+          "verdict"
+        ]
+      }
+    },
+    "notes": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    }
+  },
+  "required": [
+    "schema",
+    "metric",
+    "baseline",
+    "rows",
+    "notes"
+  ]
+}

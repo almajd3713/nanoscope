@@ -98,3 +98,48 @@ def test_exported_baseline_compares_like_the_original(tmp_path):
     assert not any("sample" in r for r in rows)
     assert [r.final("val_bpb") for r in load_runs(out)] == \
         [r.summary()["final_val_bpb"] for r in group]
+
+
+def test_compare_accepts_refs_paths_and_names(capsys):
+    a = run(Bigram, tiny(), device="cpu", seeds=2, progress=False)
+    b = run(Bigram, tiny(), device="cpu", seeds=2, progress=False, d_model=8)
+    by_ref = compare(a.ref, b.ref)
+    by_path = compare(str(a[0].run_dir.parent), str(b[0].run_dir.parent))
+    by_object = compare(a, b)
+    def rows(c):  # the source column is the ref, the path, or the run folder
+        return [{k: v for k, v in r.items() if k != "source"} for r in c.rows]
+
+    assert rows(by_ref) == rows(by_path) == rows(by_object)
+    assert [s.source for s in by_ref.sets] == [a.ref, b.ref]
+    with pytest.raises(ValueError, match="can't find runs named 'no/such/set'"):
+        compare(a.ref, "no/such/set")
+
+
+def test_every_row_has_a_verdict_and_it_is_printed(capsys):
+    few = run(Bigram, tiny(), device="cpu", seeds=2, progress=False)
+    small = run(Bigram, tiny(), device="cpu", seeds=2, progress=False, d_model=8)
+    rows = compare(few, small).rows  # the last one is the baseline
+    assert [r["verdict"] for r in rows] == ["no CI", "baseline"]
+    assert "no CI: need 3+ seeds each" in str(compare(few, small))
+
+    many_a = run(Bigram, tiny(), device="cpu", seeds=3, progress=False, d_model=4)
+    many_b = run(Bigram, tiny(), device="cpu", seeds=3, progress=False, d_model=48)
+    many_c = run(Bigram, tiny(), device="cpu", seeds=3, progress=False, d_model=32)
+    rows = compare(many_a, many_b, many_c)
+    text = str(rows)
+    for row in rows.rows:
+        assert row["verdict"] in {"better", "worse", "within noise", "baseline"}
+        if row["verdict"] != "baseline":
+            assert row["verdict"] in text
+    assert rows.rows[-1]["verdict"] == "baseline"
+
+
+def test_verdict_of_follows_the_confidence_interval():
+    from nanoscope.compare import verdict_of
+
+    ci = {"ci95_low": -0.2, "ci95_high": -0.1}
+    assert verdict_of(None) == "baseline"
+    assert verdict_of({"ci95_low": None, "ci95_high": None}) == "no CI"
+    assert verdict_of(ci) == "better"
+    assert verdict_of({"ci95_low": 0.1, "ci95_high": 0.3}) == "worse"
+    assert verdict_of({"ci95_low": -0.1, "ci95_high": 0.3}) == "within noise"

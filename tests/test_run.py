@@ -7,12 +7,16 @@ import pytest
 import torch
 from fakes import tiny
 
-from nanoscope import run
+from nanoscope import paths, run, store
 from nanoscope.dataset import load_data, load_tokenizer
 from nanoscope.models import Bigram
 from nanoscope.tokenizer import BPETokenizer, ByteTokenizer
 
 pytestmark = pytest.mark.usefixtures("fake_data")
+
+
+def out(name):
+    return paths.runs_dir() / name
 
 
 def test_run_trains_evaluates_and_samples():
@@ -39,15 +43,15 @@ def test_rerunning_a_finished_run_loads_it():
 
 
 def test_interrupted_run_resumes_exactly():
-    straight = run(Bigram, tiny(), device="cpu", output_dir="straight")
+    straight = run(Bigram, tiny(), device="cpu", output_dir=out("straight"))
 
     def interrupt(step, row):
         if step == 7:
             os.kill(os.getpid(), signal.SIGINT)
 
-    stopped = run(Bigram, tiny(), device="cpu", output_dir="resumed", on_step=interrupt)
+    stopped = run(Bigram, tiny(), device="cpu", output_dir=out("resumed"), on_step=interrupt)
     assert stopped.train_result.stopped_early and stopped.final_step == 7
-    resumed = run(Bigram, tiny(), device="cpu", output_dir="resumed")
+    resumed = run(Bigram, tiny(), device="cpu", output_dir=out("resumed"))
 
     assert [r["loss"] for r in resumed.metrics] == [r["loss"] for r in straight.metrics]
     lines = (resumed.run_dir / "metrics.jsonl").read_text().splitlines()
@@ -67,10 +71,10 @@ def test_overrides_get_their_own_run_dir():
 
 
 def test_changed_config_in_same_dir_refuses_to_resume():
-    run(Bigram, tiny(max_steps=2), device="cpu", output_dir="out")
+    run(Bigram, tiny(max_steps=2), device="cpu", output_dir=out("out"))
     with pytest.raises(ValueError, match="learning_rate|preset"):
-        run(Bigram, tiny(max_steps=2), device="cpu", output_dir="out", learning_rate=1e-3)
-    restarted = run(Bigram, tiny(max_steps=2), device="cpu", output_dir="out",
+        run(Bigram, tiny(max_steps=2), device="cpu", output_dir=out("out"), learning_rate=1e-3)
+    restarted = run(Bigram, tiny(max_steps=2), device="cpu", output_dir=out("out"),
                     learning_rate=1e-3, resume=False)
     assert restarted.final_step == 2
 
@@ -117,7 +121,209 @@ def test_token_files_hold_documents_separated_by_eos():
 
 
 def test_a_seed_gives_the_same_initial_weights_whatever_ran_before(fake_data):
-    first = run(Bigram, tiny(), output_dir="a", seed=3, progress=False)
-    run(Bigram, tiny(), output_dir="other", seed=9, progress=False)  # disturbs the global RNG
-    again = run(Bigram, tiny(), output_dir="b", seed=3, progress=False)
+    first = run(Bigram, tiny(), output_dir=out("a"), seed=3, progress=False)
+    run(Bigram, tiny(), output_dir=out("other"), seed=9, progress=False)  # disturbs the global RNG
+    again = run(Bigram, tiny(), output_dir=out("b"), seed=3, progress=False)
     assert again.metrics[0]["loss"] == first.metrics[0]["loss"]
+
+
+def test_results_know_their_ref():
+    single = run(Bigram, tiny(), device="cpu", progress=False)
+    group = run(Bigram, tiny(), device="cpu", seeds=2, progress=False, d_model=8)
+    assert single.ref == single.run_dir.relative_to(paths.runs_dir()).as_posix()
+    assert single.summary()["ref"] == single.ref
+    assert group.ref == group[0].ref.removesuffix("/seed-0")
+    assert group.summary()["ref"] == group.ref
+    assert store.resolve(group.ref) == group[0].run_dir.parent
+
+
+def test_config_records_its_schema_and_version():
+    from helpers import assert_valid
+
+    import nanoscope
+
+    result = run(Bigram, tiny(), device="cpu", progress=False)
+    config = json.loads((result.run_dir / "config.json").read_text())
+    assert config["schema"] == 1 and config["nanoscope"] == nanoscope.__version__
+    assert_valid("config", config)
+
+
+def test_v0_config_without_schema_keys_still_resumes():
+    first = run(Bigram, tiny(), device="cpu", output_dir=out("old"), progress=False)
+    path = first.run_dir / "config.json"
+    config = json.loads(path.read_text())
+    del config["schema"], config["nanoscope"]  # what runs written before schemas look like
+    path.write_text(json.dumps(config))
+    again = run(Bigram, tiny(), device="cpu", output_dir=out("old"), progress=False)
+    assert again.final_step == first.final_step
+
+
+def test_train_stops_early_with_a_checkpoint_when_should_stop_says_so():
+    from nanoscope.train_loop import train
+
+    done = run(Bigram, tiny(), device="cpu", output_dir=out("source"), progress=False)
+    result = train(done.model, done.data, done.preset, out("stopper"), torch.device("cpu"),
+                   should_stop=lambda: True)
+    assert result.stopped_early and result.final_step == 1
+    assert (out("stopper") / "latest.json").exists()
+
+
+STOP_SCRIPT = """
+import sys, time
+from pathlib import Path
+sys.path.insert(0, {tests!r})
+from fakes import tiny
+from nanoscope import run
+from nanoscope.models import Bigram
+
+def slow(step, row):
+    time.sleep(0.02)
+    if step == 3:
+        Path({marker!r}).write_text("started")
+
+run(Bigram, tiny(max_steps=200, eval_interval=50, checkpoint_interval=100), device="cpu",
+    output_dir={out!r}, on_step=slow, progress=False)
+"""
+
+
+def test_stop_then_resume_matches_an_uninterrupted_run(tmp_path):
+    import subprocess
+    import sys
+    import time
+    from pathlib import Path
+
+    from nanoscope.cli import main
+
+    tuned = dict(max_steps=200, eval_interval=50, checkpoint_interval=100)
+    straight = run(Bigram, tiny(**tuned), device="cpu", output_dir=out("straight"),
+                   progress=False)  # also caches the data the subprocess will read
+
+    marker, victim = tmp_path / "started", out("victim")
+    script = tmp_path / "victim.py"
+    script.write_text(STOP_SCRIPT.format(
+        tests=str(Path(__file__).parent), marker=str(marker), out=str(victim)))
+    proc = subprocess.Popen([sys.executable, str(script)], stdout=subprocess.DEVNULL,
+                            stderr=subprocess.DEVNULL)
+    try:
+        deadline = time.time() + 120
+        while not marker.exists() and time.time() < deadline and proc.poll() is None:
+            time.sleep(0.05)
+        assert marker.exists(), "the run never reached step 3"
+        main(["stop", store.ref_of(victim)])
+        assert proc.wait(timeout=60) == 0
+    finally:
+        if proc.poll() is None:
+            proc.kill()
+
+    doc = json.loads((victim / "status.json").read_text())
+    assert doc["state"] == "cancelled" and 3 <= doc["step"] < 200
+    assert (victim / "latest.json").exists()
+
+    resumed = run(Bigram, tiny(**tuned), device="cpu", output_dir=victim, progress=False)
+    assert json.loads((victim / "status.json").read_text())["state"] == "done"
+    assert not (victim / "STOP").exists()
+    assert [r["loss"] for r in resumed.metrics] == [r["loss"] for r in straight.metrics]
+
+
+MODEL_FILE = """
+import torch.nn as nn
+from nanoscope.models import Bigram
+
+
+class FromFile(Bigram):
+    pass  # {marker}
+"""
+
+
+def test_model_ref_is_recorded_in_config(tmp_path):
+    from helpers import assert_valid
+
+    from nanoscope.cli import _load_model_class
+
+    result = run(Bigram, tiny(), device="cpu", progress=False)
+    model = json.loads((result.run_dir / "config.json").read_text())["model"]
+    assert model["ref"] == "nanoscope.models.bigram:Bigram" and model["rebuildable"] is True
+    assert len(model["source_sha256"]) == 64
+
+    path = tmp_path / "mine.py"
+    path.write_text(MODEL_FILE.format(marker="v1"))
+    custom = run(_load_model_class(f"{path}:FromFile"), tiny(), device="cpu", progress=False)
+    config = json.loads((custom.run_dir / "config.json").read_text())
+    assert config["model"]["ref"] == f"{path.resolve()}:FromFile"
+    assert config["model"]["rebuildable"] is True
+    assert_valid("config", config)
+
+
+def test_a_changed_model_source_is_logged_as_drift_and_still_resumes(tmp_path, capsys):
+    from nanoscope.cli import _load_model_class
+
+    path = tmp_path / "mine.py"
+    path.write_text(MODEL_FILE.format(marker="v1"))
+    run(_load_model_class(f"{path}:FromFile"), tiny(), device="cpu", output_dir=out("drift"),
+        progress=False)
+    path.write_text(MODEL_FILE.format(marker="v2"))  # edited after the run
+    capsys.readouterr()
+    again = run(_load_model_class(f"{path}:FromFile"), tiny(), device="cpu",
+                output_dir=out("drift"), progress=False)
+    assert again.final_step == 20  # it resumed (nothing left to train), it did not refuse
+    assert "the source of FromFile changed since this run started" in capsys.readouterr().out
+
+
+def test_main_class_source_is_saved_and_not_rebuildable(monkeypatch):
+    class Local(Bigram):
+        pass
+
+    Local.__module__ = "__main__"
+    import sys
+
+    monkeypatch.setattr(sys.modules["nanoscope.run"], "class_source",
+                        lambda cls: "class Local: ...\n")
+    result = run(Local, tiny(), device="cpu", progress=False)
+    model = json.loads((result.run_dir / "config.json").read_text())["model"]
+    assert model["rebuildable"] is False and model["ref"].startswith("__main__:")
+    assert model["ref"].endswith("Local")
+    assert (result.run_dir / "model_source.py").read_text() == "class Local: ...\n"
+
+
+def test_messages_go_through_the_nanoscope_logger_and_still_print(capsys):
+    import logging
+
+    records = []
+
+    class Collect(logging.Handler):
+        def emit(self, record):
+            records.append(record.getMessage())
+
+    handler = Collect()
+    logger = logging.getLogger("nanoscope")
+    logger.addHandler(handler)
+    try:
+        run(Bigram, tiny(), device="cpu", output_dir=out("logged"), progress=False)
+        run(Bigram, tiny(), device="cpu", output_dir=out("logged"), progress=False)  # resumes
+    finally:
+        logger.removeHandler(handler)
+    assert any("Bigram (" in m and "params) on test-tiny" in m for m in records)
+    assert any(m.startswith("already trained (20 steps)") for m in records)
+    printed = capsys.readouterr().out
+    assert "[nanoscope] already trained (20 steps)" in printed  # the default handler is intact
+
+
+def test_checkpoint_steps_are_archived_and_never_pruned():
+    import torch
+
+    preset = tiny(checkpoint_interval=5, keep_checkpoints=1)
+    kept = run(Bigram, preset, device="cpu", checkpoint_steps=[3, 10], progress=False)
+    folder = kept.run_dir / "checkpoints"
+    assert sorted(p.name for p in (folder / "archive").glob("*.pt")) == [
+        "step_00000003.pt", "step_00000010.pt"]
+    assert len(list(folder.glob("step_*.pt"))) == 1  # the normal checkpoints are still pruned
+    saved = torch.load(folder / "archive" / "step_00000003.pt", weights_only=False)
+    assert saved["step"] == 3 and "model" in saved and "optimizer" in saved
+
+    # Not part of the run's identity: without it the run lands in the same folder and resumes.
+    plain = run(Bigram, preset, device="cpu", progress=False)
+    assert plain.run_dir == kept.run_dir and plain.final_step == 20
+    assert "checkpoint_steps" not in (kept.run_dir / "config.json").read_text()
+
+    with pytest.raises(ValueError, match=r"checkpoint_steps \[99\] fall outside 1\.\.20"):
+        run(Bigram, tiny(), device="cpu", checkpoint_steps=[99], progress=False)

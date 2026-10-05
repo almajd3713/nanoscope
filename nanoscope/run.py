@@ -5,19 +5,25 @@ import inspect
 import json
 from dataclasses import asdict, dataclass, fields
 from pathlib import Path
-from typing import Any
+from typing import Any, cast
 
 import torch
 from torch import nn
 
+from nanoscope import paths
+from nanoscope.compare import IDENTITY_KEYS
 from nanoscope.dataset import Data, load_data, tokenizer_id
 from nanoscope.integrations import HubSync, chain, wandb_hook
+from nanoscope.log import info
+from nanoscope.modelref import class_source, model_ref, source_sha256
 from nanoscope.presets import Preset, get_preset, list_presets
 from nanoscope.progress import ProgressBar
+from nanoscope.schemas.upgrade import read_json
 from nanoscope.sizing import count_params, flops_per_token
+from nanoscope.specs import validate_run_request
+from nanoscope.status import STOP_FILE, StatusFile
+from nanoscope.store import ref_of
 from nanoscope.train_loop import TrainResult, generate, train
-
-RUNS_DIR = Path("runs")
 
 
 @dataclass
@@ -35,8 +41,19 @@ class RunResult:
         return self.train_result.run_dir
 
     @property
+    def ref(self) -> str:
+        """The run's name under the runs folder (see nanoscope.store)."""
+        return ref_of(self.run_dir)
+
+    @property
     def metrics(self) -> list[dict[str, Any]]:
         return self.train_result.metrics
+
+    def to_dict(self, metrics: bool = False) -> dict[str, Any]:
+        """The run as plain data: its ref, summary and (optionally) every metrics row."""
+        out = {**self.summary(), "seed": self.seed, "device": self.device,
+               "final_step": self.final_step, "stopped_early": self.train_result.stopped_early}
+        return {**out, "metrics": self.metrics} if metrics else out
 
     @property
     def final_step(self) -> int:
@@ -120,6 +137,7 @@ class RunResult:
             "final_train_loss": self.train_losses[-1] if self.train_losses else None,
             "final_val_loss": val[-1][1] if val else None,
             "final_val_bpb": bpb[-1][1] if bpb else None,
+            "ref": self.ref,
             "run_dir": str(self.run_dir),
         }
 
@@ -143,6 +161,15 @@ class RunGroup:
     def seeds(self) -> list[int]:
         return [r.seed for r in self.results]
 
+    def to_dict(self, metrics: bool = False) -> dict[str, Any]:
+        """The set as plain data: the summary over seeds, plus each seed's own dict."""
+        return {**self.summary(), "runs": [r.to_dict(metrics) for r in self.results]}
+
+    @property
+    def ref(self) -> str:
+        """The set's name under the runs folder: the folder that holds the seeds."""
+        return ref_of(self.results[0].run_dir.parent)
+
     def summary(self) -> dict[str, Any]:
         from nanoscope.statistics import summarize
 
@@ -153,6 +180,7 @@ class RunGroup:
             "seeds": self.seeds,
             "val_loss": summarize([r.summary()["final_val_loss"] for r in self.results]),
             "val_bpb": summarize([r.summary()["final_val_bpb"] for r in self.results]),
+            "ref": self.ref,
             "run_dir": str(first.run_dir.parent),
         }
 
@@ -193,22 +221,15 @@ def _split_kwargs(
     model_cls: type[nn.Module], preset: Preset, kwargs: dict[str, Any],
 ) -> tuple[dict[str, Any], dict[str, Any]]:
     """Route each keyword to the model constructor or to the preset."""
+    problems = validate_run_request(model_cls, preset, kwargs)
+    if problems:
+        raise TypeError(problems[0].message)  # the first one; the API reports them all
     params = {
-        name: p for name, p in inspect.signature(model_cls).parameters.items()
+        name for name, p in inspect.signature(model_cls).parameters.items()
         if name not in _FROM_DATA and p.kind in (p.POSITIONAL_OR_KEYWORD, p.KEYWORD_ONLY)
     }
-    preset_fields = {f.name for f in fields(preset)}
-    model_kwargs, overrides = {}, {}
-    for key, value in kwargs.items():
-        if key in params:
-            model_kwargs[key] = value
-        elif key in preset_fields:
-            overrides[key] = value
-        else:
-            raise TypeError(
-                f"{key!r} is neither a parameter of {model_cls.__name__}.__init__ "
-                f"nor a preset field (see nanoscope.Preset)"
-            )
+    model_kwargs = {k: v for k, v in kwargs.items() if k in params}
+    overrides = {k: v for k, v in kwargs.items() if k not in params}
     return model_kwargs, overrides
 
 
@@ -242,26 +263,47 @@ def _run_name(
     return name
 
 
-def _check_config(run_dir: Path, config: dict[str, Any], resume: bool) -> None:
+class ConfigMismatch(ValueError):
+    """The run folder holds a run with a different config, so resuming would mix two runs."""
+
+
+def _refuse_record_overwrite(run_dir: Path, resume: bool) -> None:
+    """Record-mode results are evidence: never start them over. Checked before anything is
+    written to the folder, status included."""
     path = run_dir / "config.json"
     if not resume and path.exists():
-        saved = json.loads(path.read_text(encoding="utf-8"))
+        saved = read_json(path, "config")
         if saved.get("study", {}).get("mode") == "record":
             raise ValueError(f"{run_dir} is a record-mode result; record results are never "
                              "overwritten. Delete the folder by hand if you really mean it.")
+
+
+def _check_config(run_dir: Path, config: dict[str, Any], resume: bool,
+                  identity: dict[str, Any] | None = None) -> None:
+    path = run_dir / "config.json"
     if resume and path.exists():
-        saved = json.loads(path.read_text(encoding="utf-8"))
-        saved.pop("stats", None)
+        saved = read_json(path, "config")
+        for key in ("stats", "schema", "nanoscope"):  # facts about the file, not the run
+            saved.pop(key, None)
+        saved_model = dict(saved.get("model", {}))
+        before = saved_model.get("source_sha256")
+        for key in IDENTITY_KEYS:  # where the model came from, not what it is
+            saved_model.pop(key, None)
+        saved["model"] = saved_model
+        after = (identity or {}).get("source_sha256")
+        if before and after and before != after:
+            _log(f"note: the source of {config['model']['class']} changed since this run "
+                 f"started ({before[:8]} -> {after[:8]}); resuming with the current code")
         if saved != config:
             changed = sorted(k for k in config if saved.get(k) != config[k])
-            raise ValueError(
+            raise ConfigMismatch(
                 f"{run_dir} holds a run with a different config ({', '.join(changed)} changed). "
                 "Pass resume=False to start it over, or use another output_dir."
             )
 
 
 def _log(msg: str) -> None:
-    print(f"[nanoscope] {msg}", flush=True)
+    info(msg)
 
 
 def run(
@@ -279,6 +321,7 @@ def run(
     push_to_hub: str | None = None,
     progress: bool = True,
     compile: bool | str = False,
+    checkpoint_steps: list[int] | None = None,
     study: dict[str, Any] | None = None,
     **model_kwargs: Any,
 ) -> RunResult | RunGroup:
@@ -291,16 +334,19 @@ def run(
     `study` is set by nanoscope.Study and recorded in config.json.
     compile=True speeds up training with torch.compile (see train_loop.train); it doesn't
     change the run's identity, so a run can resume with it on or off.
+    checkpoint_steps=[100, 500] keeps a full checkpoint at those steps in checkpoints/archive/
+    (never pruned); it isn't part of the run's identity either.
     """
     if seeds is not None:
         if output_dir is not None:
             raise ValueError("output_dir names one run; leave it out when passing seeds=")
         seed_list = list(range(seeds)) if isinstance(seeds, int) else list(seeds)
         return RunGroup([
-            run(model_cls, preset, seed=s, device=device, resume=resume, on_step=on_step,
+            cast(RunResult, run(
+                model_cls, preset, seed=s, device=device, resume=resume, on_step=on_step,
                 on_eval=on_eval, wandb=wandb, push_to_hub=push_to_hub, progress=progress,
-                study=study, compile=compile,
-                **model_kwargs)
+                study=study, compile=compile, checkpoint_steps=checkpoint_steps,
+                **model_kwargs))
             for s in seed_list
         ])
     if isinstance(preset, str):
@@ -312,89 +358,128 @@ def run(
     resolved_device = _resolve_device(device)
     name = _run_name(model_cls, model_kwargs, given, preset)
     if output_dir is None:
-        run_dir = RUNS_DIR / _preset_dir(given) / name / f"seed-{seed}"
+        run_dir = paths.runs_dir() / _preset_dir(given) / name / f"seed-{seed}"
     else:
         run_dir = Path(output_dir)
 
-    data = load_data(preset)
-    vocab_size = data.tokenizer.vocab_size
-    from_data = {"vocab_size": vocab_size, "context_length": preset.context_length}
-    model_params = inspect.signature(model_cls).parameters
-    model_kwargs = {k: v for k, v in from_data.items() if k in model_params} | model_kwargs
-    torch.manual_seed(seed)  # the seed decides the initial weights too, not just the batches
-    model = model_cls(**model_kwargs)
-    full_kwargs = {
-        name: p.default for name, p in inspect.signature(model_cls).parameters.items()
-        if p.default is not inspect.Parameter.empty
-    } | model_kwargs
+    late = [s for s in checkpoint_steps or [] if not 1 <= s <= preset.max_steps]
+    if late:
+        raise ValueError(f"checkpoint_steps {late} fall outside 1..{preset.max_steps} "
+                         "(the number of training steps)")
+    _refuse_record_overwrite(run_dir, resume)
+    status = StatusFile(run_dir, preset.max_steps, device=str(resolved_device))
+    status.write("preparing")
+    try:
+        data = load_data(preset)
+        vocab_size = data.tokenizer.vocab_size
+        from_data = {"vocab_size": vocab_size, "context_length": preset.context_length}
+        model_params = inspect.signature(model_cls).parameters
+        model_kwargs = {k: v for k, v in from_data.items() if k in model_params} | model_kwargs
+        torch.manual_seed(seed)  # the seed decides the initial weights too, not just the batches
+        model = model_cls(**model_kwargs)
+        full_kwargs = {
+            name: p.default for name, p in inspect.signature(model_cls).parameters.items()
+            if p.default is not inspect.Parameter.empty
+        } | model_kwargs
 
-    config = json.loads(json.dumps({
-        "model": {"class": model_cls.__name__, "kwargs": full_kwargs},
-        "preset": asdict(preset),
-        "tokenizer": tokenizer_id(preset),
-        "seed": seed,
-        **({"study": study} if study else {}),
-    }, default=str))
-    hub = None
-    if push_to_hub:
-        try:
-            path_in_repo = run_dir.relative_to(RUNS_DIR).as_posix()
-        except ValueError:
-            path_in_repo = "/".join(run_dir.parts[-3:])
-        hub = HubSync(push_to_hub, run_dir, path_in_repo)
-        if resume:
-            hub.pull()
-    _check_config(run_dir, config, resume)
-    run_dir.mkdir(parents=True, exist_ok=True)
-    n_params, n_non_embedding = count_params(model)
-    stats = {
-        "n_params": n_params,
-        "n_non_embedding_params": n_non_embedding,
-        "flops_per_token": flops_per_token(model, preset.context_length),
-        "vocab_size": vocab_size,
-        "device": (torch.cuda.get_device_name(resolved_device)
-                   if resolved_device.type == "cuda" else resolved_device.type),
-        "torch": torch.__version__,
-    }
-    (run_dir / "config.json").write_text(
-        json.dumps({**config, "stats": stats}, indent=2), encoding="utf-8"
-    )
+        config = json.loads(json.dumps({
+            "model": {"class": model_cls.__name__, "kwargs": full_kwargs},
+            "preset": asdict(preset),
+            "tokenizer": tokenizer_id(preset),
+            "seed": seed,
+            **({"study": study} if study else {}),
+        }, default=str))
+        hub = None
+        if push_to_hub:
+            try:
+                path_in_repo = run_dir.relative_to(paths.runs_dir()).as_posix()
+            except ValueError:
+                path_in_repo = "/".join(run_dir.parts[-3:])
+            hub = HubSync(push_to_hub, run_dir, path_in_repo)
+            if resume:
+                hub.pull()
+        ref, rebuildable = model_ref(model_cls)
+        identity = {"ref": ref, "rebuildable": rebuildable,
+                    "source_sha256": source_sha256(model_cls)}
+        _check_config(run_dir, config, resume, identity)
+        run_dir.mkdir(parents=True, exist_ok=True)
+        if not rebuildable and (source := class_source(model_cls)):
+            (run_dir / "model_source.py").write_text(source, encoding="utf-8")
+        n_params, n_non_embedding = count_params(model)
+        stats = {
+            "n_params": n_params,
+            "n_non_embedding_params": n_non_embedding,
+            "flops_per_token": flops_per_token(model, preset.context_length),
+            "vocab_size": vocab_size,
+            "device": (torch.cuda.get_device_name(resolved_device)
+                       if resolved_device.type == "cuda" else resolved_device.type),
+            "torch": torch.__version__,
+        }
+        from nanoscope import __version__
 
-    _log(f"{model_cls.__name__} ({stats['n_params']:,} params) on {preset.name}, "
-         f"{resolved_device} -> {run_dir}")
-    bar = None
-    if progress:
-        bar = ProgressBar(preset.max_steps, f"{model_cls.__name__} seed {seed}")
-    on_step = chain(on_step, bar)
-    finish = None
-    if wandb:
-        project = wandb if isinstance(wandb, str) else "nanoscope"
-        wandb_step, finish = wandb_hook(project, "-".join(run_dir.parts[-3:]), config)
-        on_step = chain(on_step, wandb_step)
-    result = train(
-        model=model,
-        data=data,
-        preset=preset,
-        run_dir=run_dir,
-        device=resolved_device,
-        seed=seed,
-        resume=resume,
-        on_step=on_step,
-        on_eval=on_eval,
-        on_checkpoint=hub,
-        compile=compile,
-    )
-    if bar:
-        bar.close()
-    if finish:
-        finish()
+        (run_dir / "config.json").write_text(
+            json.dumps({"schema": 1, "nanoscope": __version__,
+                        **config, "model": {**config["model"], **identity}, "stats": stats},
+                       indent=2),
+            encoding="utf-8",
+        )
 
-    return RunResult(
-        preset=preset,
-        model_name=model_cls.__name__,
-        seed=seed,
-        train_result=result,
-        device=str(resolved_device),
-        model=model,
-        data=data,
-    )
+        _log(f"{model_cls.__name__} ({stats['n_params']:,} params) on {preset.name}, "
+             f"{resolved_device} -> {run_dir}")
+        bar = None
+        if progress:
+            bar = ProgressBar(preset.max_steps, f"{model_cls.__name__} seed {seed}")
+        on_step = chain(on_step, bar, status)
+        finish = None
+        if wandb:
+            project = wandb if isinstance(wandb, str) else "nanoscope"
+            wandb_step, finish = wandb_hook(project, "-".join(run_dir.parts[-3:]), config)
+            on_step = chain(on_step, wandb_step)
+        stop_file = run_dir / STOP_FILE
+        stop_file.unlink(missing_ok=True)  # a leftover from an earlier cancel
+        cancelled = False
+
+        def should_stop() -> bool:
+            nonlocal cancelled
+            cancelled = cancelled or stop_file.exists()
+            return cancelled
+
+        result = train(
+            model=model,
+            data=data,
+            preset=preset,
+            run_dir=run_dir,
+            device=resolved_device,
+            seed=seed,
+            resume=resume,
+            on_step=on_step,
+            on_eval=on_eval,
+            on_checkpoint=hub,
+            compile=compile,
+            should_stop=should_stop,
+            checkpoint_steps=checkpoint_steps,
+        )
+        if bar:
+            bar.close()
+        if finish:
+            finish()
+        if result.stopped_early:
+            status.write("cancelled" if cancelled else "stopped", step=result.final_step)
+        else:
+            status.write("done", step=result.final_step)
+
+        return RunResult(
+            preset=preset,
+            model_name=model_cls.__name__,
+            seed=seed,
+            train_result=result,
+            device=str(resolved_device),
+            model=model,
+            data=data,
+        )
+    except BaseException as exc:
+        if isinstance(exc, ConfigMismatch):  # refused before touching the run: leave it as it was
+            status.restore()
+        else:
+            status.fail(exc)
+        raise

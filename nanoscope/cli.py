@@ -6,10 +6,11 @@ nanoscope report studies/m1_ablation.py"""
 from __future__ import annotations
 
 import argparse
-import importlib.util
 from pathlib import Path
 
+from nanoscope import paths
 from nanoscope.compare import compare
+from nanoscope.modelref import load_class
 from nanoscope.presets import list_presets
 from nanoscope.run import RunGroup, run
 
@@ -21,12 +22,7 @@ def _load_model_class(spec: str):
     path = Path(file_part).resolve()
     if not path.exists():
         raise FileNotFoundError(f"model file not found: {path}")
-    module_spec = importlib.util.spec_from_file_location("_user_model", path)
-    module = importlib.util.module_from_spec(module_spec)
-    module_spec.loader.exec_module(module)
-    if not hasattr(module, class_name):
-        raise AttributeError(f"{class_name} not found in {path}")
-    return getattr(module, class_name)
+    return load_class(f"{path}:{class_name}")
 
 
 def _parse_set(items: list[str]) -> dict:
@@ -72,6 +68,8 @@ def build_parser() -> argparse.ArgumentParser:
     bench_parser.add_argument("--preset", default="tinystories-5min")
     bench_parser.add_argument("--device", default=None)
     bench_parser.add_argument("--steps", type=int, default=60)
+    bench_parser.add_argument("--save", action="store_true",
+                              help="append the result to <home>/hardware/bench.jsonl")
     bench_parser.add_argument("--compile", nargs="?", const="true", default=None,
                               help="torch.compile; or --compile reduce-overhead for CUDA graphs")
     bench_parser.add_argument("--set", nargs="*", default=[], dest="overrides")
@@ -85,10 +83,13 @@ def build_parser() -> argparse.ArgumentParser:
     pub_parser.add_argument("--private", action="store_true")
 
     status_parser = sub.add_parser("status", help="Show the state of every run under a folder")
-    status_parser.add_argument("path", nargs="?", default="runs")
+    status_parser.add_argument("--data", action="store_true",
+                               help="show data preparation (downloads, tokenizing) instead")
+    status_parser.add_argument("path", nargs="?", default=None,
+                               help="runs folder (default: $NANOSCOPE_HOME/runs, or ./runs)")
 
     study_parser = sub.add_parser("study", help="Train every run of a study file")
-    study_parser.add_argument("file", help="path/to/study.py")
+    study_parser.add_argument("file", help="path/to/study.py or study.toml")
     study_parser.add_argument("--name", default=None, help="which Study, if the file has several")
     study_parser.add_argument("--devices", default=None, help="comma-separated, e.g. cuda:0,cuda:1")
     study_parser.add_argument("--workers-per-device", type=int, default=1,
@@ -102,11 +103,21 @@ def build_parser() -> argparse.ArgumentParser:
     study_parser.add_argument("--shard", default=None, help=argparse.SUPPRESS)
 
     report_parser = sub.add_parser("report", help="Write a study's report to experiments/")
-    report_parser.add_argument("file", help="path/to/study.py")
+    report_parser.add_argument("file", help="path/to/study.py or study.toml")
     report_parser.add_argument("--name", default=None)
 
+    spec_parser = sub.add_parser("spec", help="Print a study as TOML (a spec you can commit)")
+    spec_parser.add_argument("file", help="path/to/study.py")
+    spec_parser.add_argument("--name", default=None, help="which Study, if the file has several")
+
+    stop_parser = sub.add_parser(
+        "stop", help="Ask running runs to stop: they save a checkpoint and can be resumed")
+    stop_parser.add_argument("target", help="a run ref, a study name, or a folder")
+
     cmp_parser = sub.add_parser("compare", help="Compare runs against a baseline (the last one)")
-    cmp_parser.add_argument("runs", nargs="+", help="run folders, or run names with --preset")
+    cmp_parser.add_argument(
+        "runs", nargs="+",
+        help="run refs (see `nanoscope status`), run folders, or run names with --preset")
     cmp_parser.add_argument("--preset", default=None)
     cmp_parser.add_argument("--metric", default="val_bpb", choices=["val_bpb", "val_loss"])
 
@@ -132,7 +143,8 @@ def main(argv: list[str] | None = None) -> None:
         named = {"bigram": models.Bigram, "gpt2": models.GPT2, "modern": models.Modern}
         model_cls = named.get(args.model) or _load_model_class(args.model)
         print(bench(model_cls, args.preset, steps=args.steps, device=args.device,
-                    compile=_parse_compile(args.compile), **_parse_set(args.overrides)))
+                    compile=_parse_compile(args.compile), save=args.save,
+                    **_parse_set(args.overrides)))
         return
 
     if args.command in ("prepare-data", "publish-data"):
@@ -151,16 +163,41 @@ def main(argv: list[str] | None = None) -> None:
     if args.command == "status":
         from nanoscope.progress import format_snapshot, snapshot
 
-        print(format_snapshot(snapshot(args.path), args.path))
+        if args.data:
+            from nanoscope.prepare import format_prepare, read_all
+
+            print(format_prepare(read_all()))
+            return
+        root = args.path or paths.runs_dir()
+        print(format_snapshot(snapshot(root), root))
+        return
+
+    if args.command == "spec":
+        from nanoscope.study import load_study
+
+        print(load_study(args.file, args.name).to_spec().to_toml(), end="")
+        return
+
+    if args.command == "stop":
+        from nanoscope.store import request_stop
+
+        refs = request_stop(args.target)
+        for ref in refs:
+            print(f"stop requested: {ref}")
+        if not refs:
+            print(f"nothing is running under {args.target}")
         return
 
     if args.command in ("study", "report"):
-        from nanoscope.study import REPORTS_DIR, load_study
+        from nanoscope.study import load_study
 
         study = load_study(args.file, args.name)
         if args.command == "study":
             devices = args.devices.split(",") if args.devices else None
-            shard = tuple(int(x) for x in args.shard.split("/")) if args.shard else None
+            shard = None
+            if args.shard:
+                index, count = (int(x) for x in args.shard.split("/"))
+                shard = (index, count)
             if args.push_to_hub:
                 study.push_to_hub = args.push_to_hub
             if args.compile:
@@ -170,7 +207,7 @@ def main(argv: list[str] | None = None) -> None:
             if shard is not None:
                 return
         print(study.report())
-        print(f"Written to {REPORTS_DIR / study.name}/")
+        print(f"Written to {paths.reports_dir() / study.name}/")
         return
 
     if args.command == "compare":

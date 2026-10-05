@@ -64,19 +64,33 @@ Checkpoints go to the **HF Hub**, not Drive. Free, versioned, resumable from any
 
 ## Repo layout
 
+This is the layout as built (the tool-building plan is in [`plan-tool.md`](plan-tool.md);
+the work list is [`checklist.md`](checklist.md)). Later milestones add modules next to these.
+
 ```
 nanoscope/
-  configs/          # YAML; every run is fully specified by one file
   nanoscope/
-    data/           # streaming loaders, packing, deterministic shuffling
-    model/          # blocks: attention variants, norms, MoE, SSM
-    train/          # loop, optimizers (AdamW/Muon), muP, WSD schedule, ckpt
-    infer/          # KV cache, batching, quantization, spec decoding
-    eval/           # harness + statistics (bootstrap, paired tests)
-    interp/         # hooks, patching, SAE, probes
-  experiments/      # one dir per study, with results.json + plots
-  reports/          # the write-ups
-  tests/            # numerical equivalence tests — see below
+    models/         # bigram, gpt2, modern (decoders written to be read)
+    run.py          # run(): one call trains a model; seeds=, resume, status, STOP
+    train_loop.py   # the trainer: hooks, checkpoints, exact resume, cooperative stop
+    dataset.py      # token files, Hub-hosted token data, tokenizer training
+    presets.py      # tinystories-5min/30min, fineweb-edu; every field documented
+    study.py        # Study: variants x seeds under one budget; record mode
+    studyspec.py    # a study as TOML data
+    compare.py      # seed-level comparison with confidence intervals and verdicts
+    statistics.py   # paired and Welch intervals
+    sizing.py       # parameter and FLOP counting, param matching
+    store.py        # run refs, load_run
+    status.py, progress.py, prepare.py   # state you can read from outside
+    paths.py        # NANOSCOPE_HOME and the folders under it
+    schemas/        # JSON Schemas for every file other tools read
+    bench.py, hardware.py   # speed and the CPU-bound/GPU-bound verdict
+    baselines/      # shipped results to compare against
+    cli.py          # nanoscope run | study | report | compare | status | stop | bench ...
+  studies/          # study files, e.g. the M1 ablation
+  experiments/      # one dir per study: report.md, results.json, plots
+  notebooks/        # the tutorials and the Kaggle notebook
+  tests/            # includes numerical equivalence tests, see below
 ```
 
 **One discipline to adopt from day one:** every architecture variant ships with a test asserting numerical equivalence to a naive reference implementation. Your GQA must match a loop-over-heads version to 1e-5. Your KV-cache decode must match full recomputation. This catches the class of bug that silently produces a "2% improvement."
@@ -86,6 +100,9 @@ nanoscope/
 ## Milestones
 
 ### M0 — Infrastructure that survives (≈8 hrs)
+
+**Status: done.** Exact resume (model, optimizer, RNG, data order), seeds and FLOP/MFU accounting are
+in the trainer, covered by tests that kill and resume runs.
 
 Boring, and everything depends on it.
 
@@ -101,6 +118,9 @@ Boring, and everything depends on it.
 ---
 
 ### M1 — The modern baseline (≈10 hrs)
+
+**Status: pipeline done** on TinyStories (`experiments/m1-ablation/report.md`, `studies/m1_ablation.py`).
+The FineWeb-scale record-mode run is still to do and is yours to schedule.
 
 Build a decoder-only LM with the 2024–26 consensus block: RoPE, RMSNorm (pre-norm), SwiGLU, GQA, QK-norm, no biases, weight tying, z-loss.
 

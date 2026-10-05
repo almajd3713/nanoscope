@@ -18,9 +18,11 @@ from pathlib import Path
 from statistics import mean
 from typing import Any
 
+from nanoscope import __version__, paths, store
+from nanoscope.schemas.upgrade import read_json
 from nanoscope.statistics import paired_difference, summarize, unpaired_difference
 
-BASELINES_DIR = Path(__file__).parent / "baselines"
+BASELINES_DIR = paths.baselines_dir()
 METRICS = {"val_bpb": "bits per byte", "val_loss": "loss (nats per token)"}
 
 
@@ -32,7 +34,7 @@ class SeedRun:
 
     @classmethod
     def load(cls, run_dir: Path) -> SeedRun:
-        config = json.loads((run_dir / "config.json").read_text(encoding="utf-8"))
+        config = read_json(run_dir / "config.json", "config")
         lines = (run_dir / "metrics.jsonl").read_text(encoding="utf-8").splitlines()
         return cls(run_dir, config, [json.loads(line) for line in lines])
 
@@ -62,8 +64,14 @@ class SeedRun:
         return points[-1][1]
 
 
+IDENTITY_KEYS = ("ref", "rebuildable", "source_sha256")  # where a model came from, not what it is
+
+
 def _without_seed(config: dict[str, Any]) -> dict[str, Any]:
-    return {k: v for k, v in config.items() if k not in ("seed", "stats")}
+    plain = {k: v for k, v in config.items() if k not in ("seed", "stats")}
+    if isinstance(plain.get("model"), dict):
+        plain["model"] = {k: v for k, v in plain["model"].items() if k not in IDENTITY_KEYS}
+    return plain
 
 
 @dataclass
@@ -107,8 +115,12 @@ def load_runs(path: str | Path) -> list[SeedRun]:
     return [SeedRun.load(p) for p in seeds]
 
 
+def _holds_runs(path: Path) -> bool:
+    return (path / "config.json").exists() or any(path.glob("seed-*/config.json"))
+
+
 def _resolve(item: Any, preset: str | None) -> RunSet:
-    from nanoscope.run import RUNS_DIR, RunGroup, RunResult
+    from nanoscope.run import RunGroup, RunResult
 
     if isinstance(item, RunResult):
         return RunSet(str(item.run_dir), [SeedRun.load(item.run_dir)])
@@ -117,16 +129,22 @@ def _resolve(item: Any, preset: str | None) -> RunSet:
                       [SeedRun.load(r.run_dir) for r in item.results])
     if isinstance(item, RunSet):
         return item
+    try:  # a ref: a path under the runs folder (or baselines/...)
+        where = store.resolve(item)
+    except (ValueError, FileNotFoundError):
+        where = None
+    if where is not None and _holds_runs(where):
+        return RunSet(store.ref_of(where), load_runs(where))
     path = Path(item)
     if path.exists():
         return RunSet(str(path), load_runs(path))
     if preset is None:
         raise ValueError(f"can't find runs named {item!r}: pass a run folder, or preset=...")
-    for root in (RUNS_DIR, BASELINES_DIR):
+    for root in (paths.runs_dir(), BASELINES_DIR):
         if (root / preset / str(item)).exists():
             where = root / preset / str(item)
             return RunSet(str(where), load_runs(where))
-    available = sorted({p.name for root in (RUNS_DIR, BASELINES_DIR)
+    available = sorted({p.name for root in (paths.runs_dir(), BASELINES_DIR)
                         for p in (root / preset).glob("*") if p.is_dir()})
     raise FileNotFoundError(
         f"no runs named {item!r} for preset {preset!r}; available: {', '.join(available) or '-'}"
@@ -153,6 +171,21 @@ def _fmt(x: float | None, sign: bool = False) -> str:
     return f"{x:+.3f}".replace("-", "−") if sign else f"{x:.3f}"
 
 
+def verdict_of(delta: dict[str, Any] | None) -> str:
+    """What a row's difference from the baseline says (lower is better for both metrics):
+    "better" or "worse" when the 95% interval excludes zero, "within noise" when it
+    includes it, "no CI" with fewer than three seeds, "baseline" for the baseline itself."""
+    if delta is None:
+        return "baseline"
+    if delta["ci95_low"] is None:
+        return "no CI"
+    if delta["ci95_high"] < 0:
+        return "better"
+    if delta["ci95_low"] > 0:
+        return "worse"
+    return "within noise"
+
+
 @dataclass
 class Comparison:
     metric: str
@@ -172,20 +205,15 @@ class Comparison:
             value = _fmt(s["mean"])
             if s["ci95_low"] is not None:
                 value += f" ± {(s['ci95_high'] - s['ci95_low']) / 2:.3f}"
+            verdict = row["verdict"]
             if d is None:
                 delta, verdict = "(baseline)", ""
             elif d["ci95_low"] is None:
                 delta = _fmt(d["mean"], sign=True)
-                verdict = "need 3+ seeds each for a CI"
+                verdict += ": need 3+ seeds each"
             else:
                 delta = (f"{_fmt(d['mean'], True)} "
                          f"[{_fmt(d['ci95_low'], True)}, {_fmt(d['ci95_high'], True)}]")
-                if d["ci95_high"] < 0:
-                    verdict = "better"
-                elif d["ci95_low"] > 0:
-                    verdict = "worse"
-                else:
-                    verdict = "within noise"
                 if not d["paired"]:
                     verdict += " (unpaired)"
             table.append([row["label"], str(s["n"]), f"{row['params'] / 1e6:.2f}M",
@@ -197,6 +225,11 @@ class Comparison:
         return "\n".join([header, "", *lines, *[f"note: {n}" for n in self.notes]])
 
     __repr__ = __str__
+
+    def to_dict(self) -> dict[str, Any]:
+        """The comparison as plain data (the comparison.v1 schema)."""
+        return {"schema": 1, "nanoscope": __version__, "metric": self.metric,
+                "baseline": self.baseline, "rows": self.rows, "notes": self.notes}
 
     def plot(self, save: str | Path | None = None) -> Any:
         import matplotlib.pyplot as plt
@@ -292,6 +325,7 @@ def compare(
             "tokens": s.runs[0].final_step * s.runs[0].tokens_per_step,
             "summary": summarize(list(values.values())),
             "delta": delta,
+            "verdict": verdict_of(delta),
         })
     return Comparison(metric, sets[base_index].label, rows, notes, sets)
 

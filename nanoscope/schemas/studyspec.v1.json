@@ -1,0 +1,30 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://nanoscope.dev/schemas/studyspec.v1.json",
+  "title": "studyspec.v1",
+  "description": "A study as TOML data: variants, seeds, budget and preregistered predictions.",
+  "type": "object",
+  "properties": {
+    "schema": {"const": 1},
+    "name": {"type": "string"},
+    "preset": {"type": "string"},
+    "overrides": {"type": "object"},
+    "custom_preset": {"type": "object"},
+    "seeds": {"type": "array", "items": {"type": "integer"}},
+    "budget": {"type": "object", "minProperties": 1, "maxProperties": 1,
+               "properties": {"tokens": {"type": "number"}, "flops": {"type": "number"}}},
+    "match": {"enum": ["params"]},
+    "match_knob": {"type": "string"},
+    "match_to": {"type": "string"},
+    "range": {"type": "array", "items": {"type": "integer"}, "minItems": 2, "maxItems": 3},
+    "baseline": {"type": "string"},
+    "mode": {"enum": ["explore", "record"]},
+    "tolerance": {"type": "number"},
+    "variants": {"type": "array", "items": {"type": "object",
+        "properties": {"name": {"type": "string"}, "model": {"type": "string"},
+                       "kwargs": {"type": "object"}},
+        "required": ["name", "model"]}},
+    "predictions": {"type": "object"}
+  },
+  "required": ["schema", "name", "variants"]
+}

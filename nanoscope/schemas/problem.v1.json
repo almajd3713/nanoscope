@@ -1,0 +1,31 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://nanoscope.dev/schemas/problem.v1.json",
+  "title": "problem.v1",
+  "description": "One thing wrong with a request, in words a user can act on.",
+  "type": "object",
+  "properties": {
+    "code": {
+      "type": "string"
+    },
+    "field": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "message": {
+      "type": "string"
+    },
+    "hint": {
+      "type": [
+        "string",
+        "null"
+      ]
+    }
+  },
+  "required": [
+    "code",
+    "message"
+  ]
+}

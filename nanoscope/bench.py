@@ -7,13 +7,17 @@ Close other GPU programs first: anything else running skews the numbers.
 
 from __future__ import annotations
 
+import json
 import statistics
 import tempfile
 from dataclasses import dataclass
+from datetime import datetime, timezone
 from pathlib import Path
+from typing import Any
 
 import torch
 
+from nanoscope import __version__, paths
 from nanoscope.dataset import load_data
 from nanoscope.presets import Preset, get_preset
 from nanoscope.run import _resolve_device as resolve_device
@@ -32,6 +36,21 @@ class BenchResult:
     tflops: float
     mfu: float | None
     gpu_busy: float | None  # fraction of a step the GPU spends running kernels
+    preset: str = ""
+    steps: int = 0
+    compile: str = "off"
+
+    def to_dict(self) -> dict[str, Any]:
+        """The bench.v1 row that `save=True` appends to hardware/bench.jsonl."""
+        return {
+            "schema": 1, "nanoscope": __version__,
+            "at": datetime.now(timezone.utc).isoformat(timespec="seconds"),
+            "model": self.model, "preset": self.preset, "device": self.device,
+            "torch": torch.__version__, "steps": self.steps, "compile": self.compile,
+            "step_ms": self.step_ms, "tokens_per_sec": self.tokens_per_sec,
+            "tflops": self.tflops, "mfu": self.mfu, "gpu_busy": self.gpu_busy,
+            "verdict": self.verdict,
+        }
 
     @property
     def verdict(self) -> str:
@@ -69,7 +88,7 @@ def _step_seconds(model, data, preset, device, warmup: int, compile) -> list[flo
 
 def bench(model_cls, preset: str | Preset = "tinystories-5min", steps: int = 60,
           warmup: int = 10, device: str | None = None, profile: bool = True,
-          compile: bool | str = False, **model_kwargs) -> BenchResult:
+          compile: bool | str = False, save: bool = False, **model_kwargs) -> BenchResult:
     import inspect
 
     preset = get_preset(preset) if isinstance(preset, str) else preset
@@ -93,17 +112,25 @@ def bench(model_cls, preset: str | Preset = "tinystories-5min", steps: int = 60,
 
     busy = None
     if dev.type == "cuda" and profile:
-        from torch.profiler import ProfilerActivity, profile
+        from torch.profiler import ProfilerActivity
+        from torch.profiler import profile as torch_profile
 
         model = build()
-        with profile(activities=[ProfilerActivity.CUDA]) as prof:
+        with torch_profile(activities=[ProfilerActivity.CUDA]) as prof:
             _step_seconds(model, data, preset, dev, warmup, compile)
             torch.cuda.synchronize(dev)
         kernel_s = sum(e.self_device_time_total for e in prof.key_averages()) / 1e6
         busy = min(kernel_s / (warmup + steps) / step, 1.0)
 
-    return BenchResult(
+    result = BenchResult(
         model=model_cls.__name__, device=str(dev), step_ms=step * 1e3,
         tokens_per_sec=tokens / step, tflops=tflops,
         mfu=tflops / peak if peak else None, gpu_busy=busy,
+        preset=preset.name, steps=steps, compile=str(compile).lower() if compile else "off",
     )
+    if save:
+        path = paths.hardware_dir() / "bench.jsonl"
+        path.parent.mkdir(parents=True, exist_ok=True)
+        with path.open("a", encoding="utf-8") as f:
+            f.write(json.dumps(result.to_dict()) + "\n")
+    return result

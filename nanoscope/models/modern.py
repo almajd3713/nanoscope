@@ -70,6 +70,8 @@ class Attention(nn.Module):
         self.proj = nn.Linear(n_heads * self.head_dim, d_model, bias=False)
         self.q_norm = RMSNorm(self.head_dim) if qk_norm else nn.Identity()
         self.k_norm = RMSNorm(self.head_dim) if qk_norm else nn.Identity()
+        self.rope_cos: torch.Tensor
+        self.rope_sin: torch.Tensor
         if rope:  # computed once; buffers follow the module to its device
             cos, sin = rope_tables(self.head_dim, context_length, torch.device("cpu"))
             self.register_buffer("rope_cos", cos, persistent=False)

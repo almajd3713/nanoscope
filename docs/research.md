@@ -20,6 +20,20 @@ nanoscope report studies/my_study.py
 
 See [`studies/m1_ablation.py`](../studies/m1_ablation.py) for a full example.
 
+## Where things live
+
+Without any setup, runs go to `./runs`, reports to `./experiments` and token data to
+`~/.nanoscope/data`. Set `NANOSCOPE_HOME` and everything moves under it (`runs/`,
+`experiments/`, `data/`, `hardware/`, `learn/`, `workspace/`), read at call time, so a
+container or a shared lab machine needs one variable. `NANOSCOPE_DATA_DIR` and
+`NANOSCOPE_WORKSPACE` still override their own folder.
+
+A run is addressed by its **ref**, its path under the runs folder:
+`tinystories-5min/modern-1a2b3c4d/seed-0` is one run, `tinystories-5min/modern-1a2b3c4d` is
+the set of seeds, `studies/m1-ablation/no-rope/seed-2` is a study run, and
+`baselines/tinystories-5min/gpt2` is a result shipped with the package. `compare()`,
+`nanoscope compare`, `nanoscope stop` and `nanoscope.load_run(ref)` all take refs.
+
 ## Budgets
 
 - `Tokens(n)`: every run sees `n` training tokens.
@@ -31,6 +45,45 @@ See [`studies/m1_ablation.py`](../studies/m1_ablation.py) for a full example.
 `match="params"` requires the variants' **non-embedding** parameter counts to agree within
 `tolerance` (default 2%) and refuses to start otherwise. Use `nanoscope.sizing.match_params`
 to choose a width, e.g. `ffn_hidden`, that hits a target.
+
+## Studies as TOML
+
+A study is data, so it can be written, committed and read by tools. `nanoscope spec` prints
+any study file as TOML, and `study`, `report` and record mode accept `.toml` paths:
+
+```bash
+nanoscope spec studies/m1_ablation.py > studies/m1_ablation.toml
+nanoscope study studies/m1_ablation.toml --devices cuda:0
+```
+
+```toml
+name = "m1-ablation"
+preset = "tinystories-5min"
+seeds = [0, 1, 2]
+match = "params"
+match_knob = "ffn_hidden"   # resize this knob so every variant matches `match_to`
+match_to = "gpt2"
+range = [64, 1024, 8]
+baseline = "modern"
+
+[budget]
+tokens = 4000000.0
+
+[[variants]]
+name = "gpt2"
+model = "nanoscope.models.gpt2:GPT2"
+
+[[variants]]
+name = "no-rope"
+model = "nanoscope.models.modern:Modern"
+
+[variants.kwargs]
+rope = false
+```
+
+A model is named by a ref: `module:Class` or `path/to/file.py:Class`. In record mode the TOML
+file is the thing that gets preregistered, so it must be committed first. In Python,
+`Study.to_spec()` and `Study.from_spec(spec)` do the same conversion.
 
 ## Explore and record mode
 
@@ -44,7 +97,10 @@ to choose a width, e.g. `ffn_hidden`, that hits a target.
 
 `compare` uses a paired t-interval when the seeds match and Welch's otherwise. It refuses to
 compare runs scored on different evaluation text, and refuses `val_loss` across tokenizers
-(use bits per byte). The `params` column shows non-embedding parameters.
+(use bits per byte). The `params` column shows non-embedding parameters. Every row carries a
+`verdict` against the baseline: `better` or `worse` when the 95% interval excludes zero,
+`within noise` when it doesn't, `no CI` with fewer than three seeds. `comparison.to_dict()`
+gives the same table as plain data.
 
 ## Speed and hardware
 
@@ -54,6 +110,7 @@ before tuning:
 ```bash
 nanoscope bench modern            # step time, tokens/s, and whether the GPU or the CPU is the limit
 nanoscope bench modern --compile reduce-overhead
+nanoscope bench modern --save     # also append the result to $NANOSCOPE_HOME/hardware/bench.jsonl
 ```
 
 Close other GPU programs first; anything else running skews the numbers. Then:
@@ -78,8 +135,60 @@ a text sample only at each run's last step. Distributed data parallel is not sup
 Every long operation has a live indicator and on-disk state:
 
 ```bash
-nanoscope status runs
+nanoscope status            # every run under the runs folder
+nanoscope status --data     # data preparation: downloads, tokenizer, tokenizing
 ```
+
+Each run keeps a `status.json` that `nanoscope status` reads, written atomically, with one of
+these states: `queued`, `preparing`, `running`, `done`, `stopped` (Ctrl-C), `cancelled`
+(`nanoscope stop`) or `failed`. A failed run records the error type, message and the last
+lines of the traceback, and `nanoscope status` prints them. A run that says `running` but
+hasn't refreshed its file for a minute is shown as `running (no heartbeat for 3m)`: its
+process is gone. Runs written before `status.json` existed are judged by file times instead.
+
+Data preparation writes `$NANOSCOPE_DATA_DIR/<preset>/prepare.json` while it downloads,
+trains a tokenizer or tokenizes, and records the error if it fails. Nothing is written when
+the data is already prepared.
+
+All messages go through `logging.getLogger("nanoscope")`; by default they print as
+`[nanoscope] ...`. Add your own handler to route them elsewhere.
+
+## Stopping and resuming
+
+```bash
+nanoscope stop tinystories-5min/modern-1a2b3c4d/seed-0   # one run
+nanoscope stop m1-ablation                               # a study: every running run, and
+                                                         # the runs that haven't started
+```
+
+`nanoscope stop` writes a `STOP` file; the run finishes its step, saves a checkpoint and ends
+as `cancelled`. Running it again resumes where it stopped (a stale `STOP` is cleared). In a
+study, cancelling one run lets the study carry on with the next; Ctrl-C or stopping the study
+ends it. `checkpoint_steps=[100, 500]` on `run()` additionally keeps full checkpoints at those
+steps in `checkpoints/archive/`, never pruned.
+
+## Files on disk
+
+Everything another tool might read is JSON with a `schema` number and the `nanoscope` version
+that wrote it. The schemas are in `nanoscope/schemas/` (JSON Schema 2020-12).
+
+| File | Written by | Schema |
+|---|---|---|
+| `<run>/config.json` | `run()` | `config.v1`: model (class, kwargs, `ref`, `source_sha256`), preset, seed, stats |
+| `<run>/status.json` | `run()` | `status.v1` |
+| `<run>/metrics.jsonl` | the trainer | one row per step, not versioned |
+| `<run>/latest.json`, `checkpoints/` | the trainer | checkpoint pointer and `.pt` files |
+| `<run>/STOP` | `nanoscope stop` | empty marker file |
+| `studies/<name>/plan.json` | `Study` | `plan.v1` |
+| `studies/<name>/study.json` | record mode | `study.v1`: the frozen preregistration |
+| `experiments/<name>/results.json` | `StudyReport.write` | `results.v1` |
+| `<data>/<preset>/prepare.json` | data preparation | `prepare.v1` |
+| `hardware/bench.jsonl` | `nanoscope bench --save` | `bench.v1`, one row per line |
+
+Readers accept the current schema version N and N-1, upgrading older files in memory; a file
+with no `schema` key is version 0 (everything written before schemas existed). A file from a
+newer nanoscope is refused with a message saying which version wrote it. Shipped baselines are
+re-exported whenever the schema changes.
 
 ## Kaggle
 
