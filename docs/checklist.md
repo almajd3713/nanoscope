@@ -4,7 +4,7 @@ The build list for [`plan-tool.md`](plan-tool.md), sections 4-10, with the decis
 2026-10-05 (plan section 11) applied. Phase numbers follow the plan's section 10. Every
 item is one line, so scripts and agents can grep and edit it.
 
-**Current focus:** P8 blocks library, describe, rebuilt models. Next item: P8.09.
+**Current focus:** P8 blocks library, describe, rebuilt models. Next item: P8.11.
 
 ## Progress
 
@@ -12,7 +12,7 @@ item is one line, so scripts and agents can grep and edit it.
 |---|---|---|---|
 | P6 | Servable library + CI baseline (9-11 d) | 67 / 67 | done |
 | P7 | Queue and workers (5-6 d) | 28 / 28 | done |
-| P8 | Blocks, describe, rebuilt models (10-13 d) | 8 / 52 | in progress |
+| P8 | Blocks, describe, rebuilt models (10-13 d) | 10 / 52 | in progress |
 | P9 | Curriculum engine, gating, two paths (14-17 d) | 0 / 61 | not started |
 | P10 | HTTP API (8-10 d) | 0 / 47 | not started |
 | P11 | Release prep: PyPI + GHCR (2-3 d) | 0 / 17 | not started |
@@ -237,8 +237,8 @@ touch or create (new ones marked `(new)`).
 - [x] P8.08 Add a `shipped` class marker (decorator) for library models, applied to Bigram, GPT2 and Modern, for the gating build check. · files: nanoscope/blocks/registry.py, nanoscope/models/*.py · deps: P8.05 · done: `uv run python -c "from nanoscope.models import GPT2; assert GPT2.__nanoscope_shipped__"` exits 0 ✓ 2026-10-05 9edec21: blocks/{__init__,registry,spec}.py: PEP 562 exports, BlockInfo registry, BlockSpec/BlockModule (options-only call gives a spec; deepcopy/pickle safe), shipped marker (subclasses inherit it)
 
 ### P8 · Blocks (each: implementation, `flops_per_token`, a naive-reference test)
-- [ ] P8.09 Primitives `Linear` and `Activation(gelu|silu|relu)`. · files: nanoscope/blocks/primitives.py (new), tests/test_blocks.py · deps: P8.06 · done: `uv run pytest tests/test_blocks.py -k "linear or activation"` passes
-- [ ] P8.10 Primitives `CausalMask`, `ScaledDotScores`, `Softmax`, `WeightedSum`, `SplitHeads` and `MergeHeads`. · files: nanoscope/blocks/primitives.py, tests/test_blocks.py · deps: P8.09, P8.04 · done: `uv run pytest tests/test_blocks.py -k primitives_attention_parts` passes
+- [x] P8.09 Primitives `Linear` and `Activation(gelu|silu|relu)`. · files: nanoscope/blocks/primitives.py (new), tests/test_blocks.py · deps: P8.06 · done: `uv run pytest tests/test_blocks.py -k "linear or activation"` passes ✓ 2026-10-05 2e4dcbe: blocks/primitives.py: Linear, Activation, CausalMask, ScaledDotScores, Softmax, WeightedSum, Split/MergeHeads, each with flops_per_token and reference tests
+- [x] P8.10 Primitives `CausalMask`, `ScaledDotScores`, `Softmax`, `WeightedSum`, `SplitHeads` and `MergeHeads`. · files: nanoscope/blocks/primitives.py, tests/test_blocks.py · deps: P8.09, P8.04 · done: `uv run pytest tests/test_blocks.py -k primitives_attention_parts` passes ✓ 2026-10-05 2e4dcbe: blocks/primitives.py: Linear, Activation, CausalMask, ScaledDotScores, Softmax, WeightedSum, Split/MergeHeads, each with flops_per_token and reference tests
 - [ ] P8.11 `Residual(inner)` and the `Composite` base with named slots. · files: nanoscope/blocks/composite.py (new), tests/test_blocks.py · deps: P8.06 · done: `uv run pytest tests/test_blocks.py -k composite` passes
 - [ ] P8.12 `TokenEmbedding` and `LearnedPosition`, checked against one-hot matmul. · files: nanoscope/blocks/embedding.py (new), tests/test_blocks.py · deps: P8.06, P8.04 · done: `uv run pytest tests/test_blocks.py -k embedding` passes
 - [ ] P8.13 `Head`, tied or untied. · files: nanoscope/blocks/head.py (new), tests/test_blocks.py · deps: P8.12 · done: `uv run pytest tests/test_blocks.py -k head` passes
