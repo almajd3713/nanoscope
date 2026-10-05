@@ -1,0 +1,716 @@
+# nanoscope build checklist
+
+The build list for [`plan-tool.md`](plan-tool.md), sections 4-10, with the decisions of
+2026-10-05 (plan section 11) applied. Phase numbers follow the plan's section 10. Every
+item is one line, so scripts and agents can grep and edit it.
+
+**Current focus:** P6 servable library + CI baseline. Next item: P6.01.
+
+## Progress
+
+| Phase | Title | Done / total | Status |
+|---|---|---|---|
+| P6 | Servable library + CI baseline (9-11 d) | 0 / 67 | not started |
+| P7 | Queue and workers (5-6 d) | 0 / 28 | not started |
+| P8 | Blocks, describe, rebuilt models (10-13 d) | 0 / 52 | not started |
+| P9 | Curriculum engine, gating, two paths (14-17 d) | 0 / 61 | not started |
+| P10 | HTTP API (8-10 d) | 0 / 47 | not started |
+| P11 | Release prep: PyPI + GHCR (2-3 d) | 0 / 17 | not started |
+| P12 | docker-compose (3-4 d) | 0 / 20 | not started |
+| P13 | GUI MVP 1: shell, Learn/Tinker screens (12-15 d) | 0 / 37 | not started |
+| P14 | GUI MVP 2: model page, drag-and-drop (14-17 d) | 0 / 34 | not started |
+| P15 | GUI Research (10-13 d) | 0 / 30 | not started |
+| P16 | Extend + depth (8-10 d) | 0 / 16 | not started |
+| P17 | Remaining curriculum paths (18-26 d) | 0 / 34 | not started |
+
+MVP = P6-P14 (about 77-96 focused days). Recount a row with
+`grep -c '^- \[x\] P6\.' docs/checklist.md` (done) and `grep -c '^- \[.\] P6\.' docs/checklist.md`
+(total).
+
+## How to use this file
+
+1. **Pick the next item.** Take the first unchecked item (`- [ ]`) whose dependencies are
+   all checked. `deps: P6.*` means every other item of phase 6. If nothing is pickable,
+   the blocker is an unchecked dependency or a USER ACTION: say so to the user and stop.
+2. **Re-read the guardrails** below before starting the item.
+3. **Do the item and run its `done:` check.** An item is done only when that check
+   passes. If the check turns out to be wrong, fix the check in this file and note why;
+   don't tick an item whose check fails.
+4. **Tick it** by changing `- [ ]` to `- [x]`, and append a note at the end of the line:
+   `✓ 2026-10-07 abc1234: <one line>`. The date is the day it passed; the hash is the
+   commit that contains the work.
+5. **Update the Progress table and the Current focus line** whenever you tick something.
+6. **Scope changes are visible, never hidden.** New work goes in as new items under the
+   right phase and area, with the next free number in that phase (IDs are never reused or
+   renumbered). Dropped work is ticked as `- [x] ... ✗ dropped <date>: <reason>`, never
+   deleted. Record decisions in the Decisions log at the bottom; record things found
+   mid-build in Discovered work, then turn them into items.
+7. **USER ACTION** items need the user: credentials, publishing, Hub uploads, their GPU,
+   a merge, or a choice. Prepare everything around them, ask the user, and keep going on
+   other pickable items.
+8. **Phase gates** (`P<n>.99`) run the phase's verification commands and exit criteria.
+   Tick the gate only when all of them pass. The next phase's first items depend on the
+   gate.
+
+Field format: `- [ ] ID text · files: … · deps: … · done: …`. `files:` lists the files to
+touch or create (new ones marked `(new)`).
+
+## Guardrails (re-read before every item)
+
+- **Level-0 defaults.** Every option has a level-0 default. `run(Bigram)` in three cells
+  needs no config, no server, no SQLite, no `unlocks.json`.
+- **Research features through hooks only.** Research features (status files, block stats,
+  W&B, Hub sync, gating checks) reach the trainer only through hooks or `run()`
+  keywords. `train()` gets no feature-specific branches.
+- **Levels expose, they don't fork.** Levels differ in what is exposed, never in code
+  path. Learn and Tinker send identical request bodies; gating is a policy value read by
+  the same function at every level.
+- **State is visible.** Every long operation has live progress and an on-disk status
+  that is readable from outside the process: data prep, training, studies, checks,
+  describe, uploads, commits, builds.
+- **Tests assert visible output.** If the user sees it (a message, a status line, a
+  verdict, an error), a test checks the text.
+- **No second code path in the UI.** The server calls `run()`, `Study`, `compare()`,
+  `describe()` and the checks. No statistics in the frontend, no GUI-only feature, no
+  bypass of a library refusal. Each screen shows its CLI equivalent.
+- **The API never imports or executes user code** (plan 8.1). Git operations that can run
+  hooks are jobs (plan 8.8).
+- **Files win.** Run folders are the source of truth. The queue only decides what runs
+  next.
+- **The guard test stays green.** `tests/test_first_model_notebook.py` keeps
+  `01-first-model.ipynb` at no more than 3 code cells and under 120 s on CPU.
+- **Gating is a learning aid, not security.** Never rely on it for access control.
+
+---
+
+## P6 Servable library + CI baseline
+
+### P6 · Housekeeping and migration
+- [ ] P6.01 Commit `docs/plan-tool.md`, `docs/plan-tool-landscape.md` and `docs/checklist.md` so the plan and this list are versioned. · files: docs/plan-tool.md, docs/plan-tool-landscape.md, docs/checklist.md · deps: — · done: `git ls-files docs | grep -cE 'plan-tool|checklist'` prints 3
+- [ ] P6.02 **USER ACTION** Merge PR #5 (phase 5), then create `feat/phase-6-servable` from the updated main. · files: — · deps: P6.01 · done: `git merge-base --is-ancestor fb81aca HEAD && git branch --show-current` prints feat/phase-6-servable
+- [ ] P6.03 Delete the local leftovers: the empty `configs/` and `reports/` folders and the git-excluded `docs/m1-evaluator-plan.md`, after the user confirms (plan 13). · files: configs/, reports/, docs/m1-evaluator-plan.md · deps: P6.02 · done: `ls configs reports docs/m1-evaluator-plan.md 2>&1 | grep -c 'No such file'` prints 3
+
+### P6 · CI
+- [ ] P6.04 Add a GitHub Actions workflow running `uv sync --all-extras`, `make lint` and `make test` on Python 3.10 and 3.12 for pushes and PRs. · files: .github/workflows/ci.yml (new) · deps: P6.02 · done: `gh run list --workflow ci.yml --limit 1 --json conclusion -q '.[0].conclusion'` prints success
+- [ ] P6.05 Add `make typecheck` (`uv run pyright nanoscope`), fix or explicitly ignore the current errors, and run it in CI. · files: Makefile, .github/workflows/ci.yml, nanoscope/*.py · deps: P6.04 · done: `make typecheck` exits 0
+- [ ] P6.06 Add a CI job that restores `~/.nanoscope/data` from `actions/cache`, keyed by preset and tokenizer id, then runs the first-notebook timing test. · files: .github/workflows/ci.yml · deps: P6.04 · done: the job is green and its log shows `test_first_notebook_trains_on_cpu_in_under_two_minutes PASSED`
+- [ ] P6.07 Add `make check` (lint, then typecheck, then test) and mention it in the README's "Develop" section. · files: Makefile, README.md · deps: P6.05 · done: `make check` exits 0
+
+### P6 · Library: one home
+- [ ] P6.08 Create `nanoscope/paths.py`. Its `home()`, `runs_dir()`, `reports_dir()`, `data_dir()`, `learn_dir()`, `hardware_dir()` and `workspace_dir()` read `NANOSCOPE_HOME`, `NANOSCOPE_DATA_DIR` and `NANOSCOPE_WORKSPACE` at call time, with today's defaults. · files: nanoscope/paths.py (new), tests/test_paths.py (new) · deps: P6.02 · done: `uv run pytest tests/test_paths.py` passes, including a test that sets `NANOSCOPE_HOME` after import
+- [ ] P6.09 Replace `RUNS_DIR` in `run.py` (the run dir and the Hub path) and in `study.py` (`Study.dir`) with `paths.runs_dir()`. · files: nanoscope/run.py, nanoscope/study.py · deps: P6.08 · done: `grep -rn 'Path("runs")' nanoscope` is empty and `make test` passes
+- [ ] P6.10 Replace `REPORTS_DIR` in `study.py` and the report message in `cli.py` with `paths.reports_dir()`. · files: nanoscope/study.py, nanoscope/cli.py · deps: P6.08 · done: `grep -rn 'Path("experiments")' nanoscope` is empty, and a test writes a report under `$NANOSCOPE_HOME/experiments`
+- [ ] P6.11 Make the token cache directory (`dataset.CACHE_DIR`) a call-time `paths.data_dir()` lookup; `NANOSCOPE_DATA_DIR` still wins. · files: nanoscope/dataset.py, tests/test_data.py · deps: P6.08 · done: `uv run pytest tests/test_data.py` passes, including a test that sets the env var after import
+- [ ] P6.12 Take the default path of `nanoscope status` and the name lookup in `compare._resolve` from `paths.runs_dir()`. · files: nanoscope/cli.py, nanoscope/compare.py · deps: P6.09 · done: `NANOSCOPE_HOME=$(mktemp -d) uv run nanoscope status` exits 0
+- [ ] P6.13 Add a `home` fixture to `tests/conftest.py` that points `NANOSCOPE_HOME` at `tmp_path`, and move tests that rely on `chdir` onto it. · files: tests/conftest.py, tests/test_*.py · deps: P6.09, P6.10, P6.11 · done: `make test` passes and `grep -ln chdir tests` lists only test_first_model_notebook.py
+
+### P6 · Library: run refs and store
+- [ ] P6.14 Create `nanoscope/store.py` with `resolve(ref)`, which maps a ref relative to the runs root (or `baselines/...` to the package baselines) to a path and rejects absolute paths, `..` and symlink escapes. · files: nanoscope/store.py (new), tests/test_store.py (new) · deps: P6.09 · done: `uv run pytest tests/test_store.py -k resolve` passes, including the traversal cases
+- [ ] P6.15 Add `store.list_runs(prefix, state=None)` and `store.list_sets(prefix)`, built on `progress.snapshot`. · files: nanoscope/store.py, tests/test_store.py · deps: P6.14 · done: `uv run pytest tests/test_store.py -k list` passes on two sets of three seeds
+- [ ] P6.16 Add `ref` to `RunResult` and `RunGroup`, and include it in `summary()`. · files: nanoscope/run.py, tests/test_run.py · deps: P6.14 · done: `uv run pytest tests/test_run.py -k ref` passes
+- [ ] P6.17 Make `compare()` and `nanoscope compare` accept refs through `store.resolve`; folder paths and names keep working. · files: nanoscope/compare.py, tests/test_compare.py · deps: P6.14 · done: `uv run pytest tests/test_compare.py` passes, including a new compare-by-ref test
+
+### P6 · Schemas
+- [ ] P6.18 Create the `nanoscope/schemas/` package with JSON Schema (2020-12) files `config.v1`, `status.v1`, `plan.v1`, `study.v1` and `results.v1`, and a `get(name)` loader. · files: nanoscope/schemas/__init__.py (new), nanoscope/schemas/*.json (new) · deps: P6.02 · done: `uv run python -c "from nanoscope.schemas import get; [get(n) for n in ('config','status','plan','study','results')]"` exits 0
+- [ ] P6.19 Add `jsonschema` to the dev extras and an `assert_valid(kind, obj)` test helper. · files: pyproject.toml, uv.lock, tests/helpers.py (new) · deps: P6.18 · done: `uv run python -c "import jsonschema"` exits 0
+- [ ] P6.20 Make `run()` write `"schema": 1` and `"nanoscope": __version__` into `config.json`, and make `_check_config` ignore those keys (and `stats`) when deciding whether a run can resume. · files: nanoscope/run.py, tests/test_run.py · deps: P6.18 · done: `uv run pytest tests/test_run.py -k v0_resume` passes (a v0 `config.json` without the keys still resumes)
+- [ ] P6.21 Add the schema and version fields to `plan.json` (`Study._write_plan`), `study.json` (`_provenance`) and `results.json` (`StudyReport.write`). · files: nanoscope/study.py · deps: P6.18 · done: `uv run pytest tests/test_study.py` passes
+- [ ] P6.22 Create `nanoscope/schemas/upgrade.py` with `read_json(path, kind)`: a missing `schema` key means v0, which is upgraded to v1; N and N-1 are accepted; N+1 is refused with "written by a newer nanoscope (x.y)". · files: nanoscope/schemas/upgrade.py (new), tests/test_schemas.py (new) · deps: P6.18 · done: `uv run pytest tests/test_schemas.py -k upgrade` passes
+- [ ] P6.23 Route every JSON reader through `read_json`: `compare.SeedRun.load`, `progress.snapshot`, the study report and manifest reads, and `load_run`. · files: nanoscope/compare.py, nanoscope/progress.py, nanoscope/study.py · deps: P6.22 · done: `grep -rn "json.loads(.*read_text" nanoscope | grep -v schemas/` lists only non-artifact files, and `make test` passes
+- [ ] P6.24 Test that every JSON file a toy study writes validates against its schema. · files: tests/test_schemas.py · deps: P6.19, P6.20, P6.21 · done: `uv run pytest tests/test_schemas.py -k toy_study` passes
+- [ ] P6.25 Test that every shipped baseline loads as v0 through `read_json` and compares exactly as before. · files: tests/test_schemas.py · deps: P6.23 · done: `uv run pytest tests/test_schemas.py -k baselines` passes
+
+### P6 · Status lifecycle
+- [ ] P6.26 Create `nanoscope/status.py` with `StatusFile`, an atomic writer (write a tmp file, then replace). States: queued, preparing, running, done, stopped, cancelled, failed. Fields: error (type, message, last 20 traceback lines), pid, host, device, job_id (from `NANOSCOPE_JOB_ID`), step, max_steps, started_at, updated_at, heartbeat_at. · files: nanoscope/status.py (new), tests/test_status.py (new) · deps: P6.18 · done: `uv run pytest tests/test_status.py -k write` passes and the output validates as `status.v1`
+- [ ] P6.27 Make `StatusFile` an `on_step` hook (chained like `ProgressBar`) whose heartbeat writes at most once every 5 s. · files: nanoscope/status.py, tests/test_status.py · deps: P6.26 · done: `uv run pytest tests/test_status.py -k heartbeat` passes with a fake clock
+- [ ] P6.28 Make `run()` always attach `StatusFile`: `preparing` before `load_data`, `running` from the first step, `done` once training reaches `max_steps`. · files: nanoscope/run.py · deps: P6.27 · done: `uv run pytest tests/test_status.py -k lifecycle` passes (it records the states in order)
+- [ ] P6.29 Wrap preparation and training in `run()` in `try/except BaseException`: a `KeyboardInterrupt` or early stop gives `stopped`, any other exception gives `failed` with the error written, and the exception is re-raised. · files: nanoscope/run.py, tests/test_status.py · deps: P6.28 · done: `uv run pytest tests/test_status.py -k failed` passes (a model that raises in forward ends `failed` with its message on disk)
+- [ ] P6.30 Make `progress.snapshot` prefer `status.json` and fall back to mtimes for folders without one; `RunState` gains `error` and `source`. · files: nanoscope/progress.py, tests/test_progress.py · deps: P6.28 · done: `uv run pytest tests/test_progress.py` passes, including a new failed-run case
+- [ ] P6.31 Make the snapshot show a `running` status whose heartbeat is older than 60 s as `running (no heartbeat for Xm)`, so dead sessions are visible. · files: nanoscope/progress.py, tests/test_progress.py · deps: P6.30 · done: `uv run pytest tests/test_progress.py -k stale` asserts the printed text
+- [ ] P6.32 Make `nanoscope status` print each failed run's ref, error type and message line. · files: nanoscope/progress.py, tests/test_progress.py · deps: P6.30 · done: `uv run pytest tests/test_progress.py -k status_shows_error` asserts the output
+
+### P6 · Cooperative cancel
+- [ ] P6.33 Give `train()` a `should_stop: Callable[[], bool] | None`, checked wherever `stop_requested` is checked; a stop checkpoints and sets `stopped_early`. · files: nanoscope/train_loop.py, tests/test_run.py · deps: P6.02 · done: `uv run pytest tests/test_run.py -k should_stop` passes
+- [ ] P6.34 Make `run()` pass a `should_stop` that checks `run_dir/"STOP"`. It removes a stale STOP before training and writes `cancelled` (Ctrl-C still gives `stopped`). · files: nanoscope/run.py · deps: P6.33, P6.29 · done: `uv run pytest tests/test_status.py -k cancelled` passes
+- [ ] P6.35 Add `nanoscope stop <ref|study|path>`, which writes STOP into every running run under the target and prints each ref. · files: nanoscope/cli.py, nanoscope/store.py, tests/test_status.py · deps: P6.34, P6.15 · done: `uv run pytest tests/test_status.py -k stop_command` asserts the printed refs
+- [ ] P6.36 Make `Study.run` check `runs/studies/<name>/STOP` between jobs and skip the remaining jobs; `nanoscope stop <study>` writes that file. · files: nanoscope/study.py, tests/test_study.py · deps: P6.35 · done: `uv run pytest tests/test_study.py -k stop` passes
+- [ ] P6.37 Plan done-when: a run in a subprocess, then `nanoscope stop`, gives `cancelled` with a checkpoint; resuming reaches `done` with metrics equal to an uninterrupted run (extends `test_interrupted_run_resumes_exactly`). · files: tests/test_run.py · deps: P6.35 · done: `uv run pytest tests/test_run.py -k stop_then_resume` passes
+
+### P6 · Rebuildable identity
+- [ ] P6.38 Record `model.ref` (`module:qualname`, or `path.py:Class` for file-loaded classes from `cli._load_model_class`) and `model.source_sha256` in `config.json`. · files: nanoscope/run.py, nanoscope/cli.py, nanoscope/schemas/config.v1.json · deps: P6.20 · done: `uv run pytest tests/test_run.py -k model_ref` passes
+- [ ] P6.39 Keep `model.ref` and `source_sha256` out of the run hash and the resume comparison, and log a changed source hash as drift. · files: nanoscope/run.py, tests/test_run.py · deps: P6.38 · done: `uv run pytest tests/test_run.py -k drift` passes (after a source edit the run resumes and the drift line is printed)
+- [ ] P6.40 For classes defined in `__main__` or a notebook, write their source to `run_dir/model_source.py` and set `model.rebuildable=false`. · files: nanoscope/run.py, tests/test_run.py · deps: P6.38 · done: `uv run pytest tests/test_run.py -k main_class_source` passes
+- [ ] P6.41 Add `load_run(ref, device="cpu")`, exported from `nanoscope`. It imports `model.ref`, builds the model with the recorded kwargs, loads the latest checkpoint and returns an object with `generate()`. · files: nanoscope/store.py, nanoscope/__init__.py, tests/test_store.py · deps: P6.38, P6.14 · done: `uv run pytest tests/test_store.py -k load_run` passes
+- [ ] P6.42 Make `load_run` explain baselines (no checkpoints) and non-rebuildable runs in its error messages. · files: nanoscope/store.py, tests/test_store.py · deps: P6.41 · done: `uv run pytest tests/test_store.py -k load_run_errors` asserts both messages
+- [ ] P6.43 Plan done-when: a trained run's `load_run` generates text in a fresh subprocess. · files: tests/test_store.py · deps: P6.41 · done: `uv run pytest tests/test_store.py -k fresh_process` passes
+
+### P6 · Specs and validation
+- [ ] P6.44 Create `nanoscope/specs.py` with `ModelSpec.from_class(cls)`: params, annotations as strings, defaults, from-data flags (`vocab_size`, `context_length`) and the docstring. · files: nanoscope/specs.py (new), tests/test_specs.py (new) · deps: P6.02 · done: `uv run pytest tests/test_specs.py -k model_spec` passes for Bigram, GPT2 and Modern
+- [ ] P6.45 Give every `Preset` field help text through `field(metadata={"help": ...})`, and add `PresetSpec.from_preset`. · files: nanoscope/presets.py, nanoscope/specs.py · deps: P6.44 · done: `uv run pytest tests/test_specs.py -k every_preset_field_has_help` passes
+- [ ] P6.46 Add a `Problem` dataclass (code, field, message, hint) with a `problem.v1` schema. · files: nanoscope/specs.py, nanoscope/schemas/problem.v1.json (new) · deps: P6.44, P6.18 · done: `uv run pytest tests/test_specs.py -k problem_schema` passes
+- [ ] P6.47 Add `validate_run_request(model, preset, kwargs) -> list[Problem]`, which returns every problem at once (unknown kwarg, wrong type, unknown preset, bad seeds). `_split_kwargs` uses it, and `run()` still raises the first problem with today's message. · files: nanoscope/specs.py, nanoscope/run.py · deps: P6.46 · done: `uv run pytest tests/test_specs.py -k three_problems tests/test_run.py -k unknown_keyword` passes
+
+### P6 · Declarative studies
+- [ ] P6.48 Add `tomli` (for Python < 3.11) and `tomli-w` to the core dependencies. · files: pyproject.toml, uv.lock · deps: P6.02 · done: `uv run python -c "import tomli_w"` exits 0
+- [ ] P6.49 Create `nanoscope/studyspec.py` with a `StudySpec` dataclass covering name, preset, overrides, seeds, budget, match, match_knob, range, baseline, mode, tolerance, variants (name, model ref, kwargs) and predictions, plus `to_toml`/`from_toml`. · files: nanoscope/studyspec.py (new), nanoscope/schemas/studyspec.v1.json (new), tests/test_studyspec.py (new) · deps: P6.48, P6.18 · done: `uv run pytest tests/test_studyspec.py -k toml_roundtrip` passes
+- [ ] P6.50 Add `Study.to_spec()` and `Study.from_spec(spec)`, resolving model refs such as `nanoscope.models:Modern` and `models/my.py:MyLM`. · files: nanoscope/study.py, nanoscope/studyspec.py · deps: P6.49, P6.38 · done: `uv run pytest tests/test_studyspec.py -k from_spec` passes
+- [ ] P6.51 Resolve declarative matching (`match_knob`, `range`) through `sizing.match_params` in `from_spec`. · files: nanoscope/studyspec.py · deps: P6.50 · done: `uv run pytest tests/test_studyspec.py -k match_knob` reproduces the `ffn_hidden` widths that `m1_ablation.matched()` picks
+- [ ] P6.52 Make `load_study` accept `.toml`; record mode with a TOML spec requires the spec to be committed (`Study.source` is the TOML path). · files: nanoscope/study.py, tests/test_study.py · deps: P6.50 · done: `uv run pytest tests/test_study.py -k record_toml_uncommitted` passes
+- [ ] P6.53 Plan done-when: `studies/m1_ablation.py` → `to_spec()` → TOML → `from_spec()` gives an identical `jobs()`. · files: tests/test_studyspec.py · deps: P6.51 · done: `uv run pytest tests/test_studyspec.py -k m1_roundtrip` passes
+- [ ] P6.54 Add `nanoscope spec <study.py> [--name]`, which prints the study's TOML; `study` and `report` accept `.toml` paths. · files: nanoscope/cli.py, tests/test_studyspec.py · deps: P6.52 · done: `uv run nanoscope spec studies/m1_ablation.py | uv run python -c "import sys,tomllib; tomllib.loads(sys.stdin.read())"` exits 0
+
+### P6 · Smaller library items
+- [ ] P6.55 Make data prep write `data_dir/<preset>/prepare.json` (stage download, tokenize or done; done, total, started_at, updated_at, error) atomically as it progresses. · files: nanoscope/dataset.py, nanoscope/schemas/prepare.v1.json (new), tests/test_data.py · deps: P6.11, P6.18 · done: `uv run pytest tests/test_data.py -k prepare_json` passes
+- [ ] P6.56 Add `nanoscope status --data`, which prints each preset's `prepare.json`. · files: nanoscope/cli.py, nanoscope/progress.py, tests/test_data.py · deps: P6.55 · done: `uv run pytest tests/test_data.py -k status_data` asserts the output
+- [ ] P6.57 Replace the `functools.cache` on `_hub_files` with a 5-minute TTL cache. · files: nanoscope/dataset.py, tests/test_data.py · deps: P6.02 · done: `uv run pytest tests/test_data.py -k hub_ttl` passes with a monkeypatched clock
+- [ ] P6.58 Make `bench(save=True)` and `nanoscope bench --save` append a `bench.v1` row to `hardware_dir()/bench.jsonl`. · files: nanoscope/bench.py, nanoscope/cli.py, nanoscope/schemas/bench.v1.json (new), tests/test_bench.py (new) · deps: P6.08, P6.18 · done: `uv run pytest tests/test_bench.py -k save` passes
+- [ ] P6.59 Send `_log` (in `run.py` and `dataset.py`) and the prints in `train_loop.py` through `logging.getLogger("nanoscope")`, with a default `[nanoscope] ` stdout handler so the visible output is unchanged. · files: nanoscope/run.py, nanoscope/dataset.py, nanoscope/train_loop.py, nanoscope/__init__.py · deps: P6.02 · done: `uv run pytest tests/test_progress.py` passes unchanged, and a new test captures records with a handler
+- [ ] P6.60 Add `to_dict()` to `RunResult`, `RunGroup`, `Comparison` and `StudyReport`, matching the schemas. · files: nanoscope/run.py, nanoscope/compare.py, nanoscope/study.py, nanoscope/schemas/comparison.v1.json (new) · deps: P6.24 · done: `uv run pytest tests/test_schemas.py -k to_dict` passes
+- [ ] P6.61 Give every compare row an explicit library-computed `verdict` ("better", "worse", "within noise" or "no CI"), and print it. · files: nanoscope/compare.py, tests/test_compare.py · deps: P6.60 · done: `uv run pytest tests/test_compare.py -k verdict` asserts the printed word
+- [ ] P6.62 Add `checkpoint_steps=[...]` to `run()`/`train()`. These checkpoints go to `checkpoints/archive/step_N.pt`, are never pruned, and are not part of the run's identity. · files: nanoscope/run.py, nanoscope/train_loop.py, tests/test_run.py · deps: P6.02 · done: `uv run pytest tests/test_run.py -k checkpoint_steps` passes (the archive survives pruning; the run dir name is unchanged)
+
+### P6 · Docs
+- [ ] P6.63 Update `docs/research.md` with `NANOSCOPE_HOME`, `status.json` states, `nanoscope stop`, TOML studies, `nanoscope spec`, `prepare.json` and `bench --save`. · files: docs/research.md · deps: P6.37, P6.54, P6.56, P6.58 · done: `grep -cE 'nanoscope stop|status\.json|\.toml|NANOSCOPE_HOME' docs/research.md` prints at least 4
+- [ ] P6.64 Add a "Files on disk" section to `docs/research.md` that lists every run, study and data file, its schema, and the N/N-1 policy. · files: docs/research.md · deps: P6.24 · done: `grep -c 'schema' docs/research.md` prints at least 3
+- [ ] P6.65 Rewrite the "Repo layout" section of `docs/project-nanoscope.md` to describe the current modules, and mark M0 and the M1 pipeline done (plan 13). · files: docs/project-nanoscope.md · deps: P6.02 · done: `grep -nE 'configs/|train/|infer/' docs/project-nanoscope.md` is empty
+- [ ] P6.66 Run `git mv docs/roadmap-v2.md docs/archive/roadmap-v2.md` and fix links to it. · files: docs/roadmap-v2.md → docs/archive/roadmap-v2.md · deps: P6.02 · done: `grep -rn 'roadmap-v2' --include=*.md . | grep -v archive/` is empty
+
+### P6 · Gate
+- [ ] P6.99 PHASE GATE P6. Exit criteria: plan section 10 phase 6. · files: — · deps: P6.* · done: `make check` exits 0; `uv run pytest tests/test_first_model_notebook.py` passes (3 cells, <120 s, with cached data); `git diff main -- notebooks/` is empty; CI green on the PR; P6.37, P6.29, P6.43, P6.53, P6.24 and P6.25 are ticked; **USER ACTION** merge the PR
+
+---
+
+## P7 Queue and workers
+
+### P7 · Queue
+- [ ] P7.01 Create `nanoscope/queue.py`: SQLite at `home()/queue.db` in WAL mode. Table `jobs` has id, kind, lane, payload, state, ref, owner, devices_required, device, worker_id, lease_until, attempts, error and timestamps; table `meta` holds the schema version. · files: nanoscope/queue.py (new), tests/test_queue.py (new) · deps: P6.99 · done: `uv run pytest tests/test_queue.py -k create` passes and `sqlite3 queue.db 'pragma journal_mode'` prints wal
+- [ ] P7.02 Add `enqueue(kind, payload, lane="batch", ref=None)`, which validates the payload against the `job.v1` schema of its kind. · files: nanoscope/queue.py, nanoscope/schemas/job.v1.json (new) · deps: P7.01 · done: `uv run pytest tests/test_queue.py -k enqueue` passes, including an invalid payload
+- [ ] P7.03 Add `claim(worker_id, device, lanes)`: atomic under `BEGIN IMMEDIATE`, interactive lane before batch, first in first out within a lane. · files: nanoscope/queue.py · deps: P7.02 · done: `uv run pytest tests/test_queue.py -k "claim or lanes"` passes, including a two-thread no-double-claim test
+- [ ] P7.04 Add `renew(job_id, worker_id)` and `requeue_expired()`. Expired running jobs return to queued with `attempts+1`; after `max_attempts=3` they fail. · files: nanoscope/queue.py · deps: P7.03 · done: `uv run pytest tests/test_queue.py -k lease` passes
+- [ ] P7.05 Add `cancel(job_id)`: a queued job becomes cancelled; a running job gets STOP written to its run dir and becomes cancelled when its child exits. · files: nanoscope/queue.py · deps: P7.04 · done: `uv run pytest tests/test_queue.py -k cancel` passes
+- [ ] P7.06 Handle duplicate submits: enqueueing a run whose `status.json` is done returns the run with no job, and one already queued or running returns that job's id. · files: nanoscope/queue.py · deps: P7.03 · done: `uv run pytest tests/test_queue.py -k duplicate` passes
+- [ ] P7.07 Folders win: `claim()` marks a job done without running it when its run folder is already done. · files: nanoscope/queue.py · deps: P7.06 · done: `uv run pytest tests/test_queue.py -k folders_win` passes
+- [ ] P7.08 Add `owner` (default `local`) and `devices_required` (1; more than 1 is refused with "multi-device jobs need DDP (M2)"). · files: nanoscope/queue.py · deps: P7.02 · done: `uv run pytest tests/test_queue.py -k devices_required` asserts the message
+
+### P7 · Runner and worker
+- [ ] P7.09 Create the `nanoscope/jobs/` package with a `JobRunner` protocol (start, poll, terminate), a `SubprocessRunner`, and a `ContainerRunner` stub that raises `NotImplementedError` naming deployments B/C. · files: nanoscope/jobs/__init__.py (new), nanoscope/jobs/runner.py (new), tests/test_jobs.py (new) · deps: P7.01 · done: `uv run pytest tests/test_jobs.py -k runner` passes
+- [ ] P7.10 Allowlist each job's environment: `HF_TOKEN` and `WANDB_API_KEY` reach only the kinds that need them (run with Hub/W&B, prepare-data, upload) and never describe, check or inspect. · files: nanoscope/jobs/runner.py, tests/test_jobs.py · deps: P7.09 · done: `uv run pytest tests/test_jobs.py -k env_allowlist` passes
+- [ ] P7.11 Add `nanoscope run-job <id>`, which runs one job in a fresh process: it sets `NANOSCOPE_JOB_ID`, dispatches on the kind (run, prepare-data, bench for now) and writes the result or error to the queue. · files: nanoscope/jobs/execute.py (new), nanoscope/cli.py · deps: P7.09, P7.02 · done: `uv run pytest tests/test_jobs.py -k run_job` passes
+- [ ] P7.12 Add `nanoscope worker --device D --slots K`. It claims jobs, runs each child through `SubprocessRunner`, renews the lease from the child's `status.json` heartbeat, and finishes the job. On SIGTERM it STOPs its children, waits, and releases its leases. · files: nanoscope/jobs/worker.py (new), nanoscope/cli.py · deps: P7.11, P7.04, P6.27 · done: `uv run pytest tests/test_jobs.py -k worker` passes, including a SIGTERM case
+- [ ] P7.13 Have each worker write `home()/workers/<id>.json` (device, slots, current jobs, heartbeat), and add `nanoscope status --workers`. · files: nanoscope/jobs/worker.py, nanoscope/progress.py, nanoscope/cli.py · deps: P7.12 · done: `uv run pytest tests/test_jobs.py -k status_workers` asserts the output
+- [ ] P7.14 Add a per-job wall-clock timeout (worker flag, overridable per job). On expiry the worker writes STOP, then kills the child, and the job fails with "timeout after Ns". · files: nanoscope/jobs/worker.py · deps: P7.12 · done: `uv run pytest tests/test_jobs.py -k timeout` passes
+- [ ] P7.15 Configure each child's device: CPU children get `set_num_threads` from `hardware.cpu_threads(slots)`, and GPU children get `set_per_process_memory_fraction(HEADROOM/slots)`. · files: nanoscope/jobs/execute.py, nanoscope/hardware.py · deps: P7.11 · done: `uv run pytest tests/test_jobs.py -k threads` passes
+- [ ] P7.16 Admission: cache `probe_memory` results in the queue, keyed by (model ref, kwargs hash, preset, device name). A job that doesn't fit the free memory stays queued; it is skipped, not failed. · files: nanoscope/queue.py, nanoscope/jobs/worker.py, nanoscope/hardware.py · deps: P7.12 · done: `uv run pytest tests/test_jobs.py -k admission` passes with fake free memory
+
+### P7 · Studies on the queue
+- [ ] P7.17 Add `Study.enqueue()`: every unfinished job goes on the batch lane in seed-major order with ref `studies/<name>/<variant>/seed-<n>`, and `plan.json` is written. · files: nanoscope/study.py · deps: P7.06 · done: `uv run pytest tests/test_study.py -k enqueue` passes
+- [ ] P7.18 Make `nanoscope study --devices ...` enqueue the study, start `devices × workers-per-device` local worker slots, print the existing one-line progress every `PROGRESS_EVERY`, exit when every job is terminal, and report failures with the end of the log. · files: nanoscope/study.py, nanoscope/cli.py · deps: P7.17, P7.12 · done: `uv run pytest tests/test_study.py -k several_devices` passes
+- [ ] P7.19 Keep `Study.run()` without devices in-process: no SQLite, no subprocess. · files: nanoscope/study.py, tests/test_study.py · deps: P7.18 · done: `uv run pytest tests/test_study.py -k in_process_no_queue` asserts that no `queue.db` exists
+- [ ] P7.20 Remove `--shard`, `Study.run(shard=)` and `_run_parallel`. · files: nanoscope/study.py, nanoscope/cli.py · deps: P7.18 · done: `grep -rn shard nanoscope` is empty and `make test` passes
+- [ ] P7.21 Add `nanoscope jobs [--state S]` and `nanoscope jobs cancel <id>`. · files: nanoscope/cli.py, tests/test_queue.py · deps: P7.05 · done: `uv run pytest tests/test_queue.py -k jobs_command` asserts the output
+
+### P7 · Tests and docs
+- [ ] P7.22 Port `test_studies_run_on_several_devices_in_parallel`, `test_several_workers_can_share_one_device` and `test_too_many_workers_for_the_free_gpu_memory_are_refused` onto the queue. · files: tests/test_study.py · deps: P7.18, P7.16 · done: `uv run pytest tests/test_study.py -k "devices or workers"` passes
+- [ ] P7.23 Plan done-when: a worker killed with SIGKILL mid-job has its lease expire and its job requeued and resumed, and the study completes with results equal to an uninterrupted study. · files: tests/test_jobs.py · deps: P7.18 · done: `uv run pytest tests/test_jobs.py -k sigkill` passes
+- [ ] P7.24 Test that an interactive job is claimed before already-queued batch jobs, end to end through a worker. · files: tests/test_jobs.py · deps: P7.12 · done: `uv run pytest tests/test_jobs.py -k interactive_first` passes
+- [ ] P7.25 Test that the Kaggle notebook's `--devices cuda:0,cuda:1` command parses and enqueues with fake CUDA. · files: tests/test_first_model_notebook.py, tests/test_study.py · deps: P7.18 · done: `uv run pytest -k kaggle` passes
+- [ ] P7.26 **USER ACTION** On a GPU box, run `m1_ablation` with `--workers-per-device 4` and record its wall time against phase 5 in the PR. · files: PR description · deps: P7.22 · done: the PR description contains both timings
+- [ ] P7.27 Document the queue, workers, `nanoscope jobs`, lanes, the removal of `--shard` and backing up `queue.db` in `docs/research.md`. · files: docs/research.md · deps: P7.20, P7.21 · done: `grep -cE 'nanoscope worker|nanoscope jobs|queue\.db' docs/research.md` prints at least 3
+
+### P7 · Gate
+- [ ] P7.99 PHASE GATE P7. Exit criteria: plan section 10 phase 7. · files: — · deps: P7.* · done: `make check` passes; `uv run pytest tests/test_first_model_notebook.py` passes; `uv run pytest tests/test_jobs.py -k sigkill` passes; P7.26 recorded; CI green; **USER ACTION** merge the PR
+
+---
+
+## P8 Blocks library, describe, rebuilt models
+
+### P8 · Naive references
+- [ ] P8.01 Create the `nanoscope/reference/` package and move `naive_causal_attention`, `naive_rope` and the RMSNorm, LayerNorm, SwiGLU and GELU formulas into it from `tests/test_models.py`; the tests import them from there. · files: nanoscope/reference/__init__.py (new), nanoscope/reference/functional.py (new), tests/test_models.py · deps: P6.99 · done: `grep -n "def naive_" tests/test_models.py` is empty and `uv run pytest tests/test_models.py` passes
+- [ ] P8.02 Freeze today's `models/gpt2.py` and `models/modern.py` verbatim as `reference/gpt2_ref.py` (`GPT2Ref`) and `reference/modern_ref.py` (`ModernRef`), each headed "frozen reference, do not edit". · files: nanoscope/reference/gpt2_ref.py (new), nanoscope/reference/modern_ref.py (new) · deps: P8.01 · done: `uv run pytest tests/test_reference.py -k frozen_models_pass_existing_checks` passes
+- [ ] P8.03 Test that modules in `nanoscope/reference` import only torch, math and each other (by AST scan). · files: tests/test_reference.py (new) · deps: P8.02 · done: `uv run pytest tests/test_reference.py -k independent` passes
+- [ ] P8.04 Add naive references for the remaining MVP blocks (one-hot-matmul embedding, learned position, tied head, causal mask, softmax, weighted sum, GQA by explicit repeated heads, QK-norm, z-loss), each checked on a hand-computed tiny case. · files: nanoscope/reference/functional.py, tests/test_reference.py · deps: P8.01 · done: `uv run pytest tests/test_reference.py -k hand_computed` passes
+
+### P8 · Block core
+- [ ] P8.05 Create `nanoscope/blocks/__init__.py`, which exports through a PEP 562 `__getattr__` over an export table, and `blocks/registry.py` with `BlockInfo` (name, family, tier primitive or composite, module, reference, features) and an internal `_register`. · files: nanoscope/blocks/__init__.py (new), nanoscope/blocks/registry.py (new), tests/test_blocks.py (new) · deps: P6.99 · done: `uv run pytest tests/test_blocks.py -k registry` passes
+- [ ] P8.06 Define the spec protocol: calling a block class with only its own options returns a `BlockSpec` with no tensors; `Decoder` and `Block` instantiate specs per layer with `d_model` and context; `spec.to_dict()` serves describe and the graph. · files: nanoscope/blocks/spec.py (new), tests/test_blocks.py · deps: P8.05 · done: `uv run pytest tests/test_blocks.py -k spec_builds_independent_params` passes
+- [ ] P8.07 Test that no module in `nanoscope/` except `blocks/__init__.py` imports from the `nanoscope.blocks` package root (library code imports submodules), so gating can never affect shipped code. · files: tests/test_blocks.py · deps: P8.05 · done: `uv run pytest tests/test_blocks.py -k library_imports_submodules` passes
+- [ ] P8.08 Add a `shipped` class marker (decorator) for library models, applied to Bigram, GPT2 and Modern, for the gating build check. · files: nanoscope/blocks/registry.py, nanoscope/models/*.py · deps: P8.05 · done: `uv run python -c "from nanoscope.models import GPT2; assert GPT2.__nanoscope_shipped__"` exits 0
+
+### P8 · Blocks (each: implementation, `flops_per_token`, a naive-reference test)
+- [ ] P8.09 Primitives `Linear` and `Activation(gelu|silu|relu)`. · files: nanoscope/blocks/primitives.py (new), tests/test_blocks.py · deps: P8.06 · done: `uv run pytest tests/test_blocks.py -k "linear or activation"` passes
+- [ ] P8.10 Primitives `CausalMask`, `ScaledDotScores`, `Softmax`, `WeightedSum`, `SplitHeads` and `MergeHeads`. · files: nanoscope/blocks/primitives.py, tests/test_blocks.py · deps: P8.09, P8.04 · done: `uv run pytest tests/test_blocks.py -k primitives_attention_parts` passes
+- [ ] P8.11 `Residual(inner)` and the `Composite` base with named slots. · files: nanoscope/blocks/composite.py (new), tests/test_blocks.py · deps: P8.06 · done: `uv run pytest tests/test_blocks.py -k composite` passes
+- [ ] P8.12 `TokenEmbedding` and `LearnedPosition`, checked against one-hot matmul. · files: nanoscope/blocks/embedding.py (new), tests/test_blocks.py · deps: P8.06, P8.04 · done: `uv run pytest tests/test_blocks.py -k embedding` passes
+- [ ] P8.13 `Head`, tied or untied. · files: nanoscope/blocks/head.py (new), tests/test_blocks.py · deps: P8.12 · done: `uv run pytest tests/test_blocks.py -k head` passes
+- [ ] P8.14 `LayerNorm` and `RMSNorm`, checked against their formulas (the existing RMSNorm test moves here). · files: nanoscope/blocks/norm.py (new), tests/test_blocks.py · deps: P8.06, P8.01 · done: `uv run pytest tests/test_blocks.py -k norm` passes
+- [ ] P8.15 `RoPE` and `NoPE`, checked against complex rotation and for relative-position invariance. · files: nanoscope/blocks/positional.py (new), tests/test_blocks.py · deps: P8.06, P8.01 · done: `uv run pytest tests/test_blocks.py -k "rope or nope"` passes
+- [ ] P8.16 `Attention(n_heads, n_kv_heads, pos, qk_norm, window=None)`, checked against the loop reference for `n_kv_heads` in {1, 2, 4} × RoPE on/off × QK-norm on/off × a window. · files: nanoscope/blocks/attention.py (new), tests/test_blocks.py · deps: P8.15, P8.14, P8.04 · done: `uv run pytest tests/test_blocks.py -k attention` passes
+- [ ] P8.17 `GELUMLP` and `SwiGLU(hidden)`, checked against their formulas and for parameter parity. · files: nanoscope/blocks/mlp.py (new), tests/test_blocks.py · deps: P8.06, P8.01 · done: `uv run pytest tests/test_blocks.py -k mlp` passes
+- [ ] P8.18 `Block(norm, attn, mlp, pre/post)`, checked against a reference composition. · files: nanoscope/blocks/structure.py (new), tests/test_blocks.py · deps: P8.16, P8.17, P8.11 · done: `uv run pytest tests/test_blocks.py -k block_reference` passes
+- [ ] P8.19 `Decoder(vocab_size, context_length, d_model, n_layers, block, final_norm, tie_weights, z_loss)` with the `(logits, aux)` convention and Modern's init scheme, tested for causality and a near-uniform untrained loss. · files: nanoscope/blocks/structure.py, tests/test_blocks.py · deps: P8.18, P8.13 · done: `uv run pytest tests/test_blocks.py -k decoder` passes
+- [ ] P8.20 `Decoder.flops_per_token`: the sum of the analytic block formulas, equal to the PaLM formula `Modern` uses today. · files: nanoscope/blocks/structure.py, tests/test_blocks.py · deps: P8.19 · done: `uv run pytest tests/test_blocks.py -k decoder_flops` passes
+- [ ] P8.21 Layer patterns: `Decoder(pattern=[spec_a, spec_b])` repeats a list of block specs (e.g. sliding:global). · files: nanoscope/blocks/structure.py, tests/test_blocks.py · deps: P8.19 · done: `uv run pytest tests/test_blocks.py -k pattern` passes
+
+### P8 · Rebuild GPT2 and Modern (decision 11.4)
+- [ ] P8.22 Rebuild `models/gpt2.py` as a `Decoder` composition with the same class name, signature, defaults, `flops_per_token` and, where possible, `state_dict` keys. · files: nanoscope/models/gpt2.py, tests/test_models.py · deps: P8.19, P8.02, P8.08 · done: `uv run pytest tests/test_models.py -k gpt2_matches_reference` passes (logits within 1e-5 of `GPT2Ref` after `load_state_dict`)
+- [ ] P8.23 Rebuild `models/modern.py` the same way, covering every switch (rope, swiglu, rmsnorm, qk_norm, n_kv_heads, z_loss, tie_weights, ffn_hidden). · files: nanoscope/models/modern.py, tests/test_models.py · deps: P8.19, P8.02, P8.08 · done: `uv run pytest tests/test_models.py -k modern_matches_reference` passes, parametrized over the switches
+- [ ] P8.24 Test that the rebuilt models produce the same initial weights as the references for seeds 0-2. If that can't be achieved, record the decision in the Decisions log and do P8.25. · files: tests/test_models.py · deps: P8.22, P8.23 · done: `uv run pytest tests/test_models.py -k same_init` passes, or the Decisions log has the entry
+- [ ] P8.25 Breaking old checkpoints is allowed (user, 2026-10-05): if P8.24 or the key check fails, do NOT add a key map. Instead bump `config` to schema v2, drop support for pre-rebuild checkpoints, and re-export the shipped baselines with `export_baseline` (9 short CPU runs). · files: nanoscope/store.py, nanoscope/schemas/, nanoscope/baselines/ · deps: P8.24 · done: `uv run pytest tests/test_schemas.py -k baselines tests/test_compare.py` passes; mark ✗ not needed if P8.24 passed
+- [ ] P8.26 Test that `run(GPT2)` and `run(Modern)` give the same run dir names and `config.json` model kwargs as before the rebuild. · files: tests/test_models.py · deps: P8.22, P8.23 · done: `uv run pytest tests/test_models.py -k run_identity_unchanged` passes
+- [ ] P8.27 Migrate `tests/test_models.py` onto the blocks and the rebuilt models, keeping every existing test. · files: tests/test_models.py · deps: P8.26 · done: `uv run pytest tests/test_models.py --collect-only -q | tail -1` shows at least the original count, and all pass
+- [ ] P8.28 Repoint text in notebooks 02-03 and the README that refers to the internals of `gpt2.py`/`modern.py` at the blocks or reference files. · files: notebooks/02-gpt2.ipynb, notebooks/03-modern-block.ipynb, README.md · deps: P8.27 · done: `grep -rn "modern.py\|gpt2.py" notebooks README.md` shows only valid paths
+- [ ] P8.29 Test that `studies/m1_ablation.py` gives the same `jobs()` (sizes and steps) before and after the rebuild. · files: tests/test_study.py · deps: P8.23 · done: `uv run pytest tests/test_study.py -k m1_jobs_stable` passes
+
+### P8 · Graph parse and emit
+- [ ] P8.30 Add `libcst` to a new `graph` extra (later included by `server`); it stays out of the core dependencies. · files: pyproject.toml, uv.lock · deps: P6.99 · done: `uv sync --extra graph && uv run python -c "import libcst"` exits 0
+- [ ] P8.31 Create `nanoscope/blocks/graph.py` with `parse(path)`. It uses `ast` only and turns each `Decoder`/`Composite` subclass into nodes, args and source spans, unknown calls into opaque nodes, and other statements into code-only classes with the reason and line. · files: nanoscope/blocks/graph.py (new), tests/test_graph.py (new) · deps: P8.21, P8.11 · done: `uv run pytest tests/test_graph.py -k parse` passes
+- [ ] P8.32 Add the `graph.v1` schema and validate `parse` output against it. · files: nanoscope/schemas/graph.v1.json (new), tests/test_graph.py · deps: P8.31 · done: `uv run pytest tests/test_graph.py -k schema` passes
+- [ ] P8.33 Add graph fixtures: GPT-2-like, Modern-like, a layer pattern, an opaque custom block, a code-only class, comments with odd formatting, and a `Composite` template. · files: tests/fixtures/graphs/*.py (new) · deps: P8.31 · done: `ls tests/fixtures/graphs/*.py | wc -l` prints at least 7
+- [ ] P8.34 Write `emit(graph, source)` with libcst for the `set_arg` and `replace_block` edits, changing only the edited arguments. · files: nanoscope/blocks/graph.py, tests/test_graph.py · deps: P8.30, P8.33 · done: `uv run pytest tests/test_graph.py -k minimal_diff` passes (each edit changes one line in the fixture)
+- [ ] P8.35 Test that an unedited round trip is byte-identical on every fixture. · files: tests/test_graph.py · deps: P8.34 · done: `uv run pytest tests/test_graph.py -k byte_identical` passes
+- [ ] P8.36 Add `hypothesis` to dev and a property test: random palette graphs, emitted then parsed, come back equal. · files: pyproject.toml, uv.lock, tests/test_graph.py · deps: P8.34 · done: `uv run pytest tests/test_graph.py -k property` passes
+- [ ] P8.37 Add `nanoscope graph file.py[:Class] [--json]`, which prints the parsed graph without executing anything. · files: nanoscope/cli.py, tests/test_graph.py · deps: P8.31 · done: `uv run pytest tests/test_graph.py -k cli` asserts the output
+
+### P8 · Describe
+- [ ] P8.38 Create `nanoscope/inspect.py` with `describe(model_cls, preset, **kw)`. It traces on `meta` with forward hooks and reports per module: shapes, params (total and non-embedding), FLOPs per token (analytic, falling back to 6N), and memory (weights + AdamW state + activations). · files: nanoscope/inspect.py (new), tests/test_describe.py (new) · deps: P8.20 · done: `uv run pytest tests/test_describe.py -k describe` passes
+- [ ] P8.39 Test that the describe totals equal `count_params`/`flops_per_token` for Bigram, GPT2, Modern and a composed model. · files: tests/test_describe.py · deps: P8.38 · done: `uv run pytest tests/test_describe.py -k totals` passes
+- [ ] P8.40 Catch shape errors during the meta trace and map them to the module and its source line, through the graph spans when available. · files: nanoscope/inspect.py, tests/test_describe.py · deps: P8.38, P8.31 · done: `uv run pytest tests/test_describe.py -k shape_error_line` asserts the line number
+- [ ] P8.41 Add `nanoscope describe file.py:MyLM [--preset] [--json]` with a readable table and a `describe.v1` schema for the JSON. · files: nanoscope/cli.py, nanoscope/schemas/describe.v1.json (new), tests/test_describe.py · deps: P8.38 · done: `uv run pytest tests/test_describe.py -k cli` asserts the table output
+
+### P8 · Block stats
+- [ ] P8.42 Add a `BlockStats` hook (opt-in with `run(block_stats=True)`, evaluated at eval steps only). Per block it records activation RMS, grad norm, update-to-weight ratio, and attention entropy from explicit attention weights on the eval batch, appended to `blockstats.jsonl`. · files: nanoscope/blockstats.py (new), nanoscope/run.py, nanoscope/schemas/blockstats.v1.json (new), tests/test_blockstats.py (new) · deps: P8.19, P6.99 · done: `uv run pytest tests/test_blockstats.py` passes, and `grep -n blockstats nanoscope/train_loop.py` is empty (hooks only)
+- [ ] P8.43 Add `nanoscope status --blocks <ref>`, which prints the latest stats per block. · files: nanoscope/progress.py, nanoscope/cli.py, tests/test_blockstats.py · deps: P8.42 · done: `uv run pytest tests/test_blockstats.py -k status_blocks` asserts the output
+
+### P8 · User blocks and the catalog
+- [ ] P8.44 Add the public `@register_block(reference=fn, family=...)` for users' `nn.Module`s. · files: nanoscope/blocks/registry.py, tests/test_blocks.py · deps: P8.05 · done: `uv run pytest tests/test_blocks.py -k register_block` passes
+- [ ] P8.45 Discover `@register_block` and `Decoder`/`Composite` subclasses in a workspace by AST alone, without importing it. · files: nanoscope/blocks/discover.py (new), tests/test_blocks.py · deps: P8.44, P8.31 · done: `uv run pytest tests/test_blocks.py -k discover_without_import` passes against a module that raises on import
+- [ ] P8.46 Add `nanoscope blocks [--json]`, which prints the palette catalog (name, family, tier, args with types and defaults, docstring, reference, certified) in a `blocks.v1` schema. · files: nanoscope/cli.py, nanoscope/schemas/blocks.v1.json (new), tests/test_blocks.py · deps: P8.44 · done: `uv run nanoscope blocks --json | uv run python -c "import json,sys; assert len(json.load(sys.stdin)['blocks'])>=15"` exits 0
+- [ ] P8.47 Plan done-when: a composed `MyLM` fixture trains through `run()` unchanged, and `config.json` records its workspace `model.ref`. · files: tests/test_blocks.py, tests/fixtures/graphs/mylm.py · deps: P8.21, P6.38 · done: `uv run pytest tests/test_blocks.py -k composed_trains` passes
+- [ ] P8.48 Write `docs/blocks.md`: the composition style, the representable subset, every block with its reference, `Composite` templates, and how to register a block. Link it from the README. · files: docs/blocks.md (new), README.md · deps: P8.46 · done: `grep -c '^## ' docs/blocks.md` prints at least 4 and `grep -n blocks.md README.md` matches
+- [ ] P8.49 Make `describe` and the catalog report each block's `tier`, ready for gating. · files: nanoscope/inspect.py, nanoscope/blocks/registry.py · deps: P8.46, P8.38 · done: `uv run nanoscope blocks --json | grep -c '"tier"'` is greater than 0
+- [ ] P8.50 Delete the inline `Attention`, `RMSNorm`, `SwiGLU`, `GELUMLP` and `Block` classes left in `models/` and import from `blocks` submodules instead. · files: nanoscope/models/*.py · deps: P8.27 · done: `grep -n "^class " nanoscope/models/modern.py` lists only `Modern`
+- [ ] P8.51 Add a `test-blocks` Makefile target that runs `test_blocks`, `test_reference`, `test_graph` and `test_describe`. · files: Makefile · deps: P8.41 · done: `make test-blocks` exits 0
+
+### P8 · Gate
+- [ ] P8.99 PHASE GATE P8. Exit criteria: plan section 10 phase 8. · files: — · deps: P8.* · done: `make check` passes; `make test-blocks` passes; `uv run pytest tests/test_first_model_notebook.py` passes; P8.22, P8.23, P8.24/P8.25, P8.35, P8.36, P8.39 and P8.47 are ticked; CI green; **USER ACTION** merge the PR
+
+---
+
+## P9 Curriculum engine, lesson gating, two paths
+
+### P9 · Engine
+- [ ] P9.01 Create the `nanoscope/learn/` package and `nanoscope/curricula/` as package data, with `path.v1` and `lesson.v1` schemas. · files: nanoscope/learn/__init__.py (new), nanoscope/curricula/ (new), nanoscope/schemas/path.v1.json (new), nanoscope/schemas/lesson.v1.json (new) · deps: P8.99 · done: `uv run python -c "import nanoscope.learn"` exits 0
+- [ ] P9.02 Write the loader: `load_path`/`load_lesson` parse and validate the TOML and return every problem at once. · files: nanoscope/learn/loader.py (new), tests/test_learn.py (new) · deps: P9.01 · done: `uv run pytest tests/test_learn.py -k loader` passes, including a file with several errors
+- [ ] P9.03 Define the `lesson.toml` fields: title, level, prerequisites, experiment (run, study or check, with args), checks, depth tiers, `unlocks`, `forbid`, `[compute.cpu]` and `[compute.gpu]` (each with preset or budget and `estimate_minutes`). A `gpu` variant requires a `cpu` variant, and a CPU estimate over 15 min requires a `gpu` variant. · files: nanoscope/schemas/lesson.v1.json, nanoscope/learn/loader.py · deps: P9.02 · done: `uv run pytest tests/test_learn.py -k compute_variants` passes
+- [ ] P9.04 Parse `lesson.md` into "## Surface", "## Deep" and "## Reading"; a missing Surface section is an error. · files: nanoscope/learn/loader.py, tests/test_learn.py · deps: P9.02 · done: `uv run pytest tests/test_learn.py -k lesson_md` passes
+- [ ] P9.05 Store progress in `learn_dir()/progress.json` (schema `progress.v1`, atomic writes): per lesson, its state (not-started, started, checking, passed, failed), attempts, last check id and timestamps. · files: nanoscope/learn/progress.py (new), nanoscope/schemas/progress.v1.json (new), tests/test_learn.py · deps: P9.01, P6.08 · done: `uv run pytest tests/test_learn.py -k progress_store` passes
+- [ ] P9.06 Add `nanoscope learn list [--path]`, which prints paths and lessons with their state, lock marks and CPU/GPU estimates. · files: nanoscope/learn/cli.py (new), nanoscope/cli.py, tests/test_learn.py · deps: P9.05 · done: `uv run pytest tests/test_learn.py -k learn_list` asserts the output
+- [ ] P9.07 Add `nanoscope learn start <path/lesson>`. It copies `starter.py` (and `notebook.py` if present) into `workspace_dir()/lessons/<slug>/` without overwriting edits, records `started`, and prints the estimate and the next command. · files: nanoscope/learn/cli.py, tests/test_learn.py · deps: P9.06 · done: `uv run pytest tests/test_learn.py -k learn_start` passes, including the never-overwrite case
+- [ ] P9.08 Add `nanoscope learn check <lesson>`. It runs the lesson's checks in-process with live progress, writes `learn/checks/<id>.json` (schema `check.v1`), and prints each check's verdict and reasons. · files: nanoscope/learn/cli.py, nanoscope/learn/checks.py (new), nanoscope/schemas/check.v1.json (new) · deps: P9.07 · done: `uv run pytest tests/test_learn.py -k learn_check_output` asserts the pass and fail text
+- [ ] P9.09 Add `nanoscope learn check --queue`, which enqueues a `check` job on the interactive lane; `run-job` dispatches it. · files: nanoscope/learn/cli.py, nanoscope/jobs/execute.py · deps: P9.08, P7.99 · done: `uv run pytest tests/test_learn.py -k check_job` passes
+- [ ] P9.10 Write `nanoscope/estimate.py` with `estimate_seconds(model, preset, device)` from `hardware/bench.jsonl`, falling back to the lesson's declared estimate. · files: nanoscope/estimate.py (new), tests/test_estimate.py (new) · deps: P6.58 · done: `uv run pytest tests/test_estimate.py` passes
+
+### P9 · Checks
+- [ ] P9.11 Check `defines`: the class exists in the lesson file and builds on `meta`. · files: nanoscope/learn/checks.py, tests/test_checks.py (new) · deps: P9.08 · done: `uv run pytest tests/test_checks.py -k defines` passes
+- [ ] P9.12 Check `equivalent`: build the user's module with a fixed seed, copy weights through the lesson's declared mapping into the naive reference from `nanoscope/reference`, and compare on random inputs within the tolerance, reporting the max abs diff and the failing input shape. · files: nanoscope/learn/checks.py, tests/test_checks.py · deps: P9.11, P8.04 · done: `uv run pytest tests/test_checks.py -k equivalent` passes for a right and a wrong module
+- [ ] P9.13 Check `forbid`: an AST lint that refuses the listed names (e.g. `torch.nn.MultiheadAttention`, `F.scaled_dot_product_attention`) and locked `nanoscope.blocks` imports, with line numbers. · files: nanoscope/learn/checks.py, tests/test_checks.py · deps: P9.11 · done: `uv run pytest tests/test_checks.py -k forbid` asserts the line numbers
+- [ ] P9.14 Check `trains`: `run()` of the user's model on the lesson's CPU-variant preset reaches the metric threshold. · files: nanoscope/learn/checks.py, tests/test_checks.py · deps: P9.11 · done: `uv run pytest tests/test_checks.py -k trains` passes with `fake_data`
+- [ ] P9.15 Check `verdict`: `compare()` of A against B with n seeds gives the required verdict word. · files: nanoscope/learn/checks.py, tests/test_checks.py · deps: P9.14, P6.61 · done: `uv run pytest tests/test_checks.py -k verdict` passes
+- [ ] P9.16 Predictions: `nanoscope learn predict` records `prediction.toml` with a timestamp in `progress.json`. The `predicted` check refuses a prediction made after the run started and scores it against the CI with `statistics.score_prediction`. · files: nanoscope/learn/checks.py, nanoscope/statistics.py, nanoscope/learn/cli.py, tests/test_checks.py · deps: P9.15 · done: `uv run pytest tests/test_checks.py -k predicted` passes, including the late-prediction refusal
+- [ ] P9.17 Check `reproduces`: the result falls inside the CI of a shipped baseline. · files: nanoscope/learn/checks.py, tests/test_checks.py · deps: P9.15 · done: `uv run pytest tests/test_checks.py -k reproduces` passes
+- [ ] P9.18 Test that every check kind prints a readable reason on both pass and fail. · files: tests/test_checks.py · deps: P9.17, P9.16, P9.13 · done: `uv run pytest tests/test_checks.py -k visible_reasons` passes
+
+### P9 · Gating (plan 6.4)
+- [ ] P9.19 Add the `unlocks.v1` schema and the `learn/unlocks.json` store (atomic writes) holding `policy` and per id: how, lesson, at, evidence. · files: nanoscope/learn/unlocks.py (new), nanoscope/schemas/unlocks.v1.json (new), tests/test_gating.py (new) · deps: P9.05 · done: `uv run pytest tests/test_gating.py -k store` passes
+- [ ] P9.20 Create `nanoscope/learn/gating.py`: lockable ids come from the curricula's `unlocks`; `check(ids)` returns `Locked(id, lesson, message)` entries; the policy is `open` when `unlocks.json` is absent. · files: nanoscope/learn/gating.py (new), tests/test_gating.py · deps: P9.19, P9.02 · done: `uv run pytest tests/test_gating.py -k policy_default_open` passes
+- [ ] P9.21 Test that every lockable id has exactly one unlocking lesson and names a registered block or feature, and that every composite-tier block is lockable. · files: tests/test_gating.py · deps: P9.20, P9.55 · done: `uv run pytest tests/test_gating.py -k lock_table_consistent` passes
+- [ ] P9.22 Import gate: under `guided`, `nanoscope.blocks.__getattr__` raises `LockedBlockError` (a subclass of `ImportError`) for a locked name, naming the lesson, `nanoscope learn start ...` and `nanoscope learn unlock --all`. · files: nanoscope/blocks/__init__.py, nanoscope/learn/gating.py, tests/test_gating.py · deps: P9.20 · done: `uv run pytest tests/test_gating.py -k import_gate` asserts the message
+- [ ] P9.23 Build gate: constructing a non-shipped `Decoder`/`Composite` checks its blocks and features (gqa, qk_norm, z_loss, sliding_window) against the policy; shipped classes are skipped. · files: nanoscope/blocks/structure.py, nanoscope/blocks/composite.py, nanoscope/learn/gating.py · deps: P9.22, P8.08 · done: `uv run pytest tests/test_gating.py -k build_gate` passes, including `run(Modern, n_kv_heads=1)` under `guided`
+- [ ] P9.24 Static gate: `gating.scan(path)` (AST only) returns locked uses with line numbers, and `validate_run_request` reports them as problems. · files: nanoscope/learn/gating.py, nanoscope/specs.py, tests/test_gating.py · deps: P9.20, P6.47, P8.31 · done: `uv run pytest tests/test_gating.py -k scan` passes
+- [ ] P9.25 Earning: when every check of a lesson passes, `progress.json` marks it passed and its unlocks are written with evidence in one atomic update; a failure never unlocks anything. · files: nanoscope/learn/checks.py, nanoscope/learn/unlocks.py, tests/test_gating.py · deps: P9.18, P9.19 · done: `uv run pytest tests/test_gating.py -k earn` passes
+- [ ] P9.26 Add `nanoscope learn unlock --all` (policy open), `unlock <id> --reason` (skipped) and `learn lock --reset` (back to guided, keeping earned unlocks). · files: nanoscope/learn/cli.py, tests/test_gating.py · deps: P9.19 · done: `uv run pytest tests/test_gating.py -k unlock_cli` passes
+- [ ] P9.27 Make the first `nanoscope learn start` create `unlocks.json` with policy `guided` (`--open` skips gating) and print one line on how to unlock everything. · files: nanoscope/learn/cli.py, tests/test_gating.py · deps: P9.26, P9.07 · done: `uv run pytest tests/test_gating.py -k first_start_guided` asserts the line
+- [ ] P9.28 Make `nanoscope learn status` print the lessons and the unlock table (earned, skipped, open). · files: nanoscope/learn/cli.py, tests/test_gating.py · deps: P9.26 · done: `uv run pytest tests/test_gating.py -k learn_status` asserts the table
+- [ ] P9.29 Apply the gate to `nanoscope run file.py:Cls` and to Study variants, exiting with code 2 and the message, but never to shipped models. · files: nanoscope/cli.py, nanoscope/study.py, tests/test_gating.py · deps: P9.23 · done: `uv run pytest tests/test_gating.py -k cli_and_study` passes
+- [ ] P9.30 Route all learner state through `learn_dir(owner="local")` so deployment B can namespace it per user. · files: nanoscope/paths.py, nanoscope/learn/*.py · deps: P9.19 · done: `uv run pytest tests/test_gating.py -k owner_path` passes
+- [ ] P9.31 Write `docs/learn.md`: paths, checks, the CLI, locked components, the escape, how gating works in raw files versus the editor, and its honest limits. · files: docs/learn.md (new), README.md · deps: P9.28 · done: `grep -c 'not security' docs/learn.md` prints at least 1
+
+### P9 · Templates for building from primitives
+- [ ] P9.32 Attention template: a `Composite` with slots q, k, v, scores, mask, normalize, mix and out; its correct filling matches the reference. · files: nanoscope/blocks/templates/attention.py (new), tests/test_blocks.py · deps: P8.10, P8.11 · done: `uv run pytest tests/test_blocks.py -k attention_template` passes
+- [ ] P9.33 Block template: a `Composite` with norm, attn and mlp slots and residual placement. · files: nanoscope/blocks/templates/block.py (new), tests/test_blocks.py · deps: P9.32 · done: `uv run pytest tests/test_blocks.py -k block_template` passes
+- [ ] P9.34 Make `graph.parse`/`emit` treat filling a template slot as `replace_block` on the slot. · files: nanoscope/blocks/graph.py, tests/test_graph.py · deps: P9.33, P8.34 · done: `uv run pytest tests/test_graph.py -k template_slot` passes
+
+### P9 · Content: Foundations (level 0)
+- [ ] P9.35 Write `foundations/path.toml` (title, level 0, estimate). · files: nanoscope/curricula/foundations/path.toml (new) · deps: P9.03 · done: `uv run nanoscope learn list --path foundations` exits 0
+- [ ] P9.36 Write lesson F01 bigram (lesson files referencing notebook 01; `trains` + `reproduces` against the bigram baseline). · files: nanoscope/curricula/foundations/01-bigram/* (new), tests/solutions/foundations/01-bigram.py (new) · deps: P9.35, P9.17 · done: `uv run nanoscope learn list --path foundations` lists it
+- [ ] P9.37 Add F01's CI test: the solution passes and the CPU budget is under 2 minutes with cached data (network-marked, as in the notebook test). · files: tests/test_curricula.py (new) · deps: P9.36 · done: `uv run pytest tests/test_curricula.py -k f01` passes
+- [ ] P9.38 Write lesson F02, an MLP over a context window (`trains`, threshold below the bigram's bpb). · files: nanoscope/curricula/foundations/02-mlp/* (new), tests/solutions/foundations/02-mlp.py (new) · deps: P9.36 · done: `uv run nanoscope learn list --path foundations` lists it
+- [ ] P9.39 Add F02's CI test: the starter fails and the solution passes. · files: tests/test_curricula.py · deps: P9.38 · done: `uv run pytest tests/test_curricula.py -k f02` passes
+- [ ] P9.40 Write lesson F03, one causal attention head from primitives (`equivalent` against `naive_causal_attention` for one head; `forbid` SDPA and `MultiheadAttention`; an attention-template route). · files: nanoscope/curricula/foundations/03-attention-head/* (new), tests/solutions/foundations/03-attention-head.py (new) · deps: P9.38, P9.32, P9.13 · done: `uv run nanoscope learn list --path foundations` lists it
+- [ ] P9.41 Add F03's CI test: the starter fails `equivalent`, the solution passes, and a solution using SDPA fails `forbid`. · files: tests/test_curricula.py · deps: P9.40 · done: `uv run pytest tests/test_curricula.py -k f03` passes
+- [ ] P9.42 Write lesson F04, multi-head attention (`equivalent`; `unlocks = ["block:Attention"]`; both the code route and the template route). · files: nanoscope/curricula/foundations/04-multi-head/* (new), tests/solutions/foundations/04-multi-head.py (new) · deps: P9.40 · done: `uv run nanoscope learn list --path foundations` lists it
+- [ ] P9.43 Add F04's CI test: the starter fails, the solution passes, and passing unlocks `block:Attention`. · files: tests/test_curricula.py · deps: P9.42, P9.25 · done: `uv run pytest tests/test_curricula.py -k f04` passes
+- [ ] P9.44 Write lesson F05, the transformer block (residual, LayerNorm, GELU MLP; `equivalent` against the reference block; `unlocks = ["block:Block"]`). · files: nanoscope/curricula/foundations/05-block/* (new), tests/solutions/foundations/05-block.py (new) · deps: P9.42, P9.33 · done: `uv run nanoscope learn list --path foundations` lists it
+- [ ] P9.45 Add F05's CI test: the starter fails, the solution passes, and passing unlocks `block:Block`. · files: tests/test_curricula.py · deps: P9.44 · done: `uv run pytest tests/test_curricula.py -k f05` passes
+- [ ] P9.46 Write lesson F06, GPT-2 as a Decoder stack (`trains` + `reproduces` against the GPT-2 baseline; `unlocks = ["block:Decoder"]`; CPU variant on tinystories-5min). · files: nanoscope/curricula/foundations/06-gpt2/* (new), tests/solutions/foundations/06-gpt2.py (new) · deps: P9.44 · done: `uv run nanoscope learn list --path foundations` lists it
+- [ ] P9.47 Add F06's CI test: the solution passes with `fake_data`, and the full CPU variant is network-marked. · files: tests/test_curricula.py · deps: P9.46 · done: `uv run pytest tests/test_curricula.py -k f06` passes
+
+### P9 · Content: The modern block (level 1). Each item: lesson files, a solution, and a CI test (the starter fails `equivalent`, the solution passes and unlocks)
+- [ ] P9.48 Write `modern-block/path.toml` with Foundations as its prerequisite. · files: nanoscope/curricula/modern-block/path.toml (new) · deps: P9.35 · done: `uv run nanoscope learn list --path modern-block` exits 0
+- [ ] P9.49 Write lesson M01 RMSNorm (`unlocks block:RMSNorm`). · files: nanoscope/curricula/modern-block/01-rmsnorm/* (new), tests/solutions/modern-block/01-rmsnorm.py (new), tests/test_curricula.py · deps: P9.48, P9.25 · done: `uv run pytest tests/test_curricula.py -k m01` passes
+- [ ] P9.50 Write lesson M02 RoPE (`unlocks block:RoPE`; reference: complex rotation). · files: nanoscope/curricula/modern-block/02-rope/*, tests/solutions/modern-block/02-rope.py, tests/test_curricula.py · deps: P9.49 · done: `uv run pytest tests/test_curricula.py -k m02` passes
+- [ ] P9.51 Write lesson M03 SwiGLU (`unlocks block:SwiGLU`; the parameter-parity note is in Deep). · files: nanoscope/curricula/modern-block/03-swiglu/*, tests/solutions/modern-block/03-swiglu.py, tests/test_curricula.py · deps: P9.49 · done: `uv run pytest tests/test_curricula.py -k m03` passes
+- [ ] P9.52 Write lesson M04 GQA (`unlocks feature:gqa`; reference: explicitly repeated heads). · files: nanoscope/curricula/modern-block/04-gqa/*, tests/solutions/modern-block/04-gqa.py, tests/test_curricula.py · deps: P9.49, P9.23 · done: `uv run pytest tests/test_curricula.py -k m04` passes
+- [ ] P9.53 Write lesson M05 QK-norm (`unlocks feature:qk_norm`). · files: nanoscope/curricula/modern-block/05-qk-norm/*, tests/solutions/modern-block/05-qk-norm.py, tests/test_curricula.py · deps: P9.49 · done: `uv run pytest tests/test_curricula.py -k m05` passes
+- [ ] P9.54 Write lesson M06 z-loss (`unlocks feature:z_loss`; aux returned through `(logits, aux)`). · files: nanoscope/curricula/modern-block/06-z-loss/*, tests/solutions/modern-block/06-z-loss.py, tests/test_curricula.py · deps: P9.49 · done: `uv run pytest tests/test_curricula.py -k m06` passes
+- [ ] P9.55 Write lesson M07: assemble Modern, then a `verdict` against GPT-2. CPU variant: tinystories-5min, 3 seeds, about 10-15 min CPU estimate. GPU variant: tinystories-30min, 5 seeds, about 10 min on one GPU. Plus its CI test with `fake_data`. · files: nanoscope/curricula/modern-block/07-assemble/*, tests/solutions/modern-block/07-assemble.py, tests/test_curricula.py · deps: P9.50, P9.51, P9.52, P9.53, P9.54, P9.15 · done: `uv run pytest tests/test_curricula.py -k m07` passes
+
+### P9 · Migration and CI
+- [ ] P9.56 Mine the reading lists in `docs/archive/roadmap-v2.md` (B/R/S/K tiers) into the "## Reading" sections of all 13 lessons (plan 13). · files: nanoscope/curricula/*/*/lesson.md · deps: P9.55, P9.47, P6.66 · done: `grep -L '^## Reading' nanoscope/curricula/*/*/lesson.md` is empty
+- [ ] P9.57 Add `make test-curricula` and a CI job that runs every solution check on CPU (offline ones on every PR; network-marked ones in the notebook job). · files: Makefile, .github/workflows/ci.yml · deps: P9.55, P9.47 · done: `make test-curricula` exits 0
+- [ ] P9.58 Add an end-to-end test: `nanoscope learn` runs Foundations and The modern block from start to `passed`, using the solutions (`fake_data`). · files: tests/test_curricula.py · deps: P9.57 · done: `uv run pytest tests/test_curricula.py -k end_to_end` passes
+- [ ] P9.59 Link the M1 milestone in `docs/project-nanoscope.md` to the modern-block path, and its acceptance criteria to M07's verdict check. · files: docs/project-nanoscope.md · deps: P9.55 · done: `grep -n 'modern-block' docs/project-nanoscope.md` matches
+- [ ] P9.60 Test that a gated learner who never starts a lesson sees no change: with no `unlocks.json`, the first-notebook cells and `run(GPT2)` behave exactly as before. · files: tests/test_gating.py · deps: P9.22 · done: `uv run pytest tests/test_gating.py -k level0_untouched` passes
+
+### P9 · Gate
+- [ ] P9.99 PHASE GATE P9. Exit criteria: plan section 10 phase 9. · files: — · deps: P9.* · done: `make check` passes; `make test-curricula` passes; `uv run pytest tests/test_curricula.py -k f01 tests/test_first_model_notebook.py` passes (F01 and the notebook each under 2 min CPU); `uv run pytest tests/test_gating.py` passes; CI green; **USER ACTION** merge the PR
+
+---
+
+## P10 HTTP API
+
+### P10 · Library prerequisites
+- [ ] P10.01 Add `statistics.precision_plan(metric, preset, n_seeds)`, the expected CI half-width t·s/√n with s taken from the shipped baselines' seed spread. · files: nanoscope/statistics.py, tests/test_statistics.py (new) · deps: P9.99 · done: `uv run pytest tests/test_statistics.py -k precision_plan` passes
+- [ ] P10.02 Make `Comparison.to_dict()` include the curves per set and the precision plan. · files: nanoscope/compare.py, tests/test_compare.py · deps: P10.01, P6.60 · done: `uv run pytest tests/test_compare.py -k to_dict_curves` passes
+
+### P10 · Server skeleton and security
+- [ ] P10.03 Add the `server` extra (fastapi, uvicorn[standard], watchfiles, libcst, ruff) and httpx in dev. · files: pyproject.toml, uv.lock · deps: P9.99 · done: `uv sync --extra server && uv run python -c "import fastapi, watchfiles"` exits 0
+- [ ] P10.04 Create `nanoscope/server/app.py` with `create_app(settings)` (API under `/api`, `/api/health`, `/api/version`) and `nanoscope serve [--host 127.0.0.1] [--port 8000]`. · files: nanoscope/server/__init__.py (new), nanoscope/server/app.py (new), nanoscope/cli.py, tests/server/test_app.py (new) · deps: P10.03 · done: `uv run pytest tests/server/test_app.py -k health` passes
+- [ ] P10.05 Token handling: on a non-loopback start, generate a token into `home()/server/token` (mode 0600) and print a login URL; refuse a non-loopback bind without a token. · files: nanoscope/server/settings.py (new), tests/server/test_auth.py (new) · deps: P10.04 · done: `uv run pytest tests/server/test_auth.py -k refuse_without_token` passes
+- [ ] P10.06 Auth middleware: no auth on loopback; otherwise a bearer header, or an HttpOnly cookie set by `GET /login?token=`. · files: nanoscope/server/auth.py (new), tests/server/test_auth.py · deps: P10.05 · done: `uv run pytest tests/server/test_auth.py` passes
+- [ ] P10.07 Return errors as RFC 9457 `application/problem+json`. Library `ValueError`/`TypeError` messages pass through word for word as 422, and `LockedBlockError` becomes a 422 naming the lesson. · files: nanoscope/server/errors.py (new), tests/server/test_app.py · deps: P10.04 · done: `uv run pytest tests/server/test_app.py -k problem_json` asserts the exact library text
+- [ ] P10.08 Write Pydantic response models aligned with the JSON schemas, and a test that the OpenAPI component schemas agree with the schema files' required fields. · files: nanoscope/server/models.py (new), tests/server/test_models.py (new) · deps: P10.04 · done: `uv run pytest tests/server/test_models.py` passes
+- [ ] P10.09 Import guard test: `nanoscope/server` imports only public library names (`nanoscope.__all__` and the documented submodules). · files: tests/server/test_import_guard.py (new) · deps: P10.04 · done: `uv run pytest tests/server/test_import_guard.py -k public_only` passes
+- [ ] P10.10 Test that the API process never imports workspace modules: a sentinel module writes a file on import, every endpoint is exercised, and the file and `sys.modules` entry must be absent. · files: tests/server/test_import_guard.py · deps: P10.20, P10.31, P10.32 · done: `uv run pytest tests/server/test_import_guard.py -k never_imports_workspace` passes
+- [ ] P10.11 Test that no response body contains the values of `HF_TOKEN`, `WANDB_API_KEY` or `NANOSCOPE_TOKEN`. · files: tests/server/test_auth.py · deps: P10.35 · done: `uv run pytest tests/server/test_auth.py -k no_secrets` passes
+- [ ] P10.12 Add `nanoscope serve --worker cpu`, which starts a local worker subprocess for native (non-compose) use. · files: nanoscope/cli.py, nanoscope/server/app.py · deps: P10.04, P7.99 · done: `uv run pytest tests/server/test_app.py -k serve_with_worker` passes
+
+### P10 · Resources
+- [ ] P10.13 Add `GET /api/presets` and `/api/presets/{name}` (PresetSpec). · files: nanoscope/server/routes/presets.py (new), tests/server/test_routes.py (new) · deps: P10.08, P6.45 · done: `uv run pytest tests/server/test_routes.py -k presets` passes
+- [ ] P10.14 Add `GET /api/models` and `/api/models/{ref}`: ModelSpec for shipped models, and AST discovery (no import) for workspace models. · files: nanoscope/server/routes/models.py (new), tests/server/test_routes.py · deps: P10.08, P8.45 · done: `uv run pytest tests/server/test_routes.py -k models` passes
+- [ ] P10.15 Add `POST /api/models/{ref}/describe`, which enqueues a `describe` job; `run-job` handles the `describe` kind. · files: nanoscope/server/routes/models.py, nanoscope/jobs/execute.py · deps: P10.14, P8.41 · done: `uv run pytest tests/server/test_routes.py -k describe_job` passes
+- [ ] P10.16 Add `GET /api/blocks`: the palette with tier, lock state from gating, and certification. · files: nanoscope/server/routes/blocks.py (new), tests/server/test_routes.py · deps: P10.08, P8.46, P9.20 · done: `uv run pytest tests/server/test_routes.py -k blocks_lock_state` passes
+- [ ] P10.17 Add `GET /api/files?glob=` and `GET /api/files/{path}` with an ETag (mtime + hash), confined to the workspace with a traversal guard. · files: nanoscope/server/routes/files.py (new), tests/server/test_files.py (new) · deps: P10.04 · done: `uv run pytest tests/server/test_files.py -k "read or traversal"` passes
+- [ ] P10.18 Add `PUT /api/files/{path}` with `If-Match` and an atomic write; a mismatch returns 409 with a unified diff. · files: nanoscope/server/routes/files.py, tests/server/test_files.py · deps: P10.17 · done: `uv run pytest tests/server/test_files.py -k conflict_409` passes
+- [ ] P10.19 Add `GET /api/files/events`, SSE from `watchfiles` for external edits. · files: nanoscope/server/routes/files.py, tests/server/test_files.py · deps: P10.17 · done: `uv run pytest tests/server/test_files.py -k external_edit_event` passes
+- [ ] P10.20 Add `POST /api/files/{path}/graph` (parse) and `/graph/patch` (emit under `If-Match`); under `guided`, patches that add locked blocks get a 422. · files: nanoscope/server/routes/graph.py (new), tests/server/test_files.py · deps: P10.18, P8.34, P9.24 · done: `uv run pytest tests/server/test_files.py -k graph` passes
+- [ ] P10.21 Add `POST /api/files/{path}/lint`, which runs the ruff binary on the file and returns diagnostics without executing user code. · files: nanoscope/server/routes/files.py, tests/server/test_files.py · deps: P10.17 · done: `uv run pytest tests/server/test_files.py -k lint` passes
+- [ ] P10.22 Add `POST /api/validate/run` and `/api/validate/study`, returning every problem, locked uses included. · files: nanoscope/server/routes/validate.py (new), tests/server/test_routes.py · deps: P10.08, P6.47, P9.24 · done: `uv run pytest tests/server/test_routes.py -k validate` passes
+- [ ] P10.23 Add `GET /api/runs?prefix=&state=` and `GET /api/runs/{ref}` (config, status, summary). · files: nanoscope/server/routes/runs.py (new), tests/server/test_runs.py (new) · deps: P10.08, P6.15 · done: `uv run pytest tests/server/test_runs.py -k list` passes
+- [ ] P10.24 Add `GET /api/runs/{ref}/metrics?since_step=`, `/samples`, `/blockstats` and `/checkpoints`. · files: nanoscope/server/routes/runs.py, tests/server/test_runs.py · deps: P10.23 · done: `uv run pytest tests/server/test_runs.py -k run_files` passes
+- [ ] P10.25 Add `POST /api/runs`, which enqueues on the interactive lane: a done ref returns 200 with the run, and a queued or running one returns 202 with its job. · files: nanoscope/server/routes/runs.py, tests/server/test_runs.py · deps: P10.23, P7.06 · done: `uv run pytest tests/server/test_runs.py -k submit` passes
+- [ ] P10.26 Add `POST /api/runs/{ref}/stop` and `/resume`. · files: nanoscope/server/routes/runs.py, tests/server/test_runs.py · deps: P10.25, P6.35 · done: `uv run pytest tests/server/test_runs.py -k stop_resume` passes
+- [ ] P10.27 Add `POST /api/runs/{ref}/generate`: a `generate` job on the interactive lane with a timeout; the worker keeps an LRU of loaded models; never runs in the API process. · files: nanoscope/server/routes/runs.py, nanoscope/jobs/execute.py, nanoscope/jobs/worker.py · deps: P10.25, P6.41 · done: `uv run pytest tests/server/test_runs.py -k generate` passes, including the timeout
+- [ ] P10.28 Write the SSE tailer `nanoscope/server/tail.py`: state events from `status.json`; step events coalesced to at most 4/s; eval, sample, checkpoint and blockstats events never coalesced; `reset` when the file shrinks or its inode changes. · files: nanoscope/server/tail.py (new), tests/server/test_tail.py (new) · deps: P10.04 · done: `uv run pytest tests/server/test_tail.py` passes, including the reset case
+- [ ] P10.29 Add `GET /api/runs/{ref}/events` and `GET /api/events?prefix=` (multiplexed). · files: nanoscope/server/routes/events.py (new), tests/server/test_tail.py · deps: P10.28 · done: `uv run pytest tests/server/test_tail.py -k endpoints` passes
+- [ ] P10.30 Add `POST /api/compare {sets, baseline, metric}`, returning rows, notes, verdicts, curves and the precision plan, equal to `compare().to_dict()`. · files: nanoscope/server/routes/compare.py (new), tests/server/test_routes.py · deps: P10.02 · done: `uv run pytest tests/server/test_routes.py -k compare_equals_library` passes
+- [ ] P10.31 Add `GET/POST /api/studies` (POST saves a TOML spec into the workspace), `POST /api/studies/{name}/run` (explore), `/stop` and `GET .../report`. · files: nanoscope/server/routes/studies.py (new), tests/server/test_studies.py (new) · deps: P10.08, P6.52, P7.17 · done: `uv run pytest tests/server/test_studies.py` passes
+- [ ] P10.32 Add the learn endpoints: `GET /api/curricula` and `/api/curricula/{path}/{lesson}` (markdown sections, estimates, unlocks), `POST .../start`, `POST .../check` (job) and `GET /api/learn/progress`. · files: nanoscope/server/routes/learn.py (new), tests/server/test_learn.py (new) · deps: P10.08, P9.09 · done: `uv run pytest tests/server/test_learn.py -k lessons` passes
+- [ ] P10.33 Add the gating endpoints: `GET /api/learn/unlocks`, `POST /api/learn/unlock {id|all, reason}`, `POST /api/learn/policy`, and `GET /api/learn/events` (SSE when `unlocks.json` or `progress.json` changes). · files: nanoscope/server/routes/learn.py, tests/server/test_learn.py · deps: P10.32, P9.26 · done: `uv run pytest tests/server/test_learn.py -k unlocks` passes
+- [ ] P10.34 Add the data and hardware endpoints: `GET /api/data` (with `prepare.json` state), `POST /api/data/{preset}/prepare` (job), `GET /api/hardware`, `POST /api/bench` (job) and `GET /api/hardware/bench`. · files: nanoscope/server/routes/hardware.py (new), tests/server/test_routes.py · deps: P10.08, P6.55, P6.58 · done: `uv run pytest tests/server/test_routes.py -k "data or hardware"` passes
+- [ ] P10.35 Add the jobs endpoints: `GET /api/jobs`, `GET /api/jobs/{id}`, `POST /api/jobs/{id}/cancel` and `GET /api/workers`. · files: nanoscope/server/routes/jobs.py (new), tests/server/test_routes.py · deps: P10.08, P7.21 · done: `uv run pytest tests/server/test_routes.py -k jobs` passes
+- [ ] P10.36 Add `POST /api/sync/hub`, a job that runs `HubSync.pull` for runs started on Kaggle or Colab. · files: nanoscope/server/routes/hub.py (new), nanoscope/jobs/execute.py · deps: P10.35 · done: `uv run pytest tests/server/test_routes.py -k sync_hub` passes with the FakeHub from test_study
+- [ ] P10.37 Add `GET /api/schemas/{name}`, which serves the `nanoscope/schemas` files. · files: nanoscope/server/routes/meta.py (new) · deps: P10.04 · done: `uv run pytest tests/server/test_routes.py -k schemas` passes
+- [ ] P10.38 Serve the built SPA from `nanoscope/server/static/` at `/` when present (with an index fallback for client routes); the API stays under `/api`. · files: nanoscope/server/app.py · deps: P10.04 · done: `uv run pytest tests/server/test_app.py -k spa_fallback` passes
+
+### P10 · OpenAPI, end-to-end tests, docs
+- [ ] P10.39 Commit `docs/openapi.json`, add `make openapi` to regenerate it, and add a test that fails when it is stale. · files: docs/openapi.json (new), Makefile, tests/server/test_openapi.py (new) · deps: P10.37 · done: `make openapi && git diff --exit-code docs/openapi.json`
+- [ ] P10.40 Plan done-when: an httpx test submits a Bigram run, streams it over SSE to `done`, and gets `/api/compare` rows equal to `compare()`. · files: tests/server/test_e2e.py (new) · deps: P10.25, P10.29, P10.30, P10.12 · done: `uv run pytest tests/server/test_e2e.py -k bigram_sse_compare` passes
+- [ ] P10.41 Plan done-when: graph parse and patch through `/api/files` round-trip a fixture. · files: tests/server/test_e2e.py · deps: P10.20 · done: `uv run pytest tests/server/test_e2e.py -k graph_roundtrip` passes
+- [ ] P10.42 Plan done-when: a CLI-started run appears in `/api/events`. · files: tests/server/test_e2e.py · deps: P10.29 · done: `uv run pytest tests/server/test_e2e.py -k cli_run_in_events` passes
+- [ ] P10.43 Plan done-when: under `guided`, a patch or run that uses a locked block gets a 422 naming the unlock lesson. · files: tests/server/test_e2e.py · deps: P10.20, P10.25 · done: `uv run pytest tests/server/test_e2e.py -k locked_422` passes
+- [ ] P10.44 Add a `server` CI job that installs the extra and runs `tests/server`. · files: .github/workflows/ci.yml · deps: P10.40 · done: the job is green on the PR
+- [ ] P10.45 Write `docs/server.md`: running the server, the token and login URL, an endpoint overview, the SSE event types, and the CLI equivalent of each resource. · files: docs/server.md (new) · deps: P10.39 · done: `grep -c '^## ' docs/server.md` prints at least 4
+- [ ] P10.46 Test that every POST endpoint body has the same defaults as the library function it calls, so an empty body gives level-0 behaviour. · files: tests/server/test_models.py · deps: P10.31, P10.25 · done: `uv run pytest tests/server/test_models.py -k level0_defaults` passes
+
+### P10 · Gate
+- [ ] P10.99 PHASE GATE P10. Exit criteria: plan section 10 phase 10. · files: — · deps: P10.* · done: `make check` passes; `uv run pytest tests/server` passes; `uv run pytest tests/test_first_model_notebook.py` passes; `make openapi && git diff --exit-code docs/openapi.json`; P10.05, P10.09, P10.10 and P10.40-P10.43 are ticked; CI green; **USER ACTION** merge the PR
+
+---
+
+## P11 Release prep: PyPI + GHCR (decision 11.10)
+
+- [ ] P11.01 Add an MIT `LICENSE` (decided by the user, 2026-10-05; copyright holder almajd3713) and the `license` field. · files: LICENSE (new), pyproject.toml · deps: P10.99 · done: `test -f LICENSE && grep -n '^license' pyproject.toml`
+- [ ] P11.02 Fill in the pyproject metadata (authors, URLs, classifiers, keywords) and single-source the version from `nanoscope/__init__.py` (`dynamic = ["version"]`, `[tool.hatch.version]`). · files: pyproject.toml · deps: P11.01 · done: `uv build` produces a wheel whose version equals `uv run python -c "import nanoscope; print(nanoscope.__version__)"`
+- [ ] P11.03 Add a wheel-content test: the wheel includes baselines, schemas, curricula and reference, and excludes `tests/solutions`, `notebooks` and `runs`. · files: tests/test_packaging.py (new) · deps: P11.02 · done: `uv run pytest tests/test_packaging.py -k wheel_contents` passes
+- [ ] P11.04 Exclude `data/`, `runs/`, `.kaggle-outputs` and experiment artifacts from the sdist. · files: pyproject.toml, tests/test_packaging.py · deps: P11.02 · done: `uv run pytest tests/test_packaging.py -k sdist_excludes` passes
+- [ ] P11.05 Write `CHANGELOG.md` with the 0.3.0 entry (phases 6-10). · files: CHANGELOG.md (new) · deps: P11.02 · done: `grep -n '0.3.0' CHANGELOG.md` matches
+- [ ] P11.06 Set the version to `0.3.0rc1` for the TestPyPI dry run. · files: nanoscope/__init__.py · deps: P11.02 · done: `uv run python -c "import nanoscope; assert nanoscope.__version__=='0.3.0rc1'"`
+- [ ] P11.07 Add a release workflow: on a `v*` tag, build the sdist and wheel, test the installed wheel, and publish with `pypa/gh-action-pypi-publish` via trusted publishing (rc tags go to TestPyPI). · files: .github/workflows/release.yml (new) · deps: P11.03 · done: `uvx actionlint .github/workflows/release.yml` exits 0 (or the workflow passes a manual `workflow_dispatch` dry run)
+- [ ] P11.08 **USER ACTION** Check that `nanoscope-lab` is free on PyPI and TestPyPI, and register the trusted publishers for `almajd3713/nanoscope` and `release.yml`. · files: — · deps: P11.07 · done: the user confirms both publishers exist
+- [ ] P11.09 **USER ACTION** Push the tag `v0.3.0rc1` to publish to TestPyPI, then check `pip install -i https://test.pypi.org/simple --extra-index-url https://pypi.org/simple nanoscope-lab==0.3.0rc1` in a clean venv. · files: — · deps: P11.08, P11.06 · done: `nanoscope presets` works from that venv (the user reports it)
+- [ ] P11.10 Write `docker/Dockerfile.cpu`: python:3.12-slim, CPU torch from the PyTorch CPU index, the wheel with `[server]` installed, non-root uid 1000, `NANOSCOPE_HOME=/nanoscope`, and a HEALTHCHECK on `/api/health`; add `.dockerignore`. · files: docker/Dockerfile.cpu (new), .dockerignore (new) · deps: P11.03 · done: `docker build -f docker/Dockerfile.cpu -t nanoscope:cpu .` succeeds in CI
+- [ ] P11.11 Add an image smoke test in CI: `docker run --rm nanoscope:cpu nanoscope presets`, then `id -u` prints 1000, and the image size is printed. · files: .github/workflows/image.yml (new) · deps: P11.10 · done: the image job is green on the PR
+- [ ] P11.12 Make `image.yml` push `ghcr.io/almajd3713/nanoscope:cpu` and `:cpu-<version>` with OCI labels on a tag, and only build on PRs. · files: .github/workflows/image.yml · deps: P11.11 · done: `uvx actionlint .github/workflows/image.yml` exits 0
+- [ ] P11.13 **USER ACTION** Allow Actions to write packages to GHCR, and make the package public after the first push. · files: — · deps: P11.12 · done: `docker pull ghcr.io/almajd3713/nanoscope:cpu` works anonymously after P11.14
+- [ ] P11.14 **USER ACTION** Set the version to `0.3.0` (the agent prepares the commit), push the tag `v0.3.0`, and verify `pip install nanoscope-lab` and `docker pull ghcr.io/almajd3713/nanoscope:cpu`. · files: nanoscope/__init__.py · deps: P11.09, P11.13, P11.05 · done: `pip index versions nanoscope-lab` lists 0.3.0
+- [ ] P11.15 Add an "Install" section to the README (`pip install nanoscope-lab`, `[server]`, the image), keeping the dev install. · files: README.md · deps: P11.14 · done: `grep -n 'pip install nanoscope-lab' README.md` matches
+- [ ] P11.16 Make `pip install nanoscope-lab` the default install in `kaggle.ipynb`, keeping the git clone as an option for branches, with at most 4 code cells. · files: notebooks/kaggle.ipynb · deps: P11.14 · done: `uv run pytest -k kaggle_notebook` passes
+- [ ] P11.99 PHASE GATE P11. Exit criteria: plan section 10 phase 11. · files: — · deps: P11.* · done: `make check` passes; `uv run pytest tests/test_packaging.py` passes; the image job is green; `pip index versions nanoscope-lab` lists the release; **USER ACTION** merge the PR
+
+---
+
+## P12 docker-compose
+
+- [ ] P12.01 Write `docker/Dockerfile.cuda` on a pinned PyTorch CUDA runtime base, with the same layout as the CPU image. · files: docker/Dockerfile.cuda (new) · deps: P11.99 · done: `docker build -f docker/Dockerfile.cuda .` succeeds (CI or the user's machine)
+- [ ] P12.02 Write a root `compose.yaml` with `api`, `worker`, `worker-gpu` (profile gpu) and `notebook` (profile notebook), the volumes (`nanoscope-home`, `nanoscope-data`, `hf-cache`, `compile-cache`) and the workspace bind; images come from GHCR with a build fallback. · files: compose.yaml (new) · deps: P12.01 · done: `docker compose config -q` exits 0
+- [ ] P12.03 Harden the workers: user 1000, `cap_drop: [ALL]`, `no-new-privileges`, `read_only` with a tmpfs `/tmp`, `mem_limit`/`cpus`/`pids_limit` from env, no Docker socket. · files: compose.yaml · deps: P12.02 · done: `docker compose config | grep -c 'no-new-privileges'` is at least 2
+- [ ] P12.04 Publish the API only on `127.0.0.1:8000`; generate the token into the home volume and log the login URL. · files: compose.yaml, nanoscope/server/settings.py · deps: P12.02, P10.05 · done: `docker compose config | grep -n '127.0.0.1:8000'` matches
+- [ ] P12.05 GPU profile: an NVIDIA reservation with `count: all`, `NANOSCOPE_SLOTS`, and documented `NVIDIA_VISIBLE_DEVICES` use for one worker per GPU. · files: compose.yaml, docs/deploy.md · deps: P12.02 · done: `docker compose --profile gpu config -q` exits 0
+- [ ] P12.06 Support `NANOSCOPE_JOBS_OFFLINE=1` in `run-job`: jobs that need the network are refused with a message once data is cached. · files: nanoscope/jobs/execute.py, tests/test_jobs.py · deps: P11.99 · done: `uv run pytest tests/test_jobs.py -k offline` asserts the message
+- [ ] P12.07 Set `TORCHINDUCTOR_CACHE_DIR` and `HF_HOME` to the cache volumes in all services. · files: compose.yaml · deps: P12.02 · done: `docker compose config | grep -c TORCHINDUCTOR_CACHE_DIR` is at least 2
+- [ ] P12.08 Add `git config --system safe.directory /nanoscope/workspace` to the images, and document PUID/PGID for bind-mount ownership. · files: docker/Dockerfile.cpu, docker/Dockerfile.cuda, docs/deploy.md · deps: P12.01 · done: `docker run --rm nanoscope:cpu git config --system --get safe.directory` prints /nanoscope/workspace
+- [ ] P12.09 Add the `notebook` service (decision 11.7): marimo editing `workspace/notebooks`, the same `NANOSCOPE_HOME`, a loopback port and a token. · files: compose.yaml, pyproject.toml (`notebook` extra with marimo), docker/Dockerfile.cpu · deps: P12.02 · done: `docker compose --profile notebook config -q` exits 0
+- [ ] P12.10 Write marimo versions of notebooks 01-04 under `notebooks/marimo/`. The user allows breaking away from the `.ipynb` files (2026-10-05): once the marimo versions work, retire the `.ipynb` notebooks (keep a Colab/Kaggle path only if it is cheap) and repoint the first-notebook guard test at the marimo version. · files: notebooks/marimo/01_first_model.py ... 04_ablations.py (new) · deps: P12.09 · done: `uv run --extra notebook marimo check notebooks/marimo/` exits 0
+- [ ] P12.11 Let lessons ship an optional marimo `notebook.py`; the loader checks that it defines a marimo app, and `learn start` copies it. · files: nanoscope/learn/loader.py, tests/test_learn.py · deps: P12.10 · done: `uv run pytest tests/test_learn.py -k marimo_notebook` passes
+- [ ] P12.12 Add a pytest `compose` marker and `tests/compose/test_compose.py`: compose up, submit a bigram over the API, reach `done` in under 2 min with cached data, and find the run folder on the home volume. · files: pyproject.toml, tests/compose/test_compose.py (new) · deps: P12.04 · done: `uv run pytest -m compose tests/compose -k bigram_under_2min` passes locally
+- [ ] P12.13 Add a CI job `compose` that seeds `nanoscope-data` from the actions cache and runs the compose tests. · files: .github/workflows/ci.yml · deps: P12.12 · done: the job is green on the PR
+- [ ] P12.14 Test that `down`/`up` keeps runs and resumes a run that was mid-training. · files: tests/compose/test_compose.py · deps: P12.12 · done: `uv run pytest -m compose tests/compose -k restart_resumes` passes
+- [ ] P12.15 Test that workers run as uid 1000 with CapDrop ALL and the limits set. · files: tests/compose/test_compose.py · deps: P12.12, P12.03 · done: `uv run pytest -m compose tests/compose -k hardened` passes
+- [ ] P12.16 **USER ACTION** Run `docker compose --profile gpu up` on a GPU machine and check that `POST /api/bench` reports `cuda`; record it in the PR. · files: PR description · deps: P12.05 · done: the PR shows the bench output with cuda
+- [ ] P12.17 Write `docs/deploy.md`: compose usage, profiles, token login, SSH tunnel or Tailscale, backing up `nanoscope-home` (with `queue.db`), WSL2/Docker Desktop, native `nanoscope serve` for MPS/ROCm, and Kaggle sync. · files: docs/deploy.md (new) · deps: P12.14 · done: `grep -c '^## ' docs/deploy.md` prints at least 6
+- [ ] P12.18 Update the README for four levels, `nanoscope serve`, `docker compose up` and `nanoscope learn` (plan 13). · files: README.md · deps: P12.17 · done: `grep -cE 'docker compose up|nanoscope learn|nanoscope serve' README.md` prints at least 3
+- [ ] P12.19 Add `NANOSCOPE_TOKEN`, `NANOSCOPE_WORKSPACE`, `NANOSCOPE_SLOTS` and `NANOSCOPE_JOBS_OFFLINE` to `.env.example`. · files: .env.example · deps: P12.02 · done: `grep -c NANOSCOPE_ .env.example` prints at least 4
+- [ ] P12.99 PHASE GATE P12. Exit criteria: plan section 10 phase 12. · files: — · deps: P12.* · done: `make check` passes; `uv run pytest tests/test_first_model_notebook.py` passes; the compose CI job is green (bigram under 2 min, restart resumes, hardened); P12.16 recorded; **USER ACTION** merge the PR
+
+---
+
+## P13 GUI MVP part 1: shell, Learn and Tinker screens
+
+### P13 · Web foundation
+- [ ] P13.01 Scaffold `web/` with Vite, React and strict TypeScript under pnpm, with dev, build, lint, typecheck and test scripts. · files: web/package.json (new), web/pnpm-lock.yaml (new), web/tsconfig.json (new), web/vite.config.ts (new), web/src/main.tsx (new) · deps: P12.99 · done: `pnpm -C web build` exits 0
+- [ ] P13.02 Add a CI job `web` running ESLint, `tsc --noEmit`, vitest and the build. · files: web/eslint.config.js (new), .github/workflows/ci.yml · deps: P13.01 · done: the job is green on the PR
+- [ ] P13.03 Generate the API client from `docs/openapi.json` (openapi-typescript + openapi-fetch) into `web/src/api/`, add `make web-client`, and fail CI when it is stale. · files: web/src/api/ (new), Makefile, .github/workflows/ci.yml · deps: P13.01, P10.39 · done: `make web-client && git diff --exit-code web/src/api`
+- [ ] P13.04 Add the TanStack Query provider and an error boundary that shows problem+json `detail` verbatim. · files: web/src/app/providers.tsx (new), web/src/components/ProblemView.tsx (new) · deps: P13.03 · done: `pnpm -C web test -- ProblemView` passes and asserts the verbatim text
+- [ ] P13.05 Write the SSE hook `useEvents(url)` with reconnect, `Last-Event-ID`, `reset` handling and cookie auth, with vitest tests on a mock EventSource. · files: web/src/hooks/useEvents.ts (new), web/src/hooks/useEvents.test.ts (new) · deps: P13.04 · done: `pnpm -C web test -- useEvents` passes
+- [ ] P13.06 Login flow: the SPA handles 401 by explaining where to find the login URL (server log, or `docker compose logs api`). · files: web/src/pages/Login.tsx (new) · deps: P13.04, P10.06 · done: `pnpm -C web test -- Login` passes
+- [ ] P13.07 Build the SPA into `nanoscope/server/static/` for the wheel (release workflow) and the image (a multi-stage Dockerfile). · files: Makefile (`make web`), docker/Dockerfile.cpu, .github/workflows/release.yml · deps: P13.01, P10.38 · done: `make web && uv build && unzip -l dist/*.whl | grep -c server/static/index.html` prints 1
+- [ ] P13.08 Build the app shell: nav (Learn, Runs, Compare, Studies, Hardware, Components) and a level switch whose choice is kept in localStorage inside try/catch. · files: web/src/app/Shell.tsx (new), web/src/app/level.ts (new) · deps: P13.04 · done: `pnpm -C web test -- Shell` passes, including when localStorage throws
+- [ ] P13.09 Write `web/src/levels.ts`, the single table of which controls each level shows; hidden fields keep their level-0 defaults and are never sent changed. · files: web/src/levels.ts (new), web/src/levels.test.ts (new) · deps: P13.08 · done: `pnpm -C web test -- levels` passes
+- [ ] P13.10 Add an `EquivalentCommand` component that every screen uses to show its CLI/Python equivalent. · files: web/src/components/EquivalentCommand.tsx (new) · deps: P13.08 · done: `grep -rL EquivalentCommand web/src/pages/*.tsx` lists only Login.tsx
+- [ ] P13.11 First-run onboarding: "I'm learning" (guided) or "I know this" (open) calls `POST /api/learn/policy`. · files: web/src/pages/Onboarding.tsx (new) · deps: P13.08, P10.33 · done: `pnpm -C web test -- Onboarding` passes
+
+### P13 · Screens
+- [ ] P13.12 Lessons list: paths and lessons with their state, lock marks and CPU/GPU estimates. · files: web/src/pages/Lessons.tsx (new) · deps: P13.08, P10.32 · done: `pnpm -C web test -- Lessons` passes
+- [ ] P13.13 Lesson page: `lesson.md` with Surface, Deep and Reading tabs (sanitized markdown), the estimates of both compute variants, and "Passing unlocks: …". · files: web/src/pages/Lesson.tsx (new) · deps: P13.12 · done: `pnpm -C web test -- Lesson` passes
+- [ ] P13.14 Lesson page actions: Start (`POST start`, then shows the starter file read-only with a link to the model page once P14 lands) and Train (runs the lesson's experiment and opens the run page). · files: web/src/pages/Lesson.tsx · deps: P13.13 · done: `pnpm -C web test -- Lesson.actions` passes
+- [ ] P13.15 Lesson Check: enqueues the check job, shows live progress, then each check's verdict with its reasons, and refreshes progress and unlocks. · files: web/src/pages/Lesson.tsx, web/src/components/CheckResult.tsx (new) · deps: P13.14, P13.05 · done: `pnpm -C web test -- CheckResult` passes
+- [ ] P13.16 Predict box on the lesson page and the run form: it records a prediction before the run, and the result view scores it. · files: web/src/components/Predict.tsx (new) · deps: P13.15, P9.16 · done: `pnpm -C web test -- Predict` passes
+- [ ] P13.17 Run page header: state, ETA, device and step from SSE; a failed run shows its error and traceback tail from `status.json`. · files: web/src/pages/Run.tsx (new) · deps: P13.05, P10.29 · done: `pnpm -C web test -- Run.header` passes
+- [ ] P13.18 Live loss/bpb curve with uPlot, with the baseline band from the shipped seeds and the eval points. · files: web/src/components/Curve.tsx (new) · deps: P13.17 · done: `pnpm -C web test -- Curve` passes
+- [ ] P13.19 Samples timeline on the run page. · files: web/src/components/Samples.tsx (new) · deps: P13.17 · done: `pnpm -C web test -- Samples` passes
+- [ ] P13.20 Run actions: stop, resume, generate (a prompt box) and duplicate. · files: web/src/pages/Run.tsx · deps: P13.17, P10.26, P10.27 · done: `pnpm -C web test -- Run.actions` passes
+- [ ] P13.21 Run form generated from ModelSpec/PresetSpec (Tinker): fields with help text, live `/api/validate/run` problems inline, seeds. · files: web/src/pages/RunForm.tsx (new) · deps: P13.09, P10.22 · done: `pnpm -C web test -- RunForm` passes
+- [ ] P13.22 "Duplicate and change one thing" flow (Tinker), which pre-fills the form from a run's config. · files: web/src/pages/RunForm.tsx · deps: P13.21 · done: `pnpm -C web test -- RunForm.duplicate` passes
+- [ ] P13.23 Runs list with prefix and state filters and live state. · files: web/src/pages/Runs.tsx (new) · deps: P13.05, P10.23 · done: `pnpm -C web test -- Runs` passes
+- [ ] P13.24 Compare page: the verdict table rendered from the API rows verbatim, notes as warnings, per-seed curves. · files: web/src/pages/Compare.tsx (new) · deps: P13.18, P10.30 · done: `pnpm -C web test -- Compare` asserts the verdict text equals the fixture's
+- [ ] P13.25 Forest plot in plain SVG of the deltas with CIs, using API values only. · files: web/src/components/ForestPlot.tsx (new) · deps: P13.24 · done: `pnpm -C web test -- ForestPlot` passes
+- [ ] P13.26 Precision plan line ("with 5 seeds the CI would be about ±0.008") from the API. · files: web/src/pages/Compare.tsx · deps: P13.24 · done: `pnpm -C web test -- Compare.precision` passes
+- [ ] P13.27 Components page: the lock state of every block and feature, how each was unlocked, an evidence link, Unlock all (with a confirm step) and unlock-one with a reason. · files: web/src/pages/Components.tsx (new) · deps: P13.08, P10.33 · done: `pnpm -C web test -- Components` passes
+- [ ] P13.28 Queue mini panel in the shell footer: current jobs with cancel. · files: web/src/components/QueuePanel.tsx (new) · deps: P13.08, P10.35 · done: `pnpm -C web test -- QueuePanel` passes
+- [ ] P13.29 Accessibility basics: every control reachable by keyboard, and verdicts never shown by colour alone. · files: web/src/** · deps: P13.24 · done: `pnpm -C web test -- a11y` (axe on the main pages) passes
+- [ ] P13.30 Guard against statistics in the frontend: an ESLint rule that forbids statistics libraries, and a test that the compare page shows `rows[].verdict` unchanged. · files: web/eslint.config.js, web/src/pages/Compare.test.tsx · deps: P13.24 · done: `pnpm -C web lint` passes with the rule on
+
+### P13 · End-to-end tests and docs
+- [ ] P13.31 Set up Playwright in `web/e2e` against compose, with a CI job `e2e`. · files: web/e2e/ (new), web/playwright.config.ts (new), .github/workflows/ci.yml · deps: P13.02, P12.13 · done: `pnpm -C web exec playwright test --list` exits 0 and the e2e job is green
+- [ ] P13.32 Plan done-when: Foundations lesson 1 goes start → train → check passed in at most 6 clicks. · files: web/e2e/lesson1.spec.ts (new) · deps: P13.31, P13.15 · done: `pnpm -C web exec playwright test lesson1` passes
+- [ ] P13.33 Plan done-when: Learn and Tinker submit identical `POST /api/runs` bodies when nothing was touched (checked by request interception). · files: web/e2e/levels.spec.ts (new) · deps: P13.31, P13.21 · done: `pnpm -C web exec playwright test levels` passes
+- [ ] P13.34 Plan done-when: a failed run shows its error from `status.json`. · files: web/e2e/failed-run.spec.ts (new) · deps: P13.31, P13.17 · done: `pnpm -C web exec playwright test failed-run` passes
+- [ ] P13.35 Plan done-when: Unlock all on the Components page sets policy `open` in `learn/unlocks.json`. · files: web/e2e/unlock.spec.ts (new) · deps: P13.31, P13.27 · done: `pnpm -C web exec playwright test unlock` passes
+- [ ] P13.36 Write `docs/gui.md`: screens, levels and the equivalent command for each screen. · files: docs/gui.md (new) · deps: P13.32 · done: `grep -c '^## ' docs/gui.md` prints at least 4
+- [ ] P13.99 PHASE GATE P13. Exit criteria: plan section 10 phase 13. · files: — · deps: P13.* · done: `make check` passes; the web and e2e CI jobs are green (P13.32-P13.35); `uv run pytest tests/test_first_model_notebook.py` passes; `make web-client && git diff --exit-code web/src/api`; **USER ACTION** merge the PR
+
+---
+
+## P14 GUI MVP part 2: model page and drag-and-drop graph editing (decision 11.5)
+
+### P14 · Library
+- [ ] P14.01 Add the `emit` edits `add_layer`, `remove_layer` (on `n_layers` or the pattern list), `set_pattern` and `fill_slot`, each producing a minimal diff. · files: nanoscope/blocks/graph.py, tests/test_graph.py · deps: P13.99, P9.34 · done: `uv run pytest tests/test_graph.py -k structural_edits` passes
+- [ ] P14.02 Extend the property test to cover every edit operation in random sequences, with `parse(emit(g)) == g`. · files: tests/test_graph.py · deps: P14.01 · done: `uv run pytest tests/test_graph.py -k property_all_ops` passes
+- [ ] P14.03 Certification: a `certify` job kind runs the equivalence check of a registered user block against its reference and stores `home()/certs/<source_sha256>.json`; the badge is invalid once the source hash changes. · files: nanoscope/blocks/certify.py (new), nanoscope/jobs/execute.py, nanoscope/schemas/cert.v1.json (new), tests/test_blocks.py · deps: P13.99, P9.12 · done: `uv run pytest tests/test_blocks.py -k certify` passes, including the invalidation
+- [ ] P14.04 Make `/api/blocks` list workspace user blocks (AST discovery) with their certification state, and add `POST /api/blocks/{name}/certify` (job). · files: nanoscope/server/routes/blocks.py, tests/server/test_routes.py · deps: P14.03 · done: `uv run pytest tests/server/test_routes.py -k certify` passes
+- [ ] P14.05 Make `/api/files/{path}/graph/patch` accept every edit operation and refuse locked blocks under `guided`. · files: nanoscope/server/routes/graph.py, tests/server/test_files.py · deps: P14.01 · done: `uv run pytest tests/server/test_files.py -k patch_all_ops` passes
+
+### P14 · Code editor
+- [ ] P14.06 Monaco component that opens and saves through `/api/files` with the ETag, shows a dirty marker, and saves on Ctrl-S. · files: web/src/components/Editor.tsx (new) · deps: P13.99 · done: `pnpm -C web test -- Editor` passes
+- [ ] P14.07 409 conflict dialog showing the server's diff, with "keep mine" and "take theirs". · files: web/src/components/ConflictDialog.tsx (new) · deps: P14.06 · done: `pnpm -C web test -- ConflictDialog` passes
+- [ ] P14.08 External edits from `/api/files/events` reload clean buffers and prompt for dirty ones. · files: web/src/components/Editor.tsx · deps: P14.06 · done: `pnpm -C web test -- Editor.external` passes
+- [ ] P14.09 ruff diagnostics on save, through `/api/files/{path}/lint`, shown as Monaco markers. · files: web/src/components/Editor.tsx · deps: P14.06, P10.21 · done: `pnpm -C web test -- Editor.ruff` passes
+- [ ] P14.10 Completions for block names and kwargs from the `/api/blocks` and `/api/presets` catalogs. · files: web/src/editor/completions.ts (new) · deps: P14.06 · done: `pnpm -C web test -- completions` passes
+- [ ] P14.11 nanoscope's own inline errors: validation problems, locked uses, describe shape errors (a describe job after save, over SSE) and failed equivalence results, each on its source line. · files: web/src/editor/diagnostics.ts (new) · deps: P14.09, P10.15, P10.22 · done: `pnpm -C web test -- diagnostics` passes
+
+### P14 · Graph, palette and drag-and-drop
+- [ ] P14.12 Graph view with React Flow and elkjs built from `/graph` parse output, re-laid-out on every parse with no layout file. · files: web/src/graph/GraphView.tsx (new), web/src/graph/layout.ts (new) · deps: P13.99, P10.20 · done: `pnpm -C web test -- GraphView` passes
+- [ ] P14.13 Depth dial: surface (block diagram), detailed (shapes, params and FLOPs from describe), research (code spans and equivalence status). · files: web/src/graph/DepthDial.tsx (new) · deps: P14.12 · done: `pnpm -C web test -- DepthDial` passes
+- [ ] P14.14 Mark opaque nodes and code-only classes clearly, with "edit in code" jumping to the source line. · files: web/src/graph/nodes.tsx (new) · deps: P14.12, P14.06 · done: `pnpm -C web test -- nodes.opaque` passes
+- [ ] P14.15 Certification and lock badges on nodes. · files: web/src/graph/nodes.tsx · deps: P14.14, P14.04 · done: `pnpm -C web test -- nodes.badges` passes
+- [ ] P14.16 Inspector panel: argument edits (`set_arg`) and a swap dropdown (`replace_block`); locked options are shown but disabled, with their lesson. · files: web/src/graph/Inspector.tsx (new) · deps: P14.12, P14.05 · done: `pnpm -C web test -- Inspector` passes
+- [ ] P14.17 Palette sidebar grouped by family: locked items greyed out with a lock and a tooltip linking to the unlocking lesson, and a user-blocks section. · files: web/src/graph/Palette.tsx (new) · deps: P14.12, P14.04 · done: `pnpm -C web test -- Palette` passes
+- [ ] P14.18 Drag-and-drop onto layer slots (norm, attn, mlp, pos) sends a `replace_block` patch through the API; a locked block can't be dropped, and the server's 422 is shown if one gets through. · files: web/src/graph/dnd.ts (new) · deps: P14.17, P14.16 · done: `pnpm -C web test -- dnd.slot` passes
+- [ ] P14.19 Stack edits: drop onto the stack to `add_layer`, drag out or delete to `remove_layer`, and a pattern editor (e.g. sliding:global 3:1) that sends `set_pattern`. · files: web/src/graph/dnd.ts, web/src/graph/PatternEditor.tsx (new) · deps: P14.18 · done: `pnpm -C web test -- dnd.stack` passes
+- [ ] P14.20 Lesson template canvas: template slots are drop targets for primitives (`fill_slot`). · files: web/src/graph/TemplateCanvas.tsx (new) · deps: P14.18 · done: `pnpm -C web test -- TemplateCanvas` passes
+- [ ] P14.21 Undo and redo as file versions re-applied through `PUT` with the ETag; no model state lives only in the client. · files: web/src/graph/history.ts (new) · deps: P14.18 · done: `pnpm -C web test -- history` passes
+- [ ] P14.22 Colour graph nodes live from `blockstats` SSE events when a run of this file is open. · files: web/src/graph/GraphView.tsx · deps: P14.12, P10.29 · done: `pnpm -C web test -- GraphView.blockstats` passes
+- [ ] P14.23 Model page: editor and graph side by side on one file; Lesson → Start opens the starter here. · files: web/src/pages/Model.tsx (new), web/src/pages/Lesson.tsx · deps: P14.12, P14.06 · done: `pnpm -C web test -- Model` passes
+- [ ] P14.24 Refresh the palette without a restart when `/api/learn/events` or the workspace's blocks change. · files: web/src/graph/Palette.tsx · deps: P14.17, P10.33 · done: `pnpm -C web test -- Palette.live` passes
+
+### P14 · End-to-end tests and docs
+- [ ] P14.25 Plan done-when: in the modern-block lesson, swapping LayerNorm→RMSNorm in the inspector changes exactly one line (`git diff --numstat` shows 1/1). · files: web/e2e/swap.spec.ts (new) · deps: P14.16, P14.23, P13.31 · done: `pnpm -C web exec playwright test swap` passes
+- [ ] P14.26 Plan done-when: the same swap made by drag-and-drop gives an identical diff. · files: web/e2e/swap.spec.ts · deps: P14.25, P14.18 · done: `pnpm -C web exec playwright test swap` passes
+- [ ] P14.27 Plan done-when: an external edit to the file updates the open graph. · files: web/e2e/external-edit.spec.ts (new) · deps: P14.23, P14.08 · done: `pnpm -C web exec playwright test external-edit` passes
+- [ ] P14.28 Plan done-when: a locked block shows its unlock lesson and can't be dropped; after the lesson's check passes (using the solution file), it can be dragged without a restart. · files: web/e2e/locked.spec.ts (new) · deps: P14.24, P14.18 · done: `pnpm -C web exec playwright test locked` passes
+- [ ] P14.29 Plan done-when: a certified user block passes its check job and appears in the palette without a restart. · files: web/e2e/user-block.spec.ts (new) · deps: P14.24, P14.04 · done: `pnpm -C web exec playwright test user-block` passes
+- [ ] P14.30 Complete lesson F04 through the template canvas and check that its `equivalent` check passes. · files: web/e2e/template.spec.ts (new) · deps: P14.20 · done: `pnpm -C web exec playwright test template` passes
+- [ ] P14.31 Add the model page, palette, drag-and-drop and locks to `docs/gui.md`. · files: docs/gui.md · deps: P14.28 · done: `grep -c 'drag' docs/gui.md` prints at least 1
+- [ ] P14.32 Fold the agreed parts of the plan into `docs/architecture.md`, keeping `plan-tool.md` as the decision record (plan 13). · files: docs/architecture.md (new), docs/plan-tool.md · deps: P14.31 · done: `grep -c '^## ' docs/architecture.md` prints at least 6
+- [ ] P14.33 **USER ACTION** Release the MVP as v0.4.0 to PyPI and GHCR (the agent prepares the version bump and CHANGELOG). · files: nanoscope/__init__.py, CHANGELOG.md · deps: P14.32 · done: `pip index versions nanoscope-lab` lists 0.4.0
+- [ ] P14.99 PHASE GATE P14 (MVP complete). Exit criteria: plan section 10 phase 14. · files: — · deps: P14.* (P14.33 may follow the merge) · done: `make check` passes; `uv run pytest tests/test_graph.py -k property_all_ops` passes; the e2e job is green (P14.25-P14.30); `uv run pytest tests/test_first_model_notebook.py` passes; **USER ACTION** merge the PR
+
+---
+
+## P15 GUI Research
+
+### P15 · Library
+- [ ] P15.01 Add `statistics.noise_floor(preset, metric)` from the baselines, and a compare note for multiple comparisons when more than 3 variants are compared with one baseline. · files: nanoscope/statistics.py, nanoscope/compare.py, tests/test_statistics.py · deps: P14.99 · done: `uv run pytest tests/test_statistics.py -k "noise_floor or multiple"` passes
+- [ ] P15.02 Fix n for record studies: a record spec declares its seeds, and adding seeds after the start is refused (no seed peeking). · files: nanoscope/study.py, tests/test_study.py · deps: P14.99 · done: `uv run pytest tests/test_study.py -k no_seed_peeking` passes
+- [ ] P15.03 Study bundle: `StudyReport.bundle(path)` writes a zip with `report.md`, `results.json`, the spec, `study.json`, `plan.json` and per-seed finals. · files: nanoscope/study.py, tests/test_study.py · deps: P14.99 · done: `uv run pytest tests/test_study.py -k bundle` passes
+- [ ] P15.04 Create `nanoscope/prereg.py` with `preview(study)`: the files to commit (the spec and prediction files), a unified diff, a proposed message, unrelated dirty files, and a preview hash; git runs with `-c core.fsmonitor=false --no-ext-diff --no-textconv`. · files: nanoscope/prereg.py (new), tests/test_prereg.py (new) · deps: P14.99 · done: `uv run pytest tests/test_prereg.py -k preview` passes
+- [ ] P15.05 Add `prereg.commit(preview_hash)` as a `commit` job: recompute the preview, refuse on a hash mismatch, unrelated changes or a missing git identity, run `git commit -m ... -- <paths>`, and return the hash. · files: nanoscope/prereg.py, nanoscope/jobs/execute.py · deps: P15.04, P7.99 · done: `uv run pytest tests/test_prereg.py -k commit` passes
+- [ ] P15.06 Record `preregistration_commit` and `committed_via: "nanoscope"` in `study.json` and every run's config; reports print "preregistration committed via nanoscope". · files: nanoscope/study.py, nanoscope/schemas/study.v1.json · deps: P15.05 · done: `uv run pytest tests/test_prereg.py -k recorded_in_report` asserts the line
+- [ ] P15.07 Decision 11.8 tests: refuse unrelated dirty files (and list them), commit only the spec, record the hash, refuse a changed preview, refuse without an identity, and check that git hooks run in the worker, not the API. · files: tests/test_prereg.py · deps: P15.06 · done: `uv run pytest tests/test_prereg.py` passes
+- [ ] P15.08 Add `nanoscope study preregister <spec> [--yes]`, the CLI equivalent, which prints the diff before committing. · files: nanoscope/cli.py, tests/test_prereg.py · deps: P15.05 · done: `uv run pytest tests/test_prereg.py -k cli_shows_diff` passes
+- [ ] P15.09 Create `nanoscope/cards.py` with `export_card(study)` in a `card.v1` schema (spec, per-seed finals, provenance, commit, version), for record mode only. · files: nanoscope/cards.py (new), nanoscope/schemas/card.v1.json (new), tests/test_cards.py (new) · deps: P15.03 · done: `uv run pytest tests/test_cards.py -k export` passes, including the refusal for explore mode
+- [ ] P15.10 Add `nanoscope card export` and `nanoscope card push --repo user/dataset`; push is an opt-in job that uses `HF_TOKEN` and never runs automatically. · files: nanoscope/cli.py, nanoscope/cards.py, nanoscope/jobs/execute.py · deps: P15.09 · done: `uv run pytest tests/test_cards.py -k push` passes with FakeHub
+- [ ] P15.11 Add `nanoscope card compare`, which compares cards from different people with Welch CIs and requires the same preset eval text. · files: nanoscope/cards.py, tests/test_cards.py · deps: P15.09 · done: `uv run pytest tests/test_cards.py -k compare` passes
+- [ ] P15.12 **USER ACTION** Create the public Hub dataset (e.g. `almajd3713/nanoscope-ablation-cards`) with a dataset card and licence, and set `HF_TOKEN`. · files: — · deps: P15.10 · done: the user confirms the dataset URL; record it in the Decisions log
+- [ ] P15.13 Return study compute estimates (the per-job `estimate_seconds` combined across devices) from `/api/validate/study` and `nanoscope study --dry-run`. · files: nanoscope/estimate.py, nanoscope/study.py, nanoscope/cli.py · deps: P9.10 · done: `uv run pytest tests/test_estimate.py -k study` passes
+
+### P15 · API
+- [ ] P15.14 Add `GET /api/studies/{name}/bundle.zip`, `GET .../card`, `POST .../card/push` (job), `POST .../preregister/preview` and `.../preregister/commit` (jobs), and `GET /api/git/status` (safe flags). · files: nanoscope/server/routes/studies.py, nanoscope/server/routes/git.py (new), tests/server/test_studies.py · deps: P15.07, P15.10 · done: `uv run pytest tests/server/test_studies.py -k "bundle or card or prereg or git"` passes
+- [ ] P15.15 Regenerate `docs/openapi.json` and the web client. · files: docs/openapi.json, web/src/api/ · deps: P15.14 · done: `make openapi web-client && git diff --exit-code`
+
+### P15 · GUI
+- [ ] P15.16 Study builder: a variant table (model and kwargs per variant), budget, seeds and match, with live matching from a sizes job (red outside the tolerance), and Save as TOML. · files: web/src/pages/StudyBuilder.tsx (new) · deps: P15.15 · done: `pnpm -C web test -- StudyBuilder` passes
+- [ ] P15.17 Open an existing study (TOML, or `.py` through `nanoscope spec`) in the builder and save it back unchanged. · files: web/src/pages/StudyBuilder.tsx · deps: P15.16 · done: `pnpm -C web test -- StudyBuilder.roundtrip` passes
+- [ ] P15.18 Run (explore) from the builder; the record button is enabled only for a committed spec in a clean tree, as shown by the read-only git status line. · files: web/src/pages/StudyBuilder.tsx, web/src/components/GitStatus.tsx (new) · deps: P15.16 · done: `pnpm -C web test -- GitStatus` passes
+- [ ] P15.19 Preregistration commit dialog: the exact diff and message, a confirm step, and the resulting hash. · files: web/src/components/PreregDialog.tsx (new) · deps: P15.18 · done: `pnpm -C web test -- PreregDialog` passes
+- [ ] P15.20 Study page: a variant × seed grid that fills in live over SSE, a forest plot that updates as seeds complete, the report view and the bundle download. · files: web/src/pages/Study.tsx (new) · deps: P15.15, P13.25 · done: `pnpm -C web test -- Study` passes
+- [ ] P15.21 Ablation card export, and an opt-in push toggle that shows exactly what will be uploaded. · files: web/src/components/CardExport.tsx (new) · deps: P15.20 · done: `pnpm -C web test -- CardExport` passes
+- [ ] P15.22 Hardware and queue page: workers, devices, slots, jobs with cancel, bench history, and a Run bench button. · files: web/src/pages/Hardware.tsx (new) · deps: P15.15 · done: `pnpm -C web test -- Hardware` passes
+- [ ] P15.23 Show the noise floor on the compare and study pages. · files: web/src/pages/Compare.tsx, web/src/pages/Study.tsx · deps: P15.01, P15.20 · done: `pnpm -C web test -- noiseFloor` passes
+- [ ] P15.24 Offer "Unlock all" once when the level switches to Research or Extend; it is never forced. · files: web/src/app/level.ts · deps: P13.27 · done: `pnpm -C web test -- level.unlockOffer` passes
+
+### P15 · End-to-end tests and docs
+- [ ] P15.25 Plan done-when: a builder-made `m1-ablation` spec produces the same `plan.json` as the `.py` file. · files: web/e2e/study-builder.spec.ts (new) · deps: P15.17 · done: `pnpm -C web exec playwright test study-builder` passes
+- [ ] P15.26 Plan done-when: record mode is refused on a dirty tree, with the list of files. · files: web/e2e/record.spec.ts (new) · deps: P15.18 · done: `pnpm -C web exec playwright test record` passes
+- [ ] P15.27 Plan done-when: the forest plot values equal `results.json`. · files: web/e2e/study.spec.ts (new) · deps: P15.20 · done: `pnpm -C web exec playwright test study` passes
+- [ ] P15.28 The preregistration dialog commits, and the hash appears in `study.json`. · files: web/e2e/prereg.spec.ts (new) · deps: P15.19 · done: `pnpm -C web exec playwright test prereg` passes
+- [ ] P15.29 Document the study builder, the preregistration commit with its evidence caveat (11.8), ablation cards, the noise floor and the seed-peeking guard in `docs/research.md`. · files: docs/research.md · deps: P15.28 · done: `grep -c 'committed_via' docs/research.md` prints at least 1
+- [ ] P15.99 PHASE GATE P15. Exit criteria: plan section 10 phase 15. · files: — · deps: P15.* · done: `make check` passes; `uv run pytest tests/test_prereg.py tests/test_cards.py tests/server` passes; the e2e job is green (P15.25-P15.28); `uv run pytest tests/test_first_model_notebook.py` passes; **USER ACTION** merge the PR
+
+---
+
+## P16 Extend + depth
+
+- [ ] P16.01 Add an `optimizer=` factory to `run()`/`train()`: a callable `(param_groups, preset)` returning an optimizer, with AdamW as the default. A non-default ref is recorded in config and is part of the run's identity. · files: nanoscope/run.py, nanoscope/train_loop.py · deps: P14.99 · done: `uv run pytest tests/test_run.py -k optimizer_factory` passes
+- [ ] P16.02 Plan done-when: `run(..., optimizer=...)` resumes exactly. · files: tests/test_run.py · deps: P16.01 · done: `uv run pytest tests/test_run.py -k optimizer_resume` passes
+- [ ] P16.03 Add a Muon example optimizer, with a test that it trains a tiny model. · files: nanoscope/optim/__init__.py (new), nanoscope/optim/muon.py (new), tests/test_optim.py (new) · deps: P16.01 · done: `uv run pytest tests/test_optim.py` passes
+- [ ] P16.04 Inspect job: attention maps and logit lens for a prompt at any archived checkpoint, in an `inspect.v1` schema. · files: nanoscope/inspect.py, nanoscope/jobs/execute.py, nanoscope/schemas/inspect.v1.json (new), tests/test_describe.py · deps: P14.99, P6.62 · done: `uv run pytest tests/test_describe.py -k inspect_checkpoint` passes
+- [ ] P16.05 Add `nanoscope inspect <ref> --step N --prompt TEXT`. · files: nanoscope/cli.py · deps: P16.04 · done: `uv run pytest tests/test_describe.py -k inspect_cli` asserts the output
+- [ ] P16.06 Add `POST /api/runs/{ref}/inspect` (job). · files: nanoscope/server/routes/runs.py, tests/server/test_runs.py · deps: P16.04 · done: `uv run pytest tests/server/test_runs.py -k inspect` passes
+- [ ] P16.07 Inspect page: a checkpoint scrubber, attention heatmaps per layer and head, and a logit-lens table. · files: web/src/pages/Inspect.tsx (new) · deps: P16.06 · done: `pnpm -C web test -- Inspect` passes
+- [ ] P16.08 Add the `lsp` service (node + basedpyright over WebSocket, workspace read-only, profile `editor-lsp`). · files: compose.yaml, docker/Dockerfile.lsp (new) · deps: P14.99 · done: `docker compose --profile editor-lsp config -q` exits 0
+- [ ] P16.09 Integrate `monaco-languageclient` behind a setting, falling back to ruff-only when the LSP service is absent. · files: web/src/editor/lsp.ts (new) · deps: P16.08 · done: `pnpm -C web test -- lsp.fallback` passes
+- [ ] P16.10 Add `ALiBi` with a naive reference (relative-position bias), locked as `block:ALiBi`. · files: nanoscope/blocks/positional.py, nanoscope/reference/functional.py, tests/test_blocks.py · deps: P14.99 · done: `uv run pytest tests/test_blocks.py -k alibi` passes
+- [ ] P16.11 Add `MoE(experts, top_k, aux_loss)` with a loop-over-tokens-and-experts reference and the aux loss through `(logits, aux)`, locked as `block:MoE`. · files: nanoscope/blocks/moe.py (new), nanoscope/reference/functional.py, tests/test_blocks.py · deps: P14.99 · done: `uv run pytest tests/test_blocks.py -k moe` passes
+- [ ] P16.12 Gate the sliding window as `feature:sliding_window` and test it with a layer pattern. · files: nanoscope/learn/gating.py, tests/test_gating.py · deps: P14.99 · done: `uv run pytest tests/test_gating.py -k sliding_window` passes
+- [ ] P16.13 Curriculum authoring check: `nanoscope learn author-check <dir>` validates a lesson directory and runs its starter and solution checks as jobs; the Extend level previews it in the GUI. · files: nanoscope/learn/cli.py, web/src/pages/Authoring.tsx (new) · deps: P14.99 · done: `uv run pytest tests/test_learn.py -k author_check` passes
+- [ ] P16.14 Workspace tree view and schema browser (Extend level). · files: web/src/pages/Workspace.tsx (new), web/src/pages/Schemas.tsx (new) · deps: P14.99 · done: `pnpm -C web test -- Workspace` passes
+- [ ] P16.15 Plan done-when: the inspect page shows attention maps from the learner's own run at any archived step. · files: web/e2e/inspect.spec.ts (new) · deps: P16.07 · done: `pnpm -C web exec playwright test inspect` passes
+- [ ] P16.99 PHASE GATE P16. Exit criteria: plan section 10 phase 16. · files: — · deps: P16.* · done: `make check` passes; `uv run pytest tests/test_run.py -k optimizer_resume` passes; the e2e job is green; `uv run pytest tests/test_first_model_notebook.py` passes; **USER ACTION** merge the PR
+
+---
+
+## P17 Remaining curriculum paths (decision 11.6: each GPU-hour lesson has a CPU and a GPU variant with estimates)
+
+### P17 · Honest ablations (level 2)
+- [ ] P17.01 Write `honest-ablations/path.toml` with Foundations and The modern block as prerequisites. · files: nanoscope/curricula/honest-ablations/path.toml (new) · deps: P15.99 · done: `uv run nanoscope learn list --path honest-ablations` exits 0
+- [ ] P17.02 Write lesson HA01, seed noise: one model, 5 seeds, see the spread (Dodge et al.). CPU only, about 6 min. · files: nanoscope/curricula/honest-ablations/01-seed-noise/* (new), tests/solutions/honest-ablations/01-seed-noise.py (new) · deps: P17.01 · done: `uv run nanoscope learn list --path honest-ablations` lists it
+- [ ] P17.03 Write lesson HA02, paired versus unpaired CIs (`verdict` check). · files: nanoscope/curricula/honest-ablations/02-paired/*, tests/solutions/honest-ablations/02-paired.py · deps: P17.02 · done: listed
+- [ ] P17.04 Write lesson HA03, matching params and FLOPs (`match="params"`, `FLOPs` budgets). · files: nanoscope/curricula/honest-ablations/03-matching/*, tests/solutions/honest-ablations/03-matching.py · deps: P17.02 · done: listed
+- [ ] P17.05 Write lesson HA04, predict then run (`predicted` check). · files: nanoscope/curricula/honest-ablations/04-predict/*, tests/solutions/honest-ablations/04-predict.py · deps: P17.02 · done: listed
+- [ ] P17.06 Write lesson HA05, the capstone M1 ablation: a `verdict` check to "state the gap with a CI and name one null component". CPU variant: tinystories-5min, 3 seeds, 8 variants, Tokens(4e6), about 60-90 min CPU. GPU variant: fineweb-edu in record mode, about 4-8 GPU-hours. · files: nanoscope/curricula/honest-ablations/05-capstone/*, tests/solutions/honest-ablations/05-capstone.py · deps: P17.03, P17.04, P17.05 · done: listed, and `lesson.toml` has both `[compute.cpu]` and `[compute.gpu]`
+- [ ] P17.07 Add the CI tests for HA01-HA05 (solutions pass and starters fail, with `fake_data`). · files: tests/test_curricula.py · deps: P17.06 · done: `uv run pytest tests/test_curricula.py -k ha` passes
+
+### P17 · Evaluation (level 2)
+- [ ] P17.08 Add separate `run(init_seed=, data_seed=)` keywords (both default to `seed`) so seed variance can be decomposed. · files: nanoscope/run.py, nanoscope/train_loop.py, tests/test_run.py · deps: P15.99 · done: `uv run pytest tests/test_run.py -k split_seeds` passes, and the default run dirs are unchanged
+- [ ] P17.09 Write `evaluation/path.toml` and lesson EV01, eval noise: `eval_docs` size versus CI width. CPU only. · files: nanoscope/curricula/evaluation/* (new), tests/solutions/evaluation/01-eval-noise.py (new) · deps: P17.01 · done: `uv run nanoscope learn list --path evaluation` lists it
+- [ ] P17.10 Write lesson EV02: init-seed versus data-order variance. CPU variant: 3×3 seeds on tinystories-5min (about 15 min). GPU variant: 5×5 seeds on tinystories-30min (about 1 GPU-hour). · files: nanoscope/curricula/evaluation/02-variance/*, tests/solutions/evaluation/02-variance.py · deps: P17.08, P17.09 · done: listed with both variants
+- [ ] P17.11 Add the CI tests for EV01-EV02. · files: tests/test_curricula.py · deps: P17.10 · done: `uv run pytest tests/test_curricula.py -k ev` passes
+
+### P17 · Efficiency (level 2-3)
+- [ ] P17.12 Write `efficiency/path.toml` and lesson EF01, bench and the CPU-bound/GPU-bound verdict. · files: nanoscope/curricula/efficiency/* (new), tests/solutions/efficiency/01-bench.py (new) · deps: P17.01 · done: `uv run nanoscope learn list --path efficiency` lists it
+- [ ] P17.13 Write lesson EF02, torch.compile. CPU variant: compile on CPU. GPU variant: `reduce-overhead` and CUDA graphs (about 15 min). · files: nanoscope/curricula/efficiency/02-compile/*, tests/solutions/efficiency/02-compile.py · deps: P17.12 · done: listed with both variants
+- [ ] P17.14 **USER ACTION** The user builds the KV cache (M4). The agent then writes lesson EF03 around it. Until then this item stays open, and EF03 is listed as "coming". · files: nanoscope/curricula/efficiency/03-kv-cache/* · deps: P17.12 · done: the user's KV cache is merged and `uv run pytest tests/test_curricula.py -k ef03` passes
+- [ ] P17.15 Write lesson EF04, roofline and MFU. CPU variant on a laptop; GPU variant (about 20 min). · files: nanoscope/curricula/efficiency/04-roofline/*, tests/solutions/efficiency/04-roofline.py · deps: P17.12 · done: listed with both variants
+- [ ] P17.16 Add the CI tests for EF01, EF02 and EF04 (EF03 after P17.14). · files: tests/test_curricula.py · deps: P17.15, P17.13 · done: `uv run pytest tests/test_curricula.py -k "ef01 or ef02 or ef04"` passes
+
+### P17 · Interpretability (level 2-3)
+- [ ] P17.17 Write `interpretability/path.toml` and lesson IN01, induction heads over checkpoints. CPU variant: a 2-layer attention-only model on tinystories-5min with log-spaced `checkpoint_steps` (about 10 min). GPU variant: a bigger model on fineweb-edu (about 2 GPU-hours). · files: nanoscope/curricula/interpretability/* (new), tests/solutions/interpretability/01-induction.py (new) · deps: P16.99, P17.01 · done: listed with both variants
+- [ ] P17.18 Write lesson IN02, logit lens on the learner's own checkpoints. CPU only. · files: nanoscope/curricula/interpretability/02-logit-lens/*, tests/solutions/interpretability/02-logit-lens.py · deps: P17.17 · done: listed
+- [ ] P17.19 Plan done-when: the induction-heads lesson shows a curve over checkpoints from the learner's own run (a CI test of the CPU variant with `fake_data`, plus a Playwright check of the inspect page). · files: tests/test_curricula.py, web/e2e/induction.spec.ts (new) · deps: P17.18 · done: `uv run pytest tests/test_curricula.py -k "in01 or in02"` passes and `pnpm -C web exec playwright test induction` passes
+
+### P17 · Scaling-lite (level 2)
+- [ ] P17.20 Create `nanoscope/scaling.py` with `fit_power_law(points)`, which returns the exponent with a CI, tested on synthetic data. · files: nanoscope/scaling.py (new), tests/test_scaling.py (new) · deps: P15.99 · done: `uv run pytest tests/test_scaling.py` passes
+- [ ] P17.21 Write `scaling-lite/path.toml` and lesson SC01, FLOP budgets. · files: nanoscope/curricula/scaling-lite/* (new), tests/solutions/scaling-lite/01-flops.py (new) · deps: P17.01 · done: `uv run nanoscope learn list --path scaling-lite` lists it
+- [ ] P17.22 Write lesson SC02, a ladder with a preregistered prediction and the DataDecide caveat. CPU variant: a 3-point ladder on tinystories-5min (about 45-90 min CPU). GPU variant: a 4-point ladder on fineweb-edu (about 6-12 GPU-hours). · files: nanoscope/curricula/scaling-lite/02-ladder/*, tests/solutions/scaling-lite/02-ladder.py · deps: P17.20, P17.21 · done: listed with both variants
+- [ ] P17.23 Add the CI tests for SC01-SC02 (CPU variant at `fake_data` scale). · files: tests/test_curricula.py · deps: P17.22 · done: `uv run pytest tests/test_curricula.py -k sc` passes
+
+### P17 · Extend (level 3)
+- [ ] P17.24 Write `extend/path.toml` and lesson EX01, a certified block (`register_block` plus a certification check). · files: nanoscope/curricula/extend/* (new), tests/solutions/extend/01-certified-block.py (new) · deps: P17.01, P14.99 · done: `uv run nanoscope learn list --path extend` lists it
+- [ ] P17.25 Write lesson EX02, adding a preset (`register_preset`). · files: nanoscope/curricula/extend/02-preset/*, tests/solutions/extend/02-preset.py · deps: P17.24 · done: listed
+- [ ] P17.26 Write lesson EX03, Muon versus AdamW as a `verdict`. CPU variant: 3 seeds on tinystories-5min (about 12 min). GPU variant: 5 seeds on tinystories-30min (about 1 GPU-hour). · files: nanoscope/curricula/extend/03-muon/*, tests/solutions/extend/03-muon.py · deps: P17.24, P16.03 · done: listed with both variants
+- [ ] P17.27 Write lesson EX04, MoE from primitives (`unlocks block:MoE`). CPU variant: 4 experts, tiny (about 10 min). GPU variant: 8 experts (about 1 GPU-hour). · files: nanoscope/curricula/extend/04-moe/*, tests/solutions/extend/04-moe.py · deps: P17.24, P16.11 · done: listed with both variants
+- [ ] P17.28 Add the CI tests for EX01-EX04. · files: tests/test_curricula.py · deps: P17.27, P17.26, P17.25 · done: `uv run pytest tests/test_curricula.py -k ex` passes
+
+### P17 · Cross-path
+- [ ] P17.29 Write a loader test over all curricula: every `[compute.gpu]` has a `[compute.cpu]`, and no CPU estimate exceeds 15 min without a GPU variant. · files: tests/test_learn.py · deps: P17.28, P17.23, P17.19, P17.16, P17.11, P17.07 · done: `uv run pytest tests/test_learn.py -k all_curricula_variants` passes
+- [ ] P17.30 **USER ACTION** Run each GPU variant once on the user's hardware and write the measured estimates into its `lesson.toml` (the agent prepares the commands). · files: nanoscope/curricula/*/*/lesson.toml · deps: P17.29 · done: `grep -L 'measured' $(grep -l 'compute.gpu' nanoscope/curricula/*/*/lesson.toml)` is empty
+- [ ] P17.31 Optional (idea 9): CPU speedrun lesson, "beat the GPT-2 baseline in 2 CPU minutes", gated by the significance rule. · files: nanoscope/curricula/extend/05-speedrun/* · deps: P17.28 · done: listed and its CI test passes
+- [ ] P17.32 List every path in `docs/learn.md` with its level and estimates. · files: docs/learn.md · deps: P17.29 · done: `grep -c 'scaling-lite\|interpretability\|honest-ablations' docs/learn.md` prints at least 3
+- [ ] P17.33 Link milestones M2-M6 in `docs/project-nanoscope.md` to their paths. · files: docs/project-nanoscope.md · deps: P17.32 · done: `grep -cE 'scaling-lite|efficiency|evaluation|interpretability' docs/project-nanoscope.md` prints at least 4
+- [ ] P17.99 PHASE GATE P17. Exit criteria: plan section 10 phase 17. · files: — · deps: P17.* (P17.14 and P17.31 may stay open, with a note) · done: `make check` passes; `make test-curricula` passes; `uv run pytest tests/test_first_model_notebook.py` passes; CI green; **USER ACTION** merge the PR and release
+
+---
+
+## Decisions log
+
+Append one line per decision: `- YYYY-MM-DD <item id or plan section>: <decision> (<who>)`.
+
+- 2026-10-05 plan 11: the user answered Q1-Q11 and added lesson gating; the roadmap was renumbered to P6-P17 and the MVP is P6-P14 (user).
+- 2026-10-05 P10.04: the API lives under `/api` so the SPA can own `/` (agent; the plan's endpoint table omits the prefix).
+- 2026-10-05 P9.01: curricula ship inside the package (`nanoscope/curricula/`) so PyPI users get the lessons; solutions stay in `tests/solutions/` (agent; plan 6.1 updated).
+- 2026-10-05 P8.01: naive references move into `nanoscope/reference/` so lesson checks work from an installed wheel (agent; plan 5.1 updated).
+
+- 2026-10-05 Q4/P8.25: the user allows breaking checkpoints and baselines compatibility; no key map is required (user).
+- 2026-10-05 P12.10: the user allows replacing the `.ipynb` notebooks with marimo; Kaggle/Colab compatibility is not a constraint (user).
+- 2026-10-05 P11.01: licence is MIT (user).
+- 2026-10-05 plan 6.4: the graph route for gating stays slot-filling templates only (agent default; the user did not object).
+
+## Discovered work
+
+Things found while building that aren't items yet. Turn each into an item under the
+right phase, then tick it here as `[x] → P<n>.<id>`.
+
+- [ ] The repo has no CI workflow yet. → covered by P6.04-P6.06.
+- [ ] `docs/plan-tool-landscape.md` still uses the old phase numbers ("Export (phase 13)") and calls questions "open". Fix it when folding into `docs/architecture.md` (P14.32).
