@@ -138,7 +138,7 @@ def test_spec_command_prints_toml_that_loads_back(tmp_path, capsys):
     study_file = Path(__file__).parent.parent / "studies" / "m1_ablation.py"
     main(["spec", str(study_file)])
     text = capsys.readouterr().out
-    import tomllib
+    from nanoscope.studyspec import tomllib  # tomli on Python 3.10
 
     parsed = tomllib.loads(text)
     assert parsed["name"] == "m1-ablation" and len(parsed["variants"]) == 8
