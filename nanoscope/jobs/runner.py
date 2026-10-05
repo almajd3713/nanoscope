@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import ctypes
 import os
 import signal
 import subprocess
@@ -12,6 +13,15 @@ from typing import Any, Protocol
 
 # Secrets reach only the jobs that use them; describe, check and inspect never get one.
 SECRETS = ("HF_TOKEN", "HUGGING_FACE_HUB_TOKEN", "WANDB_API_KEY")
+
+
+def _die_with_parent() -> None:
+    """Linux: SIGKILL this process when its parent (the worker) dies, however it dies.
+
+    Otherwise a killed worker leaves its training process running, and the requeued job would
+    start a second process on the same run folder. The run resumes from its last checkpoint."""
+    PR_SET_PDEATHSIG = 1
+    ctypes.CDLL(None).prctl(PR_SET_PDEATHSIG, signal.SIGKILL)
 
 
 class JobRunner(Protocol):
@@ -39,7 +49,8 @@ class SubprocessRunner:
         with log.open("ab") as fh:
             self._proc = subprocess.Popen(
                 self._command(job_id), stdout=fh, stderr=subprocess.STDOUT, env=dict(env),
-                start_new_session=True)  # a Ctrl-C at the worker is the worker's to handle
+                start_new_session=True,  # a Ctrl-C at the worker is the worker's to handle
+                preexec_fn=_die_with_parent if sys.platform == "linux" else None)
 
     def poll(self) -> int | None:
         if self._proc is None:

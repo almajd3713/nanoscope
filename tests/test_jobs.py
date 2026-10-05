@@ -308,9 +308,12 @@ def test_sigkill_a_killed_worker_loses_its_lease_and_the_run_resumes(tmp_path, m
                     child = json.loads(status.read_text())["pid"]
             time.sleep(0.05)
         assert child, "no run reached a checkpoint"
-        worker.kill()
-        os.kill(child, signal.SIGKILL)
+        worker.kill()  # its training process must die with it (PR_SET_PDEATHSIG)
         worker.wait()
+        end = time.time() + 10
+        while time.time() < end and os.path.exists(f"/proc/{child}"):
+            time.sleep(0.05)
+        assert not os.path.exists(f"/proc/{child}"), "the child outlived its killed worker"
     finally:
         if worker.poll() is None:
             worker.kill()
@@ -329,3 +332,40 @@ def test_sigkill_a_killed_worker_loses_its_lease_and_the_run_resumes(tmp_path, m
     clean.run()
     straight = {v: load_runs(clean.dir / v)[0].final("val_loss") for v in ("a", "b")}
     assert interrupted == pytest.approx(straight, abs=1e-6)
+
+
+@pytest.mark.skipif(sys.platform != "linux", reason="uses PR_SET_PDEATHSIG")
+def test_a_sigkilled_worker_does_not_leave_its_child_running(home, tmp_path):
+    pidfile = tmp_path / "child.pid"
+    add("prepare-data", {"preset": "tinystories-5min"})
+    script = tmp_path / "worker.py"
+    script.write_text(textwrap.dedent(f"""
+        import sys
+        from nanoscope.jobs.runner import SubprocessRunner
+        from nanoscope.jobs.worker import Worker
+
+        code = ("import os, time; open({str(pidfile)!r}, 'w').write(str(os.getpid())); "
+                "time.sleep(60)")
+        Worker("cpu", 1, runner_factory=lambda: SubprocessRunner(
+            lambda job_id: [sys.executable, "-c", code]), poll_seconds=0.05).run()
+    """))
+    worker = subprocess.Popen([sys.executable, str(script)])
+    try:
+        end = time.time() + 30
+        while not (pidfile.exists() and pidfile.read_text()) and time.time() < end:
+            time.sleep(0.05)
+        child = int(pidfile.read_text())
+        worker.kill()
+        worker.wait()
+        end = time.time() + 10
+        while time.time() < end:
+            try:
+                os.kill(child, 0)
+            except ProcessLookupError:
+                return
+            time.sleep(0.05)
+        os.kill(child, signal.SIGKILL)
+        raise AssertionError("the child outlived its killed worker")
+    finally:
+        if worker.poll() is None:
+            worker.kill()
