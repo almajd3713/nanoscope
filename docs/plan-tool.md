@@ -376,7 +376,7 @@ lessons, not copied, so content lives in one place.
 | Path | Level | Content | Source in old docs |
 |---|---|---|---|
 | Foundations | 0 | bigram → MLP → one attention head → multi-head attention → transformer block → GPT-2; `equivalent` checks unlock Attention, Block and Decoder; `trains` + `reproduces` | notebooks 01-02 |
-| The modern block | 1 | implement RoPE, RMSNorm, SwiGLU, GQA, QK-norm, z-loss; `equivalent` checks unlock each | notebook 03, M1 "build" part, roadmap-v2 Stage 3 |
+| The modern block | 1 | implement RoPE, RMSNorm, SwiGLU, GQA, QK-norm, z-loss; `equivalent` checks unlock each | notebook 03, M1 "build" part, `docs/archive/roadmap-v2.md` Stage 3 |
 | Honest ablations | 2 | seeds, CIs, matching, preregistration; capstone `studies/m1_ablation.py` with "state the gap with a CI and name one null component" as a `verdict` check | M1 acceptance criteria, notebook 04 |
 | Efficiency | 2-3 | bench, compile, KV cache, roofline | M4 (your milestone) |
 | Evaluation | 2 | eval noise, paired tests, seed vs eval-sampling variance | M5 |
@@ -384,7 +384,7 @@ lessons, not copied, so content lives in one place.
 | Scaling-lite | 2 | FLOP budgets, a 3-4 point ladder, a preregistered prediction | M2 (needs a fit helper; CPU variant: a 3-point ladder on `tinystories-5min`; GPU variant: a 4-point ladder on `fineweb-edu`) |
 | Extend | 3 | write a certified block, add a preset, Muon vs AdamW | M3 items |
 
-The reading lists in `lesson.md` reuse roadmap-v2's B/R/S/K tiers. That is where that
+The reading lists in `lesson.md` reuse the B/R/S/K tiers of `docs/archive/roadmap-v2.md`. That is where that
 document's content ends up (section 13).
 
 ### 6.3 Depth is a view setting, not a mode
@@ -1051,7 +1051,7 @@ re-exported baselines are enough. The graph route for gating stays slot-filling 
 | Doc | Status | Action |
 |---|---|---|
 | `docs/project-nanoscope.md` | The M0-M7 research program. The milestones remain valid, but the "Repo layout" section (`configs/` YAML, `train/`, `infer/`, `eval/`, `interp/`) describes the deleted stack. | Keep as the research agenda. Rewrite "Repo layout" to the current modules, mark M0 and the M1 pipeline done (`experiments/m1-ablation/report.md`), and link each milestone to its curriculum path (6.2). Its acceptance criteria become `verdict`/`predicted` checks. |
-| `docs/roadmap-v2.md` | A personal reading roadmap (B/R/S/K tiers). Not a tool doc. | Move to `docs/archive/`. Mine its tiered reading lists into `lesson.md` reading sections in phase 9. |
+| `docs/archive/roadmap-v2.md` (was `docs/roadmap-v2.md`) | A personal reading roadmap (B/R/S/K tiers). Not a tool doc. | Move to `docs/archive/`. Mine its tiered reading lists into `lesson.md` reading sections in phase 9. |
 | `docs/m1-evaluator-plan.md` | Gitignored local file. Every module it cites (`nanoscope/model/registry.py`, `train/checkpoint.py`, YAML configs) is gone, and its goals are met by `compare.py`, `statistics.py` and `Study`. | Delete locally. It was never committed. |
 | `docs/research.md` | Current. | Update in phases 6-7: `nanoscope stop`, status states, queue-based `--devices`, TOML studies. |
 | `docs/dataset-card.md`, `notebooks/kaggle.ipynb` | Current. | Keep. |
