@@ -5,7 +5,10 @@ from __future__ import annotations
 import torch
 import torch.nn as nn
 
+from nanoscope.blocks.registry import shipped
 
+
+@shipped
 class Bigram(nn.Module):
     def __init__(self, vocab_size: int, d_model: int = 32) -> None:
         super().__init__()

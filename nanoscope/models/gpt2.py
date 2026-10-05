@@ -11,6 +11,7 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
+from nanoscope.blocks.registry import shipped
 from nanoscope.sizing import count_params
 
 
@@ -54,6 +55,7 @@ class Block(nn.Module):
         return x + self.mlp(self.ln2(x))
 
 
+@shipped
 class GPT2(nn.Module):
     def __init__(
         self,

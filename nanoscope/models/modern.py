@@ -17,6 +17,7 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
+from nanoscope.blocks.registry import shipped
 from nanoscope.sizing import count_params
 
 
@@ -134,6 +135,7 @@ class Block(nn.Module):
         return x + self.mlp(self.norm2(x))
 
 
+@shipped
 class Modern(nn.Module):
     def __init__(
         self,
