@@ -4,13 +4,13 @@ The build list for [`plan-tool.md`](plan-tool.md), sections 4-10, with the decis
 2026-10-05 (plan section 11) applied. Phase numbers follow the plan's section 10. Every
 item is one line, so scripts and agents can grep and edit it.
 
-**Current focus:** P6 servable library + CI baseline. Next item: P6.33.
+**Current focus:** P6 servable library + CI baseline. Next item: P6.38.
 
 ## Progress
 
 | Phase | Title | Done / total | Status |
 |---|---|---|---|
-| P6 | Servable library + CI baseline (9-11 d) | 32 / 67 | in progress |
+| P6 | Servable library + CI baseline (9-11 d) | 37 / 67 | in progress |
 | P7 | Queue and workers (5-6 d) | 0 / 28 | not started |
 | P8 | Blocks, describe, rebuilt models (10-13 d) | 0 / 52 | not started |
 | P9 | Curriculum engine, gating, two paths (14-17 d) | 0 / 61 | not started |
@@ -130,11 +130,11 @@ touch or create (new ones marked `(new)`).
 - [x] P6.32 Make `nanoscope status` print each failed run's ref, error type and message line. · files: nanoscope/progress.py, tests/test_progress.py · deps: P6.30 · done: `uv run pytest tests/test_progress.py -k status_shows_error` asserts the output ✓ 2026-10-05 00e64e9: nanoscope status prints failed runs ref, type, message
 
 ### P6 · Cooperative cancel
-- [ ] P6.33 Give `train()` a `should_stop: Callable[[], bool] | None`, checked wherever `stop_requested` is checked; a stop checkpoints and sets `stopped_early`. · files: nanoscope/train_loop.py, tests/test_run.py · deps: P6.02 · done: `uv run pytest tests/test_run.py -k should_stop` passes
-- [ ] P6.34 Make `run()` pass a `should_stop` that checks `run_dir/"STOP"`. It removes a stale STOP before training and writes `cancelled` (Ctrl-C still gives `stopped`). · files: nanoscope/run.py · deps: P6.33, P6.29 · done: `uv run pytest tests/test_status.py -k cancelled` passes
-- [ ] P6.35 Add `nanoscope stop <ref|study|path>`, which writes STOP into every running run under the target and prints each ref. · files: nanoscope/cli.py, nanoscope/store.py, tests/test_status.py · deps: P6.34, P6.15 · done: `uv run pytest tests/test_status.py -k stop_command` asserts the printed refs
-- [ ] P6.36 Make `Study.run` check `runs/studies/<name>/STOP` between jobs and skip the remaining jobs; `nanoscope stop <study>` writes that file. · files: nanoscope/study.py, tests/test_study.py · deps: P6.35 · done: `uv run pytest tests/test_study.py -k stop` passes
-- [ ] P6.37 Plan done-when: a run in a subprocess, then `nanoscope stop`, gives `cancelled` with a checkpoint; resuming reaches `done` with metrics equal to an uninterrupted run (extends `test_interrupted_run_resumes_exactly`). · files: tests/test_run.py · deps: P6.35 · done: `uv run pytest tests/test_run.py -k stop_then_resume` passes
+- [x] P6.33 Give `train()` a `should_stop: Callable[[], bool] | None`, checked wherever `stop_requested` is checked; a stop checkpoints and sets `stopped_early`. · files: nanoscope/train_loop.py, tests/test_run.py · deps: P6.02 · done: `uv run pytest tests/test_run.py -k should_stop` passes ✓ 2026-10-05 cee346f: train(should_stop=) saves a checkpoint and sets stopped_early
+- [x] P6.34 Make `run()` pass a `should_stop` that checks `run_dir/"STOP"`. It removes a stale STOP before training and writes `cancelled` (Ctrl-C still gives `stopped`). · files: nanoscope/run.py · deps: P6.33, P6.29 · done: `uv run pytest tests/test_status.py -k cancelled` passes ✓ 2026-10-05 cee346f: run() checks run_dir/STOP, clears a stale one, writes cancelled
+- [x] P6.35 Add `nanoscope stop <ref|study|path>`, which writes STOP into every running run under the target and prints each ref. · files: nanoscope/cli.py, nanoscope/store.py, tests/test_status.py · deps: P6.34, P6.15 · done: `uv run pytest tests/test_status.py -k stop_command` asserts the printed refs ✓ 2026-10-05 cee346f: nanoscope stop <ref|study|path> via store.request_stop
+- [x] P6.36 Make `Study.run` check `runs/studies/<name>/STOP` between jobs and skip the remaining jobs; `nanoscope stop <study>` writes that file. · files: nanoscope/study.py, tests/test_study.py · deps: P6.35 · done: `uv run pytest tests/test_study.py -k stop` passes ✓ 2026-10-05 cee346f: Study.run skips remaining jobs when studies/<name>/STOP exists
+- [x] P6.37 Plan done-when: a run in a subprocess, then `nanoscope stop`, gives `cancelled` with a checkpoint; resuming reaches `done` with metrics equal to an uninterrupted run (extends `test_interrupted_run_resumes_exactly`). · files: tests/test_run.py · deps: P6.35 · done: `uv run pytest tests/test_run.py -k stop_then_resume` passes ✓ 2026-10-05 cee346f: subprocess stop then resume equals the straight run
 
 ### P6 · Rebuildable identity
 - [ ] P6.38 Record `model.ref` (`module:qualname`, or `path.py:Class` for file-loaded classes from `cli._load_model_class`) and `model.source_sha256` in `config.json`. · files: nanoscope/run.py, nanoscope/cli.py, nanoscope/schemas/config.v1.json · deps: P6.20 · done: `uv run pytest tests/test_run.py -k model_ref` passes
