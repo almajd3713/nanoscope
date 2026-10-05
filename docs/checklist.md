@@ -4,7 +4,7 @@ The build list for [`plan-tool.md`](plan-tool.md), sections 4-10, with the decis
 2026-10-05 (plan section 11) applied. Phase numbers follow the plan's section 10. Every
 item is one line, so scripts and agents can grep and edit it.
 
-**Current focus:** P8 blocks library, describe, rebuilt models. Next item: P8.12.
+**Current focus:** P8 blocks library, describe, rebuilt models. Next item: P8.15.
 
 ## Progress
 
@@ -12,7 +12,7 @@ item is one line, so scripts and agents can grep and edit it.
 |---|---|---|---|
 | P6 | Servable library + CI baseline (9-11 d) | 67 / 67 | done |
 | P7 | Queue and workers (5-6 d) | 28 / 28 | done |
-| P8 | Blocks, describe, rebuilt models (10-13 d) | 11 / 52 | in progress |
+| P8 | Blocks, describe, rebuilt models (10-13 d) | 14 / 52 | in progress |
 | P9 | Curriculum engine, gating, two paths (14-17 d) | 0 / 61 | not started |
 | P10 | HTTP API (8-10 d) | 0 / 47 | not started |
 | P11 | Release prep: PyPI + GHCR (2-3 d) | 0 / 17 | not started |
@@ -240,9 +240,9 @@ touch or create (new ones marked `(new)`).
 - [x] P8.09 Primitives `Linear` and `Activation(gelu|silu|relu)`. · files: nanoscope/blocks/primitives.py (new), tests/test_blocks.py · deps: P8.06 · done: `uv run pytest tests/test_blocks.py -k "linear or activation"` passes ✓ 2026-10-05 2e4dcbe: blocks/primitives.py: Linear, Activation, CausalMask, ScaledDotScores, Softmax, WeightedSum, Split/MergeHeads, each with flops_per_token and reference tests
 - [x] P8.10 Primitives `CausalMask`, `ScaledDotScores`, `Softmax`, `WeightedSum`, `SplitHeads` and `MergeHeads`. · files: nanoscope/blocks/primitives.py, tests/test_blocks.py · deps: P8.09, P8.04 · done: `uv run pytest tests/test_blocks.py -k primitives_attention_parts` passes ✓ 2026-10-05 2e4dcbe: blocks/primitives.py: Linear, Activation, CausalMask, ScaledDotScores, Softmax, WeightedSum, Split/MergeHeads, each with flops_per_token and reference tests
 - [x] P8.11 `Residual(inner)` and the `Composite` base with named slots. · files: nanoscope/blocks/composite.py (new), tests/test_blocks.py · deps: P8.06 · done: `uv run pytest tests/test_blocks.py -k composite` passes ✓ 2026-10-05 0f0e4ca: blocks/composite.py: Composite (SLOTS, per-instance builds, flops sum), Residual; Linear gained in_features
-- [ ] P8.12 `TokenEmbedding` and `LearnedPosition`, checked against one-hot matmul. · files: nanoscope/blocks/embedding.py (new), tests/test_blocks.py · deps: P8.06, P8.04 · done: `uv run pytest tests/test_blocks.py -k embedding` passes
-- [ ] P8.13 `Head`, tied or untied. · files: nanoscope/blocks/head.py (new), tests/test_blocks.py · deps: P8.12 · done: `uv run pytest tests/test_blocks.py -k head` passes
-- [ ] P8.14 `LayerNorm` and `RMSNorm`, checked against their formulas (the existing RMSNorm test moves here). · files: nanoscope/blocks/norm.py (new), tests/test_blocks.py · deps: P8.06, P8.01 · done: `uv run pytest tests/test_blocks.py -k norm` passes
+- [x] P8.12 `TokenEmbedding` and `LearnedPosition`, checked against one-hot matmul. · files: nanoscope/blocks/embedding.py (new), tests/test_blocks.py · deps: P8.06, P8.04 · done: `uv run pytest tests/test_blocks.py -k embedding` passes ✓ 2026-10-05 71dc17c: blocks/{embedding,head,norm}.py subclass nn.Embedding/Linear/LayerNorm so keys (weight) and RNG use match today's models; flops = 6 * params; reference tests
+- [x] P8.13 `Head`, tied or untied. · files: nanoscope/blocks/head.py (new), tests/test_blocks.py · deps: P8.12 · done: `uv run pytest tests/test_blocks.py -k head` passes ✓ 2026-10-05 71dc17c: blocks/{embedding,head,norm}.py subclass nn.Embedding/Linear/LayerNorm so keys (weight) and RNG use match today's models; flops = 6 * params; reference tests
+- [x] P8.14 `LayerNorm` and `RMSNorm`, checked against their formulas (the existing RMSNorm test moves here). · files: nanoscope/blocks/norm.py (new), tests/test_blocks.py · deps: P8.06, P8.01 · done: `uv run pytest tests/test_blocks.py -k norm` passes ✓ 2026-10-05 71dc17c: blocks/{embedding,head,norm}.py subclass nn.Embedding/Linear/LayerNorm so keys (weight) and RNG use match today's models; flops = 6 * params; reference tests
 - [ ] P8.15 `RoPE` and `NoPE`, checked against complex rotation and for relative-position invariance. · files: nanoscope/blocks/positional.py (new), tests/test_blocks.py · deps: P8.06, P8.01 · done: `uv run pytest tests/test_blocks.py -k "rope or nope"` passes
 - [ ] P8.16 `Attention(n_heads, n_kv_heads, pos, qk_norm, window=None)`, checked against the loop reference for `n_kv_heads` in {1, 2, 4} × RoPE on/off × QK-norm on/off × a window. · files: nanoscope/blocks/attention.py (new), tests/test_blocks.py · deps: P8.15, P8.14, P8.04 · done: `uv run pytest tests/test_blocks.py -k attention` passes
 - [ ] P8.17 `GELUMLP` and `SwiGLU(hidden)`, checked against their formulas and for parameter parity. · files: nanoscope/blocks/mlp.py (new), tests/test_blocks.py · deps: P8.06, P8.01 · done: `uv run pytest tests/test_blocks.py -k mlp` passes
