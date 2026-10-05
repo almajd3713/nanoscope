@@ -4,15 +4,15 @@ The build list for [`plan-tool.md`](plan-tool.md), sections 4-10, with the decis
 2026-10-05 (plan section 11) applied. Phase numbers follow the plan's section 10. Every
 item is one line, so scripts and agents can grep and edit it.
 
-**Current focus:** P7 queue and workers. Next item: P7.99.
+**Current focus:** P8 blocks library, describe, rebuilt models. Next item: P8.01.
 
 ## Progress
 
 | Phase | Title | Done / total | Status |
 |---|---|---|---|
 | P6 | Servable library + CI baseline (9-11 d) | 67 / 67 | done |
-| P7 | Queue and workers (5-6 d) | 27 / 28 | in progress |
-| P8 | Blocks, describe, rebuilt models (10-13 d) | 0 / 52 | not started |
+| P7 | Queue and workers (5-6 d) | 28 / 28 | done |
+| P8 | Blocks, describe, rebuilt models (10-13 d) | 0 / 52 | in progress |
 | P9 | Curriculum engine, gating, two paths (14-17 d) | 0 / 61 | not started |
 | P10 | HTTP API (8-10 d) | 0 / 47 | not started |
 | P11 | Release prep: PyPI + GHCR (2-3 d) | 0 / 17 | not started |
@@ -218,7 +218,7 @@ touch or create (new ones marked `(new)`).
 - [x] P7.27 Document the queue, workers, `nanoscope jobs`, lanes, the removal of `--shard` and backing up `queue.db` in `docs/research.md`. · files: docs/research.md · deps: P7.20, P7.21 · done: `grep -cE 'nanoscope worker|nanoscope jobs|queue\.db' docs/research.md` prints at least 3 ✓ 2026-10-05 26dedc4: research guide: queue, workers, lanes, jobs, queue.db backup, --shard removed
 
 ### P7 · Gate
-- [ ] P7.99 PHASE GATE P7. Exit criteria: plan section 10 phase 7. · files: — · deps: P7.* · done: `make check` passes; `uv run pytest tests/test_first_model_notebook.py` passes; `uv run pytest tests/test_jobs.py -k sigkill` passes; P7.26 recorded; CI green; **USER ACTION** merge the PR
+- [x] P7.99 PHASE GATE P7. Exit criteria: plan section 10 phase 7. · files: — · deps: P7.* · done: `make check` passes; `uv run pytest tests/test_first_model_notebook.py` passes; `uv run pytest tests/test_jobs.py -k sigkill` passes; P7.26 recorded; CI green; **USER ACTION** merge the PR ✓ 2026-10-06 50c1431: PR #7 merged; CI waived (GitHub Actions incident), local evidence recorded
 
 ---
 
