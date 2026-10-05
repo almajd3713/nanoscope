@@ -4,13 +4,13 @@ The build list for [`plan-tool.md`](plan-tool.md), sections 4-10, with the decis
 2026-10-05 (plan section 11) applied. Phase numbers follow the plan's section 10. Every
 item is one line, so scripts and agents can grep and edit it.
 
-**Current focus:** P6 servable library + CI baseline. Next item: P6.08 (P6.03 waits on the user).
+**Current focus:** P6 servable library + CI baseline. Next item: P6.14 (P6.03 waits on the user).
 
 ## Progress
 
 | Phase | Title | Done / total | Status |
 |---|---|---|---|
-| P6 | Servable library + CI baseline (9-11 d) | 6 / 67 | in progress |
+| P6 | Servable library + CI baseline (9-11 d) | 12 / 67 | in progress |
 | P7 | Queue and workers (5-6 d) | 0 / 28 | not started |
 | P8 | Blocks, describe, rebuilt models (10-13 d) | 0 / 52 | not started |
 | P9 | Curriculum engine, gating, two paths (14-17 d) | 0 / 61 | not started |
@@ -97,12 +97,12 @@ touch or create (new ones marked `(new)`).
 - [x] P6.07 Add `make check` (lint, then typecheck, then test) and mention it in the README's "Develop" section. · files: Makefile, README.md · deps: P6.05 · done: `make check` exits 0 ✓ 2026-10-05 32d6ac4: make check passes; README Develop updated
 
 ### P6 · Library: one home
-- [ ] P6.08 Create `nanoscope/paths.py`. Its `home()`, `runs_dir()`, `reports_dir()`, `data_dir()`, `learn_dir()`, `hardware_dir()` and `workspace_dir()` read `NANOSCOPE_HOME`, `NANOSCOPE_DATA_DIR` and `NANOSCOPE_WORKSPACE` at call time, with today's defaults. · files: nanoscope/paths.py (new), tests/test_paths.py (new) · deps: P6.02 · done: `uv run pytest tests/test_paths.py` passes, including a test that sets `NANOSCOPE_HOME` after import
-- [ ] P6.09 Replace `RUNS_DIR` in `run.py` (the run dir and the Hub path) and in `study.py` (`Study.dir`) with `paths.runs_dir()`. · files: nanoscope/run.py, nanoscope/study.py · deps: P6.08 · done: `grep -rn 'Path("runs")' nanoscope` is empty and `make test` passes
-- [ ] P6.10 Replace `REPORTS_DIR` in `study.py` and the report message in `cli.py` with `paths.reports_dir()`. · files: nanoscope/study.py, nanoscope/cli.py · deps: P6.08 · done: `grep -rn 'Path("experiments")' nanoscope` is empty, and a test writes a report under `$NANOSCOPE_HOME/experiments`
-- [ ] P6.11 Make the token cache directory (`dataset.CACHE_DIR`) a call-time `paths.data_dir()` lookup; `NANOSCOPE_DATA_DIR` still wins. · files: nanoscope/dataset.py, tests/test_data.py · deps: P6.08 · done: `uv run pytest tests/test_data.py` passes, including a test that sets the env var after import
-- [ ] P6.12 Take the default path of `nanoscope status` and the name lookup in `compare._resolve` from `paths.runs_dir()`. · files: nanoscope/cli.py, nanoscope/compare.py · deps: P6.09 · done: `NANOSCOPE_HOME=$(mktemp -d) uv run nanoscope status` exits 0
-- [ ] P6.13 Add a `home` fixture to `tests/conftest.py` that points `NANOSCOPE_HOME` at `tmp_path`, and move tests that rely on `chdir` onto it. · files: tests/conftest.py, tests/test_*.py · deps: P6.09, P6.10, P6.11 · done: `make test` passes and `grep -ln chdir tests` lists only test_first_model_notebook.py
+- [x] P6.08 Create `nanoscope/paths.py`. Its `home()`, `runs_dir()`, `reports_dir()`, `data_dir()`, `learn_dir()`, `hardware_dir()` and `workspace_dir()` read `NANOSCOPE_HOME`, `NANOSCOPE_DATA_DIR` and `NANOSCOPE_WORKSPACE` at call time, with today's defaults. · files: nanoscope/paths.py (new), tests/test_paths.py (new) · deps: P6.02 · done: `uv run pytest tests/test_paths.py` passes, including a test that sets `NANOSCOPE_HOME` after import ✓ 2026-10-05 321ff96: paths.py + 3 tests
+- [x] P6.09 Replace `RUNS_DIR` in `run.py` (the run dir and the Hub path) and in `study.py` (`Study.dir`) with `paths.runs_dir()`. · files: nanoscope/run.py, nanoscope/study.py · deps: P6.08 · done: `grep -rn 'Path("runs")' nanoscope` is empty and `make test` passes ✓ 2026-10-05 321ff96: RUNS_DIR removed; only paths.py holds the ./runs fallback
+- [x] P6.10 Replace `REPORTS_DIR` in `study.py` and the report message in `cli.py` with `paths.reports_dir()`. · files: nanoscope/study.py, nanoscope/cli.py · deps: P6.08 · done: `grep -rn 'Path("experiments")' nanoscope` is empty, and a test writes a report under `$NANOSCOPE_HOME/experiments` ✓ 2026-10-05 321ff96: REPORTS_DIR removed; only paths.py holds the ./experiments fallback
+- [x] P6.11 Make the token cache directory (`dataset.CACHE_DIR`) a call-time `paths.data_dir()` lookup; `NANOSCOPE_DATA_DIR` still wins. · files: nanoscope/dataset.py, tests/test_data.py · deps: P6.08 · done: `uv run pytest tests/test_data.py` passes, including a test that sets the env var after import ✓ 2026-10-05 321ff96: CACHE_DIR removed; data_dir() read at call time
+- [x] P6.12 Take the default path of `nanoscope status` and the name lookup in `compare._resolve` from `paths.runs_dir()`. · files: nanoscope/cli.py, nanoscope/compare.py · deps: P6.09 · done: `NANOSCOPE_HOME=$(mktemp -d) uv run nanoscope status` exits 0 ✓ 2026-10-05 321ff96: status default and compare lookup use paths.runs_dir()
+- [x] P6.13 Add a `home` fixture to `tests/conftest.py` that points `NANOSCOPE_HOME` at `tmp_path`, and move tests that rely on `chdir` onto it. · files: tests/conftest.py, tests/test_*.py · deps: P6.09, P6.10, P6.11 · done: `make test` passes and `grep -ln chdir tests` lists only test_first_model_notebook.py ✓ 2026-10-05 321ff96: home fixture; only the first-notebook test still chdirs
 
 ### P6 · Library: run refs and store
 - [ ] P6.14 Create `nanoscope/store.py` with `resolve(ref)`, which maps a ref relative to the runs root (or `baselines/...` to the package baselines) to a path and rejects absolute paths, `..` and symlink escapes. · files: nanoscope/store.py (new), tests/test_store.py (new) · deps: P6.09 · done: `uv run pytest tests/test_store.py -k resolve` passes, including the traversal cases
