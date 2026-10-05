@@ -19,6 +19,11 @@ _EXPORTS: dict[str, str] = {
     "BlockSpec": "nanoscope.blocks.spec",
     "Composite": "nanoscope.blocks.composite",
     "Residual": "nanoscope.blocks.composite",
+    "TokenEmbedding": "nanoscope.blocks.embedding",
+    "LearnedPosition": "nanoscope.blocks.embedding",
+    "Head": "nanoscope.blocks.head",
+    "LayerNorm": "nanoscope.blocks.norm",
+    "RMSNorm": "nanoscope.blocks.norm",
     **{name: "nanoscope.blocks.primitives" for name in (
         "Linear", "Activation", "CausalMask", "ScaledDotScores", "Softmax", "WeightedSum",
         "SplitHeads", "MergeHeads")},

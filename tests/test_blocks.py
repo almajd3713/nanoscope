@@ -238,3 +238,47 @@ def test_residual_adds_its_input():
     assert block.flops_per_token(8) == 6 * 4 * 4
     with pytest.raises(TypeError, match="needs: inner"):
         Residual()
+
+
+# ---- embedding, head, norms -----------------------------------------------------------------
+
+
+def test_embedding_matches_one_hot_matmul():
+    from nanoscope.blocks.embedding import LearnedPosition, TokenEmbedding
+
+    emb = TokenEmbedding(vocab_size=11).build(6, 5)
+    ids = torch.randint(11, (3, 5))
+    torch.testing.assert_close(emb(ids), R.embed_one_hot(ids, emb.weight), atol=ATOL, rtol=0)
+    assert isinstance(emb, nn.Embedding) and list(emb.state_dict()) == ["weight"]
+    pos = LearnedPosition().build(6, 5)
+    x = torch.randn(3, 4, 6)  # shorter than the context: only the first 4 positions are used
+    torch.testing.assert_close(pos(x), R.add_learned_position(x, pos.weight), atol=ATOL, rtol=0)
+    assert emb.flops_per_token(5) == 0 and pos.flops_per_token(5) == 0
+
+
+def test_head_tied_or_untied():
+    from nanoscope.blocks.embedding import TokenEmbedding
+    from nanoscope.blocks.head import Head
+
+    emb, head = TokenEmbedding(vocab_size=11).build(6, 5), Head(vocab_size=11).build(6, 5)
+    x = torch.randn(2, 5, 6)
+    assert head.weight is not emb.weight and head.bias is None
+    head.weight = emb.weight  # what Decoder does for tie_weights=True
+    torch.testing.assert_close(head(x), R.tied_head(x, emb.weight), atol=ATOL, rtol=0)
+    assert head.flops_per_token(5) == 6 * 11 * 6
+
+
+def test_norm_layers_match_their_formulas():
+    from nanoscope.blocks.norm import LayerNorm, RMSNorm
+
+    x = torch.randn(4, 16)
+    ln = LayerNorm().build(16, 8)
+    ln.weight.data, ln.bias.data = torch.randn(16), torch.randn(16)
+    torch.testing.assert_close(ln(x), R.layer_norm(x, ln.weight, ln.bias), atol=ATOL, rtol=0)
+    assert ln.flops_per_token(8) == 6 * 32
+    nobias = LayerNorm(bias=False).build(16, 8)
+    assert nobias.bias is None and nobias.flops_per_token(8) == 6 * 16
+    rms = RMSNorm().build(16, 8)
+    rms.weight.data = torch.randn(16)
+    torch.testing.assert_close(rms(x), R.rms_norm(x, rms.weight), atol=ATOL, rtol=0)
+    assert rms.flops_per_token(8) == 6 * 16
