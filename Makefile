@@ -1,4 +1,4 @@
-.PHONY: install test test-all lint
+.PHONY: install test test-all lint typecheck check
 
 install:  ## everything, including dev tools
 	uv sync --all-extras
@@ -11,3 +11,8 @@ test-all:  ## also the first-notebook timing test (downloads TinyStories once) a
 
 lint:
 	uv run ruff check nanoscope tests
+
+typecheck:
+	uv run pyright nanoscope
+
+check: lint typecheck test  ## what CI runs

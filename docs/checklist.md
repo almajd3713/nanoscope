@@ -86,8 +86,8 @@ touch or create (new ones marked `(new)`).
 ## P6 Servable library + CI baseline
 
 ### P6 · Housekeeping and migration
-- [ ] P6.01 Commit `docs/plan-tool.md`, `docs/plan-tool-landscape.md` and `docs/checklist.md` so the plan and this list are versioned. · files: docs/plan-tool.md, docs/plan-tool-landscape.md, docs/checklist.md · deps: — · done: `git ls-files docs | grep -cE 'plan-tool|checklist'` prints 3
-- [ ] P6.02 **USER ACTION** Merge PR #5 (phase 5), then create `feat/phase-6-servable` from the updated main. · files: — · deps: P6.01 · done: `git merge-base --is-ancestor fb81aca HEAD && git branch --show-current` prints feat/phase-6-servable
+- [x] P6.01 Commit `docs/plan-tool.md`, `docs/plan-tool-landscape.md` and `docs/checklist.md` so the plan and this list are versioned. · files: docs/plan-tool.md, docs/plan-tool-landscape.md, docs/checklist.md · deps: — · done: `git ls-files docs | grep -cE 'plan-tool|checklist'` prints 3 ✓ 2026-10-05 1224f99: plan, landscape and checklist committed
+- [x] P6.02 **USER ACTION** Merge PR #5 (phase 5), then create `feat/phase-6-servable` from the updated main. · files: — · deps: P6.01 · done: `git merge-base --is-ancestor fb81aca HEAD && git branch --show-current` prints feat/phase-6-servable ✓ 2026-10-05 b729337: PR #5 merged, branch feat/phase-6-servable
 - [ ] P6.03 Delete the local leftovers: the empty `configs/` and `reports/` folders and the git-excluded `docs/m1-evaluator-plan.md`, after the user confirms (plan 13). · files: configs/, reports/, docs/m1-evaluator-plan.md · deps: P6.02 · done: `ls configs reports docs/m1-evaluator-plan.md 2>&1 | grep -c 'No such file'` prints 3
 
 ### P6 · CI

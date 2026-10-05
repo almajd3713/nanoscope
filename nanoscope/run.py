@@ -5,7 +5,7 @@ import inspect
 import json
 from dataclasses import asdict, dataclass, fields
 from pathlib import Path
-from typing import Any
+from typing import Any, cast
 
 import torch
 from torch import nn
@@ -297,10 +297,10 @@ def run(
             raise ValueError("output_dir names one run; leave it out when passing seeds=")
         seed_list = list(range(seeds)) if isinstance(seeds, int) else list(seeds)
         return RunGroup([
-            run(model_cls, preset, seed=s, device=device, resume=resume, on_step=on_step,
+            cast(RunResult, run(
+                model_cls, preset, seed=s, device=device, resume=resume, on_step=on_step,
                 on_eval=on_eval, wandb=wandb, push_to_hub=push_to_hub, progress=progress,
-                study=study, compile=compile,
-                **model_kwargs)
+                study=study, compile=compile, **model_kwargs))
             for s in seed_list
         ])
     if isinstance(preset, str):

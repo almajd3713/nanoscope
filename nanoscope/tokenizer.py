@@ -57,7 +57,9 @@ class BPETokenizer:
         from tokenizers import Tokenizer as HFTokenizer
         self._tok = HFTokenizer.from_file(str(path))
         self.vocab_size = self._tok.get_vocab_size()
-        self.eos_token_id = self._tok.token_to_id(EOS)
+        eos = self._tok.token_to_id(EOS)
+        assert eos is not None, f"{path} has no {EOS} token"
+        self.eos_token_id = eos
 
     @staticmethod
     def train(texts: Iterable[str], vocab_size: int, path: Path) -> BPETokenizer:

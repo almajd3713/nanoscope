@@ -93,10 +93,11 @@ def bench(model_cls, preset: str | Preset = "tinystories-5min", steps: int = 60,
 
     busy = None
     if dev.type == "cuda" and profile:
-        from torch.profiler import ProfilerActivity, profile
+        from torch.profiler import ProfilerActivity
+        from torch.profiler import profile as torch_profile
 
         model = build()
-        with profile(activities=[ProfilerActivity.CUDA]) as prof:
+        with torch_profile(activities=[ProfilerActivity.CUDA]) as prof:
             _step_seconds(model, data, preset, dev, warmup, compile)
             torch.cuda.synchronize(dev)
         kernel_s = sum(e.self_device_time_total for e in prof.key_averages()) / 1e6

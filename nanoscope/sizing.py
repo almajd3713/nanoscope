@@ -26,8 +26,9 @@ def count_params(model: nn.Module) -> tuple[int, int]:
 
 def flops_per_token(model: nn.Module, context_length: int) -> int:
     """Training FLOPs per token: the model's own estimate if it has one, else 6N."""
-    if hasattr(model, "flops_per_token"):
-        return int(model.flops_per_token(context_length))
+    own = getattr(model, "flops_per_token", None)
+    if callable(own):
+        return int(own(context_length))  # pyright: ignore[reportArgumentType]
     return 6 * count_params(model)[1]
 
 

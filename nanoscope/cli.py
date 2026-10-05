@@ -22,6 +22,8 @@ def _load_model_class(spec: str):
     if not path.exists():
         raise FileNotFoundError(f"model file not found: {path}")
     module_spec = importlib.util.spec_from_file_location("_user_model", path)
+    if module_spec is None or module_spec.loader is None:
+        raise ImportError(f"cannot load a model from {path}")
     module = importlib.util.module_from_spec(module_spec)
     module_spec.loader.exec_module(module)
     if not hasattr(module, class_name):
@@ -160,7 +162,10 @@ def main(argv: list[str] | None = None) -> None:
         study = load_study(args.file, args.name)
         if args.command == "study":
             devices = args.devices.split(",") if args.devices else None
-            shard = tuple(int(x) for x in args.shard.split("/")) if args.shard else None
+            shard = None
+            if args.shard:
+                index, count = (int(x) for x in args.shard.split("/"))
+                shard = (index, count)
             if args.push_to_hub:
                 study.push_to_hub = args.push_to_hub
             if args.compile:

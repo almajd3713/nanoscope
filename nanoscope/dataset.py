@@ -47,7 +47,7 @@ def _iter_texts(
         # Streaming fetches only the documents we use, not the whole dataset.
         rows = load_dataset(dataset, config, split=split, streaming=True).take(max_docs)
     for row in rows:
-        yield row["text"]
+        yield row["text"]  # pyright: ignore[reportCallIssue, reportArgumentType]
 
 
 def _split_texts(preset: Preset, split: str, docs: int | None) -> Iterator[str]:
@@ -134,6 +134,7 @@ def load_tokenizer(preset: Preset) -> Tokenizer:
         texts = tqdm(_split_texts(preset, "train", preset.tokenizer_train_docs),
                      total=preset.tokenizer_train_docs, desc="reading tokenizer documents",
                      unit="doc")
+        assert preset.vocab_size is not None  # bpe presets always set it
         tokenizer = BPETokenizer.train(texts, preset.vocab_size, path)
         _log(f"tokenizer ready: {tokenizer.vocab_size:,} tokens")
         return tokenizer
@@ -165,6 +166,7 @@ def _write_tokens(
                     shards.append(f"shard-{len(shards):05d}.bin")
                     f = (out / shards[-1]).open("wb")
                     in_shard = 0
+                assert f is not None
                 flat.tofile(f)
                 in_shard += len(flat)
                 n_docs += len(chunk)

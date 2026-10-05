@@ -64,8 +64,10 @@ nanoscope publish-data tinystories-5min user/repo   # upload tokens to a Hub dat
 
 ```bash
 uv sync --all-extras
-make test      # offline tests
+make test       # offline tests
 make lint
+make typecheck
+make check      # lint, typecheck, then test: what CI runs
 ```
 
 ## Data credits
