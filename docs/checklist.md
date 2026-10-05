@@ -11,7 +11,7 @@ item is one line, so scripts and agents can grep and edit it.
 | Phase | Title | Done / total | Status |
 |---|---|---|---|
 | P6 | Servable library + CI baseline (9-11 d) | 67 / 67 | done |
-| P7 | Queue and workers (5-6 d) | 25 / 28 | in progress |
+| P7 | Queue and workers (5-6 d) | 26 / 28 | in progress |
 | P8 | Blocks, describe, rebuilt models (10-13 d) | 0 / 52 | not started |
 | P9 | Curriculum engine, gating, two paths (14-17 d) | 0 / 61 | not started |
 | P10 | HTTP API (8-10 d) | 0 / 47 | not started |
@@ -215,7 +215,7 @@ touch or create (new ones marked `(new)`).
 - [x] P7.24 Test that an interactive job is claimed before already-queued batch jobs, end to end through a worker. · files: tests/test_jobs.py · deps: P7.12 · done: `uv run pytest tests/test_jobs.py -k interactive_first` passes ✓ 2026-10-05 8888a9e: sigkill resume equals uninterrupted study; interactive lane first; kaggle command enqueues (exit-when-idle waits for leased jobs, --lease-seconds added)
 - [x] P7.25 Test that the Kaggle notebook's `--devices cuda:0,cuda:1` command parses and enqueues with fake CUDA. · files: tests/test_first_model_notebook.py, tests/test_study.py · deps: P7.18 · done: `uv run pytest -k kaggle` passes ✓ 2026-10-05 8888a9e: sigkill resume equals uninterrupted study; interactive lane first; kaggle command enqueues (exit-when-idle waits for leased jobs, --lease-seconds added)
 - [ ] P7.26 **USER ACTION** On a GPU box, run `m1_ablation` with `--workers-per-device 4` and record its wall time against phase 5 in the PR. · files: PR description · deps: P7.22 · done: the PR description contains both timings
-- [ ] P7.27 Document the queue, workers, `nanoscope jobs`, lanes, the removal of `--shard` and backing up `queue.db` in `docs/research.md`. · files: docs/research.md · deps: P7.20, P7.21 · done: `grep -cE 'nanoscope worker|nanoscope jobs|queue\.db' docs/research.md` prints at least 3
+- [x] P7.27 Document the queue, workers, `nanoscope jobs`, lanes, the removal of `--shard` and backing up `queue.db` in `docs/research.md`. · files: docs/research.md · deps: P7.20, P7.21 · done: `grep -cE 'nanoscope worker|nanoscope jobs|queue\.db' docs/research.md` prints at least 3 ✓ 2026-10-05 26dedc4: research guide: queue, workers, lanes, jobs, queue.db backup, --shard removed
 
 ### P7 · Gate
 - [ ] P7.99 PHASE GATE P7. Exit criteria: plan section 10 phase 7. · files: — · deps: P7.* · done: `make check` passes; `uv run pytest tests/test_first_model_notebook.py` passes; `uv run pytest tests/test_jobs.py -k sigkill` passes; P7.26 recorded; CI green; **USER ACTION** merge the PR
