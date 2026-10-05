@@ -9,31 +9,17 @@ import torch.nn.functional as F
 from nanoscope.models import GPT2, Bigram, Modern
 from nanoscope.models.gpt2 import CausalSelfAttention
 from nanoscope.models.modern import Attention, RMSNorm, SwiGLU, apply_rope, rope_tables
+from nanoscope.reference.functional import (
+    gelu,
+    layer_norm,
+    naive_causal_attention,
+    naive_rope,
+    rms_norm,
+    swiglu,
+)
 
 torch.manual_seed(0)
 ATOL = 1e-5
-
-
-def naive_causal_attention(q, k, v):
-    """Loop over heads and query positions; softmax over keys at or before the query."""
-    B, H, T, D = q.shape
-    out = torch.zeros_like(q)
-    for h in range(H):
-        for t in range(T):
-            scores = torch.einsum("bd,bsd->bs", q[:, h, t], k[:, h, : t + 1]) / math.sqrt(D)
-            out[:, h, t] = torch.einsum("bs,bsd->bd", scores.softmax(-1), v[:, h, : t + 1])
-    return out
-
-
-def naive_rope(x, base=10000.0):
-    """Treat (x[i], x[i + D/2]) as a complex number and multiply by e^(i * m * theta_i)."""
-    B, H, T, D = x.shape
-    half = D // 2
-    z = torch.complex(x[..., :half].double(), x[..., half:].double())
-    theta = base ** (-torch.arange(0, D, 2).double() / D)
-    m = torch.arange(T).double()
-    z = z * torch.polar(torch.ones(T, half, dtype=torch.double), torch.outer(m, theta))
-    return torch.cat([z.real, z.imag], dim=-1).float()
 
 
 def test_gpt2_attention_matches_naive_loop():
@@ -88,8 +74,18 @@ def test_rmsnorm_matches_formula():
     norm = RMSNorm(16)
     norm.weight.data = torch.randn(16)
     x = torch.randn(4, 16)
-    expected = x / torch.sqrt((x**2).mean(-1, keepdim=True) + 1e-6) * norm.weight
-    torch.testing.assert_close(norm(x), expected, atol=ATOL, rtol=0)
+    torch.testing.assert_close(norm(x), rms_norm(x, norm.weight), atol=ATOL, rtol=0)
+
+
+def test_layernorm_gelu_and_swiglu_match_their_formulas():
+    x = torch.randn(4, 16)
+    ln = torch.nn.LayerNorm(16)
+    ln.weight.data, ln.bias.data = torch.randn(16), torch.randn(16)
+    torch.testing.assert_close(ln(x), layer_norm(x, ln.weight, ln.bias), atol=ATOL, rtol=0)
+    torch.testing.assert_close(F.gelu(x, approximate="tanh"), gelu(x), atol=ATOL, rtol=0)
+    mlp = SwiGLU(16)
+    torch.testing.assert_close(
+        mlp(x), swiglu(x, mlp.w1.weight, mlp.w3.weight, mlp.proj.weight), atol=ATOL, rtol=0)
 
 
 def test_swiglu_matches_gelu_mlp_parameter_count():
