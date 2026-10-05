@@ -98,3 +98,18 @@ def test_exported_baseline_compares_like_the_original(tmp_path):
     assert not any("sample" in r for r in rows)
     assert [r.final("val_bpb") for r in load_runs(out)] == \
         [r.summary()["final_val_bpb"] for r in group]
+
+
+def test_compare_accepts_refs_paths_and_names(capsys):
+    a = run(Bigram, tiny(), device="cpu", seeds=2, progress=False)
+    b = run(Bigram, tiny(), device="cpu", seeds=2, progress=False, d_model=8)
+    by_ref = compare(a.ref, b.ref)
+    by_path = compare(str(a[0].run_dir.parent), str(b[0].run_dir.parent))
+    by_object = compare(a, b)
+    def rows(c):  # the source column is the ref, the path, or the run folder
+        return [{k: v for k, v in r.items() if k != "source"} for r in c.rows]
+
+    assert rows(by_ref) == rows(by_path) == rows(by_object)
+    assert [s.source for s in by_ref.sets] == [a.ref, b.ref]
+    with pytest.raises(ValueError, match="can't find runs named 'no/such/set'"):
+        compare(a.ref, "no/such/set")

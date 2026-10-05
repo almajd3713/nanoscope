@@ -7,7 +7,7 @@ import pytest
 import torch
 from fakes import tiny
 
-from nanoscope import paths, run
+from nanoscope import paths, run, store
 from nanoscope.dataset import load_data, load_tokenizer
 from nanoscope.models import Bigram
 from nanoscope.tokenizer import BPETokenizer, ByteTokenizer
@@ -125,3 +125,13 @@ def test_a_seed_gives_the_same_initial_weights_whatever_ran_before(fake_data):
     run(Bigram, tiny(), output_dir=out("other"), seed=9, progress=False)  # disturbs the global RNG
     again = run(Bigram, tiny(), output_dir=out("b"), seed=3, progress=False)
     assert again.metrics[0]["loss"] == first.metrics[0]["loss"]
+
+
+def test_results_know_their_ref():
+    single = run(Bigram, tiny(), device="cpu", progress=False)
+    group = run(Bigram, tiny(), device="cpu", seeds=2, progress=False, d_model=8)
+    assert single.ref == single.run_dir.relative_to(paths.runs_dir()).as_posix()
+    assert single.summary()["ref"] == single.ref
+    assert group.ref == group[0].ref.removesuffix("/seed-0")
+    assert group.summary()["ref"] == group.ref
+    assert store.resolve(group.ref) == group[0].run_dir.parent

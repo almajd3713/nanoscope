@@ -57,3 +57,8 @@ def workspace_dir() -> Path:
         return Path(explicit)
     base = home()
     return base / "workspace" if base else Path("workspace")
+
+
+def baselines_dir() -> Path:
+    """Results shipped with the package; read-only."""
+    return Path(__file__).parent / "baselines"

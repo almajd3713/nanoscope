@@ -16,6 +16,7 @@ from nanoscope.integrations import HubSync, chain, wandb_hook
 from nanoscope.presets import Preset, get_preset, list_presets
 from nanoscope.progress import ProgressBar
 from nanoscope.sizing import count_params, flops_per_token
+from nanoscope.store import ref_of
 from nanoscope.train_loop import TrainResult, generate, train
 
 
@@ -32,6 +33,11 @@ class RunResult:
     @property
     def run_dir(self) -> Path:
         return self.train_result.run_dir
+
+    @property
+    def ref(self) -> str:
+        """The run's name under the runs folder (see nanoscope.store)."""
+        return ref_of(self.run_dir)
 
     @property
     def metrics(self) -> list[dict[str, Any]]:
@@ -119,6 +125,7 @@ class RunResult:
             "final_train_loss": self.train_losses[-1] if self.train_losses else None,
             "final_val_loss": val[-1][1] if val else None,
             "final_val_bpb": bpb[-1][1] if bpb else None,
+            "ref": self.ref,
             "run_dir": str(self.run_dir),
         }
 
@@ -142,6 +149,11 @@ class RunGroup:
     def seeds(self) -> list[int]:
         return [r.seed for r in self.results]
 
+    @property
+    def ref(self) -> str:
+        """The set's name under the runs folder: the folder that holds the seeds."""
+        return ref_of(self.results[0].run_dir.parent)
+
     def summary(self) -> dict[str, Any]:
         from nanoscope.statistics import summarize
 
@@ -152,6 +164,7 @@ class RunGroup:
             "seeds": self.seeds,
             "val_loss": summarize([r.summary()["final_val_loss"] for r in self.results]),
             "val_bpb": summarize([r.summary()["final_val_bpb"] for r in self.results]),
+            "ref": self.ref,
             "run_dir": str(first.run_dir.parent),
         }
 

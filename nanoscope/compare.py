@@ -18,10 +18,10 @@ from pathlib import Path
 from statistics import mean
 from typing import Any
 
-from nanoscope import paths
+from nanoscope import paths, store
 from nanoscope.statistics import paired_difference, summarize, unpaired_difference
 
-BASELINES_DIR = Path(__file__).parent / "baselines"
+BASELINES_DIR = paths.baselines_dir()
 METRICS = {"val_bpb": "bits per byte", "val_loss": "loss (nats per token)"}
 
 
@@ -108,6 +108,10 @@ def load_runs(path: str | Path) -> list[SeedRun]:
     return [SeedRun.load(p) for p in seeds]
 
 
+def _holds_runs(path: Path) -> bool:
+    return (path / "config.json").exists() or any(path.glob("seed-*/config.json"))
+
+
 def _resolve(item: Any, preset: str | None) -> RunSet:
     from nanoscope.run import RunGroup, RunResult
 
@@ -118,6 +122,12 @@ def _resolve(item: Any, preset: str | None) -> RunSet:
                       [SeedRun.load(r.run_dir) for r in item.results])
     if isinstance(item, RunSet):
         return item
+    try:  # a ref: a path under the runs folder (or baselines/...)
+        where = store.resolve(item)
+    except (ValueError, FileNotFoundError):
+        where = None
+    if where is not None and _holds_runs(where):
+        return RunSet(store.ref_of(where), load_runs(where))
     path = Path(item)
     if path.exists():
         return RunSet(str(path), load_runs(path))

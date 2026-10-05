@@ -110,7 +110,7 @@ def build_parser() -> argparse.ArgumentParser:
     report_parser.add_argument("--name", default=None)
 
     cmp_parser = sub.add_parser("compare", help="Compare runs against a baseline (the last one)")
-    cmp_parser.add_argument("runs", nargs="+", help="run folders, or run names with --preset")
+    cmp_parser.add_argument("runs", nargs="+", help="run refs (see `nanoscope status`), run folders, or run names with --preset")
     cmp_parser.add_argument("--preset", default=None)
     cmp_parser.add_argument("--metric", default="val_bpb", choices=["val_bpb", "val_loss"])
 
