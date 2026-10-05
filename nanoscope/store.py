@@ -67,3 +67,37 @@ def list_sets(prefix: str = "") -> list[str]:
     """Refs of every set of seeds under a prefix (the folders that hold `seed-*` runs)."""
     sets = {r.run_dir.parent for r in list_runs(prefix) if r.run_dir.name.startswith("seed-")}
     return sorted(ref_of(p) for p in sets)
+
+
+def locate(target: str | Path) -> Path:
+    """The folder a CLI argument names: a ref, a study name, or a plain path."""
+    for candidate in (str(target), f"studies/{target}"):
+        try:
+            return resolve(candidate)
+        except (ValueError, FileNotFoundError):
+            continue
+    if Path(target).exists():
+        return Path(target)
+    raise FileNotFoundError(
+        f"nothing to stop at {str(target)!r}: not a run ref, a study name or a folder "
+        f"(runs are under {paths.runs_dir()})"
+    )
+
+
+def request_stop(target: str | Path) -> list[str]:
+    """Ask every running run under target to stop, by writing a STOP file in its folder.
+
+    A study (a folder with plan.json) also gets its own STOP file, so the jobs that have not
+    started are skipped. Returns the refs it wrote to; the runs stop at their next step."""
+    from nanoscope.status import STOP_FILE
+
+    root = locate(target)
+    refs = []
+    if (root / "plan.json").exists():
+        (root / STOP_FILE).write_text("", encoding="utf-8")
+        refs.append(ref_of(root))
+    for state in snapshot(root):
+        if state.state in ("running", "preparing"):
+            (state.run_dir / STOP_FILE).write_text("", encoding="utf-8")
+            refs.append(ref_of(state.run_dir))
+    return refs

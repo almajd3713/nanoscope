@@ -338,3 +338,17 @@ def test_studies_sample_text_only_at_the_last_step():
     study = Study("s", preset=tiny(sample_interval=10), seeds=1)
     study.add("a", Bigram)
     assert all(j.preset.sample_interval == j.preset.max_steps for j in study.jobs())
+
+
+def test_stopping_a_study_skips_the_jobs_that_have_not_started(capsys):
+    from nanoscope.cli import main
+
+    study = Study("toy", preset=tiny(), seeds=3, budget=Tokens(4 * 32 * 6))
+    study.add("a", Bigram)
+    study._write_plan(study.jobs())
+    main(["stop", "toy"])  # a study name; nothing is running, so only the study is flagged
+    assert (study.dir / "STOP").exists()
+    capsys.readouterr()
+    study.run(devices=["cpu"])
+    assert "study stopped: skipping 3 remaining run(s)" in capsys.readouterr().out
+    assert not list(study.dir.glob("a/seed-*/metrics.jsonl"))

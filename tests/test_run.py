@@ -156,3 +156,70 @@ def test_v0_config_without_schema_keys_still_resumes():
     path.write_text(json.dumps(config))
     again = run(Bigram, tiny(), device="cpu", output_dir=out("old"), progress=False)
     assert again.final_step == first.final_step
+
+
+def test_train_stops_early_with_a_checkpoint_when_should_stop_says_so():
+    from nanoscope.train_loop import train
+
+    done = run(Bigram, tiny(), device="cpu", output_dir=out("source"), progress=False)
+    result = train(done.model, done.data, done.preset, out("stopper"), torch.device("cpu"),
+                   should_stop=lambda: True)
+    assert result.stopped_early and result.final_step == 1
+    assert (out("stopper") / "latest.json").exists()
+
+
+STOP_SCRIPT = """
+import sys, time
+from pathlib import Path
+sys.path.insert(0, {tests!r})
+from fakes import tiny
+from nanoscope import run
+from nanoscope.models import Bigram
+
+def slow(step, row):
+    time.sleep(0.02)
+    if step == 3:
+        Path({marker!r}).write_text("started")
+
+run(Bigram, tiny(max_steps=200, eval_interval=50, checkpoint_interval=100), device="cpu",
+    output_dir={out!r}, on_step=slow, progress=False)
+"""
+
+
+def test_stop_then_resume_matches_an_uninterrupted_run(tmp_path):
+    import subprocess
+    import sys
+    import time
+    from pathlib import Path
+
+    from nanoscope.cli import main
+
+    tuned = dict(max_steps=200, eval_interval=50, checkpoint_interval=100)
+    straight = run(Bigram, tiny(**tuned), device="cpu", output_dir=out("straight"),
+                   progress=False)  # also caches the data the subprocess will read
+
+    marker, victim = tmp_path / "started", out("victim")
+    script = tmp_path / "victim.py"
+    script.write_text(STOP_SCRIPT.format(
+        tests=str(Path(__file__).parent), marker=str(marker), out=str(victim)))
+    proc = subprocess.Popen([sys.executable, str(script)], stdout=subprocess.DEVNULL,
+                            stderr=subprocess.DEVNULL)
+    try:
+        deadline = time.time() + 120
+        while not marker.exists() and time.time() < deadline and proc.poll() is None:
+            time.sleep(0.05)
+        assert marker.exists(), "the run never reached step 3"
+        main(["stop", store.ref_of(victim)])
+        assert proc.wait(timeout=60) == 0
+    finally:
+        if proc.poll() is None:
+            proc.kill()
+
+    doc = json.loads((victim / "status.json").read_text())
+    assert doc["state"] == "cancelled" and 3 <= doc["step"] < 200
+    assert (victim / "latest.json").exists()
+
+    resumed = run(Bigram, tiny(**tuned), device="cpu", output_dir=victim, progress=False)
+    assert json.loads((victim / "status.json").read_text())["state"] == "done"
+    assert not (victim / "STOP").exists()
+    assert [r["loss"] for r in resumed.metrics] == [r["loss"] for r in straight.metrics]

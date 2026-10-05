@@ -126,3 +126,38 @@ def test_a_refused_resume_leaves_the_status_alone(fake_data):
     with pytest.raises(ValueError, match="different config"):
         run(Bigram, tiny(), device="cpu", output_dir=run_dir, learning_rate=1e-3, progress=False)
     assert (run_dir / "status.json").read_text() == before
+
+
+def test_a_stop_file_cancels_the_run_and_a_resume_finishes_it(fake_data):
+    run_dir = paths.runs_dir() / "stopme"
+
+    def ask_to_stop(step, row):
+        if step == 4:
+            (run_dir / "STOP").write_text("")
+
+    result = run(Bigram, tiny(), device="cpu", output_dir=run_dir, on_step=ask_to_stop,
+                 progress=False)
+    assert result.train_result.stopped_early and result.final_step == 4
+    assert _status(run_dir)["state"] == "cancelled"
+    assert (run_dir / "latest.json").exists()
+
+    again = run(Bigram, tiny(), device="cpu", output_dir=run_dir, progress=False)
+    assert again.final_step == 20 and not again.train_result.stopped_early
+    assert _status(run_dir)["state"] == "done"  # the stale STOP did not stop it again
+
+
+def test_stop_command_lists_the_refs_it_stopped(fake_data, capsys):
+    from nanoscope.cli import main
+    from nanoscope.status import StatusFile
+
+    root = paths.runs_dir()
+    StatusFile(root / "p" / "busy" / "seed-0", 20).write("running", step=3)
+    StatusFile(root / "p" / "idle" / "seed-0", 20).write("done", step=20)
+    main(["stop", "p/busy"])
+    out = capsys.readouterr().out
+    assert "stop requested: p/busy/seed-0" in out and "idle" not in out
+    assert (root / "p" / "busy" / "seed-0" / "STOP").exists()
+    assert not (root / "p" / "idle" / "seed-0" / "STOP").exists()
+
+    main(["stop", "p/idle"])
+    assert "nothing is running under p/idle" in capsys.readouterr().out

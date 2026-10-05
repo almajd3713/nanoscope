@@ -17,7 +17,7 @@ from nanoscope.presets import Preset, get_preset, list_presets
 from nanoscope.progress import ProgressBar
 from nanoscope.schemas.upgrade import read_json
 from nanoscope.sizing import count_params, flops_per_token
-from nanoscope.status import StatusFile
+from nanoscope.status import STOP_FILE, StatusFile
 from nanoscope.store import ref_of
 from nanoscope.train_loop import TrainResult, generate, train
 
@@ -403,6 +403,15 @@ def run(
             project = wandb if isinstance(wandb, str) else "nanoscope"
             wandb_step, finish = wandb_hook(project, "-".join(run_dir.parts[-3:]), config)
             on_step = chain(on_step, wandb_step)
+        stop_file = run_dir / STOP_FILE
+        stop_file.unlink(missing_ok=True)  # a leftover from an earlier cancel
+        cancelled = False
+
+        def should_stop() -> bool:
+            nonlocal cancelled
+            cancelled = cancelled or stop_file.exists()
+            return cancelled
+
         result = train(
             model=model,
             data=data,
@@ -415,12 +424,16 @@ def run(
             on_eval=on_eval,
             on_checkpoint=hub,
             compile=compile,
+            should_stop=should_stop,
         )
         if bar:
             bar.close()
         if finish:
             finish()
-        status.write("stopped" if result.stopped_early else "done", step=result.final_step)
+        if result.stopped_early:
+            status.write("cancelled" if cancelled else "stopped", step=result.final_step)
+        else:
+            status.write("done", step=result.final_step)
 
         return RunResult(
             preset=preset,

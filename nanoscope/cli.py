@@ -109,6 +109,10 @@ def build_parser() -> argparse.ArgumentParser:
     report_parser.add_argument("file", help="path/to/study.py")
     report_parser.add_argument("--name", default=None)
 
+    stop_parser = sub.add_parser(
+        "stop", help="Ask running runs to stop: they save a checkpoint and can be resumed")
+    stop_parser.add_argument("target", help="a run ref, a study name, or a folder")
+
     cmp_parser = sub.add_parser("compare", help="Compare runs against a baseline (the last one)")
     cmp_parser.add_argument(
         "runs", nargs="+",
@@ -159,6 +163,16 @@ def main(argv: list[str] | None = None) -> None:
 
         root = args.path or paths.runs_dir()
         print(format_snapshot(snapshot(root), root))
+        return
+
+    if args.command == "stop":
+        from nanoscope.store import request_stop
+
+        refs = request_stop(args.target)
+        for ref in refs:
+            print(f"stop requested: {ref}")
+        if not refs:
+            print(f"nothing is running under {args.target}")
         return
 
     if args.command in ("study", "report"):

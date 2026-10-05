@@ -7,6 +7,7 @@ import shutil
 import signal
 import threading
 import time
+from collections.abc import Callable
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
@@ -203,11 +204,15 @@ def train(
     on_eval: Any = None,
     on_checkpoint: Any = None,
     compile: bool | str = False,
+    should_stop: Callable[[], bool] | None = None,
 ) -> TrainResult:
     """compile=True runs the training forward and backward through torch.compile;
     compile="reduce-overhead" also records them as CUDA graphs, which helps most when small
     models leave the GPU waiting on the CPU. Checkpoints, evaluation and generation use the
-    plain module, so a run can resume with compile on or off."""
+    plain module, so a run can resume with compile on or off.
+
+    should_stop is asked after every step; when it returns True the run saves a checkpoint and
+    returns early, like Ctrl-C (`stopped_early` is set). `nanoscope stop` uses it."""
     torch.manual_seed(seed)
     if device.type == "cuda":
         torch.cuda.manual_seed_all(seed)
@@ -340,6 +345,8 @@ def train(
                 f.write(json.dumps(row) + "\n")
             if on_step:
                 on_step(step, row)
+            if should_stop is not None and should_stop():
+                stop_requested = True
 
             if step % preset.checkpoint_interval == 0 or last or stop_requested:
                 checkpoint(step)

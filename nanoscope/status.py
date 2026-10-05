@@ -18,6 +18,7 @@ from pathlib import Path
 from typing import Any
 
 HEARTBEAT_SECONDS = 5
+STOP_FILE = "STOP"  # a file with this name in a run (or study) folder asks it to stop
 STATES = ("queued", "preparing", "running", "done", "stopped", "cancelled", "failed")
 FINISHED = ("done", "stopped", "cancelled", "failed")
 

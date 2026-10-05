@@ -33,7 +33,7 @@ import warnings
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Any
+from typing import Any, cast
 
 import torch
 from torch import nn
@@ -44,10 +44,11 @@ from nanoscope.dataset import load_tokenizer
 from nanoscope.hardware import check_gpu_fits, cpu_threads, probe_memory
 from nanoscope.presets import Preset, get_preset
 from nanoscope.progress import one_line, snapshot
-from nanoscope.run import run
+from nanoscope.run import RunResult, run
 from nanoscope.schemas.upgrade import read_json
 from nanoscope.sizing import build_on_meta, count_params, flops_per_token
 from nanoscope.statistics import summarize
+from nanoscope.status import STOP_FILE
 
 PROGRESS_EVERY = 30  # seconds between progress lines while workers run
 
@@ -293,15 +294,23 @@ class Study:
             jobs = jobs[index::count]
         device = devices[0] if devices else None
         for i, job in enumerate(jobs, 1):
+            if (self.dir / STOP_FILE).exists():
+                print(f"[nanoscope] study stopped: skipping {len(jobs) - i + 1} remaining run(s)",
+                      flush=True)
+                return
             label = f"run {i}/{len(jobs)}: {job.variant.name} seed {job.seed}"
             print(f"[nanoscope] {label}", flush=True)
-            result = run(
+            result = cast(RunResult, run(
                 job.variant.model_cls, job.preset, seed=job.seed, device=device,
                 output_dir=job.output_dir, push_to_hub=self.push_to_hub, compile=self.compile,
                 study={"name": self.name, "variant": job.variant.name, "mode": self.mode,
                        **provenance},
                 **job.variant.kwargs,
-            )
+            ))
+            if result.train_result.stopped_early:
+                print(f"[nanoscope] {label} stopped at step {result.final_step}; "
+                      "skipping the rest", flush=True)
+                return
             bpb = result.summary()["final_val_bpb"]
             print(f"[nanoscope] {label} -> {bpb:.3f} bits per byte", flush=True)
 
