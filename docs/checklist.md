@@ -4,13 +4,13 @@ The build list for [`plan-tool.md`](plan-tool.md), sections 4-10, with the decis
 2026-10-05 (plan section 11) applied. Phase numbers follow the plan's section 10. Every
 item is one line, so scripts and agents can grep and edit it.
 
-**Current focus:** P6 servable library + CI baseline. Next item: P6.44.
+**Current focus:** P6 servable library + CI baseline. Next item: P6.48.
 
 ## Progress
 
 | Phase | Title | Done / total | Status |
 |---|---|---|---|
-| P6 | Servable library + CI baseline (9-11 d) | 43 / 67 | in progress |
+| P6 | Servable library + CI baseline (9-11 d) | 47 / 67 | in progress |
 | P7 | Queue and workers (5-6 d) | 0 / 28 | not started |
 | P8 | Blocks, describe, rebuilt models (10-13 d) | 0 / 52 | not started |
 | P9 | Curriculum engine, gating, two paths (14-17 d) | 0 / 61 | not started |
@@ -145,10 +145,10 @@ touch or create (new ones marked `(new)`).
 - [x] P6.43 Plan done-when: a trained run's `load_run` generates text in a fresh subprocess. · files: tests/test_store.py · deps: P6.41 · done: `uv run pytest tests/test_store.py -k fresh_process` passes ✓ 2026-10-05 db079a1: fresh-process generation test
 
 ### P6 · Specs and validation
-- [ ] P6.44 Create `nanoscope/specs.py` with `ModelSpec.from_class(cls)`: params, annotations as strings, defaults, from-data flags (`vocab_size`, `context_length`) and the docstring. · files: nanoscope/specs.py (new), tests/test_specs.py (new) · deps: P6.02 · done: `uv run pytest tests/test_specs.py -k model_spec` passes for Bigram, GPT2 and Modern
-- [ ] P6.45 Give every `Preset` field help text through `field(metadata={"help": ...})`, and add `PresetSpec.from_preset`. · files: nanoscope/presets.py, nanoscope/specs.py · deps: P6.44 · done: `uv run pytest tests/test_specs.py -k every_preset_field_has_help` passes
-- [ ] P6.46 Add a `Problem` dataclass (code, field, message, hint) with a `problem.v1` schema. · files: nanoscope/specs.py, nanoscope/schemas/problem.v1.json (new) · deps: P6.44, P6.18 · done: `uv run pytest tests/test_specs.py -k problem_schema` passes
-- [ ] P6.47 Add `validate_run_request(model, preset, kwargs) -> list[Problem]`, which returns every problem at once (unknown kwarg, wrong type, unknown preset, bad seeds). `_split_kwargs` uses it, and `run()` still raises the first problem with today's message. · files: nanoscope/specs.py, nanoscope/run.py · deps: P6.46 · done: `uv run pytest tests/test_specs.py -k three_problems tests/test_run.py -k unknown_keyword` passes
+- [x] P6.44 Create `nanoscope/specs.py` with `ModelSpec.from_class(cls)`: params, annotations as strings, defaults, from-data flags (`vocab_size`, `context_length`) and the docstring. · files: nanoscope/specs.py (new), tests/test_specs.py (new) · deps: P6.02 · done: `uv run pytest tests/test_specs.py -k model_spec` passes for Bigram, GPT2 and Modern ✓ 2026-10-05 7759465: ModelSpec.from_class for Bigram, GPT2, Modern
+- [x] P6.45 Give every `Preset` field help text through `field(metadata={"help": ...})`, and add `PresetSpec.from_preset`. · files: nanoscope/presets.py, nanoscope/specs.py · deps: P6.44 · done: `uv run pytest tests/test_specs.py -k every_preset_field_has_help` passes ✓ 2026-10-05 7759465: every Preset field has help; PresetSpec.from_preset
+- [x] P6.46 Add a `Problem` dataclass (code, field, message, hint) with a `problem.v1` schema. · files: nanoscope/specs.py, nanoscope/schemas/problem.v1.json (new) · deps: P6.44, P6.18 · done: `uv run pytest tests/test_specs.py -k problem_schema` passes ✓ 2026-10-05 7759465: Problem + problem.v1 schema
+- [x] P6.47 Add `validate_run_request(model, preset, kwargs) -> list[Problem]`, which returns every problem at once (unknown kwarg, wrong type, unknown preset, bad seeds). `_split_kwargs` uses it, and `run()` still raises the first problem with today's message. · files: nanoscope/specs.py, nanoscope/run.py · deps: P6.46 · done: `uv run pytest tests/test_specs.py -k three_problems tests/test_run.py -k unknown_keyword` passes ✓ 2026-10-05 7759465: validate_run_request returns all problems; _split_kwargs raises the first with the old message
 
 ### P6 · Declarative studies
 - [ ] P6.48 Add `tomli` (for Python < 3.11) and `tomli-w` to the core dependencies. · files: pyproject.toml, uv.lock · deps: P6.02 · done: `uv run python -c "import tomli_w"` exits 0
