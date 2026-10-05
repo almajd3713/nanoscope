@@ -6,11 +6,19 @@ a competing writer instead of failing at once.
 
 from __future__ import annotations
 
+import json
 import sqlite3
+import time
 from contextlib import closing
 from pathlib import Path
+from typing import Any
 
-from nanoscope import paths
+import jsonschema
+from jsonschema.exceptions import best_match
+
+from nanoscope import paths, schemas
+
+LANES = ("interactive", "batch")
 
 SCHEMA_VERSION = 1
 
@@ -63,3 +71,38 @@ def schema_version(path: Path | None = None) -> int:
     with closing(connect(path)) as conn:
         row = conn.execute("SELECT value FROM meta WHERE key = 'schema_version'").fetchone()
     return int(row["value"])
+
+
+class InvalidJob(ValueError):
+    """The payload doesn't match the job.v1 schema of its kind."""
+
+
+def validate_job(kind: str, payload: dict[str, Any]) -> None:
+    """Check a payload against the job.v1 branch for its kind (oneOf alone hides the cause)."""
+    schema = schemas.get("job")
+    branches = {
+        b["properties"]["kind"]["const"]: b["properties"]["payload"] for b in schema["oneOf"]
+    }
+    if kind not in branches:
+        raise InvalidJob(f"unknown job kind {kind!r}; use one of: {', '.join(sorted(branches))}")
+    error = best_match(
+        jsonschema.Draft202012Validator(branches[kind]).iter_errors(payload))
+    if error is not None:
+        where = "/".join(str(p) for p in error.absolute_path)
+        raise InvalidJob(f"invalid {kind} job, payload {where or '<root>'}: {error.message}")
+
+
+def enqueue(
+    kind: str, payload: dict[str, Any], lane: str = "batch", ref: str | None = None,
+    *, path: Path | None = None,
+) -> int:
+    """Put a job on the queue and return its id."""
+    if lane not in LANES:
+        raise InvalidJob(f"unknown lane {lane!r}; use one of: {', '.join(LANES)}")
+    validate_job(kind, payload)
+    with closing(connect(path)) as conn:
+        cur = conn.execute(
+            "INSERT INTO jobs (kind, lane, payload, ref, created_at) VALUES (?, ?, ?, ?, ?)",
+            (kind, lane, json.dumps(payload), ref, time.time()),
+        )
+        return int(cur.lastrowid or 0)

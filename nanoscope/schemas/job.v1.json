@@ -1,0 +1,64 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://nanoscope.dev/schemas/job.v1.json",
+  "title": "job.v1",
+  "description": "A queued job: its kind and the payload that kind needs. Payloads carry refs and plain data, never code.",
+  "type": "object",
+  "properties": {
+    "kind": {
+      "enum": ["run", "prepare-data", "bench"]
+    },
+    "payload": {
+      "type": "object"
+    }
+  },
+  "required": ["kind", "payload"],
+  "oneOf": [
+    {
+      "properties": {
+        "kind": {"const": "run"},
+        "payload": {
+          "type": "object",
+          "properties": {
+            "model": {"type": "string", "minLength": 1},
+            "preset": {"type": "string", "minLength": 1},
+            "seed": {"type": "integer"},
+            "kwargs": {"type": "object"},
+            "wandb": {"type": ["boolean", "string"]},
+            "push_to_hub": {"type": ["string", "null"]}
+          },
+          "required": ["model", "preset"],
+          "additionalProperties": false
+        }
+      }
+    },
+    {
+      "properties": {
+        "kind": {"const": "prepare-data"},
+        "payload": {
+          "type": "object",
+          "properties": {
+            "preset": {"type": "string", "minLength": 1}
+          },
+          "required": ["preset"],
+          "additionalProperties": false
+        }
+      }
+    },
+    {
+      "properties": {
+        "kind": {"const": "bench"},
+        "payload": {
+          "type": "object",
+          "properties": {
+            "model": {"type": "string", "minLength": 1},
+            "preset": {"type": "string", "minLength": 1},
+            "steps": {"type": "integer", "minimum": 1}
+          },
+          "required": ["model"],
+          "additionalProperties": false
+        }
+      }
+    }
+  ]
+}
