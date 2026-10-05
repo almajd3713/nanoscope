@@ -196,3 +196,45 @@ def test_causal_mask_handles_shorter_sequences():
     mask = CausalMask().build(8, 16)
     out = mask(torch.zeros(1, 1, 4, 4))
     assert (out.isinf() == ~R.causal_mask(4)).all()
+
+
+# ---- composite and residual ---------------------------------------------------------------
+
+
+def test_composite_named_slots_build_and_count_flops():
+    from nanoscope.blocks.composite import Composite
+    from nanoscope.blocks.primitives import Activation, Linear
+
+    class Feed(Composite):
+        SLOTS = ("up", "act", "down")
+
+        def forward(self, x):
+            return self.down(self.act(self.up(x)))
+
+    spec = Feed(up=Linear(out_features=16), act=Activation(kind="relu"),
+                down=Linear(in_features=16))
+    assert spec.to_dict()["args"]["act"] == {"block": "Activation", "args": {"kind": "relu"}}
+    feed = spec.build(4, 8)
+    assert [n for n, _ in feed.named_children()] == ["up", "act", "down"]
+    x = torch.randn(2, 3, 4)
+    expected = feed.down.linear(feed.up.linear(x).relu())
+    torch.testing.assert_close(feed(x), expected, atol=1e-6, rtol=0)
+    assert feed.flops_per_token(8) == 6 * 4 * 16 + 6 * 16 * 4
+    other = spec.build(4, 8)
+    assert other.up.linear.weight is not feed.up.linear.weight
+    with pytest.raises(TypeError, match="needs: up, act, down"):
+        Feed()
+    with pytest.raises(TypeError, match="no option extra"):
+        Feed(up=Linear(), act=Linear(), down=Linear(), extra=Linear())
+
+
+def test_residual_adds_its_input():
+    from nanoscope.blocks.composite import Residual
+    from nanoscope.blocks.primitives import Linear
+
+    block = Residual(inner=Linear()).build(4, 8)
+    x = torch.randn(2, 3, 4)
+    torch.testing.assert_close(block(x), x + x @ block.inner.linear.weight.T, atol=1e-6, rtol=0)
+    assert block.flops_per_token(8) == 6 * 4 * 4
+    with pytest.raises(TypeError, match="needs: inner"):
+        Residual()

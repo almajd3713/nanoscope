@@ -19,6 +19,10 @@ CONTEXT = ("d_model", "context_length")  # given by whoever builds the block, ne
 
 
 def _options(cls: type) -> dict[str, inspect.Parameter]:
+    """The options a block takes, by name. A Composite's are its named slots (all required)."""
+    slots = getattr(cls, "SLOTS", None)
+    if slots is not None:
+        return {k: inspect.Parameter(k, inspect.Parameter.KEYWORD_ONLY) for k in slots}
     params = inspect.signature(cls.__init__).parameters
     return {k: p for k, p in params.items() if k != "self" and k not in CONTEXT}
 

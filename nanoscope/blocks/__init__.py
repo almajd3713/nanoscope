@@ -17,6 +17,8 @@ _EXPORTS: dict[str, str] = {
     "BlockInfo": "nanoscope.blocks.registry",
     "BlockModule": "nanoscope.blocks.spec",
     "BlockSpec": "nanoscope.blocks.spec",
+    "Composite": "nanoscope.blocks.composite",
+    "Residual": "nanoscope.blocks.composite",
     **{name: "nanoscope.blocks.primitives" for name in (
         "Linear", "Activation", "CausalMask", "ScaledDotScores", "Softmax", "WeightedSum",
         "SplitHeads", "MergeHeads")},

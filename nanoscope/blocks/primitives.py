@@ -20,12 +20,12 @@ ACTIVATIONS = ("gelu", "silu", "relu")
 
 @block("primitive", "primitive", reference="matmul")
 class Linear(BlockModule):
-    """x @ W.T (+ b), from d_model features to `out_features` (default d_model)."""
+    """x @ W.T (+ b), from `in_features` to `out_features` (both default to d_model)."""
 
-    def __init__(self, d_model: int, context_length: int, out_features: int | None = None,
-                 bias: bool = False) -> None:
+    def __init__(self, d_model: int, context_length: int, in_features: int | None = None,
+                 out_features: int | None = None, bias: bool = False) -> None:
         super().__init__()
-        self.linear = nn.Linear(d_model, out_features or d_model, bias=bias)
+        self.linear = nn.Linear(in_features or d_model, out_features or d_model, bias=bias)
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         return self.linear(x)
