@@ -1,10 +1,24 @@
 import json
 import sqlite3
+import threading
+import time
 from contextlib import closing
 
 import pytest
 
 from nanoscope import paths, queue
+
+
+def add(*args, **kwargs) -> int:
+    job_id = queue.enqueue(*args, **kwargs)
+    assert job_id is not None
+    return job_id
+
+
+def take(*args, **kwargs) -> sqlite3.Row:
+    job = queue.claim(*args, **kwargs)
+    assert job is not None
+    return job
 
 
 def test_create_makes_a_wal_database_with_the_tables(home):
@@ -30,7 +44,7 @@ def test_create_is_idempotent(home):
 
 def test_enqueue_stores_a_queued_job(home):
     payload = {"model": "nanoscope.models.bigram:Bigram", "preset": "tinystories-5min", "seed": 1}
-    job_id = queue.enqueue("run", payload, ref="studies/s/v/seed-1")
+    job_id = add("run", payload, ref="studies/s/v/seed-1")
     with closing(queue.connect()) as conn:
         row = conn.execute("SELECT * FROM jobs WHERE id = ?", (job_id,)).fetchone()
     assert (row["kind"], row["lane"], row["state"], row["owner"]) == (
@@ -44,10 +58,129 @@ def test_enqueue_refuses_an_invalid_payload(home):
     with pytest.raises(queue.InvalidJob, match="model"):
         queue.enqueue("run", {"preset": "tinystories-5min"})
     with pytest.raises(queue.InvalidJob, match="seed"):
-        queue.enqueue("run", {"model": "m:M", "preset": "p", "seed": "one"})
+        add("run", {"model": "m:M", "preset": "p", "seed": "one"})
     with pytest.raises(queue.InvalidJob):
         queue.enqueue("teleport", {})
     with pytest.raises(queue.InvalidJob, match="lane"):
-        queue.enqueue("prepare-data", {"preset": "p"}, lane="urgent")
+        add("prepare-data", {"preset": "p"}, lane="urgent")
     with closing(queue.connect()) as conn:
         assert conn.execute("SELECT COUNT(*) FROM jobs").fetchone()[0] == 0
+
+
+RUN = {"model": "nanoscope.models.bigram:Bigram", "preset": "tinystories-5min"}
+
+
+def _status(ref, state):
+    folder = paths.runs_dir() / ref
+    folder.mkdir(parents=True, exist_ok=True)
+    (folder / "status.json").write_text(json.dumps({"schema": 1, "state": state}))
+    return folder
+
+
+def test_claim_takes_the_oldest_job_and_leases_it(home):
+    first = add("prepare-data", {"preset": "a"})
+    add("prepare-data", {"preset": "b"})
+    job = take("w1", "cpu")
+    assert job["id"] == first and job["state"] == "running"
+    assert (job["worker_id"], job["device"]) == ("w1", "cpu")
+    assert job["lease_until"] > time.time()
+    assert take("w1", "cpu")["id"] != first
+    assert queue.claim("w1", "cpu") is None
+
+
+def test_lanes_interactive_before_batch(home):
+    batch = add("prepare-data", {"preset": "a"})
+    urgent = add("prepare-data", {"preset": "b"}, lane="interactive")
+    assert take("w", "cpu")["id"] == urgent
+    assert take("w", "cpu")["id"] == batch
+    add("prepare-data", {"preset": "c"}, lane="interactive")
+    assert queue.claim("w", "cpu", lanes=("batch",)) is None
+
+
+def test_claim_two_threads_never_double_claim(home):
+    ids = [add("prepare-data", {"preset": str(i)}) for i in range(40)]
+    got, lock = [], threading.Lock()
+
+    def work(name):
+        while (job := queue.claim(name, "cpu")) is not None:
+            with lock:
+                got.append(job["id"])
+
+    threads = [threading.Thread(target=work, args=(f"w{i}",)) for i in range(2)]
+    [t.start() for t in threads]
+    [t.join() for t in threads]
+    assert sorted(got) == sorted(ids)
+
+
+def test_lease_expired_jobs_requeue_then_fail(home):
+    job_id = add("prepare-data", {"preset": "a"})
+    for attempt in (1, 2):
+        take("w", "cpu", lease_seconds=-1)
+        assert queue.requeue_expired() == [job_id]
+        row = queue.get(job_id)
+        assert (row["state"], row["attempts"], row["worker_id"]) == ("queued", attempt, None)
+    take("w", "cpu", lease_seconds=-1)
+    queue.requeue_expired()
+    row = queue.get(job_id)
+    assert row["state"] == "failed" and "lease expired" in row["error"]
+
+
+def test_lease_renew_keeps_a_job_and_refuses_a_stranger(home):
+    job_id = add("prepare-data", {"preset": "a"})
+    take("w", "cpu", lease_seconds=-1)
+    assert queue.renew(job_id, "other") is False
+    assert queue.renew(job_id, "w") is True
+    assert queue.requeue_expired() == []
+
+
+def test_cancel_a_queued_job(home):
+    job_id = add("prepare-data", {"preset": "a"})
+    assert queue.cancel(job_id) == "cancelled"
+    assert queue.claim("w", "cpu") is None
+
+
+def test_cancel_a_running_job_writes_stop_and_ends_cancelled(home):
+    folder = _status("r1", "running")
+    job_id = add("run", RUN, ref="r1")
+    take("w", "cpu")
+    assert queue.cancel(job_id) == "cancelling"
+    assert (folder / "STOP").exists()
+    assert queue.get(job_id)["state"] == "cancelling"
+    assert queue.finish(job_id) == "cancelled"
+
+
+def test_finish_records_done_and_failed(home):
+    a = add("prepare-data", {"preset": "a"})
+    b = add("prepare-data", {"preset": "b"})
+    take("w", "cpu")
+    take("w", "cpu")
+    assert queue.finish(a) == "done"
+    assert queue.finish(b, "boom") == "failed"
+    assert queue.get(b)["error"] == "boom"
+
+
+def test_duplicate_submits(home):
+    _status("done-run", "done")
+    assert queue.enqueue("run", RUN, ref="done-run") is None
+    first = add("run", RUN, ref="r2")
+    assert queue.enqueue("run", RUN, ref="r2") == first
+    take("w", "cpu")
+    assert queue.enqueue("run", RUN, ref="r2") == first
+    queue.finish(first, "boom")
+    assert queue.enqueue("run", RUN, ref="r2") != first
+
+
+def test_folders_win_over_a_queued_job(home):
+    job_id = add("run", RUN, ref="r3")
+    nxt = add("run", RUN, ref="r4")
+    _status("r3", "done")
+    assert take("w", "cpu")["id"] == nxt
+    assert queue.get(job_id)["state"] == "done"
+
+
+def test_devices_required_over_one_is_refused(home):
+    with pytest.raises(queue.InvalidJob, match=r"multi-device jobs need DDP \(M2\)"):
+        queue.enqueue("run", RUN, devices_required=2)
+    job_id = add("run", RUN, owner="alice")
+    row = queue.get(job_id)
+    assert (row["owner"], row["devices_required"]) == ("alice", 1)
