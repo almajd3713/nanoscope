@@ -18,6 +18,7 @@ from pathlib import Path
 from statistics import mean
 from typing import Any
 
+from nanoscope import paths
 from nanoscope.statistics import paired_difference, summarize, unpaired_difference
 
 BASELINES_DIR = Path(__file__).parent / "baselines"
@@ -108,7 +109,7 @@ def load_runs(path: str | Path) -> list[SeedRun]:
 
 
 def _resolve(item: Any, preset: str | None) -> RunSet:
-    from nanoscope.run import RUNS_DIR, RunGroup, RunResult
+    from nanoscope.run import RunGroup, RunResult
 
     if isinstance(item, RunResult):
         return RunSet(str(item.run_dir), [SeedRun.load(item.run_dir)])
@@ -122,11 +123,11 @@ def _resolve(item: Any, preset: str | None) -> RunSet:
         return RunSet(str(path), load_runs(path))
     if preset is None:
         raise ValueError(f"can't find runs named {item!r}: pass a run folder, or preset=...")
-    for root in (RUNS_DIR, BASELINES_DIR):
+    for root in (paths.runs_dir(), BASELINES_DIR):
         if (root / preset / str(item)).exists():
             where = root / preset / str(item)
             return RunSet(str(where), load_runs(where))
-    available = sorted({p.name for root in (RUNS_DIR, BASELINES_DIR)
+    available = sorted({p.name for root in (paths.runs_dir(), BASELINES_DIR)
                         for p in (root / preset).glob("*") if p.is_dir()})
     raise FileNotFoundError(
         f"no runs named {item!r} for preset {preset!r}; available: {', '.join(available) or '-'}"

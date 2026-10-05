@@ -15,7 +15,6 @@ import fnmatch
 import functools
 import json
 import math
-import os
 from collections.abc import Iterator
 from dataclasses import dataclass
 from itertools import islice
@@ -24,10 +23,10 @@ from pathlib import Path
 import numpy as np
 import torch
 
+from nanoscope import paths
 from nanoscope.presets import Preset
 from nanoscope.tokenizer import BPETokenizer, ByteTokenizer, GPT2Tokenizer, Tokenizer
 
-CACHE_DIR = Path(os.environ.get("NANOSCOPE_DATA_DIR", Path.home() / ".nanoscope" / "data"))
 SHARD_TOKENS = 100_000_000
 _CHUNK_DOCS = 1024
 
@@ -80,7 +79,7 @@ def _dataset_dir(preset: Preset) -> Path:
         name += f"_{preset.dataset_config}"
     if preset.holdout_docs:  # changes which documents train, so it's part of the identity
         name += f"_holdout-{preset.holdout_docs}"
-    return CACHE_DIR / name
+    return paths.data_dir() / name
 
 
 def _tokenizer_dir(preset: Preset) -> Path:
@@ -104,14 +103,14 @@ def _from_hub(preset: Preset, pattern: str) -> bool:
     """Download files matching pattern (relative to the tokenizer dir) from preset.hub_data."""
     if not preset.hub_data:
         return False
-    remote = f"{_tokenizer_dir(preset).relative_to(CACHE_DIR).as_posix()}/{pattern}"
+    remote = f"{_tokenizer_dir(preset).relative_to(paths.data_dir()).as_posix()}/{pattern}"
     if not any(fnmatch.fnmatch(f, remote) for f in _hub_files(preset.hub_data)):
         return False
     from huggingface_hub import snapshot_download
 
     _log(f"downloading {remote} from hf.co/datasets/{preset.hub_data}")
     snapshot_download(
-        preset.hub_data, repo_type="dataset", local_dir=CACHE_DIR, allow_patterns=[remote],
+        preset.hub_data, repo_type="dataset", local_dir=paths.data_dir(), allow_patterns=[remote],
     )
     return True
 
@@ -262,7 +261,7 @@ def publish_data(preset: Preset, repo_id: str, private: bool = False) -> str:
     _log(f"uploading {tok} ({', '.join(folders)}) to hf.co/datasets/{repo_id}")
     api.upload_folder(
         repo_id=repo_id, repo_type="dataset", folder_path=str(tok),
-        path_in_repo=tok.relative_to(CACHE_DIR).as_posix(), allow_patterns=patterns,
+        path_in_repo=tok.relative_to(paths.data_dir()).as_posix(), allow_patterns=patterns,
         commit_message=f"nanoscope tokens for preset {preset.name}",
     )
     return f"https://huggingface.co/datasets/{repo_id}"

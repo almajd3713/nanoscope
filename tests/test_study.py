@@ -12,8 +12,7 @@ import pytest
 import torch
 from fakes import tiny
 
-import nanoscope.dataset as dataset
-from nanoscope import FLOPs, Study, Tokens, compare, run
+from nanoscope import FLOPs, Study, Tokens, compare, paths, run
 from nanoscope.dataset import load_data
 from nanoscope.models import GPT2, Bigram, Modern
 from nanoscope.sizing import count_params, match_params
@@ -54,7 +53,7 @@ def repo(tmp_path):
     git(tmp_path, "init", "-q")
     git(tmp_path, "config", "user.email", "test@example.com")
     git(tmp_path, "config", "user.name", "test")
-    (tmp_path / ".gitignore").write_text("runs/\ncache/\nexperiments/\n")
+    (tmp_path / ".gitignore").write_text("runs/\ncache/\nexperiments/\nhome/\n")
     git(tmp_path, "add", ".gitignore")
     git(tmp_path, "commit", "-qm", "init")
     return tmp_path
@@ -79,7 +78,7 @@ def test_study_trains_every_variant_and_seed_then_reports(tmp_path):
     report = study.report()
     assert [row["label"] for row in report.comparison.rows] == ["small", "wide"]
     assert report.comparison.baseline == "small"
-    out = tmp_path / "experiments" / "toy"
+    out = paths.reports_dir() / "toy"
     assert {p.name for p in out.iterdir()} == {"report.md", "results.json", "curves.png"}
     assert "## Results" in (out / "report.md").read_text()
 
@@ -199,7 +198,6 @@ def test_studies_run_on_several_devices_in_parallel(tmp_path, monkeypatch, capsy
     write_study(path, seeds=2)
     study = load_study(path)
     load_data(study.preset)  # workers find the data cached instead of downloading it
-    monkeypatch.setenv("NANOSCOPE_DATA_DIR", str(dataset.CACHE_DIR))
 
     study.run(devices=["cpu", "cpu"])
 
@@ -317,7 +315,6 @@ def test_several_workers_can_share_one_device(tmp_path, monkeypatch):
     write_study(path, seeds=2)
     study = load_study(path)
     load_data(study.preset)
-    monkeypatch.setenv("NANOSCOPE_DATA_DIR", str(dataset.CACHE_DIR))
 
     study.run(devices=["cpu"], workers_per_device=2)
 

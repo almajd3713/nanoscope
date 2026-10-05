@@ -7,12 +7,16 @@ import pytest
 import torch
 from fakes import tiny
 
-from nanoscope import run
+from nanoscope import paths, run
 from nanoscope.dataset import load_data, load_tokenizer
 from nanoscope.models import Bigram
 from nanoscope.tokenizer import BPETokenizer, ByteTokenizer
 
 pytestmark = pytest.mark.usefixtures("fake_data")
+
+
+def out(name):
+    return paths.runs_dir() / name
 
 
 def test_run_trains_evaluates_and_samples():
@@ -39,15 +43,15 @@ def test_rerunning_a_finished_run_loads_it():
 
 
 def test_interrupted_run_resumes_exactly():
-    straight = run(Bigram, tiny(), device="cpu", output_dir="straight")
+    straight = run(Bigram, tiny(), device="cpu", output_dir=out("straight"))
 
     def interrupt(step, row):
         if step == 7:
             os.kill(os.getpid(), signal.SIGINT)
 
-    stopped = run(Bigram, tiny(), device="cpu", output_dir="resumed", on_step=interrupt)
+    stopped = run(Bigram, tiny(), device="cpu", output_dir=out("resumed"), on_step=interrupt)
     assert stopped.train_result.stopped_early and stopped.final_step == 7
-    resumed = run(Bigram, tiny(), device="cpu", output_dir="resumed")
+    resumed = run(Bigram, tiny(), device="cpu", output_dir=out("resumed"))
 
     assert [r["loss"] for r in resumed.metrics] == [r["loss"] for r in straight.metrics]
     lines = (resumed.run_dir / "metrics.jsonl").read_text().splitlines()
@@ -67,10 +71,10 @@ def test_overrides_get_their_own_run_dir():
 
 
 def test_changed_config_in_same_dir_refuses_to_resume():
-    run(Bigram, tiny(max_steps=2), device="cpu", output_dir="out")
+    run(Bigram, tiny(max_steps=2), device="cpu", output_dir=out("out"))
     with pytest.raises(ValueError, match="learning_rate|preset"):
-        run(Bigram, tiny(max_steps=2), device="cpu", output_dir="out", learning_rate=1e-3)
-    restarted = run(Bigram, tiny(max_steps=2), device="cpu", output_dir="out",
+        run(Bigram, tiny(max_steps=2), device="cpu", output_dir=out("out"), learning_rate=1e-3)
+    restarted = run(Bigram, tiny(max_steps=2), device="cpu", output_dir=out("out"),
                     learning_rate=1e-3, resume=False)
     assert restarted.final_step == 2
 
@@ -117,7 +121,7 @@ def test_token_files_hold_documents_separated_by_eos():
 
 
 def test_a_seed_gives_the_same_initial_weights_whatever_ran_before(fake_data):
-    first = run(Bigram, tiny(), output_dir="a", seed=3, progress=False)
-    run(Bigram, tiny(), output_dir="other", seed=9, progress=False)  # disturbs the global RNG
-    again = run(Bigram, tiny(), output_dir="b", seed=3, progress=False)
+    first = run(Bigram, tiny(), output_dir=out("a"), seed=3, progress=False)
+    run(Bigram, tiny(), output_dir=out("other"), seed=9, progress=False)  # disturbs the global RNG
+    again = run(Bigram, tiny(), output_dir=out("b"), seed=3, progress=False)
     assert again.metrics[0]["loss"] == first.metrics[0]["loss"]

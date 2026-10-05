@@ -17,14 +17,22 @@ def _fake_texts(dataset_name, config, split, max_docs):
 
 
 @pytest.fixture
-def fake_data(tmp_path, monkeypatch):
+def home(tmp_path, monkeypatch):
+    """Point $NANOSCOPE_HOME at a fresh folder so runs, reports and data stay in the test."""
+    folder = tmp_path / "home"
+    monkeypatch.setenv("NANOSCOPE_HOME", str(folder))
+    monkeypatch.delenv("NANOSCOPE_DATA_DIR", raising=False)
+    monkeypatch.delenv("NANOSCOPE_WORKSPACE", raising=False)
+    return folder
+
+
+@pytest.fixture
+def fake_data(home, monkeypatch):
     calls = []
 
     def texts(*args):
         calls.append(args)
         return _fake_texts(*args)
 
-    monkeypatch.setattr(dataset, "CACHE_DIR", tmp_path / "cache")
     monkeypatch.setattr(dataset, "_iter_texts", texts)
-    monkeypatch.chdir(tmp_path)
     return calls

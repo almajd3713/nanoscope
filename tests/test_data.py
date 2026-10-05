@@ -6,6 +6,7 @@ import torch
 from fakes import tiny
 
 import nanoscope.dataset as dataset
+from nanoscope import paths
 from nanoscope.dataset import TokenDataset, load_data, publish_data
 
 pytestmark = pytest.mark.usefixtures("fake_data")
@@ -67,8 +68,8 @@ def test_holdout_validation_comes_from_train_and_is_never_trained_on(fake_data):
 def test_hub_data_downloads_instead_of_tokenizing(tmp_path, monkeypatch, fake_data):
     remote = tmp_path / "remote"
     published = load_data(tiny())  # prepare once, then pretend it lives on the Hub
-    shutil.copytree(dataset.CACHE_DIR, remote)
-    monkeypatch.setattr(dataset, "CACHE_DIR", tmp_path / "fresh-cache")
+    shutil.copytree(paths.data_dir(), remote)
+    monkeypatch.setenv("NANOSCOPE_DATA_DIR", str(tmp_path / "fresh-cache"))
     fake_data.clear()
     downloads = []
 

@@ -5,7 +5,7 @@ import time
 import pytest
 from fakes import tiny
 
-from nanoscope import Study, Tokens, run
+from nanoscope import Study, Tokens, paths, run
 from nanoscope.cli import main
 from nanoscope.models import Bigram
 from nanoscope.progress import format_snapshot, one_line, snapshot
@@ -27,33 +27,35 @@ def test_progress_can_be_turned_off(capsys):
 
 
 def test_snapshot_tells_done_running_and_stopped_apart():
-    done = run(Bigram, tiny(), device="cpu", output_dir="runs/done", progress=False)
+    root = paths.runs_dir()
+    done = run(Bigram, tiny(), device="cpu", output_dir=root / "done", progress=False)
 
     def interrupt(step, row):
         if step == 5:
             os.kill(os.getpid(), signal.SIGINT)
 
-    run(Bigram, tiny(), device="cpu", output_dir="runs/live", on_step=interrupt, progress=False)
-    run(Bigram, tiny(), device="cpu", output_dir="runs/old", on_step=interrupt, progress=False)
+    run(Bigram, tiny(), device="cpu", output_dir=root / "live", on_step=interrupt, progress=False)
+    run(Bigram, tiny(), device="cpu", output_dir=root / "old", on_step=interrupt, progress=False)
     old = time.time() - 3600
-    os.utime("runs/old/metrics.jsonl", (old, old))
+    os.utime(root / "old" / "metrics.jsonl", (old, old))
 
-    states = {r.run_dir.name: r for r in snapshot("runs")}
+    states = {r.run_dir.name: r for r in snapshot(root)}
     assert states["done"].state == "done" and states["done"].step == 20
     assert states["done"].val_bpb == done.summary()["final_val_bpb"]
     assert states["live"].state == "running" and states["live"].step == 5
     assert states["old"].state == "stopped"
 
-    text = format_snapshot(list(states.values()), "runs")
-    assert "3 runs under runs: 1 done, 1 running, 1 stopped" in text
+    text = format_snapshot(list(states.values()), root)
+    assert f"3 runs under {root}: 1 done, 1 running, 1 stopped" in text
     assert "5/20 (25%)" in text and "60m ago" in text
-    assert one_line(list(states.values()), total=4).startswith("1/4 done · running runs/live 5/20")
+    assert one_line(list(states.values()), total=4).startswith(
+        "1/4 done · running runs/live 5/20")
 
 
 def test_status_command_prints_the_snapshot(capsys):
     run(Bigram, tiny(), device="cpu", progress=False)
     main(["status"])
-    assert "1 runs under runs: 1 done" in capsys.readouterr().out
+    assert f"1 runs under {paths.runs_dir()}: 1 done" in capsys.readouterr().out
 
 
 def test_study_numbers_its_runs_and_reports_each_result(capsys):
@@ -73,6 +75,7 @@ def test_status_lists_a_studys_runs_that_have_not_started():
     run(Bigram, study.jobs()[0].preset, device="cpu", output_dir=study.dir / "a" / "seed-0",
         progress=False)
 
-    states = {f"{r.run_dir.parent.name}/{r.run_dir.name}": r.state for r in snapshot("runs")}
+    states = {f"{r.run_dir.parent.name}/{r.run_dir.name}": r.state
+              for r in snapshot(paths.runs_dir())}
     assert states == {"a/seed-0": "done", "a/seed-1": "queued"}
     assert one_line(snapshot(study.dir)) == "1/2 done"

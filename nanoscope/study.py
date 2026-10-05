@@ -38,16 +38,16 @@ from typing import Any
 import torch
 from torch import nn
 
+from nanoscope import paths
 from nanoscope.compare import METRICS, Comparison, RunSet, compare, load_runs
 from nanoscope.dataset import load_tokenizer
 from nanoscope.hardware import check_gpu_fits, cpu_threads, probe_memory
 from nanoscope.presets import Preset, get_preset
 from nanoscope.progress import one_line, snapshot
-from nanoscope.run import RUNS_DIR, run
+from nanoscope.run import run
 from nanoscope.sizing import build_on_meta, count_params, flops_per_token
 from nanoscope.statistics import summarize
 
-REPORTS_DIR = Path("experiments")
 PROGRESS_EVERY = 30  # seconds between progress lines while workers run
 
 
@@ -145,7 +145,7 @@ class Study:
 
     @property
     def dir(self) -> Path:
-        return RUNS_DIR / "studies" / self.name
+        return paths.runs_dir() / "studies" / self.name
 
     def sizes(self) -> dict[str, dict[str, int]]:
         """Parameters and FLOPs per token of every variant, without training anything."""
@@ -374,7 +374,7 @@ class Study:
                     if manifest_path.exists() else None)
         report = StudyReport(self, comparison, predictions, manifest)
         if write:
-            report.write(REPORTS_DIR / self.name)
+            report.write(paths.reports_dir() / self.name)
         return report
 
 

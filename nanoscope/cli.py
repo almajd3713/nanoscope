@@ -9,6 +9,7 @@ import argparse
 import importlib.util
 from pathlib import Path
 
+from nanoscope import paths
 from nanoscope.compare import compare
 from nanoscope.presets import list_presets
 from nanoscope.run import RunGroup, run
@@ -87,7 +88,8 @@ def build_parser() -> argparse.ArgumentParser:
     pub_parser.add_argument("--private", action="store_true")
 
     status_parser = sub.add_parser("status", help="Show the state of every run under a folder")
-    status_parser.add_argument("path", nargs="?", default="runs")
+    status_parser.add_argument("path", nargs="?", default=None,
+                               help="runs folder (default: $NANOSCOPE_HOME/runs, or ./runs)")
 
     study_parser = sub.add_parser("study", help="Train every run of a study file")
     study_parser.add_argument("file", help="path/to/study.py")
@@ -153,11 +155,12 @@ def main(argv: list[str] | None = None) -> None:
     if args.command == "status":
         from nanoscope.progress import format_snapshot, snapshot
 
-        print(format_snapshot(snapshot(args.path), args.path))
+        root = args.path or paths.runs_dir()
+        print(format_snapshot(snapshot(root), root))
         return
 
     if args.command in ("study", "report"):
-        from nanoscope.study import REPORTS_DIR, load_study
+        from nanoscope.study import load_study
 
         study = load_study(args.file, args.name)
         if args.command == "study":
@@ -175,7 +178,7 @@ def main(argv: list[str] | None = None) -> None:
             if shard is not None:
                 return
         print(study.report())
-        print(f"Written to {REPORTS_DIR / study.name}/")
+        print(f"Written to {paths.reports_dir() / study.name}/")
         return
 
     if args.command == "compare":

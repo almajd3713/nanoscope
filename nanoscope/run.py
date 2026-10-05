@@ -10,14 +10,13 @@ from typing import Any, cast
 import torch
 from torch import nn
 
+from nanoscope import paths
 from nanoscope.dataset import Data, load_data, tokenizer_id
 from nanoscope.integrations import HubSync, chain, wandb_hook
 from nanoscope.presets import Preset, get_preset, list_presets
 from nanoscope.progress import ProgressBar
 from nanoscope.sizing import count_params, flops_per_token
 from nanoscope.train_loop import TrainResult, generate, train
-
-RUNS_DIR = Path("runs")
 
 
 @dataclass
@@ -312,7 +311,7 @@ def run(
     resolved_device = _resolve_device(device)
     name = _run_name(model_cls, model_kwargs, given, preset)
     if output_dir is None:
-        run_dir = RUNS_DIR / _preset_dir(given) / name / f"seed-{seed}"
+        run_dir = paths.runs_dir() / _preset_dir(given) / name / f"seed-{seed}"
     else:
         run_dir = Path(output_dir)
 
@@ -338,7 +337,7 @@ def run(
     hub = None
     if push_to_hub:
         try:
-            path_in_repo = run_dir.relative_to(RUNS_DIR).as_posix()
+            path_in_repo = run_dir.relative_to(paths.runs_dir()).as_posix()
         except ValueError:
             path_in_repo = "/".join(run_dir.parts[-3:])
         hub = HubSync(push_to_hub, run_dir, path_in_repo)
