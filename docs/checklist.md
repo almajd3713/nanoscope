@@ -4,13 +4,13 @@ The build list for [`plan-tool.md`](plan-tool.md), sections 4-10, with the decis
 2026-10-05 (plan section 11) applied. Phase numbers follow the plan's section 10. Every
 item is one line, so scripts and agents can grep and edit it.
 
-**Current focus:** P6 servable library + CI baseline. Next item: P6.26.
+**Current focus:** P6 servable library + CI baseline. Next item: P6.33.
 
 ## Progress
 
 | Phase | Title | Done / total | Status |
 |---|---|---|---|
-| P6 | Servable library + CI baseline (9-11 d) | 25 / 67 | in progress |
+| P6 | Servable library + CI baseline (9-11 d) | 32 / 67 | in progress |
 | P7 | Queue and workers (5-6 d) | 0 / 28 | not started |
 | P8 | Blocks, describe, rebuilt models (10-13 d) | 0 / 52 | not started |
 | P9 | Curriculum engine, gating, two paths (14-17 d) | 0 / 61 | not started |
@@ -121,13 +121,13 @@ touch or create (new ones marked `(new)`).
 - [x] P6.25 Test that every shipped baseline loads as v0 through `read_json` and compares exactly as before. · files: tests/test_schemas.py · deps: P6.23 · done: `uv run pytest tests/test_schemas.py -k baselines` passes ✓ 2026-10-05 5f95562: shipped baselines load as v0 and compare
 
 ### P6 · Status lifecycle
-- [ ] P6.26 Create `nanoscope/status.py` with `StatusFile`, an atomic writer (write a tmp file, then replace). States: queued, preparing, running, done, stopped, cancelled, failed. Fields: error (type, message, last 20 traceback lines), pid, host, device, job_id (from `NANOSCOPE_JOB_ID`), step, max_steps, started_at, updated_at, heartbeat_at. · files: nanoscope/status.py (new), tests/test_status.py (new) · deps: P6.18 · done: `uv run pytest tests/test_status.py -k write` passes and the output validates as `status.v1`
-- [ ] P6.27 Make `StatusFile` an `on_step` hook (chained like `ProgressBar`) whose heartbeat writes at most once every 5 s. · files: nanoscope/status.py, tests/test_status.py · deps: P6.26 · done: `uv run pytest tests/test_status.py -k heartbeat` passes with a fake clock
-- [ ] P6.28 Make `run()` always attach `StatusFile`: `preparing` before `load_data`, `running` from the first step, `done` once training reaches `max_steps`. · files: nanoscope/run.py · deps: P6.27 · done: `uv run pytest tests/test_status.py -k lifecycle` passes (it records the states in order)
-- [ ] P6.29 Wrap preparation and training in `run()` in `try/except BaseException`: a `KeyboardInterrupt` or early stop gives `stopped`, any other exception gives `failed` with the error written, and the exception is re-raised. · files: nanoscope/run.py, tests/test_status.py · deps: P6.28 · done: `uv run pytest tests/test_status.py -k failed` passes (a model that raises in forward ends `failed` with its message on disk)
-- [ ] P6.30 Make `progress.snapshot` prefer `status.json` and fall back to mtimes for folders without one; `RunState` gains `error` and `source`. · files: nanoscope/progress.py, tests/test_progress.py · deps: P6.28 · done: `uv run pytest tests/test_progress.py` passes, including a new failed-run case
-- [ ] P6.31 Make the snapshot show a `running` status whose heartbeat is older than 60 s as `running (no heartbeat for Xm)`, so dead sessions are visible. · files: nanoscope/progress.py, tests/test_progress.py · deps: P6.30 · done: `uv run pytest tests/test_progress.py -k stale` asserts the printed text
-- [ ] P6.32 Make `nanoscope status` print each failed run's ref, error type and message line. · files: nanoscope/progress.py, tests/test_progress.py · deps: P6.30 · done: `uv run pytest tests/test_progress.py -k status_shows_error` asserts the output
+- [x] P6.26 Create `nanoscope/status.py` with `StatusFile`, an atomic writer (write a tmp file, then replace). States: queued, preparing, running, done, stopped, cancelled, failed. Fields: error (type, message, last 20 traceback lines), pid, host, device, job_id (from `NANOSCOPE_JOB_ID`), step, max_steps, started_at, updated_at, heartbeat_at. · files: nanoscope/status.py (new), tests/test_status.py (new) · deps: P6.18 · done: `uv run pytest tests/test_status.py -k write` passes and the output validates as `status.v1` ✓ 2026-10-05 00e64e9: status.py StatusFile (atomic, status.v1)
+- [x] P6.27 Make `StatusFile` an `on_step` hook (chained like `ProgressBar`) whose heartbeat writes at most once every 5 s. · files: nanoscope/status.py, tests/test_status.py · deps: P6.26 · done: `uv run pytest tests/test_status.py -k heartbeat` passes with a fake clock ✓ 2026-10-05 00e64e9: on_step hook, 5 s heartbeat, fake-clock test
+- [x] P6.28 Make `run()` always attach `StatusFile`: `preparing` before `load_data`, `running` from the first step, `done` once training reaches `max_steps`. · files: nanoscope/run.py · deps: P6.27 · done: `uv run pytest tests/test_status.py -k lifecycle` passes (it records the states in order) ✓ 2026-10-05 00e64e9: run() always attaches it; preparing->running->done
+- [x] P6.29 Wrap preparation and training in `run()` in `try/except BaseException`: a `KeyboardInterrupt` or early stop gives `stopped`, any other exception gives `failed` with the error written, and the exception is re-raised. · files: nanoscope/run.py, tests/test_status.py · deps: P6.28 · done: `uv run pytest tests/test_status.py -k failed` passes (a model that raises in forward ends `failed` with its message on disk) ✓ 2026-10-05 00e64e9: failed with error, Ctrl-C stopped; a refused resume restores the old status (ConfigMismatch)
+- [x] P6.30 Make `progress.snapshot` prefer `status.json` and fall back to mtimes for folders without one; `RunState` gains `error` and `source`. · files: nanoscope/progress.py, tests/test_progress.py · deps: P6.28 · done: `uv run pytest tests/test_progress.py` passes, including a new failed-run case ✓ 2026-10-05 00e64e9: snapshot prefers status.json; status-only dirs listed; RunState.error/source
+- [x] P6.31 Make the snapshot show a `running` status whose heartbeat is older than 60 s as `running (no heartbeat for Xm)`, so dead sessions are visible. · files: nanoscope/progress.py, tests/test_progress.py · deps: P6.30 · done: `uv run pytest tests/test_progress.py -k stale` asserts the printed text ✓ 2026-10-05 00e64e9: stale heartbeat prints running (no heartbeat for Xm)
+- [x] P6.32 Make `nanoscope status` print each failed run's ref, error type and message line. · files: nanoscope/progress.py, tests/test_progress.py · deps: P6.30 · done: `uv run pytest tests/test_progress.py -k status_shows_error` asserts the output ✓ 2026-10-05 00e64e9: nanoscope status prints failed runs ref, type, message
 
 ### P6 · Cooperative cancel
 - [ ] P6.33 Give `train()` a `should_stop: Callable[[], bool] | None`, checked wherever `stop_requested` is checked; a stop checkpoints and sets `stopped_early`. · files: nanoscope/train_loop.py, tests/test_run.py · deps: P6.02 · done: `uv run pytest tests/test_run.py -k should_stop` passes
