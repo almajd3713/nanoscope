@@ -4,13 +4,13 @@ The build list for [`plan-tool.md`](plan-tool.md), sections 4-10, with the decis
 2026-10-05 (plan section 11) applied. Phase numbers follow the plan's section 10. Every
 item is one line, so scripts and agents can grep and edit it.
 
-**Current focus:** P6 servable library + CI baseline. Next item: P6.48.
+**Current focus:** P6 servable library + CI baseline. Next item: P6.55.
 
 ## Progress
 
 | Phase | Title | Done / total | Status |
 |---|---|---|---|
-| P6 | Servable library + CI baseline (9-11 d) | 47 / 67 | in progress |
+| P6 | Servable library + CI baseline (9-11 d) | 54 / 67 | in progress |
 | P7 | Queue and workers (5-6 d) | 0 / 28 | not started |
 | P8 | Blocks, describe, rebuilt models (10-13 d) | 0 / 52 | not started |
 | P9 | Curriculum engine, gating, two paths (14-17 d) | 0 / 61 | not started |
@@ -151,13 +151,13 @@ touch or create (new ones marked `(new)`).
 - [x] P6.47 Add `validate_run_request(model, preset, kwargs) -> list[Problem]`, which returns every problem at once (unknown kwarg, wrong type, unknown preset, bad seeds). `_split_kwargs` uses it, and `run()` still raises the first problem with today's message. · files: nanoscope/specs.py, nanoscope/run.py · deps: P6.46 · done: `uv run pytest tests/test_specs.py -k three_problems tests/test_run.py -k unknown_keyword` passes ✓ 2026-10-05 7759465: validate_run_request returns all problems; _split_kwargs raises the first with the old message
 
 ### P6 · Declarative studies
-- [ ] P6.48 Add `tomli` (for Python < 3.11) and `tomli-w` to the core dependencies. · files: pyproject.toml, uv.lock · deps: P6.02 · done: `uv run python -c "import tomli_w"` exits 0
-- [ ] P6.49 Create `nanoscope/studyspec.py` with a `StudySpec` dataclass covering name, preset, overrides, seeds, budget, match, match_knob, range, baseline, mode, tolerance, variants (name, model ref, kwargs) and predictions, plus `to_toml`/`from_toml`. · files: nanoscope/studyspec.py (new), nanoscope/schemas/studyspec.v1.json (new), tests/test_studyspec.py (new) · deps: P6.48, P6.18 · done: `uv run pytest tests/test_studyspec.py -k toml_roundtrip` passes
-- [ ] P6.50 Add `Study.to_spec()` and `Study.from_spec(spec)`, resolving model refs such as `nanoscope.models:Modern` and `models/my.py:MyLM`. · files: nanoscope/study.py, nanoscope/studyspec.py · deps: P6.49, P6.38 · done: `uv run pytest tests/test_studyspec.py -k from_spec` passes
-- [ ] P6.51 Resolve declarative matching (`match_knob`, `range`) through `sizing.match_params` in `from_spec`. · files: nanoscope/studyspec.py · deps: P6.50 · done: `uv run pytest tests/test_studyspec.py -k match_knob` reproduces the `ffn_hidden` widths that `m1_ablation.matched()` picks
-- [ ] P6.52 Make `load_study` accept `.toml`; record mode with a TOML spec requires the spec to be committed (`Study.source` is the TOML path). · files: nanoscope/study.py, tests/test_study.py · deps: P6.50 · done: `uv run pytest tests/test_study.py -k record_toml_uncommitted` passes
-- [ ] P6.53 Plan done-when: `studies/m1_ablation.py` → `to_spec()` → TOML → `from_spec()` gives an identical `jobs()`. · files: tests/test_studyspec.py · deps: P6.51 · done: `uv run pytest tests/test_studyspec.py -k m1_roundtrip` passes
-- [ ] P6.54 Add `nanoscope spec <study.py> [--name]`, which prints the study's TOML; `study` and `report` accept `.toml` paths. · files: nanoscope/cli.py, tests/test_studyspec.py · deps: P6.52 · done: `uv run nanoscope spec studies/m1_ablation.py | uv run python -c "import sys,tomllib; tomllib.loads(sys.stdin.read())"` exits 0
+- [x] P6.48 Add `tomli` (for Python < 3.11) and `tomli-w` to the core dependencies. · files: pyproject.toml, uv.lock · deps: P6.02 · done: `uv run python -c "import tomli_w"` exits 0 ✓ 2026-10-05 ceb8a61: tomli (py<3.11) and tomli-w in core deps
+- [x] P6.49 Create `nanoscope/studyspec.py` with a `StudySpec` dataclass covering name, preset, overrides, seeds, budget, match, match_knob, range, baseline, mode, tolerance, variants (name, model ref, kwargs) and predictions, plus `to_toml`/`from_toml`. · files: nanoscope/studyspec.py (new), nanoscope/schemas/studyspec.v1.json (new), tests/test_studyspec.py (new) · deps: P6.48, P6.18 · done: `uv run pytest tests/test_studyspec.py -k toml_roundtrip` passes ✓ 2026-10-05 ceb8a61: StudySpec + readable to_toml/from_toml + studyspec.v1 schema; added match_to field (needed to say what to match)
+- [x] P6.50 Add `Study.to_spec()` and `Study.from_spec(spec)`, resolving model refs such as `nanoscope.models:Modern` and `models/my.py:MyLM`. · files: nanoscope/study.py, nanoscope/studyspec.py · deps: P6.49, P6.38 · done: `uv run pytest tests/test_studyspec.py -k from_spec` passes ✓ 2026-10-05 ceb8a61: Study.to_spec/from_spec; unregistered presets are written in full as custom_preset
+- [x] P6.51 Resolve declarative matching (`match_knob`, `range`) through `sizing.match_params` in `from_spec`. · files: nanoscope/studyspec.py · deps: P6.50 · done: `uv run pytest tests/test_studyspec.py -k match_knob` reproduces the `ffn_hidden` widths that `m1_ablation.matched()` picks ✓ 2026-10-05 ceb8a61: match_knob/range/match_to resolved via sizing.match_params; matches m1_ablation widths
+- [x] P6.52 Make `load_study` accept `.toml`; record mode with a TOML spec requires the spec to be committed (`Study.source` is the TOML path). · files: nanoscope/study.py, tests/test_study.py · deps: P6.50 · done: `uv run pytest tests/test_study.py -k record_toml_uncommitted` passes ✓ 2026-10-05 ceb8a61: load_study reads .toml; record mode checks the TOML is committed
+- [x] P6.53 Plan done-when: `studies/m1_ablation.py` → `to_spec()` → TOML → `from_spec()` gives an identical `jobs()`. · files: tests/test_studyspec.py · deps: P6.51 · done: `uv run pytest tests/test_studyspec.py -k m1_roundtrip` passes ✓ 2026-10-05 ceb8a61: m1 study round-trips to identical jobs()
+- [x] P6.54 Add `nanoscope spec <study.py> [--name]`, which prints the study's TOML; `study` and `report` accept `.toml` paths. · files: nanoscope/cli.py, tests/test_studyspec.py · deps: P6.52 · done: `uv run nanoscope spec studies/m1_ablation.py | uv run python -c "import sys,tomllib; tomllib.loads(sys.stdin.read())"` exits 0 ✓ 2026-10-05 ceb8a61: nanoscope spec; study/report accept .toml
 
 ### P6 · Smaller library items
 - [ ] P6.55 Make data prep write `data_dir/<preset>/prepare.json` (stage download, tokenize or done; done, total, started_at, updated_at, error) atomically as it progresses. · files: nanoscope/dataset.py, nanoscope/schemas/prepare.v1.json (new), tests/test_data.py · deps: P6.11, P6.18 · done: `uv run pytest tests/test_data.py -k prepare_json` passes
@@ -705,6 +705,7 @@ Append one line per decision: `- YYYY-MM-DD <item id or plan section>: <decision
 - 2026-10-05 Q4/P8.25: the user allows breaking checkpoints and baselines compatibility; no key map is required (user).
 - 2026-10-05 P12.10: the user allows replacing the `.ipynb` notebooks with marimo; Kaggle/Colab compatibility is not a constraint (user).
 - 2026-10-05 P11.01: licence is MIT (user).
+- 2026-10-05 P6.35/P6.36: cancelling one run with `nanoscope stop <run>` skips only that run and the study continues; Ctrl-C or `nanoscope stop <study>` ends the whole study (agent, after the user asked to consider it).
 - 2026-10-05 plan 6.4: the graph route for gating stays slot-filling templates only (agent default; the user did not object).
 
 ## Discovered work
