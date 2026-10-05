@@ -85,7 +85,7 @@ def build_parser() -> argparse.ArgumentParser:
                                help="runs folder (default: $NANOSCOPE_HOME/runs, or ./runs)")
 
     study_parser = sub.add_parser("study", help="Train every run of a study file")
-    study_parser.add_argument("file", help="path/to/study.py")
+    study_parser.add_argument("file", help="path/to/study.py or study.toml")
     study_parser.add_argument("--name", default=None, help="which Study, if the file has several")
     study_parser.add_argument("--devices", default=None, help="comma-separated, e.g. cuda:0,cuda:1")
     study_parser.add_argument("--workers-per-device", type=int, default=1,
@@ -99,8 +99,12 @@ def build_parser() -> argparse.ArgumentParser:
     study_parser.add_argument("--shard", default=None, help=argparse.SUPPRESS)
 
     report_parser = sub.add_parser("report", help="Write a study's report to experiments/")
-    report_parser.add_argument("file", help="path/to/study.py")
+    report_parser.add_argument("file", help="path/to/study.py or study.toml")
     report_parser.add_argument("--name", default=None)
+
+    spec_parser = sub.add_parser("spec", help="Print a study as TOML (a spec you can commit)")
+    spec_parser.add_argument("file", help="path/to/study.py")
+    spec_parser.add_argument("--name", default=None, help="which Study, if the file has several")
 
     stop_parser = sub.add_parser(
         "stop", help="Ask running runs to stop: they save a checkpoint and can be resumed")
@@ -156,6 +160,12 @@ def main(argv: list[str] | None = None) -> None:
 
         root = args.path or paths.runs_dir()
         print(format_snapshot(snapshot(root), root))
+        return
+
+    if args.command == "spec":
+        from nanoscope.study import load_study
+
+        print(load_study(args.file, args.name).to_spec().to_toml(), end="")
         return
 
     if args.command == "stop":

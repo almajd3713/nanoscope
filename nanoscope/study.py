@@ -30,7 +30,7 @@ import subprocess
 import sys
 import time
 import warnings
-from dataclasses import dataclass, field
+from dataclasses import MISSING, asdict, dataclass, field, fields
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, cast
@@ -42,6 +42,7 @@ from nanoscope import __version__, paths
 from nanoscope.compare import METRICS, Comparison, RunSet, compare, load_runs
 from nanoscope.dataset import load_tokenizer
 from nanoscope.hardware import check_gpu_fits, cpu_threads, probe_memory
+from nanoscope.modelref import model_ref
 from nanoscope.presets import Preset, get_preset
 from nanoscope.progress import one_line, snapshot
 from nanoscope.run import RunResult, run
@@ -49,6 +50,7 @@ from nanoscope.schemas.upgrade import read_json
 from nanoscope.sizing import build_on_meta, count_params, flops_per_token
 from nanoscope.statistics import summarize
 from nanoscope.status import STOP_FILE
+from nanoscope.studyspec import StudySpec
 
 PROGRESS_EVERY = 30  # seconds between progress lines while workers run
 
@@ -145,6 +147,69 @@ class Study:
             raise ValueError(f"predict takes {', '.join(METRICS)}; got {', '.join(unknown)}")
         self.predictions[variant] = {k: float(v) for k, v in values.items()}
 
+    def to_spec(self) -> StudySpec:
+        """This study as data (see nanoscope.studyspec); what a TOML study file holds."""
+        from nanoscope.studyspec import StudySpec, VariantSpec, check_tomlable
+
+        def plain(value: Any) -> Any:
+            return list(value) if isinstance(value, tuple) else value
+
+        spec = StudySpec(self.name, seeds=list(self.seeds), match=self.match,
+                         baseline=self.baseline, mode=self.mode, tolerance=self.tolerance)
+        try:
+            registered = get_preset(self.preset.name)
+        except KeyError:
+            registered = None
+        if registered is None:
+            spec.custom_preset = {k: plain(v) for k, v in asdict(self.preset).items()
+                                  if v is not None}
+        else:
+            spec.preset = registered.name
+            spec.overrides = {f.name: plain(getattr(self.preset, f.name))
+                              for f in fields(self.preset)
+                              if getattr(self.preset, f.name) != getattr(registered, f.name)
+                              and getattr(self.preset, f.name) is not None}
+        if isinstance(self.budget, Tokens):
+            spec.budget = {"tokens": self.budget.n}
+        elif isinstance(self.budget, FLOPs):
+            spec.budget = {"flops": self.budget.n}
+        for v in self.variants.values():
+            ref, rebuildable = model_ref(v.model_cls)
+            if not rebuildable:
+                raise ValueError(f"variant {v.name!r}: {v.model_cls.__name__} was defined in a "
+                                 "notebook or script, so a spec can't name it")
+            check_tomlable(v.name, v.kwargs)
+            spec.variants.append(
+                VariantSpec(v.name, ref, {k: plain(x) for k, x in v.kwargs.items()}))
+        spec.predictions = {k: dict(v) for k, v in self.predictions.items()}
+        return spec
+
+    @classmethod
+    def from_spec(cls, spec: StudySpec, source: Path | None = None) -> Study:
+        """Build a Study from its spec, resolving model refs and declarative size matching."""
+        from nanoscope.studyspec import resolve_variants
+
+        if spec.custom_preset is not None:
+            data = {f.name: None for f in fields(Preset)
+                    if f.default is MISSING and f.default_factory is MISSING}
+            preset = Preset.from_dict({**data, **spec.custom_preset})
+        else:
+            preset = get_preset(spec.preset).override(**{
+                k: tuple(v) if k == "betas" else v for k, v in spec.overrides.items()})
+        budget = None
+        if spec.budget:
+            (kind, n), = spec.budget.items()
+            budget = Tokens(n) if kind == "tokens" else FLOPs(n)
+        study = cls(spec.name, preset=preset, seeds=list(spec.seeds), budget=budget,
+                    match=spec.match, baseline=spec.baseline, mode=spec.mode,
+                    tolerance=spec.tolerance)
+        study.source = source
+        for name, model_cls, kwargs in resolve_variants(spec, preset):
+            study.add(name, model_cls, **kwargs)
+        for variant, values in spec.predictions.items():
+            study.predict(variant, **values)
+        return study
+
     @property
     def dir(self) -> Path:
         return paths.runs_dir() / "studies" / self.name
@@ -207,7 +272,7 @@ class Study:
     def _provenance(self) -> dict[str, Any]:
         """Record mode: check the git state and freeze the preregistration."""
         if self.source is None:
-            raise ValueError("record mode needs the study to be defined in a .py file")
+            raise ValueError("record mode needs the study to be defined in a .py or .toml file")
         cwd = self.source.parent
         try:
             root = Path(_git(["rev-parse", "--show-toplevel"], cwd))
@@ -308,6 +373,12 @@ class Study:
                 **job.variant.kwargs,
             ))
             if result.train_result.stopped_early:
+                state = read_json(result.run_dir / "status.json", "status")["state"]
+                if state == "cancelled" and not (self.dir / STOP_FILE).exists():
+                    # `nanoscope stop <run>`: that one run is cancelled, the study goes on.
+                    print(f"[nanoscope] {label} cancelled at step {result.final_step}; "
+                          "continuing with the next run", flush=True)
+                    continue
                 print(f"[nanoscope] {label} stopped at step {result.final_step}; "
                       "skipping the rest", flush=True)
                 return
@@ -327,7 +398,7 @@ class Study:
     def _run_parallel(self, devices: list[str], threads: int | None) -> None:
         """One worker process per device, each taking every n-th job."""
         if self.source is None:
-            raise ValueError("running on several devices needs the study in a .py file")
+            raise ValueError("running on several devices needs the study in a .py or .toml file")
         logs = self.dir / "logs"
         logs.mkdir(parents=True, exist_ok=True)
         workers = []
@@ -445,8 +516,10 @@ class StudyReport:
 
 
 def load_study(path: str | Path, name: str | None = None) -> Study:
-    """Import a study file and return its Study (by name when it defines several)."""
+    """Import a study file (.py, or a .toml spec) and return its Study."""
     path = Path(path).resolve()
+    if path.suffix == ".toml":
+        return Study.from_spec(StudySpec.load(path), source=path)
     spec = importlib.util.spec_from_file_location(f"_nanoscope_study_{path.stem}", path)
     if spec is None or spec.loader is None:
         raise ImportError(f"can't import {path}")

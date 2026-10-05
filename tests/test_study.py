@@ -352,3 +352,73 @@ def test_stopping_a_study_skips_the_jobs_that_have_not_started(capsys):
     study.run(devices=["cpu"])
     assert "study stopped: skipping 3 remaining run(s)" in capsys.readouterr().out
     assert not list(study.dir.glob("a/seed-*/metrics.jsonl"))
+
+
+def toml_study(mode="record"):
+    study = Study("toy", preset=tiny(), seeds=3, budget=Tokens(4 * 32 * 6), baseline="small",
+                  mode=mode)
+    study.add("small", Bigram, d_model=8)
+    study.add("wide", Bigram, d_model=32)
+    return study.to_spec().to_toml()
+
+
+def test_record_toml_uncommitted(repo):
+    path = repo / "study.toml"
+    path.write_text(toml_study())
+    study = load_study(path)
+    assert study.source == path.resolve() and study.mode == "record"
+    with pytest.raises(ValueError, match="commit study.toml first"):
+        study.run(devices=["cpu"])
+
+
+def test_record_mode_runs_a_committed_toml_spec(repo):
+    path = repo / "study.toml"
+    path.write_text(toml_study())
+    commit_all(repo)
+    study = load_study(path)
+    study.run(devices=["cpu"])
+    manifest = json.loads((study.dir / "study.json").read_text())
+    assert manifest["study_file"] == "study.toml"
+    report = str(study.report())
+    assert "wide" in report and "- code: commit" in report
+
+
+def _interrupting_run(monkeypatch, make_hook):
+    """Study.run, but the seed-0 run gets an on_step hook that fails or stops it."""
+    import nanoscope.study as study_module
+
+    real = study_module.run
+
+    def wrapped(*args, **kwargs):
+        if kwargs["output_dir"].name == "seed-0":
+            kwargs["on_step"] = make_hook(kwargs["output_dir"])
+        return real(*args, **kwargs)
+
+    monkeypatch.setattr(study_module, "run", wrapped)
+
+
+def test_cancelling_one_run_lets_the_rest_of_the_study_continue(monkeypatch, capsys):
+    def make_hook(run_dir):
+        return lambda step, row: (run_dir / "STOP").write_text("") if step == 2 else None
+
+    _interrupting_run(monkeypatch, make_hook)
+    study = Study("toy", preset=tiny(), seeds=3, budget=Tokens(4 * 32 * 6))
+    study.add("a", Bigram)
+    study.run(devices=["cpu"])
+    out = capsys.readouterr().out
+    assert "cancelled at step 2; continuing with the next run" in out
+    states = {p.parent.name: json.loads(p.read_text())["state"]
+              for p in study.dir.glob("a/seed-*/status.json")}
+    assert states == {"seed-0": "cancelled", "seed-1": "done", "seed-2": "done"}
+
+
+def test_ctrl_c_in_one_run_ends_the_whole_study(monkeypatch, capsys):
+    def make_hook(run_dir):
+        return lambda step, row: os.kill(os.getpid(), signal.SIGINT) if step == 2 else None
+
+    _interrupting_run(monkeypatch, make_hook)
+    study = Study("toy", preset=tiny(), seeds=3, budget=Tokens(4 * 32 * 6))
+    study.add("a", Bigram)
+    study.run(devices=["cpu"])
+    assert "stopped at step 2; skipping the rest" in capsys.readouterr().out
+    assert not list(study.dir.glob("a/seed-1/metrics.jsonl"))
