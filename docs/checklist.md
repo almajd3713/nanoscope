@@ -695,6 +695,11 @@ touch or create (new ones marked `(new)`).
 
 ## Decisions log
 
+- 2026-10-06 (user): P7.99's "CI green" is waived for PR #7 because GitHub Actions is down (a
+  GitHub-confirmed incident). Local evidence stands in: `make check` (205 tests), the first-notebook
+  test and the SIGKILL test pass on this machine. Fix anything CI finds later, in a separate PR.
+  No self-hosted runner (it would run PR code with the user's tokens and files).
+
 Append one line per decision: `- YYYY-MM-DD <item id or plan section>: <decision> (<who>)`.
 
 - 2026-10-05 plan 11: the user answered Q1-Q11 and added lesson gating; the roadmap was renumbered to P6-P17 and the MVP is P6-P14 (user).
@@ -713,5 +718,6 @@ Append one line per decision: `- YYYY-MM-DD <item id or plan section>: <decision
 Things found while building that aren't items yet. Turn each into an item under the
 right phase, then tick it here as `[x] → P<n>.<id>`.
 
+- [ ] Not Linux: job children only die with their worker through PR_SET_PDEATHSIG (Linux). On macOS/Windows a killed worker leaves its child; add a pid check before requeue if those platforms matter.
 - [ ] The repo has no CI workflow yet. → covered by P6.04-P6.06.
 - [ ] `docs/plan-tool-landscape.md` still uses the old phase numbers ("Export (phase 13)") and calls questions "open". Fix it when folding into `docs/architecture.md` (P14.32).

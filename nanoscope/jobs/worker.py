@@ -112,9 +112,9 @@ class Worker:
 
     def tick(self) -> bool:
         """One pass of the loop. Returns whether any job is running afterwards."""
-        queue.requeue_expired()
         for job_id in list(self.active):
-            self._check(job_id)
+            self._check(job_id)  # renews our leases before anyone's expiry is judged
+        queue.requeue_expired(skip_worker=self.worker_id)
         if not self.shutting_down:
             self._fill()
         self._write_file()

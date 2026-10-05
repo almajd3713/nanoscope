@@ -203,3 +203,11 @@ def test_jobs_command_lists_and_cancels(home, capsys):
     main(["jobs", "--state", "queued"])
     out = capsys.readouterr().out
     assert f"#{first}" not in out and f"#{second}" in out
+
+
+def test_lease_a_live_worker_is_not_requeued_by_its_own_tick(home):
+    job_id = add("prepare-data", {"preset": "a"})
+    take("w", "cpu", lease_seconds=-1)
+    assert queue.requeue_expired(skip_worker="w") == []
+    assert queue.get(job_id)["state"] == "running"
+    assert queue.requeue_expired(skip_worker="someone-else") == [job_id]

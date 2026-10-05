@@ -201,15 +201,19 @@ def renew(
 
 
 def requeue_expired(
-    *, max_attempts: int = MAX_ATTEMPTS, now: float | None = None, path: Path | None = None,
+    *, max_attempts: int = MAX_ATTEMPTS, now: float | None = None,
+    skip_worker: str | None = None, path: Path | None = None,
 ) -> list[int]:
-    """Give back jobs whose lease ran out; after max_attempts they fail. Returns their ids."""
+    """Give back jobs whose lease ran out; after max_attempts they fail. Returns their ids.
+
+    A worker passes its own id as skip_worker: it is alive, so a late renewal is not a death."""
     now = time.time() if now is None else now
     with closing(connect(path)) as conn:
         conn.execute("BEGIN IMMEDIATE")
         rows = conn.execute(
             "SELECT id, attempts, state FROM jobs WHERE state IN ('running', 'cancelling') "
-            "AND lease_until < ?", (now,)).fetchall()
+            "AND lease_until < ? AND COALESCE(worker_id, '') != ?",
+            (now, skip_worker or "")).fetchall()
         for row in rows:
             attempts = row["attempts"] + 1
             if row["state"] == "cancelling":

@@ -165,6 +165,8 @@ def test_worker_sigterm_hands_the_job_back(home, tmp_path):
         while queue.get(job_id)["state"] != "running" and time.time() < end:
             time.sleep(0.05)
         assert queue.get(job_id)["state"] == "running"
+        while not list(paths.workers_dir().glob("*.json")) and time.time() < end:
+            time.sleep(0.05)  # the worker writes its file at the end of the tick that claimed
         assert list(paths.workers_dir().glob("*.json"))
         proc.send_signal(signal.SIGTERM)
         assert proc.wait(timeout=30) == 0
