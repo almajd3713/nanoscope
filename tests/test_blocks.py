@@ -128,3 +128,71 @@ def test_shipped_marks_library_models():
         pass
 
     assert registry.is_shipped(Sub)  # subclassing a shipped model counts as running it
+
+
+# ---- primitives -------------------------------------------------------------------------
+
+from nanoscope.reference import functional as R  # noqa: E402
+
+ATOL = 1e-5
+
+
+def test_linear_matches_matmul_and_counts_flops():
+    from nanoscope.blocks.primitives import Linear
+
+    layer = Linear(out_features=6).build(4, 8)
+    x = torch.randn(2, 3, 4)
+    torch.testing.assert_close(layer(x), x @ layer.linear.weight.T, atol=ATOL, rtol=0)
+    assert layer.linear.bias is None and layer.flops_per_token(8) == 6 * 4 * 6
+    assert Linear(bias=True).build(4, 8)(x).shape == (2, 3, 4)
+
+
+def test_activation_matches_formulas():
+    from nanoscope.blocks.primitives import Activation
+
+    x = torch.randn(5, 7)
+    build = lambda kind: Activation(kind=kind).build(7, 4)  # noqa: E731
+    torch.testing.assert_close(build("gelu")(x), R.gelu(x), atol=ATOL, rtol=0)
+    torch.testing.assert_close(build("silu")(x), R.silu(x), atol=ATOL, rtol=0)
+    assert torch.equal(build("relu")(x), x.clamp(min=0))
+    with pytest.raises(ValueError, match="gelu, silu, relu"):
+        Activation(kind="tanh").build(7, 4)
+
+
+def test_primitives_attention_parts():
+    from nanoscope.blocks.primitives import (
+        CausalMask,
+        MergeHeads,
+        ScaledDotScores,
+        Softmax,
+        SplitHeads,
+        WeightedSum,
+    )
+
+    B, H, T, D = 2, 3, 5, 4
+    q, k, v = (torch.randn(B, H, T, D) for _ in range(3))
+    scores = ScaledDotScores().build(H * D, T)(q, k)
+    assert scores.shape == (B, H, T, T)
+    torch.testing.assert_close(scores[0, 1, 2, 3], (q[0, 1, 2] * k[0, 1, 3]).sum() / 2)
+    masked = CausalMask().build(H * D, T)(scores)
+    assert (masked.isinf() == ~R.causal_mask(T)).all()
+    weights = Softmax().build(H * D, T)(masked)
+    torch.testing.assert_close(weights, R.softmax(masked), atol=ATOL, rtol=0)
+    out = WeightedSum().build(H * D, T)(weights, v)
+    torch.testing.assert_close(out, R.naive_causal_attention(q, k, v), atol=ATOL, rtol=0)
+    x = torch.randn(B, T, H * D)
+    heads = SplitHeads(n_heads=H).build(H * D, T)(x)
+    assert heads.shape == (B, H, T, D)
+    assert torch.equal(MergeHeads().build(H * D, T)(heads), x)
+    # the two attention matmuls together are the 12 * d_model * context of the PaLM formula
+    both = (ScaledDotScores().build(H * D, T).flops_per_token(T)
+            + WeightedSum().build(H * D, T).flops_per_token(T))
+    assert both == 12 * H * D * T
+
+
+def test_causal_mask_handles_shorter_sequences():
+    from nanoscope.blocks.primitives import CausalMask
+
+    mask = CausalMask().build(8, 16)
+    out = mask(torch.zeros(1, 1, 4, 4))
+    assert (out.isinf() == ~R.causal_mask(4)).all()
