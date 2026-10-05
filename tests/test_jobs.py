@@ -1,4 +1,5 @@
 import json
+import os
 import signal
 import subprocess
 import sys
@@ -8,6 +9,7 @@ import time
 import pytest
 import torch
 from fakes import tiny
+from test_study import PRESET_SRC
 
 from nanoscope import hardware, paths, queue
 from nanoscope.cli import main
@@ -15,6 +17,7 @@ from nanoscope.dataset import load_data
 from nanoscope.jobs.payload import preset_fields
 from nanoscope.jobs.runner import ContainerRunner, SubprocessRunner, job_env
 from nanoscope.jobs.worker import Worker
+from nanoscope.study import load_study
 
 GIB = 2**30
 
@@ -246,3 +249,83 @@ def test_admission_cache_is_keyed_by_the_job_and_the_device(home):
     assert a == memory_key(run_payload(), "cuda:0")
     assert a != memory_key(run_payload(), "cuda:1")
     assert a != memory_key({**run_payload(), "kwargs": {"d_model": 16}}, "cuda:0")
+
+
+def test_interactive_first_a_worker_starts_the_interactive_job_before_older_batch_jobs(home):
+    class Quick(FakeRunner):
+        def start(self, job_id, log, env):
+            super().start(job_id, log, env)
+            self.code = 0
+
+    batch = [add("prepare-data", {"preset": f"b{i}"}) for i in range(2)]
+    urgent = add("prepare-data", {"preset": "now"}, lane="interactive")
+    worker = Worker("cpu", 1, runner_factory=Quick, exit_when_idle=True, poll_seconds=0.01)
+    worker.run()
+    assert FakeRunner.started == [urgent, *batch]
+    assert [queue.get(i)["state"] for i in (urgent, *batch)] == ["done"] * 3
+
+
+@pytest.mark.usefixtures("fake_data")
+def test_sigkill_a_killed_worker_loses_its_lease_and_the_run_resumes(tmp_path, monkeypatch):
+    from nanoscope.compare import load_runs
+
+    model = tmp_path / "slow_model.py"
+    model.write_text(textwrap.dedent("""
+        import time
+        from nanoscope.models import Bigram
+
+        class SlowBigram(Bigram):
+            def forward(self, tokens):
+                time.sleep(0.03)
+                return super().forward(tokens)
+    """))
+    path = tmp_path / "study.py"
+    path.write_text(PRESET_SRC + textwrap.dedent(f"""
+        import sys
+        sys.path.insert(0, {str(tmp_path)!r})
+        from slow_model import SlowBigram
+
+        study = Study("toy", preset=preset, seeds=1, budget=Tokens(4 * 32 * 60), baseline="a")
+        study.add("a", SlowBigram, d_model=8)
+        study.add("b", SlowBigram, d_model=16)
+    """))
+    monkeypatch.syspath_prepend(str(tmp_path))
+    monkeypatch.setenv("PYTHONPATH", str(tmp_path))  # the worker's children import the model too
+    study = load_study(path)
+    load_data(study.preset)
+    ids = study.enqueue()
+    worker_cmd = [sys.executable, "-m", "nanoscope.cli", "worker", "--lease-seconds", "2",
+                  "--exit-when-idle"]
+    worker = subprocess.Popen(worker_cmd)
+    child = None
+    try:
+        end = time.time() + 120
+        while time.time() < end and child is None:
+            for status in study.dir.glob("*/seed-*/status.json"):
+                run_dir = status.parent
+                if (run_dir / "latest.json").exists() and json.loads(
+                        status.read_text())["state"] == "running":
+                    child = json.loads(status.read_text())["pid"]
+            time.sleep(0.05)
+        assert child, "no run reached a checkpoint"
+        worker.kill()
+        os.kill(child, signal.SIGKILL)
+        worker.wait()
+    finally:
+        if worker.poll() is None:
+            worker.kill()
+    assert any(queue.get(i)["state"] == "running" for i in ids)
+
+    subprocess.run(worker_cmd, check=True, timeout=180)
+
+    rows = [queue.get(i) for i in ids]
+    assert [r["state"] for r in rows] == ["done", "done"]
+    assert sum(r["attempts"] for r in rows) == 1
+    interrupted = {v: load_runs(study.dir / v)[0].final("val_loss") for v in ("a", "b")}
+
+    monkeypatch.setenv("NANOSCOPE_HOME", str(tmp_path / "home-uninterrupted"))
+    load_data(study.preset)
+    clean = load_study(path)
+    clean.run()
+    straight = {v: load_runs(clean.dir / v)[0].final("val_loss") for v in ("a", "b")}
+    assert interrupted == pytest.approx(straight, abs=1e-6)

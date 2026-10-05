@@ -352,3 +352,12 @@ def format_jobs(rows: list[sqlite3.Row]) -> str:
         lines.append(f"#{r['id']}  {r['state']:<10} {r['lane']:<11} {r['kind']:<13} "
                      f"{what}{where}{note}")
     return "\n".join(lines)
+
+
+def pending(lanes: tuple[str, ...] = LANES, *, path: Path | None = None) -> int:
+    """Jobs on these lanes that are queued or still held by some worker."""
+    marks = ",".join("?" for _ in lanes)
+    with closing(connect(path)) as conn:
+        return int(conn.execute(
+            f"SELECT COUNT(*) FROM jobs WHERE lane IN ({marks}) "
+            "AND state IN ('queued', 'running', 'cancelling')", lanes).fetchone()[0])

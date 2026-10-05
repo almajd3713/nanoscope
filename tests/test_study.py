@@ -492,3 +492,36 @@ def test_stopping_a_study_cancels_its_queued_jobs(tmp_path):
     request_stop("studies/toy")
 
     assert [queue.get(i)["state"] for i in ids] == ["cancelled", "cancelled"]
+
+
+def test_kaggle_command_enqueues_the_study_and_starts_a_worker_per_gpu(tmp_path, monkeypatch):
+    import nanoscope.study as study_module
+    from nanoscope import queue
+    from nanoscope.cli import main
+
+    path = tmp_path / "study.py"
+    write_study(path, seeds=1)
+    started = []
+
+    class FakeProc:
+        returncode = 0
+
+        def poll(self):
+            return 0
+
+        def terminate(self): ...
+
+        def wait(self): ...
+
+    monkeypatch.setattr(torch.cuda, "is_available", lambda: True)
+    monkeypatch.setattr(study_module.subprocess, "Popen",
+                        lambda cmd, **kw: started.append(cmd) or FakeProc())
+    monkeypatch.setattr(study_module.Study, "_watch", lambda self, ids, workers, total: None)
+    monkeypatch.setattr(study_module.Study, "report", lambda self, write=True: "report")
+
+    main(["study", str(path), "--devices", "cuda:0,cuda:1", "--push-to-hub", "me/runs"])
+
+    assert [cmd[cmd.index("--device") + 1] for cmd in started] == ["cuda:0", "cuda:1"]
+    jobs = queue.list_jobs()
+    assert len(jobs) == 2
+    assert {json.loads(j["payload"])["push_to_hub"] for j in jobs} == {"me/runs"}

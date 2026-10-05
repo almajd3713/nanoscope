@@ -83,6 +83,8 @@ def build_parser() -> argparse.ArgumentParser:
     worker_parser.add_argument("--lanes", default="interactive,batch")
     worker_parser.add_argument("--timeout", type=float, default=None,
                                help="seconds a job may run before it is stopped and fails")
+    worker_parser.add_argument("--lease-seconds", type=float, default=None,
+                               help="how long a job stays this worker's without a renewal")
     worker_parser.add_argument("--exit-when-idle", action="store_true",
                                help="exit once nothing is queued or running")
 
@@ -176,7 +178,8 @@ def main(argv: list[str] | None = None) -> None:
         from nanoscope.jobs.worker import Worker
 
         Worker(args.device, args.slots, lanes=tuple(args.lanes.split(",")),
-               timeout=args.timeout, exit_when_idle=args.exit_when_idle).run()
+               timeout=args.timeout, exit_when_idle=args.exit_when_idle,
+               **({"lease_seconds": args.lease_seconds} if args.lease_seconds else {})).run()
         return
 
     if args.command == "bench":

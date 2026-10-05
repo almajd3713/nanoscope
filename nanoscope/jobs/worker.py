@@ -28,7 +28,7 @@ from nanoscope.hardware import HEADROOM, free_memory, probe_memory
 from nanoscope.jobs.runner import JobRunner, SubprocessRunner, job_env
 from nanoscope.log import info
 from nanoscope.schemas.upgrade import read_json
-from nanoscope.status import STOP_FILE
+from nanoscope.status import HEARTBEAT_SECONDS, STOP_FILE
 
 STOP_GRACE = 30.0  # seconds a child gets to checkpoint after STOP before it is killed
 
@@ -101,8 +101,8 @@ class Worker:
             info(f"worker {self.worker_id}: {self.slots} slot(s) on {self.device}")
             while not self.shutting_down:
                 busy = self.tick()
-                if self.exit_when_idle and not busy:
-                    break
+                if self.exit_when_idle and not busy and queue.pending(self.lanes) == 0:
+                    break  # (a job another worker holds may still come back: its lease expires)
                 time.sleep(self.poll_seconds)
             self._wind_down()
         finally:
@@ -199,7 +199,7 @@ class Worker:
         if doc.get("state") != "running" or not doc.get("heartbeat_at"):
             return True
         beat = datetime.fromisoformat(doc["heartbeat_at"]).timestamp()
-        return time.time() - beat < self.lease_seconds
+        return time.time() - beat < max(self.lease_seconds, 3 * HEARTBEAT_SECONDS)
 
     def _ask_to_stop(self, active: _Active) -> None:
         active.stopping_since = time.time()
