@@ -4,14 +4,14 @@ The build list for [`plan-tool.md`](plan-tool.md), sections 4-10, with the decis
 2026-10-05 (plan section 11) applied. Phase numbers follow the plan's section 10. Every
 item is one line, so scripts and agents can grep and edit it.
 
-**Current focus:** P7 queue and workers. Next item: P7.26.
+**Current focus:** P7 queue and workers. Next item: P7.99.
 
 ## Progress
 
 | Phase | Title | Done / total | Status |
 |---|---|---|---|
 | P6 | Servable library + CI baseline (9-11 d) | 67 / 67 | done |
-| P7 | Queue and workers (5-6 d) | 26 / 28 | in progress |
+| P7 | Queue and workers (5-6 d) | 27 / 28 | in progress |
 | P8 | Blocks, describe, rebuilt models (10-13 d) | 0 / 52 | not started |
 | P9 | Curriculum engine, gating, two paths (14-17 d) | 0 / 61 | not started |
 | P10 | HTTP API (8-10 d) | 0 / 47 | not started |
@@ -214,7 +214,7 @@ touch or create (new ones marked `(new)`).
 - [x] P7.23 Plan done-when: a worker killed with SIGKILL mid-job has its lease expire and its job requeued and resumed, and the study completes with results equal to an uninterrupted study. · files: tests/test_jobs.py · deps: P7.18 · done: `uv run pytest tests/test_jobs.py -k sigkill` passes ✓ 2026-10-05 8888a9e: sigkill resume equals uninterrupted study; interactive lane first; kaggle command enqueues (exit-when-idle waits for leased jobs, --lease-seconds added)
 - [x] P7.24 Test that an interactive job is claimed before already-queued batch jobs, end to end through a worker. · files: tests/test_jobs.py · deps: P7.12 · done: `uv run pytest tests/test_jobs.py -k interactive_first` passes ✓ 2026-10-05 8888a9e: sigkill resume equals uninterrupted study; interactive lane first; kaggle command enqueues (exit-when-idle waits for leased jobs, --lease-seconds added)
 - [x] P7.25 Test that the Kaggle notebook's `--devices cuda:0,cuda:1` command parses and enqueues with fake CUDA. · files: tests/test_first_model_notebook.py, tests/test_study.py · deps: P7.18 · done: `uv run pytest -k kaggle` passes ✓ 2026-10-05 8888a9e: sigkill resume equals uninterrupted study; interactive lane first; kaggle command enqueues (exit-when-idle waits for leased jobs, --lease-seconds added)
-- [ ] P7.26 **USER ACTION** On a GPU box, run `m1_ablation` with `--workers-per-device 4` and record its wall time against phase 5 in the PR. · files: PR description · deps: P7.22 · done: the PR description contains both timings
+- [x] P7.26 **USER ACTION** On a GPU box, run `m1_ablation` with `--workers-per-device 4` and record its wall time against phase 5 in the PR. · files: PR description · deps: P7.22 · done: the PR description contains both timings ✓ 2026-10-05 e01e6e9: PR #7 records main 950 s vs queue 873 s (RTX 4070 laptop, 4 workers)
 - [x] P7.27 Document the queue, workers, `nanoscope jobs`, lanes, the removal of `--shard` and backing up `queue.db` in `docs/research.md`. · files: docs/research.md · deps: P7.20, P7.21 · done: `grep -cE 'nanoscope worker|nanoscope jobs|queue\.db' docs/research.md` prints at least 3 ✓ 2026-10-05 26dedc4: research guide: queue, workers, lanes, jobs, queue.db backup, --shard removed
 
 ### P7 · Gate
