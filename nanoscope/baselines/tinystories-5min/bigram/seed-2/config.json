@@ -1,0 +1,44 @@
+{
+  "model": {
+    "class": "Bigram",
+    "kwargs": {
+      "d_model": 32,
+      "vocab_size": 4096
+    }
+  },
+  "preset": {
+    "name": "tinystories-5min",
+    "dataset": "roneneldan/TinyStories",
+    "tokenizer": "bpe",
+    "vocab_size": 4096,
+    "context_length": 256,
+    "max_steps": 500,
+    "batch_size": 8,
+    "learning_rate": 0.003,
+    "weight_decay": 0.1,
+    "betas": [
+      0.9,
+      0.999
+    ],
+    "eps": 1e-08,
+    "warmup_steps": 50,
+    "grad_clip": 1.0,
+    "precision": "fp32",
+    "train_docs": 100000,
+    "tokenizer_train_docs": 20000,
+    "eval_interval": 50,
+    "eval_docs": 200,
+    "sample_interval": 100,
+    "sample_length": 200,
+    "sample_prompt": "",
+    "sample_temperature": 0.8,
+    "checkpoint_interval": 500,
+    "keep_checkpoints": 2
+  },
+  "tokenizer": "bpe-4096-20000",
+  "seed": 2,
+  "stats": {
+    "n_params": 262144,
+    "vocab_size": 4096
+  }
+}

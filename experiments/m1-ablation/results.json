@@ -1,0 +1,225 @@
+{
+  "study": "m1-ablation",
+  "mode": "explore",
+  "manifest": null,
+  "rows": [
+    {
+      "label": "gpt2",
+      "source": "runs/studies/m1-ablation/gpt2",
+      "seeds": [
+        0,
+        1,
+        2
+      ],
+      "params": 1350400,
+      "tokens": 4001792,
+      "summary": {
+        "n": 3,
+        "mean": 0.9874190804247308,
+        "sample_sd": 0.0046699748329334136,
+        "ci95_low": 0.9758182198293159,
+        "ci95_high": 0.9990199410201457,
+        "status": "estimated"
+      },
+      "delta": {
+        "n": 3,
+        "mean": 0.10280847660538579,
+        "sample_sd": 0.006723090519917601,
+        "ci95_low": 0.08610739390534734,
+        "ci95_high": 0.11950955930542424,
+        "status": "estimated",
+        "paired": true
+      }
+    },
+    {
+      "label": "modern",
+      "source": "runs/studies/m1-ablation/modern",
+      "seeds": [
+        0,
+        1,
+        2
+      ],
+      "params": 1312128,
+      "tokens": 4001792,
+      "summary": {
+        "n": 3,
+        "mean": 0.884610603819345,
+        "sample_sd": 0.0036734473154797676,
+        "ci95_low": 0.8754852548108337,
+        "ci95_high": 0.8937359528278562,
+        "status": "estimated"
+      },
+      "delta": null
+    },
+    {
+      "label": "no-rope",
+      "source": "runs/studies/m1-ablation/no-rope",
+      "seeds": [
+        0,
+        1,
+        2
+      ],
+      "params": 1344896,
+      "tokens": 4001792,
+      "summary": {
+        "n": 3,
+        "mean": 1.0109477961441724,
+        "sample_sd": 0.007678464704224868,
+        "ci95_low": 0.9918734324040636,
+        "ci95_high": 1.0300221598842811,
+        "status": "estimated"
+      },
+      "delta": {
+        "n": 3,
+        "mean": 0.1263371923248275,
+        "sample_sd": 0.008564305303403437,
+        "ci95_low": 0.10506227854569969,
+        "ci95_high": 0.14761210610395534,
+        "status": "estimated",
+        "paired": true
+      }
+    },
+    {
+      "label": "no-swiglu",
+      "source": "runs/studies/m1-ablation/no-swiglu",
+      "seeds": [
+        0,
+        1,
+        2
+      ],
+      "params": 1320320,
+      "tokens": 4001792,
+      "summary": {
+        "n": 3,
+        "mean": 0.9021608231438256,
+        "sample_sd": 0.0034118641579703253,
+        "ci95_low": 0.8936852827216423,
+        "ci95_high": 0.910636363566009,
+        "status": "estimated"
+      },
+      "delta": {
+        "n": 3,
+        "mean": 0.017550219324480643,
+        "sample_sd": 0.004494678490413432,
+        "ci95_low": 0.006384818984251592,
+        "ci95_high": 0.028715619664709695,
+        "status": "estimated",
+        "paired": true
+      }
+    },
+    {
+      "label": "no-rmsnorm",
+      "source": "runs/studies/m1-ablation/no-rmsnorm",
+      "seeds": [
+        0,
+        1,
+        2
+      ],
+      "params": 1312128,
+      "tokens": 4001792,
+      "summary": {
+        "n": 3,
+        "mean": 0.8862390340464628,
+        "sample_sd": 0.0022411671610949348,
+        "ci95_low": 0.8806716661832504,
+        "ci95_high": 0.8918064019096751,
+        "status": "estimated"
+      },
+      "delta": {
+        "n": 3,
+        "mean": 0.001628430227117783,
+        "sample_sd": 0.0014948491655493096,
+        "ci95_low": -0.002084980958401769,
+        "ci95_high": 0.005341841412637336,
+        "status": "estimated",
+        "paired": true
+      }
+    },
+    {
+      "label": "no-qk-norm",
+      "source": "runs/studies/m1-ablation/no-qk-norm",
+      "seeds": [
+        0,
+        1,
+        2
+      ],
+      "params": 1311872,
+      "tokens": 4001792,
+      "summary": {
+        "n": 3,
+        "mean": 0.897402494581947,
+        "sample_sd": 0.00328447756363032,
+        "ci95_low": 0.889243400002735,
+        "ci95_high": 0.9055615891611589,
+        "status": "estimated"
+      },
+      "delta": {
+        "n": 3,
+        "mean": 0.01279189076260201,
+        "sample_sd": 0.006940521496705454,
+        "ci95_low": -0.004449320426577856,
+        "ci95_high": 0.030033101951781875,
+        "status": "estimated",
+        "paired": true
+      }
+    },
+    {
+      "label": "no-gqa",
+      "source": "runs/studies/m1-ablation/no-gqa",
+      "seeds": [
+        0,
+        1,
+        2
+      ],
+      "params": 1316224,
+      "tokens": 4001792,
+      "summary": {
+        "n": 3,
+        "mean": 0.8817914845593501,
+        "sample_sd": 0.0023483151270024863,
+        "ci95_low": 0.8759579463932894,
+        "ci95_high": 0.8876250227254108,
+        "status": "estimated"
+      },
+      "delta": {
+        "n": 3,
+        "mean": -0.0028191192599948587,
+        "sample_sd": 0.0036568489839703964,
+        "ci95_low": -0.011903235727251599,
+        "ci95_high": 0.006264997207261881,
+        "status": "estimated",
+        "paired": true
+      }
+    },
+    {
+      "label": "no-z-loss",
+      "source": "runs/studies/m1-ablation/no-z-loss",
+      "seeds": [
+        0,
+        1,
+        2
+      ],
+      "params": 1312128,
+      "tokens": 4001792,
+      "summary": {
+        "n": 3,
+        "mean": 0.8855710058963661,
+        "sample_sd": 0.0008306904618825148,
+        "ci95_low": 0.8835074563932124,
+        "ci95_high": 0.8876345553995197,
+        "status": "estimated"
+      },
+      "delta": {
+        "n": 3,
+        "mean": 0.00096040207702112,
+        "sample_sd": 0.003064122610756809,
+        "ci95_low": -0.006651300453786747,
+        "ci95_high": 0.008572104607828987,
+        "status": "estimated",
+        "paired": true
+      }
+    }
+  ],
+  "notes": [],
+  "predictions": []
+}

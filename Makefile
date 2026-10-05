@@ -1,36 +1,13 @@
-# Makefile for Nanoscope
+.PHONY: install test test-all lint
 
-CONFIG ?= configs/test/m0/local-smoke.yaml
+install:  ## everything, including dev tools
+	uv sync --all-extras
 
-.PHONY: help
-help:
-	@echo "Available targets:"
-	@echo "  help          - Show this help"
-	@echo "  install       - Install dependencies"
-	@echo "  sync          - Sync the workspace with Kaggle"
-	@echo "  train         - Train the model"
-	@echo "  doctor        - Check the environment"
-	@echo "  clean         - Clean the workspace"
+test:  ## fast offline tests
+	uv run pytest -m "not network and not gpu"
 
-.PHONY: install
-install:
-	uv tool install kaggle
-	uv pip install -r requirements.txt
-	uv pip install -e .
-	
+test-all:  ## also the first-notebook timing test (downloads TinyStories once) and GPU tests
+	uv run pytest
 
-.PHONY: sync
-sync:
-	python3 kaggle_sync.py
-
-.PHONY: train
-train:
-	uv run nanoscope train --config $(CONFIG) --resume none
-
-.PHONY: doctor
-doctor:
-	uv run nanoscope doctor --config $(CONFIG)
-
-.PHONY: clean
-clean:
-	rm -rf runs/*
+lint:
+	uv run ruff check nanoscope tests
