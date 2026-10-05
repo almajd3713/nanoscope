@@ -4,13 +4,13 @@ The build list for [`plan-tool.md`](plan-tool.md), sections 4-10, with the decis
 2026-10-05 (plan section 11) applied. Phase numbers follow the plan's section 10. Every
 item is one line, so scripts and agents can grep and edit it.
 
-**Current focus:** P6 servable library + CI baseline. Next item: P6.55.
+**Current focus:** P6 servable library + CI baseline. Next item: P6.58.
 
 ## Progress
 
 | Phase | Title | Done / total | Status |
 |---|---|---|---|
-| P6 | Servable library + CI baseline (9-11 d) | 54 / 67 | in progress |
+| P6 | Servable library + CI baseline (9-11 d) | 57 / 67 | in progress |
 | P7 | Queue and workers (5-6 d) | 0 / 28 | not started |
 | P8 | Blocks, describe, rebuilt models (10-13 d) | 0 / 52 | not started |
 | P9 | Curriculum engine, gating, two paths (14-17 d) | 0 / 61 | not started |
@@ -160,9 +160,9 @@ touch or create (new ones marked `(new)`).
 - [x] P6.54 Add `nanoscope spec <study.py> [--name]`, which prints the study's TOML; `study` and `report` accept `.toml` paths. · files: nanoscope/cli.py, tests/test_studyspec.py · deps: P6.52 · done: `uv run nanoscope spec studies/m1_ablation.py | uv run python -c "import sys,tomllib; tomllib.loads(sys.stdin.read())"` exits 0 ✓ 2026-10-05 ceb8a61: nanoscope spec; study/report accept .toml
 
 ### P6 · Smaller library items
-- [ ] P6.55 Make data prep write `data_dir/<preset>/prepare.json` (stage download, tokenize or done; done, total, started_at, updated_at, error) atomically as it progresses. · files: nanoscope/dataset.py, nanoscope/schemas/prepare.v1.json (new), tests/test_data.py · deps: P6.11, P6.18 · done: `uv run pytest tests/test_data.py -k prepare_json` passes
-- [ ] P6.56 Add `nanoscope status --data`, which prints each preset's `prepare.json`. · files: nanoscope/cli.py, nanoscope/progress.py, tests/test_data.py · deps: P6.55 · done: `uv run pytest tests/test_data.py -k status_data` asserts the output
-- [ ] P6.57 Replace the `functools.cache` on `_hub_files` with a 5-minute TTL cache. · files: nanoscope/dataset.py, tests/test_data.py · deps: P6.02 · done: `uv run pytest tests/test_data.py -k hub_ttl` passes with a monkeypatched clock
+- [x] P6.55 Make data prep write `data_dir/<preset>/prepare.json` (stage download, tokenize or done; done, total, started_at, updated_at, error) atomically as it progresses. · files: nanoscope/dataset.py, nanoscope/schemas/prepare.v1.json (new), tests/test_data.py · deps: P6.11, P6.18 · done: `uv run pytest tests/test_data.py -k prepare_json` passes ✓ 2026-10-05 ef466a0: prepare.py PrepareFile; written only when work happens; failures recorded
+- [x] P6.56 Add `nanoscope status --data`, which prints each preset's `prepare.json`. · files: nanoscope/cli.py, nanoscope/progress.py, tests/test_data.py · deps: P6.55 · done: `uv run pytest tests/test_data.py -k status_data` asserts the output ✓ 2026-10-05 ef466a0: nanoscope status --data
+- [x] P6.57 Replace the `functools.cache` on `_hub_files` with a 5-minute TTL cache. · files: nanoscope/dataset.py, tests/test_data.py · deps: P6.02 · done: `uv run pytest tests/test_data.py -k hub_ttl` passes with a monkeypatched clock ✓ 2026-10-05 ef466a0: 5-minute TTL cache for Hub file listings
 - [ ] P6.58 Make `bench(save=True)` and `nanoscope bench --save` append a `bench.v1` row to `hardware_dir()/bench.jsonl`. · files: nanoscope/bench.py, nanoscope/cli.py, nanoscope/schemas/bench.v1.json (new), tests/test_bench.py (new) · deps: P6.08, P6.18 · done: `uv run pytest tests/test_bench.py -k save` passes
 - [ ] P6.59 Send `_log` (in `run.py` and `dataset.py`) and the prints in `train_loop.py` through `logging.getLogger("nanoscope")`, with a default `[nanoscope] ` stdout handler so the visible output is unchanged. · files: nanoscope/run.py, nanoscope/dataset.py, nanoscope/train_loop.py, nanoscope/__init__.py · deps: P6.02 · done: `uv run pytest tests/test_progress.py` passes unchanged, and a new test captures records with a handler
 - [ ] P6.60 Add `to_dict()` to `RunResult`, `RunGroup`, `Comparison` and `StudyReport`, matching the schemas. · files: nanoscope/run.py, nanoscope/compare.py, nanoscope/study.py, nanoscope/schemas/comparison.v1.json (new) · deps: P6.24 · done: `uv run pytest tests/test_schemas.py -k to_dict` passes
