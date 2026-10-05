@@ -6,56 +6,138 @@
   "type": "object",
   "properties": {
     "kind": {
-      "enum": ["run", "prepare-data", "bench"]
+      "enum": [
+        "run",
+        "prepare-data",
+        "bench"
+      ]
     },
     "payload": {
       "type": "object"
     }
   },
-  "required": ["kind", "payload"],
+  "required": [
+    "kind",
+    "payload"
+  ],
   "oneOf": [
     {
       "properties": {
-        "kind": {"const": "run"},
+        "kind": {
+          "const": "run"
+        },
         "payload": {
           "type": "object",
           "properties": {
-            "model": {"type": "string", "minLength": 1},
-            "preset": {"type": "string", "minLength": 1},
-            "seed": {"type": "integer"},
-            "kwargs": {"type": "object"},
-            "wandb": {"type": ["boolean", "string"]},
-            "push_to_hub": {"type": ["string", "null"]}
+            "model": {
+              "type": "string",
+              "minLength": 1
+            },
+            "preset": {
+              "type": "string",
+              "minLength": 1
+            },
+            "seed": {
+              "type": "integer"
+            },
+            "kwargs": {
+              "type": "object"
+            },
+            "wandb": {
+              "type": [
+                "boolean",
+                "string"
+              ]
+            },
+            "push_to_hub": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "overrides": {
+              "type": "object"
+            },
+            "custom_preset": {
+              "type": "object"
+            },
+            "compile": {
+              "type": [
+                "boolean",
+                "string"
+              ]
+            },
+            "study": {
+              "type": [
+                "object",
+                "null"
+              ]
+            },
+            "timeout": {
+              "type": "number",
+              "exclusiveMinimum": 0
+            }
           },
-          "required": ["model", "preset"],
+          "required": [
+            "model",
+            "preset"
+          ],
           "additionalProperties": false
         }
       }
     },
     {
       "properties": {
-        "kind": {"const": "prepare-data"},
+        "kind": {
+          "const": "prepare-data"
+        },
         "payload": {
           "type": "object",
           "properties": {
-            "preset": {"type": "string", "minLength": 1}
+            "preset": {
+              "type": "string",
+              "minLength": 1
+            },
+            "timeout": {
+              "type": "number",
+              "exclusiveMinimum": 0
+            }
           },
-          "required": ["preset"],
+          "required": [
+            "preset"
+          ],
           "additionalProperties": false
         }
       }
     },
     {
       "properties": {
-        "kind": {"const": "bench"},
+        "kind": {
+          "const": "bench"
+        },
         "payload": {
           "type": "object",
           "properties": {
-            "model": {"type": "string", "minLength": 1},
-            "preset": {"type": "string", "minLength": 1},
-            "steps": {"type": "integer", "minimum": 1}
+            "model": {
+              "type": "string",
+              "minLength": 1
+            },
+            "preset": {
+              "type": "string",
+              "minLength": 1
+            },
+            "steps": {
+              "type": "integer",
+              "minimum": 1
+            },
+            "timeout": {
+              "type": "number",
+              "exclusiveMinimum": 0
+            }
           },
-          "required": ["model"],
+          "required": [
+            "model"
+          ],
           "additionalProperties": false
         }
       }

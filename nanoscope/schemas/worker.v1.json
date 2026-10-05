@@ -1,0 +1,20 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://nanoscope.dev/schemas/worker.v1.json",
+  "title": "worker.v1",
+  "description": "A live worker: its device, slots, current jobs and last heartbeat.",
+  "type": "object",
+  "properties": {
+    "schema": {"const": 1},
+    "nanoscope": {"type": "string"},
+    "worker_id": {"type": "string"},
+    "device": {"type": "string"},
+    "slots": {"type": "integer", "minimum": 1},
+    "pid": {"type": "integer"},
+    "host": {"type": "string"},
+    "jobs": {"type": "array", "items": {"type": "integer"}},
+    "started_at": {"type": "string"},
+    "heartbeat_at": {"type": "string"}
+  },
+  "required": ["schema", "worker_id", "device", "slots", "jobs", "started_at", "heartbeat_at"]
+}

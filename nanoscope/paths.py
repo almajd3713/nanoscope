@@ -65,6 +65,18 @@ def queue_db() -> Path:
     return base / "queue.db" if base else _USER_HOME / "queue.db"
 
 
+def workers_dir() -> Path:
+    """One small JSON file per live worker (device, slots, current jobs, heartbeat)."""
+    base = home()
+    return base / "workers" if base else _USER_HOME / "workers"
+
+
+def job_logs_dir() -> Path:
+    """The output of each job's process, as <id>.log."""
+    base = home()
+    return base / "jobs" if base else _USER_HOME / "jobs"
+
+
 def baselines_dir() -> Path:
     """Results shipped with the package; read-only."""
     return Path(__file__).parent / "baselines"

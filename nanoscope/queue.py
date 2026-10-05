@@ -44,11 +44,16 @@ CREATE TABLE IF NOT EXISTS jobs (
     lease_until REAL,
     attempts INTEGER NOT NULL DEFAULT 0,
     error TEXT,
+    result TEXT,
     created_at REAL NOT NULL,
     started_at REAL,
     finished_at REAL
 );
 CREATE INDEX IF NOT EXISTS jobs_claim ON jobs (state, lane, id);
+CREATE TABLE IF NOT EXISTS memory_cache (
+    key TEXT PRIMARY KEY,
+    bytes INTEGER NOT NULL
+);
 CREATE INDEX IF NOT EXISTS jobs_ref ON jobs (ref);
 """
 
@@ -223,7 +228,9 @@ def requeue_expired(
     return [int(r["id"]) for r in rows]
 
 
-def finish(job_id: int, error: str | None = None, *, path: Path | None = None) -> str:
+def finish(
+    job_id: int, error: str | None = None, *, cancelled: bool = False, path: Path | None = None,
+) -> str:
     """Record how a claimed job ended and return its final state (a cancel wins over both)."""
     with closing(connect(path)) as conn:
         conn.execute("BEGIN IMMEDIATE")
@@ -231,9 +238,12 @@ def finish(job_id: int, error: str | None = None, *, path: Path | None = None) -
         if row is None:
             conn.execute("ROLLBACK")
             raise KeyError(f"no job {job_id}")
-        state = "cancelled" if row["state"] == "cancelling" else ("failed" if error else "done")
-        conn.execute("UPDATE jobs SET state = ?, error = ?, finished_at = ? WHERE id = ?",
-                     (state, error, time.time(), job_id))
+        if row["state"] == "cancelling" or cancelled:
+            state = "cancelled"
+        else:
+            state = "failed" if error else "done"
+        conn.execute("UPDATE jobs SET state = ?, error = COALESCE(?, error), finished_at = ? "
+                     "WHERE id = ?", (state, error, time.time(), job_id))
         conn.execute("COMMIT")
     return state
 
@@ -261,3 +271,58 @@ def cancel(job_id: int, *, path: Path | None = None) -> str:
         if folder.is_dir():
             (folder / STOP_FILE).write_text("", encoding="utf-8")
     return state
+
+
+def record(
+    job_id: int, result: dict[str, Any] | None = None, error: str | None = None,
+    *, path: Path | None = None,
+) -> None:
+    """Store what a job produced (or why it broke) without changing its state."""
+    with closing(connect(path)) as conn:
+        conn.execute("UPDATE jobs SET result = COALESCE(?, result), error = COALESCE(?, error) "
+                     "WHERE id = ?",
+                     (None if result is None else json.dumps(result, default=str), error, job_id))
+
+
+def release(job_id: int, worker_id: str, *, path: Path | None = None) -> str | None:
+    """Hand a claimed job back unharmed (a worker shutting down, or a job that doesn't fit yet).
+
+    It returns to the queue with its attempts unchanged; a cancel in progress completes."""
+    with closing(connect(path)) as conn:
+        conn.execute("BEGIN IMMEDIATE")
+        row = conn.execute("SELECT state FROM jobs WHERE id = ? AND worker_id = ? "
+                           "AND state IN ('running', 'cancelling')", (job_id, worker_id)).fetchone()
+        if row is None:
+            conn.execute("ROLLBACK")
+            return None
+        if row["state"] == "cancelling":
+            state = "cancelled"
+            conn.execute("UPDATE jobs SET state = 'cancelled', finished_at = ? WHERE id = ?",
+                         (time.time(), job_id))
+        else:
+            state = "queued"
+            conn.execute("UPDATE jobs SET state = 'queued', worker_id = NULL, device = NULL, "
+                         "lease_until = NULL, started_at = NULL WHERE id = ?", (job_id,))
+        conn.execute("COMMIT")
+    return state
+
+
+def list_jobs(state: str | None = None, *, path: Path | None = None) -> list[sqlite3.Row]:
+    with closing(connect(path)) as conn:
+        if state:
+            return conn.execute(
+                "SELECT * FROM jobs WHERE state = ? ORDER BY id", (state,)).fetchall()
+        return conn.execute("SELECT * FROM jobs ORDER BY id").fetchall()
+
+
+def cached_memory(key: str, *, path: Path | None = None) -> int | None:
+    """Bytes a job needed on a device, as an earlier probe measured them."""
+    with closing(connect(path)) as conn:
+        row = conn.execute("SELECT bytes FROM memory_cache WHERE key = ?", (key,)).fetchone()
+    return int(row["bytes"]) if row else None
+
+
+def cache_memory(key: str, nbytes: int, *, path: Path | None = None) -> None:
+    with closing(connect(path)) as conn:
+        conn.execute("INSERT OR REPLACE INTO memory_cache (key, bytes) VALUES (?, ?)",
+                     (key, nbytes))
