@@ -63,6 +63,9 @@ def build_parser() -> argparse.ArgumentParser:
 
     sub.add_parser("presets", help="List available presets")
 
+    job_parser = sub.add_parser("run-job", help="Run one queued job in this process (workers do)")
+    job_parser.add_argument("id", type=int)
+
     bench_parser = sub.add_parser("bench", help="Measure training speed and find the bottleneck")
     bench_parser.add_argument("model", help="bigram, gpt2, modern, or path/to/model.py:ClassName")
     bench_parser.add_argument("--preset", default="tinystories-5min")
@@ -73,6 +76,23 @@ def build_parser() -> argparse.ArgumentParser:
     bench_parser.add_argument("--compile", nargs="?", const="true", default=None,
                               help="torch.compile; or --compile reduce-overhead for CUDA graphs")
     bench_parser.add_argument("--set", nargs="*", default=[], dest="overrides")
+
+    worker_parser = sub.add_parser("worker", help="Run queued jobs on one device")
+    worker_parser.add_argument("--device", default="cpu", help="cpu, cuda:0, ...")
+    worker_parser.add_argument("--slots", type=int, default=1, help="jobs at once on the device")
+    worker_parser.add_argument("--lanes", default="interactive,batch")
+    worker_parser.add_argument("--timeout", type=float, default=None,
+                               help="seconds a job may run before it is stopped and fails")
+    worker_parser.add_argument("--lease-seconds", type=float, default=None,
+                               help="how long a job stays this worker's without a renewal")
+    worker_parser.add_argument("--exit-when-idle", action="store_true",
+                               help="exit once nothing is queued or running")
+
+    jobs_parser = sub.add_parser("jobs", help="List queued and running jobs, or cancel one")
+    jobs_parser.add_argument("action", nargs="?", choices=["cancel"], default=None)
+    jobs_parser.add_argument("id", nargs="?", type=int, default=None, help="job id (for cancel)")
+    jobs_parser.add_argument("--state", default=None,
+                             help="queued, running, done, failed or cancelled")
 
     prep_parser = sub.add_parser("prepare-data", help="Download or tokenize a preset's data now")
     prep_parser.add_argument("preset")
@@ -85,6 +105,8 @@ def build_parser() -> argparse.ArgumentParser:
     status_parser = sub.add_parser("status", help="Show the state of every run under a folder")
     status_parser.add_argument("--data", action="store_true",
                                help="show data preparation (downloads, tokenizing) instead")
+    status_parser.add_argument("--workers", action="store_true",
+                               help="show the running workers and their jobs instead")
     status_parser.add_argument("path", nargs="?", default=None,
                                help="runs folder (default: $NANOSCOPE_HOME/runs, or ./runs)")
 
@@ -100,7 +122,6 @@ def build_parser() -> argparse.ArgumentParser:
                               help="torch.compile; or --compile reduce-overhead for CUDA graphs")
     study_parser.add_argument("--push-to-hub", default=None, metavar="REPO",
                               help="mirror runs to this Hub repo and resume from it")
-    study_parser.add_argument("--shard", default=None, help=argparse.SUPPRESS)
 
     report_parser = sub.add_parser("report", help="Write a study's report to experiments/")
     report_parser.add_argument("file", help="path/to/study.py or study.toml")
@@ -136,6 +157,31 @@ def main(argv: list[str] | None = None) -> None:
             print(name)
         return
 
+    if args.command == "run-job":
+        from nanoscope.jobs.execute import main as run_job
+
+        run_job(args.id)
+        return
+
+    if args.command == "jobs":
+        from nanoscope import queue
+
+        if args.action == "cancel":
+            if args.id is None:
+                parser.error("jobs cancel needs a job id")
+            print(f"job {args.id}: {queue.cancel(args.id)}")
+            return
+        print(queue.format_jobs(queue.list_jobs(args.state)))
+        return
+
+    if args.command == "worker":
+        from nanoscope.jobs.worker import Worker
+
+        Worker(args.device, args.slots, lanes=tuple(args.lanes.split(",")),
+               timeout=args.timeout, exit_when_idle=args.exit_when_idle,
+               **({"lease_seconds": args.lease_seconds} if args.lease_seconds else {})).run()
+        return
+
     if args.command == "bench":
         from nanoscope import models
         from nanoscope.bench import bench
@@ -163,6 +209,11 @@ def main(argv: list[str] | None = None) -> None:
     if args.command == "status":
         from nanoscope.progress import format_snapshot, snapshot
 
+        if args.workers:
+            from nanoscope.progress import format_workers, read_workers
+
+            print(format_workers(read_workers()))
+            return
         if args.data:
             from nanoscope.prepare import format_prepare, read_all
 
@@ -194,18 +245,12 @@ def main(argv: list[str] | None = None) -> None:
         study = load_study(args.file, args.name)
         if args.command == "study":
             devices = args.devices.split(",") if args.devices else None
-            shard = None
-            if args.shard:
-                index, count = (int(x) for x in args.shard.split("/"))
-                shard = (index, count)
             if args.push_to_hub:
                 study.push_to_hub = args.push_to_hub
             if args.compile:
                 study.compile = _parse_compile(args.compile)
-            study.run(devices=devices, shard=shard, workers_per_device=args.workers_per_device,
+            study.run(devices=devices, workers_per_device=args.workers_per_device,
                       threads=args.threads)
-            if shard is not None:
-                return
         print(study.report())
         print(f"Written to {paths.reports_dir() / study.name}/")
         return

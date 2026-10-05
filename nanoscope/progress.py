@@ -187,3 +187,33 @@ def one_line(states: list[RunState], total: int | None = None) -> str:
     running = [f"{r.run_dir.parent.name}/{r.run_dir.name} {r.step}/{r.max_steps}"
                for r in states if r.state == "running"]
     return f"{done}/{total} done" + (f" · running {', '.join(running)}" if running else "")
+
+
+WORKER_STALE = 30  # seconds without a heartbeat before a worker looks dead
+
+
+def read_workers() -> list[dict[str, Any]]:
+    """Every worker file under the workers folder, each with its heartbeat age in `age`."""
+    from nanoscope import paths
+
+    docs = []
+    for file in sorted(paths.workers_dir().glob("*.json")):
+        try:
+            doc = read_json(file, "worker")
+        except (OSError, ValueError):
+            continue
+        beat = datetime.fromisoformat(doc["heartbeat_at"]).timestamp()
+        docs.append({**doc, "age": max(0.0, time.time() - beat)})
+    return docs
+
+
+def format_workers(docs: list[dict[str, Any]]) -> str:
+    if not docs:
+        return "no workers running (start one with `nanoscope worker --device cpu`)"
+    lines = []
+    for d in docs:
+        jobs = ", ".join(f"#{j}" for j in d["jobs"]) or "idle"
+        health = "STALE (no heartbeat)" if d["age"] > WORKER_STALE else f"seen {d['age']:.0f}s ago"
+        lines.append(f"{d['worker_id']}  {d['device']}  {len(d['jobs'])}/{d['slots']} slots  "
+                     f"{jobs}  {health}")
+    return "\n".join(lines)

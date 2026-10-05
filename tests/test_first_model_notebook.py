@@ -67,4 +67,6 @@ def test_kaggle_notebook_has_at_most_four_code_cells_using_real_commands():
     assert len(commands) == 2
     for command in commands:
         filled = command.replace("{STUDY}", study).replace("{RUNS_REPO}", "me/runs")
-        parser.parse_args(shlex.split(filled))
+        args = parser.parse_args(shlex.split(filled))
+        if args.command == "study":
+            assert args.devices == "cuda:0,cuda:1" and args.push_to_hub == "me/runs"

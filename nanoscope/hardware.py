@@ -34,16 +34,21 @@ def probe_memory(build_model: Callable[[], torch.nn.Module], preset: Preset,
     return context + peak
 
 
-def check_gpu_fits(device: str, workers: int, per_worker: int) -> None:
-    free = torch.cuda.mem_get_info(torch.device(device))[0]
-    if workers * per_worker > free * HEADROOM:
-        raise ValueError(
-            f"{workers} workers on {device} need about {workers * per_worker / 2**30:.1f} GiB "
-            f"({per_worker / 2**30:.1f} GiB each) but {free / 2**30:.1f} GiB is free. "
-            "Use fewer --workers-per-device."
-        )
-
-
 def cpu_threads(workers_on_cpu: int) -> int:
     """Threads per worker so that CPU workers share the cores instead of fighting over them."""
     return max(1, (os.cpu_count() or 1) // max(workers_on_cpu, 1))
+
+
+def free_memory(device: str) -> int:
+    """Free bytes on a CUDA device."""
+    return torch.cuda.mem_get_info(torch.device(device))[0]
+
+
+def configure_device(device: str | None, slots: int) -> None:
+    """Called in a job's own process: its share of the CPU threads or of the GPU memory."""
+    if device is None or device == "cpu":
+        explicit = os.environ.get("NANOSCOPE_THREADS")  # `nanoscope study --threads N`
+        torch.set_num_threads(int(explicit) if explicit else cpu_threads(slots))
+    elif device.startswith("cuda") and torch.cuda.is_available():
+        torch.cuda.set_per_process_memory_fraction(HEADROOM / max(slots, 1),
+                                                   torch.device(device))

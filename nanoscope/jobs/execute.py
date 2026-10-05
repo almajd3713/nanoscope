@@ -1,0 +1,91 @@
+"""`nanoscope run-job <id>`: do one queued job in this (fresh) process.
+
+The worker starts it through a JobRunner. It reads the job from the queue, dispatches on
+the kind, and writes the result (or the error) back to the queue. The worker decides what
+the exit means for the job's state.
+"""
+
+from __future__ import annotations
+
+import json
+import os
+import sys
+import traceback
+from collections.abc import Callable
+from typing import Any
+
+from nanoscope import queue, store
+from nanoscope.hardware import configure_device
+from nanoscope.jobs.payload import build_preset
+from nanoscope.modelref import load_class
+from nanoscope.schemas.upgrade import read_json
+
+NAMED_MODELS = ("bigram", "gpt2", "modern")
+
+
+def model_class(ref: str) -> type:
+    if ref in NAMED_MODELS:
+        from nanoscope import models
+
+        return {"bigram": models.Bigram, "gpt2": models.GPT2, "modern": models.Modern}[ref]
+    return load_class(ref)
+
+
+def _run(job: Any, payload: dict[str, Any]) -> dict[str, Any]:
+    from nanoscope.run import RunResult, run
+
+    out = store.resolve(job["ref"], must_exist=False) if job["ref"] else None
+    result = run(
+        model_class(payload["model"]), build_preset(payload), seed=payload.get("seed", 0),
+        device=job["device"], output_dir=out, push_to_hub=payload.get("push_to_hub"),
+        wandb=payload.get("wandb", False), compile=payload.get("compile", False),
+        study=payload.get("study"), progress=False, **payload.get("kwargs", {}))
+    assert isinstance(result, RunResult)
+    state = read_json(result.run_dir / "status.json", "status")["state"]
+    summary = result.summary()
+    return {"state": state, "ref": summary["ref"], "final_step": summary["final_step"],
+            "final_val_bpb": summary["final_val_bpb"]}
+
+
+def _prepare_data(job: Any, payload: dict[str, Any]) -> dict[str, Any]:
+    from nanoscope.dataset import load_data
+    from nanoscope.presets import get_preset
+
+    data = load_data(get_preset(payload["preset"]))
+    return {"preset": payload["preset"], "train_tokens": data.train.meta["tokens"],
+            "val_tokens": len(data.val)}
+
+
+def _bench(job: Any, payload: dict[str, Any]) -> dict[str, Any]:
+    from nanoscope.bench import bench
+
+    result = bench(model_class(payload["model"]), payload.get("preset", "tinystories-5min"),
+                   steps=payload.get("steps", 60), device=job["device"])
+    return {"report": str(result), **result.to_dict()}
+
+
+HANDLERS: dict[str, Callable[[Any, dict[str, Any]], dict[str, Any]]] = {
+    "run": _run, "prepare-data": _prepare_data, "bench": _bench,
+}
+
+
+def execute(job_id: int) -> int:
+    """Run one job; returns the process exit code (0 unless the job raised)."""
+    os.environ["NANOSCOPE_JOB_ID"] = str(job_id)
+    job = queue.get(job_id)
+    payload = json.loads(job["payload"])
+    try:
+        configure_device(job["device"], int(os.environ.get("NANOSCOPE_WORKER_SLOTS", "1")))
+        result = HANDLERS[job["kind"]](job, payload)
+    except BaseException as exc:  # a KeyboardInterrupt too: the queue must learn why
+        traceback.print_exc()
+        queue.record(job_id, error=f"{type(exc).__name__}: {exc}")
+        return 1
+    queue.record(job_id, result=result)
+    return 0
+
+
+def main(job_id: int) -> None:
+    sys.exit(execute(job_id))
+
+
