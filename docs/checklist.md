@@ -4,13 +4,13 @@ The build list for [`plan-tool.md`](plan-tool.md), sections 4-10, with the decis
 2026-10-05 (plan section 11) applied. Phase numbers follow the plan's section 10. Every
 item is one line, so scripts and agents can grep and edit it.
 
-**Current focus:** P6 servable library + CI baseline. Next item: P6.58.
+**Current focus:** P6 servable library + CI baseline. Next item: P6.63.
 
 ## Progress
 
 | Phase | Title | Done / total | Status |
 |---|---|---|---|
-| P6 | Servable library + CI baseline (9-11 d) | 57 / 67 | in progress |
+| P6 | Servable library + CI baseline (9-11 d) | 62 / 67 | in progress |
 | P7 | Queue and workers (5-6 d) | 0 / 28 | not started |
 | P8 | Blocks, describe, rebuilt models (10-13 d) | 0 / 52 | not started |
 | P9 | Curriculum engine, gating, two paths (14-17 d) | 0 / 61 | not started |
@@ -163,11 +163,11 @@ touch or create (new ones marked `(new)`).
 - [x] P6.55 Make data prep write `data_dir/<preset>/prepare.json` (stage download, tokenize or done; done, total, started_at, updated_at, error) atomically as it progresses. · files: nanoscope/dataset.py, nanoscope/schemas/prepare.v1.json (new), tests/test_data.py · deps: P6.11, P6.18 · done: `uv run pytest tests/test_data.py -k prepare_json` passes ✓ 2026-10-05 ef466a0: prepare.py PrepareFile; written only when work happens; failures recorded
 - [x] P6.56 Add `nanoscope status --data`, which prints each preset's `prepare.json`. · files: nanoscope/cli.py, nanoscope/progress.py, tests/test_data.py · deps: P6.55 · done: `uv run pytest tests/test_data.py -k status_data` asserts the output ✓ 2026-10-05 ef466a0: nanoscope status --data
 - [x] P6.57 Replace the `functools.cache` on `_hub_files` with a 5-minute TTL cache. · files: nanoscope/dataset.py, tests/test_data.py · deps: P6.02 · done: `uv run pytest tests/test_data.py -k hub_ttl` passes with a monkeypatched clock ✓ 2026-10-05 ef466a0: 5-minute TTL cache for Hub file listings
-- [ ] P6.58 Make `bench(save=True)` and `nanoscope bench --save` append a `bench.v1` row to `hardware_dir()/bench.jsonl`. · files: nanoscope/bench.py, nanoscope/cli.py, nanoscope/schemas/bench.v1.json (new), tests/test_bench.py (new) · deps: P6.08, P6.18 · done: `uv run pytest tests/test_bench.py -k save` passes
-- [ ] P6.59 Send `_log` (in `run.py` and `dataset.py`) and the prints in `train_loop.py` through `logging.getLogger("nanoscope")`, with a default `[nanoscope] ` stdout handler so the visible output is unchanged. · files: nanoscope/run.py, nanoscope/dataset.py, nanoscope/train_loop.py, nanoscope/__init__.py · deps: P6.02 · done: `uv run pytest tests/test_progress.py` passes unchanged, and a new test captures records with a handler
-- [ ] P6.60 Add `to_dict()` to `RunResult`, `RunGroup`, `Comparison` and `StudyReport`, matching the schemas. · files: nanoscope/run.py, nanoscope/compare.py, nanoscope/study.py, nanoscope/schemas/comparison.v1.json (new) · deps: P6.24 · done: `uv run pytest tests/test_schemas.py -k to_dict` passes
-- [ ] P6.61 Give every compare row an explicit library-computed `verdict` ("better", "worse", "within noise" or "no CI"), and print it. · files: nanoscope/compare.py, tests/test_compare.py · deps: P6.60 · done: `uv run pytest tests/test_compare.py -k verdict` asserts the printed word
-- [ ] P6.62 Add `checkpoint_steps=[...]` to `run()`/`train()`. These checkpoints go to `checkpoints/archive/step_N.pt`, are never pruned, and are not part of the run's identity. · files: nanoscope/run.py, nanoscope/train_loop.py, tests/test_run.py · deps: P6.02 · done: `uv run pytest tests/test_run.py -k checkpoint_steps` passes (the archive survives pruning; the run dir name is unchanged)
+- [x] P6.58 Make `bench(save=True)` and `nanoscope bench --save` append a `bench.v1` row to `hardware_dir()/bench.jsonl`. · files: nanoscope/bench.py, nanoscope/cli.py, nanoscope/schemas/bench.v1.json (new), tests/test_bench.py (new) · deps: P6.08, P6.18 · done: `uv run pytest tests/test_bench.py -k save` passes ✓ 2026-10-05 f41f970: bench(save=True) / bench --save append bench.v1 rows
+- [x] P6.59 Send `_log` (in `run.py` and `dataset.py`) and the prints in `train_loop.py` through `logging.getLogger("nanoscope")`, with a default `[nanoscope] ` stdout handler so the visible output is unchanged. · files: nanoscope/run.py, nanoscope/dataset.py, nanoscope/train_loop.py, nanoscope/__init__.py · deps: P6.02 · done: `uv run pytest tests/test_progress.py` passes unchanged, and a new test captures records with a handler ✓ 2026-10-05 f41f970: nanoscope/log.py: all [nanoscope] output goes through logging.getLogger("nanoscope"), stdout handler keeps the text identical
+- [x] P6.60 Add `to_dict()` to `RunResult`, `RunGroup`, `Comparison` and `StudyReport`, matching the schemas. · files: nanoscope/run.py, nanoscope/compare.py, nanoscope/study.py, nanoscope/schemas/comparison.v1.json (new) · deps: P6.24 · done: `uv run pytest tests/test_schemas.py -k to_dict` passes ✓ 2026-10-05 f41f970: to_dict on RunResult, RunGroup, Comparison (comparison.v1), StudyReport (== results.json)
+- [x] P6.61 Give every compare row an explicit library-computed `verdict` ("better", "worse", "within noise" or "no CI"), and print it. · files: nanoscope/compare.py, tests/test_compare.py · deps: P6.60 · done: `uv run pytest tests/test_compare.py -k verdict` asserts the printed word ✓ 2026-10-05 f41f970: verdict per row (+ "baseline"), printed; no CI prints "no CI: need 3+ seeds each"
+- [x] P6.62 Add `checkpoint_steps=[...]` to `run()`/`train()`. These checkpoints go to `checkpoints/archive/step_N.pt`, are never pruned, and are not part of the run's identity. · files: nanoscope/run.py, nanoscope/train_loop.py, tests/test_run.py · deps: P6.02 · done: `uv run pytest tests/test_run.py -k checkpoint_steps` passes (the archive survives pruning; the run dir name is unchanged) ✓ 2026-10-05 f41f970: checkpoint_steps archive; not part of identity; out-of-range steps refused
 
 ### P6 · Docs
 - [ ] P6.63 Update `docs/research.md` with `NANOSCOPE_HOME`, `status.json` states, `nanoscope stop`, TOML studies, `nanoscope spec`, `prepare.json` and `bench --save`. · files: docs/research.md · deps: P6.37, P6.54, P6.56, P6.58 · done: `grep -cE 'nanoscope stop|status\.json|\.toml|NANOSCOPE_HOME' docs/research.md` prints at least 4
