@@ -1,0 +1,85 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://nanoscope.dev/schemas/config.v1.json",
+  "title": "config.v1",
+  "description": "A run's config.json: what was trained, written once when the run starts.",
+  "type": "object",
+  "properties": {
+    "schema": {
+      "const": 1
+    },
+    "nanoscope": {
+      "type": "string"
+    },
+    "model": {
+      "type": "object",
+      "properties": {
+        "class": {
+          "type": "string"
+        },
+        "kwargs": {
+          "type": "object"
+        }
+      },
+      "required": [
+        "class",
+        "kwargs"
+      ]
+    },
+    "preset": {
+      "type": "object",
+      "properties": {
+        "name": {
+          "type": "string"
+        },
+        "max_steps": {
+          "type": "integer",
+          "minimum": 1
+        }
+      },
+      "required": [
+        "name",
+        "max_steps"
+      ]
+    },
+    "tokenizer": {
+      "type": "string"
+    },
+    "seed": {
+      "type": "integer"
+    },
+    "study": {
+      "type": "object"
+    },
+    "stats": {
+      "type": "object",
+      "properties": {
+        "n_params": {
+          "type": "integer"
+        },
+        "n_non_embedding_params": {
+          "type": "integer"
+        },
+        "flops_per_token": {
+          "type": "integer"
+        },
+        "vocab_size": {
+          "type": "integer"
+        },
+        "device": {
+          "type": "string"
+        },
+        "torch": {
+          "type": "string"
+        }
+      }
+    }
+  },
+  "required": [
+    "schema",
+    "model",
+    "preset",
+    "tokenizer",
+    "seed"
+  ]
+}

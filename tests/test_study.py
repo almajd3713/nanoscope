@@ -11,6 +11,7 @@ from pathlib import Path
 import pytest
 import torch
 from fakes import tiny
+from helpers import assert_valid
 
 from nanoscope import FLOPs, Study, Tokens, compare, paths, run
 from nanoscope.dataset import load_data
@@ -153,6 +154,7 @@ def test_record_mode_stores_the_commit_and_freezes_predictions(repo):
     config = json.loads((study.dir / "wide" / "seed-0" / "config.json").read_text())
     assert config["study"]["mode"] == "record"
     assert config["study"]["commit"] == head
+    assert_valid("study", json.loads((study.dir / "study.json").read_text()))
     report = str(study.report())
     assert "preregistered: study.py committed in" in report
     assert "| wide | val_bpb | 1.500 |" in report

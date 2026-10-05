@@ -15,6 +15,7 @@ from nanoscope.dataset import Data, load_data, tokenizer_id
 from nanoscope.integrations import HubSync, chain, wandb_hook
 from nanoscope.presets import Preset, get_preset, list_presets
 from nanoscope.progress import ProgressBar
+from nanoscope.schemas.upgrade import read_json
 from nanoscope.sizing import count_params, flops_per_token
 from nanoscope.store import ref_of
 from nanoscope.train_loop import TrainResult, generate, train
@@ -257,13 +258,14 @@ def _run_name(
 def _check_config(run_dir: Path, config: dict[str, Any], resume: bool) -> None:
     path = run_dir / "config.json"
     if not resume and path.exists():
-        saved = json.loads(path.read_text(encoding="utf-8"))
+        saved = read_json(path, "config")
         if saved.get("study", {}).get("mode") == "record":
             raise ValueError(f"{run_dir} is a record-mode result; record results are never "
                              "overwritten. Delete the folder by hand if you really mean it.")
     if resume and path.exists():
-        saved = json.loads(path.read_text(encoding="utf-8"))
-        saved.pop("stats", None)
+        saved = read_json(path, "config")
+        for key in ("stats", "schema", "nanoscope"):  # facts about the file, not the run
+            saved.pop(key, None)
         if saved != config:
             changed = sorted(k for k in config if saved.get(k) != config[k])
             raise ValueError(
@@ -368,8 +370,11 @@ def run(
                    if resolved_device.type == "cuda" else resolved_device.type),
         "torch": torch.__version__,
     }
+    from nanoscope import __version__
+
     (run_dir / "config.json").write_text(
-        json.dumps({**config, "stats": stats}, indent=2), encoding="utf-8"
+        json.dumps({"schema": 1, "nanoscope": __version__, **config, "stats": stats}, indent=2),
+        encoding="utf-8",
     )
 
     _log(f"{model_cls.__name__} ({stats['n_params']:,} params) on {preset.name}, "

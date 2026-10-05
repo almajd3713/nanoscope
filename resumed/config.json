@@ -1,0 +1,56 @@
+{
+  "schema": 1,
+  "nanoscope": "0.2.0",
+  "model": {
+    "class": "GPT2",
+    "kwargs": {
+      "context_length": 32,
+      "d_model": 16,
+      "n_layers": 1,
+      "n_heads": 2,
+      "vocab_size": 300
+    }
+  },
+  "preset": {
+    "name": "test-tiny",
+    "dataset": "fake/stories",
+    "tokenizer": "bpe",
+    "vocab_size": 300,
+    "context_length": 32,
+    "max_steps": 20,
+    "batch_size": 4,
+    "learning_rate": 0.01,
+    "weight_decay": 0.1,
+    "betas": [
+      0.9,
+      0.999
+    ],
+    "eps": 1e-08,
+    "warmup_steps": 2,
+    "grad_clip": 1.0,
+    "precision": "fp32",
+    "dataset_config": null,
+    "hub_data": null,
+    "train_docs": 200,
+    "holdout_docs": 0,
+    "tokenizer_train_docs": 100,
+    "eval_interval": 10,
+    "eval_docs": 10,
+    "sample_interval": 10,
+    "sample_length": 20,
+    "sample_prompt": "",
+    "sample_temperature": 0.8,
+    "checkpoint_interval": 10,
+    "keep_checkpoints": 2
+  },
+  "tokenizer": "bpe-300-100",
+  "seed": 0,
+  "stats": {
+    "n_params": 8624,
+    "n_non_embedding_params": 3312,
+    "flops_per_token": 54816,
+    "vocab_size": 300,
+    "device": "NVIDIA GeForce RTX 4070 Laptop GPU",
+    "torch": "2.14.0+cu130"
+  }
+}

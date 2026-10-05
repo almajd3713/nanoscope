@@ -135,3 +135,24 @@ def test_results_know_their_ref():
     assert group.ref == group[0].ref.removesuffix("/seed-0")
     assert group.summary()["ref"] == group.ref
     assert store.resolve(group.ref) == group[0].run_dir.parent
+
+
+def test_config_records_its_schema_and_version():
+    from helpers import assert_valid
+
+    import nanoscope
+
+    result = run(Bigram, tiny(), device="cpu", progress=False)
+    config = json.loads((result.run_dir / "config.json").read_text())
+    assert config["schema"] == 1 and config["nanoscope"] == nanoscope.__version__
+    assert_valid("config", config)
+
+
+def test_v0_config_without_schema_keys_still_resumes():
+    first = run(Bigram, tiny(), device="cpu", output_dir=out("old"), progress=False)
+    path = first.run_dir / "config.json"
+    config = json.loads(path.read_text())
+    del config["schema"], config["nanoscope"]  # what runs written before schemas look like
+    path.write_text(json.dumps(config))
+    again = run(Bigram, tiny(), device="cpu", output_dir=out("old"), progress=False)
+    assert again.final_step == first.final_step

@@ -1,0 +1,48 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://nanoscope.dev/schemas/study.v1.json",
+  "title": "study.v1",
+  "description": "A record-mode study's study.json: the frozen preregistration and git provenance.",
+  "type": "object",
+  "properties": {
+    "schema": {
+      "const": 1
+    },
+    "nanoscope": {
+      "type": "string"
+    },
+    "commit": {
+      "type": "string"
+    },
+    "study_file": {
+      "type": "string"
+    },
+    "study_file_commit": {
+      "type": "string"
+    },
+    "study_file_committed_at": {
+      "type": "string"
+    },
+    "started_at": {
+      "type": "string"
+    },
+    "predictions": {
+      "type": "object",
+      "additionalProperties": {
+        "type": "object",
+        "additionalProperties": {
+          "type": "number"
+        }
+      }
+    }
+  },
+  "required": [
+    "schema",
+    "commit",
+    "study_file",
+    "study_file_commit",
+    "study_file_committed_at",
+    "started_at",
+    "predictions"
+  ]
+}

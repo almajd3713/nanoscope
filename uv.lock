@@ -1115,6 +1115,7 @@ dependencies = [
 
 [package.optional-dependencies]
 dev = [
+    { name = "jsonschema" },
     { name = "nbformat" },
     { name = "pyright" },
     { name = "pytest" },
@@ -1129,6 +1130,7 @@ wandb = [
 requires-dist = [
     { name = "datasets", specifier = ">=3.0,<5" },
     { name = "huggingface-hub", specifier = ">=0.27,<2" },
+    { name = "jsonschema", marker = "extra == 'dev'", specifier = ">=4.20,<5" },
     { name = "matplotlib", specifier = ">=3.8,<4" },
     { name = "nbformat", marker = "extra == 'dev'", specifier = ">=5.10,<6" },
     { name = "numpy", specifier = ">=1.26,<3" },

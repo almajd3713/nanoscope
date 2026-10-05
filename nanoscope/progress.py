@@ -12,6 +12,8 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
+from nanoscope.schemas.upgrade import read_json
+
 RUNNING_IF_UPDATED_WITHIN = 120  # seconds
 
 
@@ -71,7 +73,7 @@ def snapshot(root: str | Path) -> list[RunState]:
     now = time.time()
     for config_path in sorted(Path(root).glob("**/config.json")):
         run_dir = config_path.parent
-        config = json.loads(config_path.read_text(encoding="utf-8"))
+        config = read_json(config_path, "config")
         metrics = run_dir / "metrics.jsonl"
         step, updated, bpb = 0, float("inf"), None
         if metrics.exists() and metrics.stat().st_size:
@@ -83,7 +85,7 @@ def snapshot(root: str | Path) -> list[RunState]:
     # Studies list their planned runs; show the ones that haven't started as queued.
     seen = {s.run_dir.resolve() for s in states}
     for plan_path in sorted(Path(root).glob("**/plan.json")):
-        plan = json.loads(plan_path.read_text(encoding="utf-8"))
+        plan = read_json(plan_path, "plan")
         for job in plan["runs"]:
             run_dir = plan_path.parent / job["dir"]
             if run_dir.resolve() not in seen:

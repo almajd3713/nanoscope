@@ -19,6 +19,7 @@ from statistics import mean
 from typing import Any
 
 from nanoscope import paths, store
+from nanoscope.schemas.upgrade import read_json
 from nanoscope.statistics import paired_difference, summarize, unpaired_difference
 
 BASELINES_DIR = paths.baselines_dir()
@@ -33,7 +34,7 @@ class SeedRun:
 
     @classmethod
     def load(cls, run_dir: Path) -> SeedRun:
-        config = json.loads((run_dir / "config.json").read_text(encoding="utf-8"))
+        config = read_json(run_dir / "config.json", "config")
         lines = (run_dir / "metrics.jsonl").read_text(encoding="utf-8").splitlines()
         return cls(run_dir, config, [json.loads(line) for line in lines])
 

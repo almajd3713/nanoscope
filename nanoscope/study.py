@@ -38,13 +38,14 @@ from typing import Any
 import torch
 from torch import nn
 
-from nanoscope import paths
+from nanoscope import __version__, paths
 from nanoscope.compare import METRICS, Comparison, RunSet, compare, load_runs
 from nanoscope.dataset import load_tokenizer
 from nanoscope.hardware import check_gpu_fits, cpu_threads, probe_memory
 from nanoscope.presets import Preset, get_preset
 from nanoscope.progress import one_line, snapshot
 from nanoscope.run import run
+from nanoscope.schemas.upgrade import read_json
 from nanoscope.sizing import build_on_meta, count_params, flops_per_token
 from nanoscope.statistics import summarize
 
@@ -229,7 +230,7 @@ class Study:
         }
         manifest_path = self.dir / "study.json"
         if manifest_path.exists():
-            manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+            manifest = read_json(manifest_path, "study")
             if manifest["predictions"] != self.predictions:
                 raise ValueError(
                     f"the predictions in {self.source.name} changed after the study started "
@@ -238,6 +239,7 @@ class Study:
         else:
             self.dir.mkdir(parents=True, exist_ok=True)
             manifest_path.write_text(json.dumps({
+                "schema": 1, "nanoscope": __version__,
                 **provenance,
                 "started_at": datetime.now(timezone.utc).isoformat(timespec="seconds"),
                 "predictions": self.predictions,
@@ -307,6 +309,7 @@ class Study:
         """List every planned run, so `nanoscope status` can show the ones not started yet."""
         self.dir.mkdir(parents=True, exist_ok=True)
         (self.dir / "plan.json").write_text(json.dumps({
+            "schema": 1, "nanoscope": __version__,
             "study": self.name,
             "runs": [{"dir": str(j.output_dir.relative_to(self.dir)),
                       "max_steps": j.preset.max_steps} for j in jobs],
@@ -370,7 +373,7 @@ class Study:
                     "error": (actual["mean"] - value) / value,
                 })
         manifest_path = self.dir / "study.json"
-        manifest = (json.loads(manifest_path.read_text(encoding="utf-8"))
+        manifest = (read_json(manifest_path, "study")
                     if manifest_path.exists() else None)
         report = StudyReport(self, comparison, predictions, manifest)
         if write:
@@ -419,6 +422,7 @@ class StudyReport:
         out.mkdir(parents=True, exist_ok=True)
         (out / "report.md").write_text(str(self), encoding="utf-8")
         (out / "results.json").write_text(json.dumps({
+            "schema": 1, "nanoscope": __version__,
             "study": self.study.name,
             "mode": self.study.mode,
             "manifest": self.manifest,
