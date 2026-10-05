@@ -4,13 +4,13 @@ The build list for [`plan-tool.md`](plan-tool.md), sections 4-10, with the decis
 2026-10-05 (plan section 11) applied. Phase numbers follow the plan's section 10. Every
 item is one line, so scripts and agents can grep and edit it.
 
-**Current focus:** P6 servable library + CI baseline. Next item: P6.18 (P6.03 waits on the user).
+**Current focus:** P6 servable library + CI baseline. Next item: P6.26.
 
 ## Progress
 
 | Phase | Title | Done / total | Status |
 |---|---|---|---|
-| P6 | Servable library + CI baseline (9-11 d) | 16 / 67 | in progress |
+| P6 | Servable library + CI baseline (9-11 d) | 25 / 67 | in progress |
 | P7 | Queue and workers (5-6 d) | 0 / 28 | not started |
 | P8 | Blocks, describe, rebuilt models (10-13 d) | 0 / 52 | not started |
 | P9 | Curriculum engine, gating, two paths (14-17 d) | 0 / 61 | not started |
@@ -88,7 +88,7 @@ touch or create (new ones marked `(new)`).
 ### P6 · Housekeeping and migration
 - [x] P6.01 Commit `docs/plan-tool.md`, `docs/plan-tool-landscape.md` and `docs/checklist.md` so the plan and this list are versioned. · files: docs/plan-tool.md, docs/plan-tool-landscape.md, docs/checklist.md · deps: — · done: `git ls-files docs | grep -cE 'plan-tool|checklist'` prints 3 ✓ 2026-10-05 1224f99: plan, landscape and checklist committed
 - [x] P6.02 **USER ACTION** Merge PR #5 (phase 5), then create `feat/phase-6-servable` from the updated main. · files: — · deps: P6.01 · done: `git merge-base --is-ancestor fb81aca HEAD && git branch --show-current` prints feat/phase-6-servable ✓ 2026-10-05 b729337: PR #5 merged, branch feat/phase-6-servable
-- [ ] P6.03 Delete the local leftovers: the empty `configs/` and `reports/` folders and the git-excluded `docs/m1-evaluator-plan.md`, after the user confirms (plan 13). · files: configs/, reports/, docs/m1-evaluator-plan.md · deps: P6.02 · done: `ls configs reports docs/m1-evaluator-plan.md 2>&1 | grep -c 'No such file'` prints 3
+- [x] P6.03 Delete the local leftovers: the empty `configs/` and `reports/` folders and the git-excluded `docs/m1-evaluator-plan.md`, after the user confirms (plan 13). · files: configs/, reports/, docs/m1-evaluator-plan.md · deps: P6.02 · done: `ls configs reports docs/m1-evaluator-plan.md 2>&1 | grep -c 'No such file'` prints 3 ✓ 2026-10-05 5f95562: deleted by the user; verified
 
 ### P6 · CI
 - [x] P6.04 Add a GitHub Actions workflow running `uv sync --all-extras`, `make lint` and `make test` on Python 3.10 and 3.12 for pushes and PRs. · files: .github/workflows/ci.yml (new) · deps: P6.02 · done: `gh run list --workflow ci.yml --limit 1 --json conclusion -q '.[0].conclusion'` prints success ✓ 2026-10-05 32d6ac4: CI green on PR #6 (3.10, 3.12)
@@ -111,14 +111,14 @@ touch or create (new ones marked `(new)`).
 - [x] P6.17 Make `compare()` and `nanoscope compare` accept refs through `store.resolve`; folder paths and names keep working. · files: nanoscope/compare.py, tests/test_compare.py · deps: P6.14 · done: `uv run pytest tests/test_compare.py` passes, including a new compare-by-ref test ✓ 2026-10-05 63787ef: compare accepts refs; CLI help updated
 
 ### P6 · Schemas
-- [ ] P6.18 Create the `nanoscope/schemas/` package with JSON Schema (2020-12) files `config.v1`, `status.v1`, `plan.v1`, `study.v1` and `results.v1`, and a `get(name)` loader. · files: nanoscope/schemas/__init__.py (new), nanoscope/schemas/*.json (new) · deps: P6.02 · done: `uv run python -c "from nanoscope.schemas import get; [get(n) for n in ('config','status','plan','study','results')]"` exits 0
-- [ ] P6.19 Add `jsonschema` to the dev extras and an `assert_valid(kind, obj)` test helper. · files: pyproject.toml, uv.lock, tests/helpers.py (new) · deps: P6.18 · done: `uv run python -c "import jsonschema"` exits 0
-- [ ] P6.20 Make `run()` write `"schema": 1` and `"nanoscope": __version__` into `config.json`, and make `_check_config` ignore those keys (and `stats`) when deciding whether a run can resume. · files: nanoscope/run.py, tests/test_run.py · deps: P6.18 · done: `uv run pytest tests/test_run.py -k v0_resume` passes (a v0 `config.json` without the keys still resumes)
-- [ ] P6.21 Add the schema and version fields to `plan.json` (`Study._write_plan`), `study.json` (`_provenance`) and `results.json` (`StudyReport.write`). · files: nanoscope/study.py · deps: P6.18 · done: `uv run pytest tests/test_study.py` passes
-- [ ] P6.22 Create `nanoscope/schemas/upgrade.py` with `read_json(path, kind)`: a missing `schema` key means v0, which is upgraded to v1; N and N-1 are accepted; N+1 is refused with "written by a newer nanoscope (x.y)". · files: nanoscope/schemas/upgrade.py (new), tests/test_schemas.py (new) · deps: P6.18 · done: `uv run pytest tests/test_schemas.py -k upgrade` passes
-- [ ] P6.23 Route every JSON reader through `read_json`: `compare.SeedRun.load`, `progress.snapshot`, the study report and manifest reads, and `load_run`. · files: nanoscope/compare.py, nanoscope/progress.py, nanoscope/study.py · deps: P6.22 · done: `grep -rn "json.loads(.*read_text" nanoscope | grep -v schemas/` lists only non-artifact files, and `make test` passes
-- [ ] P6.24 Test that every JSON file a toy study writes validates against its schema. · files: tests/test_schemas.py · deps: P6.19, P6.20, P6.21 · done: `uv run pytest tests/test_schemas.py -k toy_study` passes
-- [ ] P6.25 Test that every shipped baseline loads as v0 through `read_json` and compares exactly as before. · files: tests/test_schemas.py · deps: P6.23 · done: `uv run pytest tests/test_schemas.py -k baselines` passes
+- [x] P6.18 Create the `nanoscope/schemas/` package with JSON Schema (2020-12) files `config.v1`, `status.v1`, `plan.v1`, `study.v1` and `results.v1`, and a `get(name)` loader. · files: nanoscope/schemas/__init__.py (new), nanoscope/schemas/*.json (new) · deps: P6.02 · done: `uv run python -c "from nanoscope.schemas import get; [get(n) for n in ('config','status','plan','study','results')]"` exits 0 ✓ 2026-10-05 5f95562: five v1 schemas + get()
+- [x] P6.19 Add `jsonschema` to the dev extras and an `assert_valid(kind, obj)` test helper. · files: pyproject.toml, uv.lock, tests/helpers.py (new) · deps: P6.18 · done: `uv run python -c "import jsonschema"` exits 0 ✓ 2026-10-05 5f95562: jsonschema in dev extras, tests/helpers.assert_valid
+- [x] P6.20 Make `run()` write `"schema": 1` and `"nanoscope": __version__` into `config.json`, and make `_check_config` ignore those keys (and `stats`) when deciding whether a run can resume. · files: nanoscope/run.py, tests/test_run.py · deps: P6.18 · done: `uv run pytest tests/test_run.py -k v0_resume` passes (a v0 `config.json` without the keys still resumes) ✓ 2026-10-05 5f95562: config.json has schema/nanoscope; v0 resumes
+- [x] P6.21 Add the schema and version fields to `plan.json` (`Study._write_plan`), `study.json` (`_provenance`) and `results.json` (`StudyReport.write`). · files: nanoscope/study.py · deps: P6.18 · done: `uv run pytest tests/test_study.py` passes ✓ 2026-10-05 5f95562: plan/study/results carry schema + version
+- [x] P6.22 Create `nanoscope/schemas/upgrade.py` with `read_json(path, kind)`: a missing `schema` key means v0, which is upgraded to v1; N and N-1 are accepted; N+1 is refused with "written by a newer nanoscope (x.y)". · files: nanoscope/schemas/upgrade.py (new), tests/test_schemas.py (new) · deps: P6.18 · done: `uv run pytest tests/test_schemas.py -k upgrade` passes ✓ 2026-10-05 5f95562: schemas/upgrade.py read_json (N, N-1, newer refused)
+- [x] P6.23 Route every JSON reader through `read_json`: `compare.SeedRun.load`, `progress.snapshot`, the study report and manifest reads, and `load_run`. · files: nanoscope/compare.py, nanoscope/progress.py, nanoscope/study.py · deps: P6.22 · done: `grep -rn "json.loads(.*read_text" nanoscope | grep -v schemas/` lists only non-artifact files, and `make test` passes ✓ 2026-10-05 5f95562: all artifact readers use read_json; only latest.json and token meta.json remain
+- [x] P6.24 Test that every JSON file a toy study writes validates against its schema. · files: tests/test_schemas.py · deps: P6.19, P6.20, P6.21 · done: `uv run pytest tests/test_schemas.py -k toy_study` passes ✓ 2026-10-05 5f95562: toy study files validate (study.json in the record test)
+- [x] P6.25 Test that every shipped baseline loads as v0 through `read_json` and compares exactly as before. · files: tests/test_schemas.py · deps: P6.23 · done: `uv run pytest tests/test_schemas.py -k baselines` passes ✓ 2026-10-05 5f95562: shipped baselines load as v0 and compare
 
 ### P6 · Status lifecycle
 - [ ] P6.26 Create `nanoscope/status.py` with `StatusFile`, an atomic writer (write a tmp file, then replace). States: queued, preparing, running, done, stopped, cancelled, failed. Fields: error (type, message, last 20 traceback lines), pid, host, device, job_id (from `NANOSCOPE_JOB_ID`), step, max_steps, started_at, updated_at, heartbeat_at. · files: nanoscope/status.py (new), tests/test_status.py (new) · deps: P6.18 · done: `uv run pytest tests/test_status.py -k write` passes and the output validates as `status.v1`
