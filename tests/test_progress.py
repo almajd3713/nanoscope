@@ -38,12 +38,16 @@ def test_snapshot_tells_done_running_and_stopped_apart():
     run(Bigram, tiny(), device="cpu", output_dir=root / "old", on_step=interrupt, progress=False)
     old = time.time() - 3600
     os.utime(root / "old" / "metrics.jsonl", (old, old))
+    # Runs written before status.json existed are judged by their file times.
+    for legacy in ("live", "old"):
+        (root / legacy / "status.json").unlink()
 
     states = {r.run_dir.name: r for r in snapshot(root)}
     assert states["done"].state == "done" and states["done"].step == 20
     assert states["done"].val_bpb == done.summary()["final_val_bpb"]
     assert states["live"].state == "running" and states["live"].step == 5
     assert states["old"].state == "stopped"
+    assert states["done"].source == "status" and states["live"].source == "files"
 
     text = format_snapshot(list(states.values()), root)
     assert f"3 runs under {root}: 1 done, 1 running, 1 stopped" in text
@@ -79,3 +83,46 @@ def test_status_lists_a_studys_runs_that_have_not_started():
               for r in snapshot(paths.runs_dir())}
     assert states == {"a/seed-0": "done", "a/seed-1": "queued"}
     assert one_line(snapshot(study.dir)) == "1/2 done"
+
+
+def test_snapshot_reads_status_json_and_shows_a_failed_run(capsys):
+    def boom(step, row):
+        if step == 3:
+            raise RuntimeError("out of memory")
+
+    root = paths.runs_dir()
+    run(Bigram, tiny(), device="cpu", output_dir=root / "good", progress=False)
+    with pytest.raises(RuntimeError):
+        run(Bigram, tiny(), device="cpu", output_dir=root / "bad", on_step=boom, progress=False)
+    states = {r.run_dir.name: r for r in snapshot(root)}
+    assert states["good"].state == "done" and states["good"].source == "status"
+    assert states["bad"].state == "failed" and states["bad"].error["type"] == "RuntimeError"
+    main(["status"])
+    out = capsys.readouterr().out
+    assert "bad failed: RuntimeError: out of memory" in out  # status_shows_error
+    assert "1 done" in out and "1 failed" in out
+
+
+def test_a_run_that_died_while_preparing_still_shows_up():
+    from nanoscope.status import StatusFile
+
+    root = paths.runs_dir()
+    StatusFile(root / "dead", 50).write("preparing")
+    (state,) = snapshot(root)
+    assert state.state == "preparing" and state.max_steps == 50 and state.source == "status"
+
+
+def test_stale_running_status_says_no_heartbeat():
+    import json
+
+    from nanoscope.status import StatusFile
+
+    root = paths.runs_dir()
+    clock = time.time() - 600
+    status = StatusFile(root / "gone", 50, clock=lambda: clock)
+    status.write("running", step=5)
+    (state,) = snapshot(root)
+    assert state.state == "running" and state.stale
+    text = format_snapshot([state], root)
+    assert "running (no heartbeat for 10m)" in text
+    assert json.loads((root / "gone" / "status.json").read_text())["state"] == "running"
