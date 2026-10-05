@@ -4,13 +4,13 @@ The build list for [`plan-tool.md`](plan-tool.md), sections 4-10, with the decis
 2026-10-05 (plan section 11) applied. Phase numbers follow the plan's section 10. Every
 item is one line, so scripts and agents can grep and edit it.
 
-**Current focus:** P6 servable library + CI baseline. Next item: P6.14 (P6.03 waits on the user).
+**Current focus:** P6 servable library + CI baseline. Next item: P6.18 (P6.03 waits on the user).
 
 ## Progress
 
 | Phase | Title | Done / total | Status |
 |---|---|---|---|
-| P6 | Servable library + CI baseline (9-11 d) | 12 / 67 | in progress |
+| P6 | Servable library + CI baseline (9-11 d) | 16 / 67 | in progress |
 | P7 | Queue and workers (5-6 d) | 0 / 28 | not started |
 | P8 | Blocks, describe, rebuilt models (10-13 d) | 0 / 52 | not started |
 | P9 | Curriculum engine, gating, two paths (14-17 d) | 0 / 61 | not started |
@@ -105,10 +105,10 @@ touch or create (new ones marked `(new)`).
 - [x] P6.13 Add a `home` fixture to `tests/conftest.py` that points `NANOSCOPE_HOME` at `tmp_path`, and move tests that rely on `chdir` onto it. · files: tests/conftest.py, tests/test_*.py · deps: P6.09, P6.10, P6.11 · done: `make test` passes and `grep -ln chdir tests` lists only test_first_model_notebook.py ✓ 2026-10-05 321ff96: home fixture; only the first-notebook test still chdirs
 
 ### P6 · Library: run refs and store
-- [ ] P6.14 Create `nanoscope/store.py` with `resolve(ref)`, which maps a ref relative to the runs root (or `baselines/...` to the package baselines) to a path and rejects absolute paths, `..` and symlink escapes. · files: nanoscope/store.py (new), tests/test_store.py (new) · deps: P6.09 · done: `uv run pytest tests/test_store.py -k resolve` passes, including the traversal cases
-- [ ] P6.15 Add `store.list_runs(prefix, state=None)` and `store.list_sets(prefix)`, built on `progress.snapshot`. · files: nanoscope/store.py, tests/test_store.py · deps: P6.14 · done: `uv run pytest tests/test_store.py -k list` passes on two sets of three seeds
-- [ ] P6.16 Add `ref` to `RunResult` and `RunGroup`, and include it in `summary()`. · files: nanoscope/run.py, tests/test_run.py · deps: P6.14 · done: `uv run pytest tests/test_run.py -k ref` passes
-- [ ] P6.17 Make `compare()` and `nanoscope compare` accept refs through `store.resolve`; folder paths and names keep working. · files: nanoscope/compare.py, tests/test_compare.py · deps: P6.14 · done: `uv run pytest tests/test_compare.py` passes, including a new compare-by-ref test
+- [x] P6.14 Create `nanoscope/store.py` with `resolve(ref)`, which maps a ref relative to the runs root (or `baselines/...` to the package baselines) to a path and rejects absolute paths, `..` and symlink escapes. · files: nanoscope/store.py (new), tests/test_store.py (new) · deps: P6.09 · done: `uv run pytest tests/test_store.py -k resolve` passes, including the traversal cases ✓ 2026-10-05 63787ef: store.resolve/ref_of; traversal and symlink cases tested
+- [x] P6.15 Add `store.list_runs(prefix, state=None)` and `store.list_sets(prefix)`, built on `progress.snapshot`. · files: nanoscope/store.py, tests/test_store.py · deps: P6.14 · done: `uv run pytest tests/test_store.py -k list` passes on two sets of three seeds ✓ 2026-10-05 63787ef: list_runs/list_sets over two sets of three seeds
+- [x] P6.16 Add `ref` to `RunResult` and `RunGroup`, and include it in `summary()`. · files: nanoscope/run.py, tests/test_run.py · deps: P6.14 · done: `uv run pytest tests/test_run.py -k ref` passes ✓ 2026-10-05 63787ef: RunResult.ref, RunGroup.ref, summary()["ref"]
+- [x] P6.17 Make `compare()` and `nanoscope compare` accept refs through `store.resolve`; folder paths and names keep working. · files: nanoscope/compare.py, tests/test_compare.py · deps: P6.14 · done: `uv run pytest tests/test_compare.py` passes, including a new compare-by-ref test ✓ 2026-10-05 63787ef: compare accepts refs; CLI help updated
 
 ### P6 · Schemas
 - [ ] P6.18 Create the `nanoscope/schemas/` package with JSON Schema (2020-12) files `config.v1`, `status.v1`, `plan.v1`, `study.v1` and `results.v1`, and a `get(name)` loader. · files: nanoscope/schemas/__init__.py (new), nanoscope/schemas/*.json (new) · deps: P6.02 · done: `uv run python -c "from nanoscope.schemas import get; [get(n) for n in ('config','status','plan','study','results')]"` exits 0
