@@ -24,6 +24,7 @@ import numpy as np
 import torch
 
 from nanoscope import paths
+from nanoscope.log import info
 from nanoscope.prepare import PrepareFile
 from nanoscope.presets import Preset
 from nanoscope.tokenizer import BPETokenizer, ByteTokenizer, GPT2Tokenizer, Tokenizer
@@ -33,7 +34,7 @@ _CHUNK_DOCS = 1024
 
 
 def _log(msg: str) -> None:
-    print(f"[nanoscope] {msg}", flush=True)
+    info(msg)
 
 
 def _iter_texts(

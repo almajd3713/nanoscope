@@ -283,3 +283,47 @@ def test_main_class_source_is_saved_and_not_rebuildable(monkeypatch):
     assert model["rebuildable"] is False and model["ref"].startswith("__main__:")
     assert model["ref"].endswith("Local")
     assert (result.run_dir / "model_source.py").read_text() == "class Local: ...\n"
+
+
+def test_messages_go_through_the_nanoscope_logger_and_still_print(capsys):
+    import logging
+
+    records = []
+
+    class Collect(logging.Handler):
+        def emit(self, record):
+            records.append(record.getMessage())
+
+    handler = Collect()
+    logger = logging.getLogger("nanoscope")
+    logger.addHandler(handler)
+    try:
+        run(Bigram, tiny(), device="cpu", output_dir=out("logged"), progress=False)
+        run(Bigram, tiny(), device="cpu", output_dir=out("logged"), progress=False)  # resumes
+    finally:
+        logger.removeHandler(handler)
+    assert any("Bigram (" in m and "params) on test-tiny" in m for m in records)
+    assert any(m.startswith("already trained (20 steps)") for m in records)
+    printed = capsys.readouterr().out
+    assert "[nanoscope] already trained (20 steps)" in printed  # the default handler is intact
+
+
+def test_checkpoint_steps_are_archived_and_never_pruned():
+    import torch
+
+    preset = tiny(checkpoint_interval=5, keep_checkpoints=1)
+    kept = run(Bigram, preset, device="cpu", checkpoint_steps=[3, 10], progress=False)
+    folder = kept.run_dir / "checkpoints"
+    assert sorted(p.name for p in (folder / "archive").glob("*.pt")) == [
+        "step_00000003.pt", "step_00000010.pt"]
+    assert len(list(folder.glob("step_*.pt"))) == 1  # the normal checkpoints are still pruned
+    saved = torch.load(folder / "archive" / "step_00000003.pt", weights_only=False)
+    assert saved["step"] == 3 and "model" in saved and "optimizer" in saved
+
+    # Not part of the run's identity: without it the run lands in the same folder and resumes.
+    plain = run(Bigram, preset, device="cpu", progress=False)
+    assert plain.run_dir == kept.run_dir and plain.final_step == 20
+    assert "checkpoint_steps" not in (kept.run_dir / "config.json").read_text()
+
+    with pytest.raises(ValueError, match=r"checkpoint_steps \[99\] fall outside 1\.\.20"):
+        run(Bigram, tiny(), device="cpu", checkpoint_steps=[99], progress=False)

@@ -1,0 +1,70 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://nanoscope.dev/schemas/bench.v1.json",
+  "title": "bench.v1",
+  "description": "One line of hardware/bench.jsonl: how fast a model trained on a device.",
+  "type": "object",
+  "properties": {
+    "schema": {
+      "const": 1
+    },
+    "nanoscope": {
+      "type": "string"
+    },
+    "at": {
+      "type": "string"
+    },
+    "model": {
+      "type": "string"
+    },
+    "preset": {
+      "type": "string"
+    },
+    "device": {
+      "type": "string"
+    },
+    "torch": {
+      "type": "string"
+    },
+    "steps": {
+      "type": "integer"
+    },
+    "compile": {
+      "type": "string"
+    },
+    "step_ms": {
+      "type": "number"
+    },
+    "tokens_per_sec": {
+      "type": "number"
+    },
+    "tflops": {
+      "type": "number"
+    },
+    "mfu": {
+      "type": [
+        "number",
+        "null"
+      ]
+    },
+    "gpu_busy": {
+      "type": [
+        "number",
+        "null"
+      ]
+    },
+    "verdict": {
+      "type": "string"
+    }
+  },
+  "required": [
+    "schema",
+    "at",
+    "model",
+    "device",
+    "step_ms",
+    "tokens_per_sec",
+    "tflops",
+    "verdict"
+  ]
+}

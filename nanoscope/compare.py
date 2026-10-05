@@ -18,7 +18,7 @@ from pathlib import Path
 from statistics import mean
 from typing import Any
 
-from nanoscope import paths, store
+from nanoscope import __version__, paths, store
 from nanoscope.schemas.upgrade import read_json
 from nanoscope.statistics import paired_difference, summarize, unpaired_difference
 
@@ -171,6 +171,21 @@ def _fmt(x: float | None, sign: bool = False) -> str:
     return f"{x:+.3f}".replace("-", "−") if sign else f"{x:.3f}"
 
 
+def verdict_of(delta: dict[str, Any] | None) -> str:
+    """What a row's difference from the baseline says (lower is better for both metrics):
+    "better" or "worse" when the 95% interval excludes zero, "within noise" when it
+    includes it, "no CI" with fewer than three seeds, "baseline" for the baseline itself."""
+    if delta is None:
+        return "baseline"
+    if delta["ci95_low"] is None:
+        return "no CI"
+    if delta["ci95_high"] < 0:
+        return "better"
+    if delta["ci95_low"] > 0:
+        return "worse"
+    return "within noise"
+
+
 @dataclass
 class Comparison:
     metric: str
@@ -190,20 +205,15 @@ class Comparison:
             value = _fmt(s["mean"])
             if s["ci95_low"] is not None:
                 value += f" ± {(s['ci95_high'] - s['ci95_low']) / 2:.3f}"
+            verdict = row["verdict"]
             if d is None:
                 delta, verdict = "(baseline)", ""
             elif d["ci95_low"] is None:
                 delta = _fmt(d["mean"], sign=True)
-                verdict = "need 3+ seeds each for a CI"
+                verdict += ": need 3+ seeds each"
             else:
                 delta = (f"{_fmt(d['mean'], True)} "
                          f"[{_fmt(d['ci95_low'], True)}, {_fmt(d['ci95_high'], True)}]")
-                if d["ci95_high"] < 0:
-                    verdict = "better"
-                elif d["ci95_low"] > 0:
-                    verdict = "worse"
-                else:
-                    verdict = "within noise"
                 if not d["paired"]:
                     verdict += " (unpaired)"
             table.append([row["label"], str(s["n"]), f"{row['params'] / 1e6:.2f}M",
@@ -215,6 +225,11 @@ class Comparison:
         return "\n".join([header, "", *lines, *[f"note: {n}" for n in self.notes]])
 
     __repr__ = __str__
+
+    def to_dict(self) -> dict[str, Any]:
+        """The comparison as plain data (the comparison.v1 schema)."""
+        return {"schema": 1, "nanoscope": __version__, "metric": self.metric,
+                "baseline": self.baseline, "rows": self.rows, "notes": self.notes}
 
     def plot(self, save: str | Path | None = None) -> Any:
         import matplotlib.pyplot as plt
@@ -310,6 +325,7 @@ def compare(
             "tokens": s.runs[0].final_step * s.runs[0].tokens_per_step,
             "summary": summarize(list(values.values())),
             "delta": delta,
+            "verdict": verdict_of(delta),
         })
     return Comparison(metric, sets[base_index].label, rows, notes, sets)
 

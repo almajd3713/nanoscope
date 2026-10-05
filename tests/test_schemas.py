@@ -75,3 +75,30 @@ def test_shipped_baselines_load_as_v0_and_compare_as_before():
         assert_valid("config", loaded.config)
     out = str(compare("baselines/tinystories-5min/gpt2", "baselines/tinystories-5min/modern"))
     assert "Modern" in out and "GPT2" in out
+
+
+def test_results_expose_plain_dicts_that_match_their_schemas(fake_data):
+    from fakes import tiny
+
+    from nanoscope import Study, Tokens, compare, paths, run
+    from nanoscope.models import Bigram
+
+    group = run(Bigram, tiny(), device="cpu", seeds=3, progress=False)
+    other = run(Bigram, tiny(), device="cpu", seeds=3, progress=False, d_model=8)
+    single = group[0].to_dict(metrics=True)
+    assert single["ref"] == group[0].ref and len(single["metrics"]) == 20
+    assert group.to_dict()["ref"] == group.ref and len(group.to_dict()["runs"]) == 3
+    json.dumps(group.to_dict(metrics=True))  # all plain data
+
+    comparison = compare(group, other).to_dict()
+    assert_valid("comparison", comparison)
+    json.dumps(comparison)
+
+    study = Study("toy", preset=tiny(), seeds=2, budget=Tokens(4 * 32 * 6), baseline="small")
+    study.add("small", Bigram, d_model=8)
+    study.add("wide", Bigram, d_model=32)
+    study.run(devices=["cpu"])
+    report = study.report()
+    assert_valid("results", json.loads(json.dumps(report.to_dict(), default=str)))
+    written = json.loads((paths.reports_dir() / "toy" / "results.json").read_text())
+    assert written == json.loads(json.dumps(report.to_dict(), default=str))

@@ -14,6 +14,7 @@ from nanoscope import paths
 from nanoscope.compare import IDENTITY_KEYS
 from nanoscope.dataset import Data, load_data, tokenizer_id
 from nanoscope.integrations import HubSync, chain, wandb_hook
+from nanoscope.log import info
 from nanoscope.modelref import class_source, model_ref, source_sha256
 from nanoscope.presets import Preset, get_preset, list_presets
 from nanoscope.progress import ProgressBar
@@ -47,6 +48,12 @@ class RunResult:
     @property
     def metrics(self) -> list[dict[str, Any]]:
         return self.train_result.metrics
+
+    def to_dict(self, metrics: bool = False) -> dict[str, Any]:
+        """The run as plain data: its ref, summary and (optionally) every metrics row."""
+        out = {**self.summary(), "seed": self.seed, "device": self.device,
+               "final_step": self.final_step, "stopped_early": self.train_result.stopped_early}
+        return {**out, "metrics": self.metrics} if metrics else out
 
     @property
     def final_step(self) -> int:
@@ -153,6 +160,10 @@ class RunGroup:
     @property
     def seeds(self) -> list[int]:
         return [r.seed for r in self.results]
+
+    def to_dict(self, metrics: bool = False) -> dict[str, Any]:
+        """The set as plain data: the summary over seeds, plus each seed's own dict."""
+        return {**self.summary(), "runs": [r.to_dict(metrics) for r in self.results]}
 
     @property
     def ref(self) -> str:
@@ -292,7 +303,7 @@ def _check_config(run_dir: Path, config: dict[str, Any], resume: bool,
 
 
 def _log(msg: str) -> None:
-    print(f"[nanoscope] {msg}", flush=True)
+    info(msg)
 
 
 def run(
@@ -310,6 +321,7 @@ def run(
     push_to_hub: str | None = None,
     progress: bool = True,
     compile: bool | str = False,
+    checkpoint_steps: list[int] | None = None,
     study: dict[str, Any] | None = None,
     **model_kwargs: Any,
 ) -> RunResult | RunGroup:
@@ -322,6 +334,8 @@ def run(
     `study` is set by nanoscope.Study and recorded in config.json.
     compile=True speeds up training with torch.compile (see train_loop.train); it doesn't
     change the run's identity, so a run can resume with it on or off.
+    checkpoint_steps=[100, 500] keeps a full checkpoint at those steps in checkpoints/archive/
+    (never pruned); it isn't part of the run's identity either.
     """
     if seeds is not None:
         if output_dir is not None:
@@ -331,7 +345,8 @@ def run(
             cast(RunResult, run(
                 model_cls, preset, seed=s, device=device, resume=resume, on_step=on_step,
                 on_eval=on_eval, wandb=wandb, push_to_hub=push_to_hub, progress=progress,
-                study=study, compile=compile, **model_kwargs))
+                study=study, compile=compile, checkpoint_steps=checkpoint_steps,
+                **model_kwargs))
             for s in seed_list
         ])
     if isinstance(preset, str):
@@ -347,6 +362,10 @@ def run(
     else:
         run_dir = Path(output_dir)
 
+    late = [s for s in checkpoint_steps or [] if not 1 <= s <= preset.max_steps]
+    if late:
+        raise ValueError(f"checkpoint_steps {late} fall outside 1..{preset.max_steps} "
+                         "(the number of training steps)")
     _refuse_record_overwrite(run_dir, resume)
     status = StatusFile(run_dir, preset.max_steps, device=str(resolved_device))
     status.write("preparing")
@@ -438,6 +457,7 @@ def run(
             on_checkpoint=hub,
             compile=compile,
             should_stop=should_stop,
+            checkpoint_steps=checkpoint_steps,
         )
         if bar:
             bar.close()

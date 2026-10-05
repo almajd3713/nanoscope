@@ -68,6 +68,8 @@ def build_parser() -> argparse.ArgumentParser:
     bench_parser.add_argument("--preset", default="tinystories-5min")
     bench_parser.add_argument("--device", default=None)
     bench_parser.add_argument("--steps", type=int, default=60)
+    bench_parser.add_argument("--save", action="store_true",
+                              help="append the result to <home>/hardware/bench.jsonl")
     bench_parser.add_argument("--compile", nargs="?", const="true", default=None,
                               help="torch.compile; or --compile reduce-overhead for CUDA graphs")
     bench_parser.add_argument("--set", nargs="*", default=[], dest="overrides")
@@ -141,7 +143,8 @@ def main(argv: list[str] | None = None) -> None:
         named = {"bigram": models.Bigram, "gpt2": models.GPT2, "modern": models.Modern}
         model_cls = named.get(args.model) or _load_model_class(args.model)
         print(bench(model_cls, args.preset, steps=args.steps, device=args.device,
-                    compile=_parse_compile(args.compile), **_parse_set(args.overrides)))
+                    compile=_parse_compile(args.compile), save=args.save,
+                    **_parse_set(args.overrides)))
         return
 
     if args.command in ("prepare-data", "publish-data"):

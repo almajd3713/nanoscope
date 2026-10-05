@@ -7,7 +7,7 @@ import shutil
 import signal
 import threading
 import time
-from collections.abc import Callable
+from collections.abc import Callable, Iterable
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
@@ -18,6 +18,7 @@ import torch.nn as nn
 import torch.nn.functional as F
 
 from nanoscope.dataset import Data
+from nanoscope.log import info
 from nanoscope.presets import Preset
 from nanoscope.sizing import flops_per_token
 from nanoscope.tokenizer import Tokenizer
@@ -159,6 +160,15 @@ def _save_checkpoint(run_dir: Path, step: int, state: dict[str, Any], keep: int)
         old.unlink()
 
 
+def _archive_checkpoint(run_dir: Path, step: int, state: dict[str, Any]) -> None:
+    folder = run_dir / "checkpoints" / "archive"
+    folder.mkdir(parents=True, exist_ok=True)
+    path = folder / f"step_{step:08d}.pt"
+    tmp = path.with_suffix(".tmp")
+    torch.save({"step": step, **state}, tmp)
+    tmp.replace(path)
+
+
 def _load_checkpoint(run_dir: Path, device: torch.device) -> dict[str, Any] | None:
     latest_file = run_dir / "latest.json"
     if not latest_file.exists():
@@ -205,11 +215,15 @@ def train(
     on_checkpoint: Any = None,
     compile: bool | str = False,
     should_stop: Callable[[], bool] | None = None,
+    checkpoint_steps: Iterable[int] | None = None,
 ) -> TrainResult:
     """compile=True runs the training forward and backward through torch.compile;
     compile="reduce-overhead" also records them as CUDA graphs, which helps most when small
     models leave the GPU waiting on the CPU. Checkpoints, evaluation and generation use the
     plain module, so a run can resume with compile on or off.
+
+    checkpoint_steps keeps a full checkpoint at each listed step in checkpoints/archive/, which
+    is never pruned (for looking at a model across training time).
 
     should_stop is asked after every step; when it returns True the run saves a checkpoint and
     returns early, like Ctrl-C (`stopped_early` is set). `nanoscope stop` uses it."""
@@ -246,10 +260,10 @@ def train(
         _restore_rng(state["rng"], gen)
         start_step = int(state["step"])
         if start_step >= preset.max_steps:
-            print(f"[nanoscope] already trained ({start_step} steps); loaded the final "
-                  "checkpoint. Pass resume=False to train again.", flush=True)
+            info(f"already trained ({start_step} steps); loaded the final "
+                  "checkpoint. Pass resume=False to train again.")
         else:
-            print(f"[nanoscope] resuming from step {start_step}", flush=True)
+            info(f"resuming from step {start_step}")
 
     # Keep metrics.jsonl in step with the checkpoint: drop rows a crash left past it.
     metrics_path = run_dir / "metrics.jsonl"
@@ -261,14 +275,19 @@ def train(
                 metrics.append(row)
     metrics_path.write_text("".join(json.dumps(r) + "\n" for r in metrics), encoding="utf-8")
 
-    def checkpoint(step: int) -> None:
-        _save_checkpoint(run_dir, step, {
+    def full_state() -> dict[str, Any]:
+        return {
             "model": model.state_dict(),
             "optimizer": optimizer.state_dict(),
             "scheduler": scheduler.state_dict(),
             "scaler": scaler.state_dict(),
             "rng": _rng_state(gen),
-        }, preset.keep_checkpoints)
+        }
+
+    def checkpoint(step: int) -> None:
+        _save_checkpoint(run_dir, step, full_state(), preset.keep_checkpoints)
+
+    archive_steps = set(checkpoint_steps or ())
 
     peak = _peak_tflops(device)
     flops_per_tok = flops_per_token(model, preset.context_length)
@@ -348,6 +367,8 @@ def train(
             if should_stop is not None and should_stop():
                 stop_requested = True
 
+            if step in archive_steps:
+                _archive_checkpoint(run_dir, step, full_state())
             if step % preset.checkpoint_interval == 0 or last or stop_requested:
                 checkpoint(step)
                 if on_checkpoint:

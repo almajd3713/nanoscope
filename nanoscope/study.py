@@ -42,6 +42,7 @@ from nanoscope import __version__, paths
 from nanoscope.compare import METRICS, Comparison, RunSet, compare, load_runs
 from nanoscope.dataset import load_tokenizer
 from nanoscope.hardware import check_gpu_fits, cpu_threads, probe_memory
+from nanoscope.log import info
 from nanoscope.modelref import model_ref
 from nanoscope.presets import Preset, get_preset
 from nanoscope.progress import one_line, snapshot
@@ -360,11 +361,10 @@ class Study:
         device = devices[0] if devices else None
         for i, job in enumerate(jobs, 1):
             if (self.dir / STOP_FILE).exists():
-                print(f"[nanoscope] study stopped: skipping {len(jobs) - i + 1} remaining run(s)",
-                      flush=True)
+                info(f"study stopped: skipping {len(jobs) - i + 1} remaining run(s)")
                 return
             label = f"run {i}/{len(jobs)}: {job.variant.name} seed {job.seed}"
-            print(f"[nanoscope] {label}", flush=True)
+            info(f"{label}")
             result = cast(RunResult, run(
                 job.variant.model_cls, job.preset, seed=job.seed, device=device,
                 output_dir=job.output_dir, push_to_hub=self.push_to_hub, compile=self.compile,
@@ -376,14 +376,14 @@ class Study:
                 state = read_json(result.run_dir / "status.json", "status")["state"]
                 if state == "cancelled" and not (self.dir / STOP_FILE).exists():
                     # `nanoscope stop <run>`: that one run is cancelled, the study goes on.
-                    print(f"[nanoscope] {label} cancelled at step {result.final_step}; "
-                          "continuing with the next run", flush=True)
+                    info(f"{label} cancelled at step {result.final_step}; "
+                          "continuing with the next run")
                     continue
-                print(f"[nanoscope] {label} stopped at step {result.final_step}; "
-                      "skipping the rest", flush=True)
+                info(f"{label} stopped at step {result.final_step}; "
+                      "skipping the rest")
                 return
             bpb = result.summary()["final_val_bpb"]
-            print(f"[nanoscope] {label} -> {bpb:.3f} bits per byte", flush=True)
+            info(f"{label} -> {bpb:.3f} bits per byte")
 
     def _write_plan(self, jobs: list[Job]) -> None:
         """List every planned run, so `nanoscope status` can show the ones not started yet."""
@@ -414,7 +414,7 @@ class Study:
             worker_threads = threads or (cpu_threads(on_cpu) if device == "cpu" else None)
             if worker_threads:
                 cmd += ["--threads", str(worker_threads)]
-            print(f"[nanoscope] worker {i} on {device}, log: {log}", flush=True)
+            info(f"worker {i} on {device}, log: {log}")
             with log.open("w") as fh:
                 workers.append((log, subprocess.Popen(cmd, stdout=fh, stderr=subprocess.STDOUT)))
         total = len(self.jobs())
@@ -422,10 +422,10 @@ class Study:
         while any(proc.poll() is None for _, proc in workers):
             line = one_line(snapshot(self.dir), total)
             if line != last:
-                print(f"[nanoscope] {line}", flush=True)
+                info(f"{line}")
                 last = line
             time.sleep(PROGRESS_EVERY)
-        print(f"[nanoscope] {one_line(snapshot(self.dir), total)}", flush=True)
+        info(f"{one_line(snapshot(self.dir), total)}")
         failed = [log for log, proc in workers if proc.returncode != 0]
         if failed:
             tail = "\n".join(failed[0].read_text(encoding="utf-8").splitlines()[-15:])
@@ -496,12 +496,9 @@ class StudyReport:
 
     __repr__ = __str__
 
-    def write(self, out: Path) -> Path:
-        import matplotlib.pyplot as plt
-
-        out.mkdir(parents=True, exist_ok=True)
-        (out / "report.md").write_text(str(self), encoding="utf-8")
-        (out / "results.json").write_text(json.dumps({
+    def to_dict(self) -> dict[str, Any]:
+        """The report as plain data: exactly what `results.json` holds (results.v1)."""
+        return {
             "schema": 1, "nanoscope": __version__,
             "study": self.study.name,
             "mode": self.study.mode,
@@ -509,7 +506,15 @@ class StudyReport:
             "rows": self.comparison.rows,
             "notes": self.comparison.notes,
             "predictions": self.predictions,
-        }, indent=2, default=str), encoding="utf-8")
+        }
+
+    def write(self, out: Path) -> Path:
+        import matplotlib.pyplot as plt
+
+        out.mkdir(parents=True, exist_ok=True)
+        (out / "report.md").write_text(str(self), encoding="utf-8")
+        (out / "results.json").write_text(
+            json.dumps(self.to_dict(), indent=2, default=str), encoding="utf-8")
         fig = self.comparison.plot(save=out / "curves.png")
         plt.close(fig)
         return out
