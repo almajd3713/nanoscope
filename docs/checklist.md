@@ -4,13 +4,13 @@ The build list for [`plan-tool.md`](plan-tool.md), sections 4-10, with the decis
 2026-10-05 (plan section 11) applied. Phase numbers follow the plan's section 10. Every
 item is one line, so scripts and agents can grep and edit it.
 
-**Current focus:** P6 servable library + CI baseline. Next item: P6.99 (phase gate; the user merges PR #6).
+**Current focus:** P7 queue and workers. Next item: P7.01.
 
 ## Progress
 
 | Phase | Title | Done / total | Status |
 |---|---|---|---|
-| P6 | Servable library + CI baseline (9-11 d) | 66 / 67 | gate pending |
+| P6 | Servable library + CI baseline (9-11 d) | 67 / 67 | done |
 | P7 | Queue and workers (5-6 d) | 0 / 28 | not started |
 | P8 | Blocks, describe, rebuilt models (10-13 d) | 0 / 52 | not started |
 | P9 | Curriculum engine, gating, two paths (14-17 d) | 0 / 61 | not started |
@@ -176,7 +176,7 @@ touch or create (new ones marked `(new)`).
 - [x] P6.66 Run `git mv docs/roadmap-v2.md docs/archive/roadmap-v2.md` and fix links to it. · files: docs/roadmap-v2.md → docs/archive/roadmap-v2.md · deps: P6.02 · done: `grep -rn 'roadmap-v2' --include=*.md . | grep -v archive/` is empty ✓ 2026-10-05 4fea73d: roadmap-v2 moved to docs/archive/; references updated
 
 ### P6 · Gate
-- [ ] P6.99 PHASE GATE P6. Exit criteria: plan section 10 phase 6. · files: — · deps: P6.* · done: `make check` exits 0; `uv run pytest tests/test_first_model_notebook.py` passes (3 cells, <120 s, with cached data); `git diff main -- notebooks/` is empty; CI green on the PR; P6.37, P6.29, P6.43, P6.53, P6.24 and P6.25 are ticked; **USER ACTION** merge the PR
+- [x] P6.99 PHASE GATE P6. Exit criteria: plan section 10 phase 6. · files: — · deps: P6.* · done: `make check` exits 0; `uv run pytest tests/test_first_model_notebook.py` passes (3 cells, <120 s, with cached data); `git diff main -- notebooks/` is empty; CI green on the PR; P6.37, P6.29, P6.43, P6.53, P6.24 and P6.25 are ticked; **USER ACTION** merge the PR ✓ 2026-10-05 a8de878: make check, first-notebook test and CI green; PR #6 merged by the user
 
 ---
 
