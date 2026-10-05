@@ -59,6 +59,12 @@ def workspace_dir() -> Path:
     return base / "workspace" if base else Path("workspace")
 
 
+def queue_db() -> Path:
+    """The job queue (SQLite)."""
+    base = home()
+    return base / "queue.db" if base else _USER_HOME / "queue.db"
+
+
 def baselines_dir() -> Path:
     """Results shipped with the package; read-only."""
     return Path(__file__).parent / "baselines"
