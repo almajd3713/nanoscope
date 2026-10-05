@@ -4,13 +4,13 @@ The build list for [`plan-tool.md`](plan-tool.md), sections 4-10, with the decis
 2026-10-05 (plan section 11) applied. Phase numbers follow the plan's section 10. Every
 item is one line, so scripts and agents can grep and edit it.
 
-**Current focus:** P6 servable library + CI baseline. Next item: P6.01.
+**Current focus:** P6 servable library + CI baseline. Next item: P6.08 (P6.03 waits on the user).
 
 ## Progress
 
 | Phase | Title | Done / total | Status |
 |---|---|---|---|
-| P6 | Servable library + CI baseline (9-11 d) | 0 / 67 | not started |
+| P6 | Servable library + CI baseline (9-11 d) | 6 / 67 | in progress |
 | P7 | Queue and workers (5-6 d) | 0 / 28 | not started |
 | P8 | Blocks, describe, rebuilt models (10-13 d) | 0 / 52 | not started |
 | P9 | Curriculum engine, gating, two paths (14-17 d) | 0 / 61 | not started |
@@ -91,10 +91,10 @@ touch or create (new ones marked `(new)`).
 - [ ] P6.03 Delete the local leftovers: the empty `configs/` and `reports/` folders and the git-excluded `docs/m1-evaluator-plan.md`, after the user confirms (plan 13). · files: configs/, reports/, docs/m1-evaluator-plan.md · deps: P6.02 · done: `ls configs reports docs/m1-evaluator-plan.md 2>&1 | grep -c 'No such file'` prints 3
 
 ### P6 · CI
-- [ ] P6.04 Add a GitHub Actions workflow running `uv sync --all-extras`, `make lint` and `make test` on Python 3.10 and 3.12 for pushes and PRs. · files: .github/workflows/ci.yml (new) · deps: P6.02 · done: `gh run list --workflow ci.yml --limit 1 --json conclusion -q '.[0].conclusion'` prints success
-- [ ] P6.05 Add `make typecheck` (`uv run pyright nanoscope`), fix or explicitly ignore the current errors, and run it in CI. · files: Makefile, .github/workflows/ci.yml, nanoscope/*.py · deps: P6.04 · done: `make typecheck` exits 0
-- [ ] P6.06 Add a CI job that restores `~/.nanoscope/data` from `actions/cache`, keyed by preset and tokenizer id, then runs the first-notebook timing test. · files: .github/workflows/ci.yml · deps: P6.04 · done: the job is green and its log shows `test_first_notebook_trains_on_cpu_in_under_two_minutes PASSED`
-- [ ] P6.07 Add `make check` (lint, then typecheck, then test) and mention it in the README's "Develop" section. · files: Makefile, README.md · deps: P6.05 · done: `make check` exits 0
+- [x] P6.04 Add a GitHub Actions workflow running `uv sync --all-extras`, `make lint` and `make test` on Python 3.10 and 3.12 for pushes and PRs. · files: .github/workflows/ci.yml (new) · deps: P6.02 · done: `gh run list --workflow ci.yml --limit 1 --json conclusion -q '.[0].conclusion'` prints success ✓ 2026-10-05 32d6ac4: CI green on PR #6 (3.10, 3.12)
+- [x] P6.05 Add `make typecheck` (`uv run pyright nanoscope`), fix or explicitly ignore the current errors, and run it in CI. · files: Makefile, .github/workflows/ci.yml, nanoscope/*.py · deps: P6.04 · done: `make typecheck` exits 0 ✓ 2026-10-05 32d6ac4: pyright 16 errors fixed, in CI
+- [x] P6.06 Add a CI job that restores `~/.nanoscope/data` from `actions/cache`, keyed by preset and tokenizer id, then runs the first-notebook timing test. · files: .github/workflows/ci.yml · deps: P6.04 · done: the job is green and its log shows `test_first_notebook_trains_on_cpu_in_under_two_minutes PASSED` ✓ 2026-10-05 32d6ac4: first-notebook job passes, data cache keyed
+- [x] P6.07 Add `make check` (lint, then typecheck, then test) and mention it in the README's "Develop" section. · files: Makefile, README.md · deps: P6.05 · done: `make check` exits 0 ✓ 2026-10-05 32d6ac4: make check passes; README Develop updated
 
 ### P6 · Library: one home
 - [ ] P6.08 Create `nanoscope/paths.py`. Its `home()`, `runs_dir()`, `reports_dir()`, `data_dir()`, `learn_dir()`, `hardware_dir()` and `workspace_dir()` read `NANOSCOPE_HOME`, `NANOSCOPE_DATA_DIR` and `NANOSCOPE_WORKSPACE` at call time, with today's defaults. · files: nanoscope/paths.py (new), tests/test_paths.py (new) · deps: P6.02 · done: `uv run pytest tests/test_paths.py` passes, including a test that sets `NANOSCOPE_HOME` after import
