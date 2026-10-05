@@ -202,7 +202,12 @@ def train(
     on_step: Any = None,
     on_eval: Any = None,
     on_checkpoint: Any = None,
+    compile: bool | str = False,
 ) -> TrainResult:
+    """compile=True runs the training forward and backward through torch.compile;
+    compile="reduce-overhead" also records them as CUDA graphs, which helps most when small
+    models leave the GPU waiting on the CPU. Checkpoints, evaluation and generation use the
+    plain module, so a run can resume with compile on or off."""
     torch.manual_seed(seed)
     if device.type == "cuda":
         torch.cuda.manual_seed_all(seed)
@@ -218,6 +223,10 @@ def train(
         optimizer, lambda step: _cosine_lr(step, preset.warmup_steps, preset.max_steps, 1.0)
     )
     scaler = _grad_scaler(device, preset.precision)
+    train_model = model
+    if compile:
+        mode = None if compile is True else compile
+        train_model = torch.compile(model, mode=mode)  # shares parameters with `model`
 
     run_dir.mkdir(parents=True, exist_ok=True)
     if not resume:
@@ -281,7 +290,7 @@ def train(
             inputs, targets = batch[:, :-1], batch[:, 1:]
 
             with _autocast(device, preset.precision):
-                logits, aux_loss = _split_output(model(inputs))
+                logits, aux_loss = _split_output(train_model(inputs))
                 loss = F.cross_entropy(
                     logits.reshape(-1, logits.size(-1)), targets.reshape(-1)
                 ) + aux_loss

@@ -54,6 +54,7 @@ nanoscope run nanoscope/models/gpt2.py:GPT2 --seeds 3
 nanoscope compare modern gpt2 --preset tinystories-5min
 nanoscope study studies/m1_ablation.py --devices cuda:0
 nanoscope report studies/m1_ablation.py             # writes experiments/<name>/
+nanoscope bench modern --compile reduce-overhead    # speed, and whether CPU or GPU is the limit
 nanoscope status runs                               # what is running and how far along
 nanoscope prepare-data tinystories-5min             # download or tokenize now
 nanoscope publish-data tinystories-5min user/repo   # upload tokens to a Hub dataset

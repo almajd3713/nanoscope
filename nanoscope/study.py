@@ -35,10 +35,12 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
+import torch
 from torch import nn
 
 from nanoscope.compare import METRICS, Comparison, RunSet, compare, load_runs
 from nanoscope.dataset import load_tokenizer
+from nanoscope.hardware import check_gpu_fits, cpu_threads, probe_memory
 from nanoscope.presets import Preset, get_preset
 from nanoscope.progress import one_line, snapshot
 from nanoscope.run import RUNS_DIR, run
@@ -101,6 +103,7 @@ class Study:
         mode: str = "explore",
         tolerance: float = 0.02,
         push_to_hub: str | None = None,
+        compile: bool | str = False,
         **preset_overrides: Any,
     ) -> None:
         if mode not in ("explore", "record"):
@@ -117,6 +120,7 @@ class Study:
         self.mode = mode
         self.tolerance = tolerance
         self.push_to_hub = push_to_hub
+        self.compile = compile
         self.source = _caller_file()
         self.variants: dict[str, Variant] = {}
         self.predictions: dict[str, dict[str, float]] = {}
@@ -178,6 +182,11 @@ class Study:
             return math.ceil(self.budget.n / tokens_per_step)
         return math.ceil(self.budget.n / (flops_per_tok * tokens_per_step))
 
+    def _job_preset(self, steps: int) -> Preset:
+        # Study runs are judged on validation loss, so sampling text mid-run is wasted time
+        # (generation has no KV cache). Each run still writes one sample at its last step.
+        return self.preset.override(max_steps=steps, sample_interval=steps)
+
     def jobs(self) -> list[Job]:
         """Every (variant, seed) run, seed by seed, so early results are already paired."""
         if not self.variants:
@@ -185,7 +194,7 @@ class Study:
         sizes = self.sizes()
         self._check_match(sizes)
         presets = {
-            name: self.preset.override(max_steps=self._steps(s["flops_per_token"]))
+            name: self._job_preset(self._steps(s["flops_per_token"]))
             for name, s in sizes.items()
         }
         return [
@@ -235,16 +244,47 @@ class Study:
             }, indent=2), encoding="utf-8")
         return provenance
 
+    def _check_memory(self, devices: list[str]) -> None:
+        """Refuse to put more workers on a GPU than its free memory holds."""
+        workers = {d: devices.count(d) for d in set(devices) if d.startswith("cuda")}
+        if not any(n > 1 for n in workers.values()):
+            return
+        costliest = max(self.variants.values(), key=lambda v: self._flops_per_token(v))
+        vocab_size = load_tokenizer(self.preset).vocab_size
+        params = inspect.signature(costliest.model_cls).parameters
+        from_data = {"vocab_size": vocab_size, "context_length": self.preset.context_length}
+        kwargs = {k: x for k, x in from_data.items() if k in params} | costliest.kwargs
+        for device, n in workers.items():
+            per_worker = probe_memory(lambda: costliest.model_cls(**kwargs), self.preset,
+                                      torch.device(device))
+            check_gpu_fits(device, n, per_worker)
+
+    def _flops_per_token(self, variant: Variant) -> int:
+        return self.sizes()[variant.name]["flops_per_token"]
+
     def run(
         self, devices: list[str] | None = None, shard: tuple[int, int] | None = None,
+        workers_per_device: int = 1, threads: int | None = None,
     ) -> None:
-        """Train every job not yet finished. Several devices run jobs side by side."""
+        """Train every job not yet finished. Several workers run jobs side by side.
+
+        workers_per_device > 1 puts that many runs on each device at once, which keeps a GPU
+        busy when one small model can't (the CPU is the limit, not the GPU). threads caps the
+        CPU threads each worker uses; the default splits the cores between CPU workers.
+        """
+        if workers_per_device > 1:
+            devices = [d for d in (devices or ["cuda:0" if torch.cuda.is_available() else "cpu"])
+                       for _ in range(workers_per_device)]
+        if threads:
+            torch.set_num_threads(threads)
+        if shard is None and devices:
+            self._check_memory(devices)
         provenance = self._provenance() if self.mode == "record" else {}
         jobs = self.jobs()
         if shard is None:
             self._write_plan(jobs)
         if devices and len(devices) > 1 and shard is None:
-            self._run_parallel(devices)
+            self._run_parallel(devices, threads)
             return
         if shard is not None:
             index, count = shard
@@ -255,7 +295,7 @@ class Study:
             print(f"[nanoscope] {label}", flush=True)
             result = run(
                 job.variant.model_cls, job.preset, seed=job.seed, device=device,
-                output_dir=job.output_dir, push_to_hub=self.push_to_hub,
+                output_dir=job.output_dir, push_to_hub=self.push_to_hub, compile=self.compile,
                 study={"name": self.name, "variant": job.variant.name, "mode": self.mode,
                        **provenance},
                 **job.variant.kwargs,
@@ -272,19 +312,25 @@ class Study:
                       "max_steps": j.preset.max_steps} for j in jobs],
         }, indent=2), encoding="utf-8")
 
-    def _run_parallel(self, devices: list[str]) -> None:
+    def _run_parallel(self, devices: list[str], threads: int | None) -> None:
         """One worker process per device, each taking every n-th job."""
         if self.source is None:
             raise ValueError("running on several devices needs the study in a .py file")
         logs = self.dir / "logs"
         logs.mkdir(parents=True, exist_ok=True)
         workers = []
+        on_cpu = sum(d == "cpu" for d in devices)
         for i, device in enumerate(devices):
             log = logs / f"worker-{i}.log"
             cmd = [sys.executable, "-m", "nanoscope.cli", "study", str(self.source),
                    "--name", self.name, "--devices", device, "--shard", f"{i}/{len(devices)}"]
             if self.push_to_hub:
                 cmd += ["--push-to-hub", self.push_to_hub]
+            if self.compile:
+                cmd += ["--compile", str(self.compile).lower()]
+            worker_threads = threads or (cpu_threads(on_cpu) if device == "cpu" else None)
+            if worker_threads:
+                cmd += ["--threads", str(worker_threads)]
             print(f"[nanoscope] worker {i} on {device}, log: {log}", flush=True)
             with log.open("w") as fh:
                 workers.append((log, subprocess.Popen(cmd, stdout=fh, stderr=subprocess.STDOUT)))
