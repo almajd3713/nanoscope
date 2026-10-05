@@ -1,0 +1,76 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://nanoscope.dev/schemas/prepare.v1.json",
+  "title": "prepare.v1",
+  "description": "A preset's data preparation: which stage it is in and how far along.",
+  "type": "object",
+  "properties": {
+    "schema": {
+      "const": 1
+    },
+    "nanoscope": {
+      "type": "string"
+    },
+    "preset": {
+      "type": "string"
+    },
+    "stage": {
+      "enum": [
+        "download",
+        "tokenizer",
+        "tokenize",
+        "done",
+        "failed"
+      ]
+    },
+    "label": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "done": {
+      "type": [
+        "integer",
+        "null"
+      ]
+    },
+    "total": {
+      "type": [
+        "integer",
+        "null"
+      ]
+    },
+    "started_at": {
+      "type": "string"
+    },
+    "updated_at": {
+      "type": "string"
+    },
+    "error": {
+      "type": [
+        "object",
+        "null"
+      ],
+      "properties": {
+        "type": {
+          "type": "string"
+        },
+        "message": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "type",
+        "message"
+      ]
+    }
+  },
+  "required": [
+    "schema",
+    "preset",
+    "stage",
+    "started_at",
+    "updated_at"
+  ]
+}

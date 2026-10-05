@@ -84,7 +84,7 @@ def test_hub_data_downloads_instead_of_tokenizing(tmp_path, monkeypatch, fake_da
         def list_repo_files(self, repo_id, repo_type):
             return [p.relative_to(remote).as_posix() for p in remote.rglob("*") if p.is_file()]
 
-    dataset._hub_files.cache_clear()
+    dataset._hub_cache.clear()
     monkeypatch.setattr("huggingface_hub.HfApi", FakeApi)
     monkeypatch.setattr("huggingface_hub.snapshot_download", fake_snapshot)
     data = load_data(tiny(hub_data="me/tokens"))
@@ -103,7 +103,7 @@ def test_unreachable_hub_falls_back_to_tokenizing(monkeypatch, fake_data, capsys
         def list_repo_files(self, repo_id, repo_type):
             raise ConnectionError("offline")
 
-    dataset._hub_files.cache_clear()
+    dataset._hub_cache.clear()
     monkeypatch.setattr("huggingface_hub.HfApi", OfflineApi)
     data = load_data(tiny(hub_data="me/offline"))
     assert len(data.val) > 0 and fake_data
@@ -129,3 +129,79 @@ def test_publish_uploads_the_cache_layout(monkeypatch):
         ("create", "me/tokens", "dataset"),
         ("upload", "fake_stories/bpe-300-100", ["tokenizer.json", "train-200/*", "val-10/*"]),
     ]
+
+
+def test_prepare_json_follows_data_prep_and_records_failure(fake_data, monkeypatch):
+    import json
+
+    from helpers import assert_valid
+
+    from nanoscope.prepare import PrepareFile
+
+    stages = []
+    real = PrepareFile.stage
+
+    def spy(self, stage, *args, **kwargs):
+        if not stages or stages[-1] != stage:
+            stages.append(stage)
+        return real(self, stage, *args, **kwargs)
+
+    monkeypatch.setattr(PrepareFile, "stage", spy)
+    preset = tiny()
+    load_data(preset)
+    assert stages == ["tokenizer", "tokenize"]
+    path = paths.data_dir() / preset.name / "prepare.json"
+    doc = json.loads(path.read_text())
+    assert_valid("prepare", doc)
+    assert doc["stage"] == "done" and doc["error"] is None and doc["preset"] == preset.name
+
+    path.unlink()  # cached data: nothing to prepare, so nothing is written
+    load_data(preset)
+    assert not path.exists()
+
+    def broken(*args):
+        raise RuntimeError("disk full")
+
+    other = tiny(name="test-broken", train_docs=150)
+    monkeypatch.setattr(dataset, "_iter_texts", broken)
+    with pytest.raises(RuntimeError, match="disk full"):
+        load_data(other)
+    failed = json.loads((paths.data_dir() / "test-broken" / "prepare.json").read_text())
+    assert failed["stage"] == "failed" and failed["error"] == {
+        "type": "RuntimeError", "message": "disk full"}
+
+
+def test_status_data_prints_each_presets_preparation(fake_data, capsys):
+    from nanoscope.cli import main
+
+    main(["status", "--data"])
+    assert "no data preparation recorded" in capsys.readouterr().out
+    load_data(tiny())
+    capsys.readouterr()
+    main(["status", "--data"])
+    out = capsys.readouterr().out
+    assert out.startswith("test-tiny  done") and "updated 20" in out
+
+
+def test_hub_listing_is_cached_for_five_minutes_then_retried(monkeypatch):
+    clock = [1000.0]
+    monkeypatch.setattr(dataset, "_now", lambda: clock[0])
+    dataset._hub_cache.clear()
+    calls = []
+
+    class FakeApi:
+        def list_repo_files(self, repo_id, repo_type):
+            calls.append(repo_id)
+            if len(calls) == 1:
+                raise ConnectionError("offline")
+            return ["a/meta.json"]
+
+    import huggingface_hub
+
+    monkeypatch.setattr(huggingface_hub, "HfApi", FakeApi)
+    assert dataset._hub_files("user/repo") == frozenset()  # offline
+    clock[0] += 299
+    assert dataset._hub_files("user/repo") == frozenset() and len(calls) == 1  # still cached
+    clock[0] += 2
+    assert dataset._hub_files("user/repo") == frozenset({"a/meta.json"})  # network is back
+    assert len(calls) == 2

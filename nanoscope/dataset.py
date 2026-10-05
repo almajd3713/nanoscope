@@ -12,9 +12,9 @@ download the same layout from that Hub dataset repo instead of tokenizing:
 from __future__ import annotations
 
 import fnmatch
-import functools
 import json
 import math
+import time
 from collections.abc import Iterator
 from dataclasses import dataclass
 from itertools import islice
@@ -24,6 +24,7 @@ import numpy as np
 import torch
 
 from nanoscope import paths
+from nanoscope.prepare import PrepareFile
 from nanoscope.presets import Preset
 from nanoscope.tokenizer import BPETokenizer, ByteTokenizer, GPT2Tokenizer, Tokenizer
 
@@ -86,20 +87,31 @@ def _tokenizer_dir(preset: Preset) -> Path:
     return _dataset_dir(preset) / tokenizer_id(preset)
 
 
-@functools.cache
+HUB_FILES_TTL = 300  # seconds a Hub file listing is trusted, including "couldn't reach it"
+_now = time.monotonic
+_hub_cache: dict[str, tuple[float, frozenset[str]]] = {}
+
+
 def _hub_files(repo_id: str) -> frozenset[str]:
-    """Files in a Hub dataset repo; empty when it's missing, private or we're offline."""
+    """Files in a Hub dataset repo; empty when it's missing, private or we're offline.
+
+    Cached for a few minutes, so a long session notices when the network comes back."""
+    cached = _hub_cache.get(repo_id)
+    if cached and _now() - cached[0] < HUB_FILES_TTL:
+        return cached[1]
     from huggingface_hub import HfApi
 
     try:
-        return frozenset(HfApi().list_repo_files(repo_id, repo_type="dataset"))
+        files = frozenset(HfApi().list_repo_files(repo_id, repo_type="dataset"))
     except Exception as exc:
         _log(f"can't reach hf.co/datasets/{repo_id} ({type(exc).__name__}); "
              "preparing data locally instead")
-        return frozenset()
+        files = frozenset()
+    _hub_cache[repo_id] = (_now(), files)
+    return files
 
 
-def _from_hub(preset: Preset, pattern: str) -> bool:
+def _from_hub(preset: Preset, pattern: str, prep: PrepareFile | None = None) -> bool:
     """Download files matching pattern (relative to the tokenizer dir) from preset.hub_data."""
     if not preset.hub_data:
         return False
@@ -109,13 +121,15 @@ def _from_hub(preset: Preset, pattern: str) -> bool:
     from huggingface_hub import snapshot_download
 
     _log(f"downloading {remote} from hf.co/datasets/{preset.hub_data}")
+    if prep:
+        prep.stage("download", remote)
     snapshot_download(
         preset.hub_data, repo_type="dataset", local_dir=paths.data_dir(), allow_patterns=[remote],
     )
     return True
 
 
-def load_tokenizer(preset: Preset) -> Tokenizer:
+def load_tokenizer(preset: Preset, prep: PrepareFile | None = None) -> Tokenizer:
     if preset.tokenizer == "bytes":
         return ByteTokenizer()
     if preset.tokenizer == "gpt2":
@@ -128,6 +142,9 @@ def load_tokenizer(preset: Preset) -> Tokenizer:
         from tqdm.auto import tqdm
 
         path.parent.mkdir(parents=True, exist_ok=True)
+        if prep:
+            prep.stage("tokenizer", f"{preset.vocab_size}-token BPE", 0,
+                       preset.tokenizer_train_docs)
         _log(f"training a {preset.vocab_size}-token BPE tokenizer on "
              f"{preset.tokenizer_train_docs:,} {preset.dataset} documents (once)")
         texts = tqdm(_split_texts(preset, "train", preset.tokenizer_train_docs),
@@ -142,6 +159,7 @@ def load_tokenizer(preset: Preset) -> Tokenizer:
 
 def _write_tokens(
     texts: Iterator[str], tokenizer: Tokenizer, out: Path, label: str, total: int | None,
+    prep: PrepareFile | None = None,
 ) -> None:
     """Tokenize documents into out/shard-*.bin, then write out/meta.json last, atomically."""
     from tqdm.auto import tqdm
@@ -149,6 +167,8 @@ def _write_tokens(
     if tokenizer.vocab_size > np.iinfo(np.uint16).max + 1:
         raise ValueError(f"vocab_size {tokenizer.vocab_size} does not fit in uint16 token files")
     out.mkdir(parents=True, exist_ok=True)
+    if prep:
+        prep.stage("tokenize", label, 0, total)
     n_docs = n_tokens = n_bytes = 0
     shards: list[str] = []
     f = None
@@ -172,6 +192,8 @@ def _write_tokens(
                 n_tokens += len(flat)
                 n_bytes += sum(len(t.encode("utf-8")) for t in chunk)
                 bar.update(len(chunk))
+                if prep:
+                    prep.stage("tokenize", label, n_docs, total, force=False)
                 bar.set_postfix(tokens=f"{n_tokens / 1e6:.1f}M", refresh=False)
     finally:
         if f:
@@ -182,14 +204,17 @@ def _write_tokens(
     tmp.replace(out / "meta.json")
 
 
-def _token_dir(preset: Preset, tokenizer: Tokenizer, split: str, docs: int | None) -> Path:
+def _token_dir(preset: Preset, tokenizer: Tokenizer, split: str, docs: int | None,
+               prep: PrepareFile | None = None) -> Path:
     name = f"{'train' if split == 'train' else 'val'}-{docs if docs is not None else 'all'}"
     path = _tokenizer_dir(preset) / name
     if not (path / "meta.json").exists():
-        _from_hub(preset, f"{name}/*")
+        _from_hub(preset, f"{name}/*", prep)
     if not (path / "meta.json").exists():
+        if prep:  # before the text source is opened, so a failure there is recorded too
+            prep.stage("tokenize", f"{preset.dataset} {split}", 0, docs)
         _write_tokens(_split_texts(preset, split, docs), tokenizer, path,
-                      f"{preset.dataset} {split}", docs)
+                      f"{preset.dataset} {split}", docs, prep)
     return path
 
 
@@ -236,9 +261,15 @@ class Data:
 
 
 def load_data(preset: Preset) -> Data:
-    tokenizer = load_tokenizer(preset)
-    train_dir = _token_dir(preset, tokenizer, "train", preset.train_docs)
-    val_dir = _token_dir(preset, tokenizer, "validation", preset.eval_docs)
+    prep = PrepareFile(preset.name)  # writes prepare.json only if there is work to do
+    try:
+        tokenizer = load_tokenizer(preset, prep)
+        train_dir = _token_dir(preset, tokenizer, "train", preset.train_docs, prep)
+        val_dir = _token_dir(preset, tokenizer, "validation", preset.eval_docs, prep)
+    except BaseException as exc:
+        prep.fail(exc)
+        raise
+    prep.finish()
     val_shards, val_meta = _shards(val_dir)
     return Data(
         train=TokenDataset(train_dir, preset.context_length),

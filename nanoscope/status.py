@@ -7,7 +7,6 @@ queued, preparing, running, done, stopped (Ctrl-C), cancelled (a STOP file), fai
 
 from __future__ import annotations
 
-import json
 import os
 import socket
 import time
@@ -16,6 +15,8 @@ from collections.abc import Callable
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
+
+from nanoscope.fsutil import write_json_atomic
 
 HEARTBEAT_SECONDS = 5
 STOP_FILE = "STOP"  # a file with this name in a run (or study) folder asks it to stop
@@ -67,10 +68,7 @@ class StatusFile:
             self.doc["error"] = error
         self.doc["updated_at"] = self.doc["heartbeat_at"] = self._now()
         self._last_beat = self._clock()
-        self.path.parent.mkdir(parents=True, exist_ok=True)
-        tmp = self.path.with_name(self.path.name + ".tmp")
-        tmp.write_text(json.dumps(self.doc, indent=2), encoding="utf-8")
-        os.replace(tmp, self.path)
+        write_json_atomic(self.path, self.doc)
 
     def __call__(self, step: int, row: dict[str, Any]) -> None:
         """on_step hook: `running` from the first step, then a heartbeat every few seconds."""

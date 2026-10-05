@@ -81,6 +81,8 @@ def build_parser() -> argparse.ArgumentParser:
     pub_parser.add_argument("--private", action="store_true")
 
     status_parser = sub.add_parser("status", help="Show the state of every run under a folder")
+    status_parser.add_argument("--data", action="store_true",
+                               help="show data preparation (downloads, tokenizing) instead")
     status_parser.add_argument("path", nargs="?", default=None,
                                help="runs folder (default: $NANOSCOPE_HOME/runs, or ./runs)")
 
@@ -158,6 +160,11 @@ def main(argv: list[str] | None = None) -> None:
     if args.command == "status":
         from nanoscope.progress import format_snapshot, snapshot
 
+        if args.data:
+            from nanoscope.prepare import format_prepare, read_all
+
+            print(format_prepare(read_all()))
+            return
         root = args.path or paths.runs_dir()
         print(format_snapshot(snapshot(root), root))
         return
