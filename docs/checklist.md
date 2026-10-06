@@ -4,7 +4,7 @@ The build list for [`plan-tool.md`](plan-tool.md), sections 4-10, with the decis
 2026-10-05 (plan section 11) applied. Phase numbers follow the plan's section 10. Every
 item is one line, so scripts and agents can grep and edit it.
 
-**Current focus:** P9 curriculum engine, lesson gating. Next item: P9.99.
+**Current focus:** P9 curriculum engine, lesson gating. Next item: P9.99 (the gate): local checks pass (2026-10-06), waiting on the PR and the user's merge.
 
 ## Progress
 
