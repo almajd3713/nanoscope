@@ -59,9 +59,15 @@ def ensure_token(environ: Mapping[str, str] | None = None) -> str:
     return token
 
 
-def login_url(settings: Settings) -> str:
+def login_url(settings: Settings, environ: Mapping[str, str] | None = None) -> str:
+    """Where to sign in. $NANOSCOPE_PUBLIC_PORT is the port the outside world uses when it
+    differs from the one served on (a container's published port)."""
+    import os
+
+    env: Mapping[str, str] = os.environ if environ is None else environ
     host = "localhost" if settings.host in ("0.0.0.0", "::") else settings.host
-    return f"http://{host}:{settings.port}/login?token={settings.token}"
+    port = env.get("NANOSCOPE_PUBLIC_PORT") or settings.port
+    return f"http://{host}:{port}/login?token={settings.token}"
 
 
 def check(settings: Settings) -> None:
