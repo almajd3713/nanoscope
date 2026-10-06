@@ -1,6 +1,6 @@
 """Nanoscope — see what your language model learns."""
 
-__version__ = "0.3.0rc1"
+__version__ = "0.3.0"
 
 from nanoscope.compare import compare
 from nanoscope.presets import Preset, get_preset, list_presets

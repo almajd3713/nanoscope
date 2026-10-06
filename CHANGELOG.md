@@ -1,6 +1,6 @@
 # Changelog
 
-## 0.3.0 (unreleased)
+## 0.3.0 (2026-10-06)
 
 Phases 6-10 of the build plan: the library becomes servable, and gains blocks, a
 curriculum engine and an HTTP API.
