@@ -469,3 +469,24 @@ def test_decoder_options_init_and_aux_loss():
     assert learned.pos_emb.weight.shape == (16, 16)
     with pytest.raises(AssertionError, match="context_length"):
         model(torch.zeros(1, 17).long())
+
+
+@pytest.mark.parametrize("tie", [True, False])
+@pytest.mark.parametrize("learned_pos", [False, True])
+def test_decoder_flops_equal_the_palm_formula(tie, learned_pos):
+    from nanoscope.blocks.attention import Attention
+    from nanoscope.blocks.embedding import LearnedPosition
+    from nanoscope.blocks.mlp import SwiGLU
+    from nanoscope.blocks.norm import RMSNorm
+    from nanoscope.blocks.structure import Block, Decoder
+    from nanoscope.reference.modern_ref import ModernRef
+
+    layer = Block(norm=RMSNorm(), attn=Attention(n_heads=4, n_kv_heads=2, qk_norm=True),
+                  mlp=SwiGLU())
+    model = Decoder(vocab_size=100, context_length=32, d_model=32, n_layers=3, block=layer,
+                    final_norm=RMSNorm(), tie_weights=tie,
+                    pos_emb=LearnedPosition() if learned_pos else None)
+    ref = ModernRef(vocab_size=100, context_length=32, d_model=32, n_layers=3, n_heads=4,
+                    n_kv_heads=2, rope=not learned_pos, tie_weights=tie)
+    for ctx in (8, 32):
+        assert model.flops_per_token(ctx) == ref.flops_per_token(ctx)
