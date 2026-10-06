@@ -215,6 +215,26 @@ class ModelSpecDoc(BaseModel):
     source: str | None = None  # the workspace file a model was found in, if any
 
 
+class JobDoc(BaseModel):
+    """A queue job: what to do, where it stands, and what came of it."""
+
+    id: int
+    kind: str
+    lane: str
+    state: str
+    ref: str | None = None
+    owner: str = "local"
+    device: str | None = None
+    worker_id: str | None = None
+    attempts: int = 0
+    payload: dict[str, Any]
+    result: dict[str, Any] | None = None
+    error: str | None = None
+    created_at: float
+    started_at: float | None = None
+    finished_at: float | None = None
+
+
 # model -> the JSON Schema file it must agree with
 SCHEMA_OF = {
     StatusDoc: "status", ConfigDoc: "config", ComparisonDoc: "comparison",

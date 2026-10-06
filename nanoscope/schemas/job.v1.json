@@ -171,6 +171,37 @@
           "additionalProperties": false
         }
       }
+    },
+    {
+      "properties": {
+        "kind": {
+          "const": "describe"
+        },
+        "payload": {
+          "type": "object",
+          "properties": {
+            "model": {
+              "type": "string",
+              "minLength": 1
+            },
+            "preset": {
+              "type": "string",
+              "minLength": 1
+            },
+            "kwargs": {
+              "type": "object"
+            },
+            "timeout": {
+              "type": "number",
+              "exclusiveMinimum": 0
+            }
+          },
+          "required": [
+            "model"
+          ],
+          "additionalProperties": false
+        }
+      }
     }
   ]
 }

@@ -1,13 +1,16 @@
 from __future__ import annotations
 
 from pathlib import Path
+from typing import Any
 
 from fastapi import APIRouter
+from pydantic import BaseModel
 
 from nanoscope import paths
 from nanoscope.blocks.discover import discover_models
 from nanoscope.models import GPT2, Bigram, Modern
-from nanoscope.server.models import ModelSpecDoc, ParamSpecDoc
+from nanoscope.server.jobs import submit
+from nanoscope.server.models import JobDoc, ModelSpecDoc, ParamSpecDoc
 from nanoscope.specs import FROM_DATA, ModelSpec
 
 router = APIRouter(prefix="/api", tags=["models"])
@@ -40,6 +43,33 @@ def workspace_models() -> list[ModelSpecDoc]:
 def models() -> list[ModelSpecDoc]:
     """The shipped models and the model classes found in the workspace."""
     return [*shipped_models(), *workspace_models()]
+
+
+def resolve_ref(ref: str) -> str:
+    """The ref a worker can load: shipped names and module refs pass through, a workspace file
+    ref (`sub/tiny.py:Tiny`) becomes an absolute path (the worker runs elsewhere)."""
+    for spec in models():
+        if ref in (spec.ref, spec.name, spec.name.lower()):
+            if spec.shipped:
+                return spec.ref
+            file, _, cls = spec.ref.rpartition(":")
+            return f"{paths.workspace_dir().resolve() / file}:{cls}"
+    raise KeyError(f"unknown model {ref!r}; available: "
+                   f"{', '.join(s.ref for s in models()) or 'none'}")
+
+
+class DescribeRequest(BaseModel):
+    preset: str = "tinystories-5min"
+    kwargs: dict[str, Any] = {}
+
+
+@router.post("/models/{ref:path}/describe", status_code=202)
+def describe_model(ref: str, body: DescribeRequest | None = None) -> JobDoc:
+    """Shapes, parameters, FLOPs and memory per module. It builds the model, which runs the
+    learner's code, so it is a job for a worker, never done in this process."""
+    body = body or DescribeRequest()
+    return submit("describe", {"model": resolve_ref(ref), "preset": body.preset,
+                               "kwargs": body.kwargs})
 
 
 @router.get("/models/{ref:path}")

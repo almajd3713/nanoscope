@@ -75,8 +75,16 @@ def _check(job: Any, payload: dict[str, Any]) -> dict[str, Any]:
                        for c in doc["checks"]]}
 
 
+def _describe(job: Any, payload: dict[str, Any]) -> dict[str, Any]:
+    from nanoscope.inspect import describe
+
+    return describe(model_class(payload["model"]), payload.get("preset", "tinystories-5min"),
+                    **payload.get("kwargs", {}))
+
+
 HANDLERS: dict[str, Callable[[Any, dict[str, Any]], dict[str, Any]]] = {
     "run": _run, "prepare-data": _prepare_data, "bench": _bench, "check": _check,
+    "describe": _describe,
 }
 
 
