@@ -91,24 +91,26 @@ class Tail:
         self._pending: dict[str, Any] | None = None  # the newest step row, not yet sent
         self._last_step_sent = float("-inf")
         self._started = False
+        self._status_seen = False
 
     def _tag(self, kind: str, data: dict[str, Any]) -> Event:
         return kind, {"ref": self.ref, **data}
 
     def poll(self) -> list[Event]:
-        events: list[Event] = []
         if not self._started:
             self._started = True
             if self._since is None:  # a live view: from now on, plus the current state
                 self.metrics.seek_end()
                 self.blockstats.seek_end()
                 self._checkpoints = set(self._checkpoint_names())
-        events += self._state()
-        events += self._rows()
-        events += self._blockstats()
-        events += self._new_checkpoints()
-        events += self._flush(force=False)
-        return events
+        state = self._state()
+        first = not self._status_seen
+        self._status_seen = True
+        rows = self._rows() + self._blockstats() + self._new_checkpoints()
+        rows += self._flush(force=False)
+        # the first state tells a new listener where the run is; after that a state change
+        # (done!) comes last, so every row it covers has already been sent
+        return state + rows if first else rows + state
 
     def finish(self) -> list[Event]:
         """The last pending step row, if any (call when the stream ends)."""

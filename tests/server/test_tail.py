@@ -5,6 +5,8 @@ import pytest
 
 from nanoscope.server.tail import Tail
 
+STAMP = "2026-10-06T12:00:00+00:00"
+
 
 class Clock:
     def __init__(self):
@@ -38,12 +40,12 @@ def test_state_events_follow_status_json(run_dir):
     tail = Tail(run_dir, "p/m/seed-0", clock=Clock())
     assert tail.poll() == []  # nothing yet
     (run_dir / "status.json").write_text(json.dumps(
-        {"schema": 1, "state": "preparing", "updated_at": "t", "step": 0, "max_steps": 20}))
+        {"schema": 1, "state": "preparing", "updated_at": STAMP, "step": 0, "max_steps": 20}))
     (kind, data), = tail.poll()
     assert kind == "state" and data["ref"] == "p/m/seed-0" and data["state"] == "preparing"
     assert tail.poll() == []  # unchanged: no event
     (run_dir / "status.json").write_text(json.dumps(
-        {"schema": 1, "state": "running", "updated_at": "t2", "step": 3, "max_steps": 20}))
+        {"schema": 1, "state": "running", "updated_at": STAMP, "step": 3, "max_steps": 20}))
     assert [d["state"] for k, d in tail.poll() if k == "state"] == ["running"]
     (run_dir / "status.json").write_text(json.dumps(
         {"schema": 1, "state": "failed", "updated_at": "t3", "step": 3,
@@ -149,3 +151,95 @@ def test_frames_are_sse(run_dir):
     assert json.loads(text.split("data: ")[1]) == {"ref": "r", "step": 10, "val_loss": 2.0}
     state, = frames([("state", {"ref": "r", "state": "done"})])
     assert "id:" not in state
+
+
+def read_events(response, wanted, limit=500):
+    """Collect SSE events from a streaming response until `wanted(events)` is true."""
+    events, current = [], {}
+    for line in response.iter_lines():
+        if line.startswith("event: "):
+            current = {"event": line[7:]}
+        elif line.startswith("data: "):
+            current["data"] = json.loads(line[6:])
+            events.append(current)
+            current = {}
+            if wanted(events) or len(events) >= limit:
+                break
+    return events
+
+
+def test_endpoints(live_server):
+    import threading
+    import time
+
+    import httpx
+
+    from nanoscope import paths
+
+    folder = paths.runs_dir() / "p" / "m" / "seed-0"
+    folder.mkdir(parents=True)
+    (folder / "status.json").write_text(json.dumps(
+        {"schema": 1, "state": "running", "updated_at": STAMP, "step": 0, "max_steps": 4}))
+
+    def trainer():
+        time.sleep(0.8)  # let the client connect first
+        for step in range(1, 5):
+            row = {"step": step, "loss": 1.0 / step}
+            if step % 2 == 0:
+                row.update(val_loss=3.0 - step / 10, val_bpb=1.5)
+            if step == 4:
+                row["sample"] = "the end"
+            append(folder, row)
+            time.sleep(0.4)
+        (folder / "status.json").write_text(json.dumps(
+            {"schema": 1, "state": "done", "updated_at": STAMP, "step": 4, "max_steps": 4}))
+
+    thread = threading.Thread(target=trainer, daemon=True)
+    thread.start()
+    with httpx.stream("GET", f"{live_server.url}/api/runs/p/m/seed-0/events", timeout=30) as r:
+        assert r.headers["content-type"].startswith("text/event-stream")
+        events = read_events(r, lambda e: any(
+            x["event"] == "state" and x["data"]["state"] == "done" for x in e))
+    thread.join(10)
+    names = [e["event"] for e in events]
+    assert names[0] == "state" and events[0]["data"]["state"] == "running"
+    assert [e["data"]["step"] for e in events if e["event"] == "eval"] == [2, 4]
+    assert [e["data"]["text"] for e in events if e["event"] == "sample"] == ["the end"]
+    assert [e["data"]["step"] for e in events if e["event"] == "step"][-1] == 4
+    assert names[-1] == "state" and events[-1]["data"]["ref"] == "p/m/seed-0"
+    assert httpx.get(f"{live_server.url}/api/runs/nope/seed-0/events").status_code == 404
+
+
+@pytest.mark.usefixtures("fake_data")
+def test_a_cli_started_run_appears_in_the_multiplexed_stream(live_server):
+    import threading
+    import time
+
+    import httpx
+    from fakes import tiny
+
+    from nanoscope import paths, run
+    from nanoscope.models import Bigram
+
+    existing = paths.runs_dir() / "p" / "old" / "seed-0"
+    existing.mkdir(parents=True)
+    (existing / "status.json").write_text(json.dumps(
+        {"schema": 1, "state": "done", "updated_at": STAMP, "step": 4, "max_steps": 4}))
+
+    def start_a_run():  # what `nanoscope run` does: it writes files and nothing else
+        time.sleep(1.0)
+        run(Bigram, tiny(), device="cpu", progress=False,
+            output_dir=paths.runs_dir() / "mine" / "seed-0")
+
+    thread = threading.Thread(target=start_a_run, daemon=True)
+    thread.start()
+    with httpx.stream("GET", f"{live_server.url}/api/events", timeout=60) as r:
+        events = read_events(r, lambda e: any(
+            x["data"].get("ref") == "mine/seed-0" and x["event"] == "eval"
+            and x["data"].get("step") == 20 for x in e), limit=3000)
+    thread.join(60)
+    refs = {e["data"]["ref"] for e in events}
+    assert refs == {"p/old/seed-0", "mine/seed-0"}  # the old run's state, and the new run
+    mine = [e for e in events if e["data"]["ref"] == "mine/seed-0"]
+    assert [e["data"]["step"] for e in mine if e["event"] == "eval"] == [10, 20]
+    assert "state" in [e["event"] for e in mine]  # and its state, from the files alone
