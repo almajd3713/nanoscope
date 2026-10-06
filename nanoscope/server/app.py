@@ -8,6 +8,7 @@ from nanoscope import __version__
 from nanoscope.schemas import CURRENT
 from nanoscope.server.auth import install as install_auth
 from nanoscope.server.errors import install as install_errors
+from nanoscope.server.models import Health, Version
 from nanoscope.server.settings import Settings, check
 
 
@@ -22,12 +23,12 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     api = APIRouter(prefix="/api")
 
     @api.get("/health", tags=["meta"])
-    def health() -> dict[str, str]:
-        return {"status": "ok"}
+    def health() -> Health:
+        return Health(status="ok")
 
     @api.get("/version", tags=["meta"])
-    def version() -> dict[str, object]:
-        return {"nanoscope": __version__, "schemas": dict(CURRENT)}
+    def version() -> Version:
+        return Version(nanoscope=__version__, schemas=dict(CURRENT))
 
     install_errors(app)
     app.include_router(api)
