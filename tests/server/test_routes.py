@@ -290,3 +290,44 @@ def test_data_and_hardware(client, monkeypatch):
     (folder / "bench.jsonl").write_text(json.dumps(row) + "\nnot json\n")
     rows = client.get("/api/hardware/bench").json()
     assert len(rows) == 1 and rows[0]["model"] == "Bigram" and rows[0]["schema"] == 1
+
+
+def test_jobs(client):
+    import json
+
+    from nanoscope import paths, queue
+
+    assert client.get("/api/jobs").json() == [] and client.get("/api/workers").json() == []
+    a = client.post("/api/models/bigram/describe").json()
+    b = client.post("/api/runs", json={"model": "bigram"}).json()["job"]
+    c = client.post("/api/data/tinystories-5min/prepare").json()
+    listing = client.get("/api/jobs").json()
+    assert [j["id"] for j in listing] == [a["id"], b["id"], c["id"]]
+    assert [j["id"] for j in client.get("/api/jobs?kind=run").json()] == [b["id"]]
+    assert [j["id"] for j in client.get("/api/jobs?state=queued&limit=2").json()] == [
+        b["id"], c["id"]]
+    one = client.get(f"/api/jobs/{b['id']}").json()
+    assert one["kind"] == "run" and one["state"] == "queued" and one["payload"]["model"].endswith(
+        ":Bigram")
+    assert one["result"] is None and one["error"] is None and one["attempts"] == 0
+    cancelled = client.post(f"/api/jobs/{a['id']}/cancel")
+    assert cancelled.status_code == 200 and cancelled.json()["state"] == "cancelled"
+    assert client.get("/api/jobs?state=cancelled").json()[0]["id"] == a["id"]
+    # a running job is asked to stop; a finished one is left alone
+    claimed = queue.claim("w", "cpu")
+    assert claimed is not None
+    running = client.post(f"/api/jobs/{claimed['id']}/cancel").json()
+    assert running["state"] == "cancelling"
+    queue.finish(claimed["id"], cancelled=True)
+    assert client.post(f"/api/jobs/{claimed['id']}/cancel").json()["state"] == "cancelled"
+    assert client.get("/api/jobs/999").status_code == 404
+    assert client.post("/api/jobs/999/cancel").status_code == 404
+    # workers show their heartbeat
+    folder = paths.workers_dir()
+    folder.mkdir(parents=True, exist_ok=True)
+    (folder / "w1.json").write_text(json.dumps({
+        "schema": 1, "nanoscope": "0.2.0", "worker_id": "w1", "device": "cpu", "slots": 1,
+        "jobs": [], "started_at": "2026-10-06T10:00:00+00:00",
+        "heartbeat_at": "2026-10-06T10:00:05+00:00"}))
+    workers = client.get("/api/workers").json()
+    assert [w["worker_id"] for w in workers] == ["w1"] and "age" in workers[0]
