@@ -4,7 +4,7 @@ The build list for [`plan-tool.md`](plan-tool.md), sections 4-10, with the decis
 2026-10-05 (plan section 11) applied. Phase numbers follow the plan's section 10. Every
 item is one line, so scripts and agents can grep and edit it.
 
-**Current focus:** P8 blocks library, describe, rebuilt models. Next item: P8.22.
+**Current focus:** P8 blocks library, describe, rebuilt models. Next item: P8.23.
 
 ## Progress
 
@@ -12,7 +12,7 @@ item is one line, so scripts and agents can grep and edit it.
 |---|---|---|---|
 | P6 | Servable library + CI baseline (9-11 d) | 67 / 67 | done |
 | P7 | Queue and workers (5-6 d) | 28 / 28 | done |
-| P8 | Blocks, describe, rebuilt models (10-13 d) | 21 / 52 | in progress |
+| P8 | Blocks, describe, rebuilt models (10-13 d) | 22 / 52 | in progress |
 | P9 | Curriculum engine, gating, two paths (14-17 d) | 0 / 61 | not started |
 | P10 | HTTP API (8-10 d) | 0 / 47 | not started |
 | P11 | Release prep: PyPI + GHCR (2-3 d) | 0 / 17 | not started |
@@ -252,7 +252,7 @@ touch or create (new ones marked `(new)`).
 - [x] P8.21 Layer patterns: `Decoder(pattern=[spec_a, spec_b])` repeats a list of block specs (e.g. sliding:global). · files: nanoscope/blocks/structure.py, tests/test_blocks.py · deps: P8.19 · done: `uv run pytest tests/test_blocks.py -k pattern` passes ✓ 2026-10-06 fd933c8: Decoder(pattern=[...]) cycles specs through the layers; exactly one of block/pattern
 
 ### P8 · Rebuild GPT2 and Modern (decision 11.4)
-- [ ] P8.22 Rebuild `models/gpt2.py` as a `Decoder` composition with the same class name, signature, defaults, `flops_per_token` and, where possible, `state_dict` keys. · files: nanoscope/models/gpt2.py, tests/test_models.py · deps: P8.19, P8.02, P8.08 · done: `uv run pytest tests/test_models.py -k gpt2_matches_reference` passes (logits within 1e-5 of `GPT2Ref` after `load_state_dict`)
+- [x] P8.22 Rebuild `models/gpt2.py` as a `Decoder` composition with the same class name, signature, defaults, `flops_per_token` and, where possible, `state_dict` keys. · files: nanoscope/models/gpt2.py, tests/test_models.py · deps: P8.19, P8.02, P8.08 · done: `uv run pytest tests/test_models.py -k gpt2_matches_reference` passes (logits within 1e-5 of `GPT2Ref` after `load_state_dict`) ✓ 2026-10-06 fba01b3: GPT2(Decoder) with Block(LayerNorm, Attention(bias=True), GELUMLP(bias=True)); keys differ from GPT2Ref (norm1/norm2/norm, separate q/k/v), mapped in the test only; Attention gained bias, Decoder zeroes biases, flops count biases
 - [ ] P8.23 Rebuild `models/modern.py` the same way, covering every switch (rope, swiglu, rmsnorm, qk_norm, n_kv_heads, z_loss, tie_weights, ffn_hidden). · files: nanoscope/models/modern.py, tests/test_models.py · deps: P8.19, P8.02, P8.08 · done: `uv run pytest tests/test_models.py -k modern_matches_reference` passes, parametrized over the switches
 - [ ] P8.24 Test that the rebuilt models produce the same initial weights as the references for seeds 0-2. If that can't be achieved, record the decision in the Decisions log and do P8.25. · files: tests/test_models.py · deps: P8.22, P8.23 · done: `uv run pytest tests/test_models.py -k same_init` passes, or the Decisions log has the entry
 - [ ] P8.25 Breaking old checkpoints is allowed (user, 2026-10-05): if P8.24 or the key check fails, do NOT add a key map. Instead bump `config` to schema v2, drop support for pre-rebuild checkpoints, and re-export the shipped baselines with `export_baseline` (9 short CPU runs). · files: nanoscope/store.py, nanoscope/schemas/, nanoscope/baselines/ · deps: P8.24 · done: `uv run pytest tests/test_schemas.py -k baselines tests/test_compare.py` passes; mark ✗ not needed if P8.24 passed
