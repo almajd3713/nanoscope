@@ -9,6 +9,7 @@ A file with mistakes raises `CurriculumError`, whose `problems` lists every one 
 
 from __future__ import annotations
 
+import ast
 import re
 import sys
 from dataclasses import dataclass, field
@@ -289,6 +290,23 @@ def parse_lesson_md(text: str, problems: _Problems | None = None) -> LessonText:
                       body.get("reading", ""))
 
 
+def _check_marimo_notebook(file: Path, problems: _Problems) -> None:
+    """A lesson's notebook.py must define a marimo app (`app = marimo.App(...)`). It is read as
+    text, never imported."""
+    try:
+        tree = ast.parse(file.read_text(encoding="utf-8"))
+    except SyntaxError as exc:
+        problems.add("", f"not valid Python: {exc.msg} (line {exc.lineno})")
+        return
+    for node in tree.body:
+        if (isinstance(node, ast.Assign) and isinstance(node.value, ast.Call)
+                and isinstance(node.value.func, ast.Attribute) and node.value.func.attr == "App"
+                and any(isinstance(t, ast.Name) and t.id == "app" for t in node.targets)):
+            return
+    problems.add("", "does not define a marimo app",
+                 "start the file with `import marimo` and `app = marimo.App()`")
+
+
 def _resolve(ref: str | Path, root: Path | None, depth: int) -> Path:
     candidate = Path(ref)
     if candidate.is_absolute() or candidate.exists():
@@ -332,7 +350,10 @@ def _load_lesson_dir(directory: Path, lesson_id: str) -> LessonSpec:
     else:
         md_problems.add("", "file is missing")
         text = LessonText("", "", "", "")
-    errors = problems.items + md_problems.items
+    nb_problems = _Problems(f"{lesson_id}/notebook.py")
+    if (directory / "notebook.py").exists():
+        _check_marimo_notebook(directory / "notebook.py", nb_problems)
+    errors = problems.items + md_problems.items + nb_problems.items
     if errors:
         raise CurriculumError(errors)
     return LessonSpec(
