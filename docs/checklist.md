@@ -4,7 +4,7 @@ The build list for [`plan-tool.md`](plan-tool.md), sections 4-10, with the decis
 2026-10-05 (plan section 11) applied. Phase numbers follow the plan's section 10. Every
 item is one line, so scripts and agents can grep and edit it.
 
-**Current focus:** P12 docker-compose. Next item: P12.11.
+**Current focus:** P12 docker-compose. Next item: P12.12.
 
 ## Progress
 
@@ -16,7 +16,7 @@ item is one line, so scripts and agents can grep and edit it.
 | P9 | Curriculum engine, gating, two paths (14-17 d) | 61 / 61 | done |
 | P10 | HTTP API (8-10 d) | 47 / 47 | done |
 | P11 | Release prep: PyPI + GHCR (2-3 d) | 17 / 17 | done |
-| P12 | docker-compose (3-4 d) | 9 / 20 | in progress |
+| P12 | docker-compose (3-4 d) | 12 / 20 | in progress |
 | P13 | GUI MVP 1: shell, Learn/Tinker screens (12-15 d) | 0 / 37 | not started |
 | P14 | GUI MVP 2: model page, drag-and-drop (14-17 d) | 0 / 34 | not started |
 | P15 | GUI Research (10-13 d) | 0 / 30 | not started |
@@ -462,17 +462,17 @@ touch or create (new ones marked `(new)`).
 
 ## P12 docker-compose
 
-- [ ] P12.01 Write `docker/Dockerfile.cuda` on a pinned PyTorch CUDA runtime base, with the same layout as the CPU image. · files: docker/Dockerfile.cuda (new) · deps: P11.99 · done: `docker build -f docker/Dockerfile.cuda .` succeeds (CI or the user's machine)
+- [x] P12.01 (2026-10-07, 4bfde6b; builds, runs as uid 1000; not run on a GPU; the later `notebook` extra edit is untested on cuda) Write `docker/Dockerfile.cuda` on a pinned PyTorch CUDA runtime base, with the same layout as the CPU image. · files: docker/Dockerfile.cuda (new) · deps: P11.99 · done: `docker build -f docker/Dockerfile.cuda .` succeeds (CI or the user's machine)
 - [x] P12.02 (2026-10-07, 771c0e4) Write a root `compose.yaml` with `api`, `worker`, `worker-gpu` (profile gpu) and `notebook` (profile notebook), the volumes (`nanoscope-home`, `nanoscope-data`, `hf-cache`, `compile-cache`) and the workspace bind; images come from GHCR with a build fallback. · files: compose.yaml (new) · deps: P12.01 · done: `docker compose config -q` exits 0
 - [x] P12.03 (2026-10-07, 771c0e4) Harden the workers: user 1000, `cap_drop: [ALL]`, `no-new-privileges`, `read_only` with a tmpfs `/tmp`, `mem_limit`/`cpus`/`pids_limit` from env, no Docker socket. · files: compose.yaml · deps: P12.02 · done: `docker compose config | grep -c 'no-new-privileges'` is at least 2
 - [x] P12.04 (2026-10-07, 771c0e4) Publish the API only on `127.0.0.1:8000`; generate the token into the home volume and log the login URL. · files: compose.yaml, nanoscope/server/settings.py · deps: P12.02, P10.05 · done: `docker compose config | grep -n '127.0.0.1:8000'` matches
 - [x] P12.05 (2026-10-07, 771c0e4) GPU profile: an NVIDIA reservation with `count: all`, `NANOSCOPE_SLOTS`, and documented `NVIDIA_VISIBLE_DEVICES` use for one worker per GPU. · files: compose.yaml, docs/deploy.md · deps: P12.02 · done: `docker compose --profile gpu config -q` exits 0
 - [x] P12.06 (2026-10-07, e7f3632) Support `NANOSCOPE_JOBS_OFFLINE=1` in `run-job`: jobs that need the network are refused with a message once data is cached. · files: nanoscope/jobs/execute.py, tests/test_jobs.py · deps: P11.99 · done: `uv run pytest tests/test_jobs.py -k offline` asserts the message
 - [x] P12.07 (2026-10-07, 771c0e4) Set `TORCHINDUCTOR_CACHE_DIR` and `HF_HOME` to the cache volumes in all services. · files: compose.yaml · deps: P12.02 · done: `docker compose config | grep -c TORCHINDUCTOR_CACHE_DIR` is at least 2
-- [ ] P12.08 Add `git config --system safe.directory /nanoscope/workspace` to the images, and document PUID/PGID for bind-mount ownership. · files: docker/Dockerfile.cpu, docker/Dockerfile.cuda, docs/deploy.md · deps: P12.01 · done: `docker run --rm nanoscope:cpu git config --system --get safe.directory` prints /nanoscope/workspace
+- [x] P12.08 (2026-10-07, 771c0e4; ownership documented as chown 1000:1000, not PUID/PGID) Add `git config --system safe.directory /nanoscope/workspace` to the images, and document PUID/PGID for bind-mount ownership. · files: docker/Dockerfile.cpu, docker/Dockerfile.cuda, docs/deploy.md · deps: P12.01 · done: `docker run --rm nanoscope:cpu git config --system --get safe.directory` prints /nanoscope/workspace
 - [x] P12.09 (2026-10-07, d223f6d; marimo service up, token gate checked) Add the `notebook` service (decision 11.7): marimo editing `workspace/notebooks`, the same `NANOSCOPE_HOME`, a loopback port and a token. · files: compose.yaml, pyproject.toml (`notebook` extra with marimo), docker/Dockerfile.cpu · deps: P12.02 · done: `docker compose --profile notebook config -q` exits 0
 - [x] P12.10 (2026-10-07, 3c6be82; notebook 01 trains in 93 s on CPU) Write marimo versions of notebooks 01-04 under `notebooks/marimo/`. The user allows breaking away from the `.ipynb` files (2026-10-05): once the marimo versions work, retire the `.ipynb` notebooks (keep a Colab/Kaggle path only if it is cheap) and repoint the first-notebook guard test at the marimo version. · files: notebooks/marimo/01_first_model.py ... 04_ablations.py (new) · deps: P12.09 · done: `uv run --extra notebook marimo check notebooks/marimo/` exits 0
-- [ ] P12.11 Let lessons ship an optional marimo `notebook.py`; the loader checks that it defines a marimo app, and `learn start` copies it. · files: nanoscope/learn/loader.py, tests/test_learn.py · deps: P12.10 · done: `uv run pytest tests/test_learn.py -k marimo_notebook` passes
+- [x] P12.11 (2026-10-07, 2d7c38c) Let lessons ship an optional marimo `notebook.py`; the loader checks that it defines a marimo app, and `learn start` copies it. · files: nanoscope/learn/loader.py, tests/test_learn.py · deps: P12.10 · done: `uv run pytest tests/test_learn.py -k marimo_notebook` passes
 - [ ] P12.12 Add a pytest `compose` marker and `tests/compose/test_compose.py`: compose up, submit a bigram over the API, reach `done` in under 2 min with cached data, and find the run folder on the home volume. · files: pyproject.toml, tests/compose/test_compose.py (new) · deps: P12.04 · done: `uv run pytest -m compose tests/compose -k bigram_under_2min` passes locally
 - [ ] P12.13 Add a CI job `compose` that seeds `nanoscope-data` from the actions cache and runs the compose tests. · files: .github/workflows/ci.yml · deps: P12.12 · done: the job is green on the PR
 - [ ] P12.14 Test that `down`/`up` keeps runs and resumes a run that was mid-training. · files: tests/compose/test_compose.py · deps: P12.12 · done: `uv run pytest -m compose tests/compose -k restart_resumes` passes
