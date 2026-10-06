@@ -534,3 +534,54 @@ def test_attention_weights_are_the_softmax_forward_applies(window):
     _, _, v = attn._qkv(x)
     expected = attn.proj((weights @ v).transpose(1, 2).reshape(2, 6, 16))
     torch.testing.assert_close(attn(x), expected, atol=ATOL, rtol=0)
+
+
+def test_register_block_makes_a_user_module_composable():
+    from nanoscope.blocks import register_block
+    from nanoscope.blocks.registry import reference_for
+    from nanoscope.blocks.structure import Block, Decoder
+
+    def naive_gate(x, weight):
+        return x * torch.sigmoid(weight)
+
+    @register_block(reference=naive_gate, family="mlp")
+    class Gate(nn.Module):
+        """x times sigmoid of a learned vector."""
+
+        def __init__(self, d_model, context_length, scale=1.0):
+            super().__init__()
+            self.weight = nn.Parameter(torch.zeros(d_model))
+            self.scale = scale
+
+        def forward(self, x):
+            return x * torch.sigmoid(self.weight) * self.scale
+
+    info = registry.get_info("Gate")
+    assert (info.family, info.tier, info.user) == ("mlp", "composite", True)
+    assert info.reference.endswith("naive_gate") and reference_for("Gate") is naive_gate
+    assert registry.get_info("RMSNorm").user is False
+    spec = Gate(scale=2.0)  # options only: a spec, like every block
+    assert isinstance(spec, BlockSpec) and spec.to_dict() == {
+        "block": "Gate", "args": {"scale": 2.0}}
+    gate = spec.build(8, 4)
+    assert isinstance(gate, nn.Module) and gate.scale == 2.0
+    torch.testing.assert_close(gate(torch.ones(2, 8)), torch.full((2, 8), 1.0))  # 2 * 0.5
+    assert copy.deepcopy(gate).scale == 2.0
+    # it composes: a Decoder built from it trains-shaped output
+    from nanoscope.blocks.attention import Attention
+    from nanoscope.blocks.norm import RMSNorm
+    model = Decoder(vocab_size=20, context_length=8, d_model=16, n_layers=2,
+                    block=Block(norm=RMSNorm(), attn=Attention(n_heads=2), mlp=Gate()))
+    assert model(torch.zeros(1, 4).long()).shape == (1, 4, 20)
+
+    @register_block  # bare form, no reference
+    class Plain(BlockModule):
+        def __init__(self, d_model, context_length):
+            super().__init__()
+    assert registry.get_info("Plain").reference is None and reference_for("Plain") is None
+
+    with pytest.raises(TypeError, match="must take d_model and context_length"):
+        @register_block
+        class Bad(nn.Module):
+            def __init__(self, width):
+                super().__init__()

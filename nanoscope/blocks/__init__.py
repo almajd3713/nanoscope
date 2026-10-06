@@ -15,6 +15,7 @@ from typing import Any
 # name -> module that defines it; blocks add themselves as they are written
 _EXPORTS: dict[str, str] = {
     "BlockInfo": "nanoscope.blocks.registry",
+    "register_block": "nanoscope.blocks.registry",
     "BlockModule": "nanoscope.blocks.spec",
     "BlockSpec": "nanoscope.blocks.spec",
     "Composite": "nanoscope.blocks.composite",
