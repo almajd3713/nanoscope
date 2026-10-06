@@ -4,7 +4,7 @@ The build list for [`plan-tool.md`](plan-tool.md), sections 4-10, with the decis
 2026-10-05 (plan section 11) applied. Phase numbers follow the plan's section 10. Every
 item is one line, so scripts and agents can grep and edit it.
 
-**Current focus:** P8 blocks library, describe, rebuilt models. Next item: P8.43.
+**Current focus:** P8 blocks library, describe, rebuilt models. Next item: P8.44.
 
 ## Progress
 
@@ -12,7 +12,7 @@ item is one line, so scripts and agents can grep and edit it.
 |---|---|---|---|
 | P6 | Servable library + CI baseline (9-11 d) | 67 / 67 | done |
 | P7 | Queue and workers (5-6 d) | 28 / 28 | done |
-| P8 | Blocks, describe, rebuilt models (10-13 d) | 43 / 52 | in progress |
+| P8 | Blocks, describe, rebuilt models (10-13 d) | 44 / 52 | in progress |
 | P9 | Curriculum engine, gating, two paths (14-17 d) | 0 / 61 | not started |
 | P10 | HTTP API (8-10 d) | 0 / 47 | not started |
 | P11 | Release prep: PyPI + GHCR (2-3 d) | 0 / 17 | not started |
@@ -279,7 +279,7 @@ touch or create (new ones marked `(new)`).
 
 ### P8 · Block stats
 - [x] P8.42 Add a `BlockStats` hook (opt-in with `run(block_stats=True)`, evaluated at eval steps only). Per block it records activation RMS, grad norm, update-to-weight ratio, and attention entropy from explicit attention weights on the eval batch, appended to `blockstats.jsonl`. · files: nanoscope/blockstats.py (new), nanoscope/run.py, nanoscope/schemas/blockstats.v1.json (new), tests/test_blockstats.py (new) · deps: P8.19, P6.99 · done: `uv run pytest tests/test_blockstats.py` passes, and `grep -n blockstats nanoscope/train_loop.py` is empty (hooks only) ✓ 2026-10-06 17ffb2c: nanoscope/blockstats.py BlockStats (on_eval hook, autograd.grad so .grad is untouched), schemas/blockstats.v1.json, run(block_stats=True); Attention.attention_weights gives the explicit softmax for entropy; train_loop.py has no mention
-- [ ] P8.43 Add `nanoscope status --blocks <ref>`, which prints the latest stats per block. · files: nanoscope/progress.py, nanoscope/cli.py, tests/test_blockstats.py · deps: P8.42 · done: `uv run pytest tests/test_blockstats.py -k status_blocks` asserts the output
+- [x] P8.43 Add `nanoscope status --blocks <ref>`, which prints the latest stats per block. · files: nanoscope/progress.py, nanoscope/cli.py, tests/test_blockstats.py · deps: P8.42 · done: `uv run pytest tests/test_blockstats.py -k status_blocks` asserts the output ✓ 2026-10-06 2256f42: `nanoscope status --blocks REF` prints the latest blockstats line as a table (progress.format_blockstats); says how to enable when a run has none
 
 ### P8 · User blocks and the catalog
 - [ ] P8.44 Add the public `@register_block(reference=fn, family=...)` for users' `nn.Module`s. · files: nanoscope/blocks/registry.py, tests/test_blocks.py · deps: P8.05 · done: `uv run pytest tests/test_blocks.py -k register_block` passes
