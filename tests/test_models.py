@@ -219,3 +219,35 @@ def test_same_init_as_the_reference_models(seed):
     torch.manual_seed(seed)
     for key, value in GPT2(**kwargs).state_dict().items():
         torch.testing.assert_close(value, gpt2_ref[key], atol=0, rtol=0)
+
+
+@pytest.mark.usefixtures("fake_data")
+@pytest.mark.parametrize(("current", "ref_name"), [(GPT2, "GPT2Ref"), (Modern, "ModernRef")])
+def test_run_identity_unchanged(current, ref_name):
+    import inspect
+    import json
+
+    from fakes import tiny
+
+    from nanoscope import run
+    from nanoscope.reference import gpt2_ref, modern_ref
+    from nanoscope.run import _run_name
+
+    frozen = getattr(gpt2_ref if ref_name == "GPT2Ref" else modern_ref, ref_name)
+    old = type(current.__name__, (frozen,), {})  # the old model under the same class name
+    assert inspect.signature(current) == inspect.signature(old)
+
+    preset = tiny()
+    assert _run_name(current, {}, preset, preset) == _run_name(old, {}, preset, preset)
+    changed = {"n_layers": 1}
+    assert _run_name(current, changed, preset, preset) == _run_name(old, changed, preset, preset)
+
+    result = run(current, preset, device="cpu", n_layers=1, d_model=32)
+    assert result.run_dir.parent.name == _run_name(old, {"n_layers": 1, "d_model": 32},
+                                                   preset, preset)
+    config = json.loads((result.run_dir / "config.json").read_text())
+    defaults = {k: p.default for k, p in inspect.signature(old).parameters.items()
+                if p.default is not inspect.Parameter.empty}
+    from_data = {"vocab_size": result.data.tokenizer.vocab_size, "context_length": 32}
+    assert config["model"]["class"] == current.__name__
+    assert config["model"]["kwargs"] == {**defaults, **from_data, "n_layers": 1, "d_model": 32}
