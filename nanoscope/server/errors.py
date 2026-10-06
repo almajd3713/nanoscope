@@ -19,7 +19,8 @@ from nanoscope.learn.gating import LockedBlockError
 MEDIA_TYPE = "application/problem+json"
 TITLES = {400: "Bad request", 401: "Not signed in", 403: "Forbidden", 404: "Not found",
           405: "Method not allowed", 409: "Conflict", 412: "Precondition failed",
-          422: "Cannot be done as asked", 500: "Server error"}
+          415: "Unsupported media type", 422: "Cannot be done as asked",
+          428: "Precondition required", 500: "Server error"}
 
 
 def problem(status: int, detail: str, request: Request | None = None, *, title: str | None = None,

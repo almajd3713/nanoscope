@@ -51,3 +51,38 @@ def read_file(path: str, request: Request) -> Any:
 
     return JSONResponse({"path": path, "content": content, "etag": etag},
                         headers={"ETag": etag})
+
+
+class FileWrite(BaseModel):
+    content: str
+
+
+@router.put("/files/{path:path}", response_model=FileDoc)
+def write_file(path: str, body: FileWrite, request: Request) -> Any:
+    """Save a file. For an existing file send `If-Match` with the ETag you read: if the file
+    changed since, nothing is written and the answer is 409 with the diff between what is on
+    disk and what you sent. A new file needs no ETag."""
+    import difflib
+
+    from fastapi.responses import JSONResponse
+
+    target = workspace.safe_path(path, must_exist=False)
+    existed = target.exists()
+    if existed:
+        sent = request.headers.get("if-match")
+        current = workspace.etag_of(target)
+        if sent is None:
+            return problem(428, "this file exists: send If-Match with the ETag you read, so "
+                           "an edit made elsewhere is not overwritten", request,
+                           title="Precondition required", current_etag=current)
+        if sent != current:
+            on_disk = target.read_text(encoding="utf-8", errors="replace")
+            diff = "".join(difflib.unified_diff(
+                on_disk.splitlines(keepends=True), body.content.splitlines(keepends=True),
+                fromfile=f"{path} (on disk)", tofile=f"{path} (yours)"))
+            return problem(409, f"{path} changed since you read it; nothing was written",
+                           request, current_etag=current, diff=diff)
+    workspace.write_atomic(target, body.content)
+    etag = workspace.etag_of(target)
+    return JSONResponse({"path": path, "content": body.content, "etag": etag},
+                        status_code=200 if existed else 201, headers={"ETag": etag})

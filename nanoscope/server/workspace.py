@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import hashlib
+import os
 from pathlib import Path
 
 from fastapi import HTTPException
@@ -57,3 +58,11 @@ def listing(pattern: str = "**/*") -> list[Path]:
         if path.resolve().is_relative_to(base):  # a symlink out of the folder is not listed
             found.append(path)
     return found
+
+
+def write_atomic(target: Path, content: str) -> None:
+    """Write so a reader (or the file watcher) never sees half a file: temp file, then replace."""
+    target.parent.mkdir(parents=True, exist_ok=True)
+    tmp = target.with_name(f".{target.name}.{os.getpid()}.tmp")
+    tmp.write_text(content, encoding="utf-8")
+    os.replace(tmp, target)

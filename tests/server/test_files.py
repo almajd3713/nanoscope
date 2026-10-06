@@ -58,3 +58,34 @@ def test_traversal(client, ws, tmp_path):
     link = client.get("/api/files/link.txt")
     assert link.status_code == 400 and "points outside the workspace" in link.json()["detail"]
     assert "link.txt" not in [f["path"] for f in client.get("/api/files").json()]
+
+
+def test_write_and_conflict_409(client, ws):
+    path = "/api/files/models/my_lm.py"
+    first = client.get(path).json()
+    # a new file needs no ETag; its parent folders are made
+    created = client.put("/api/files/new/dir/x.py", json={"content": "x = 1\n"})
+    assert created.status_code == 201 and (ws / "new" / "dir" / "x.py").read_text() == "x = 1\n"
+    assert created.json()["etag"] == created.headers["etag"]
+    # an existing file must say what it read
+    bare = client.put(path, json={"content": "print('mine')\n"})
+    assert bare.status_code == 428 and bare.json()["current_etag"] == first["etag"]
+    assert (ws / "models" / "my_lm.py").read_text() == "print('hi')\n"  # untouched
+    saved = client.put(path, json={"content": "print('mine')\n"},
+                       headers={"If-Match": first["etag"]})
+    assert saved.status_code == 200 and saved.json()["etag"] != first["etag"]
+    assert (ws / "models" / "my_lm.py").read_text() == "print('mine')\n"
+    # someone else (an editor, git checkout) changed it meanwhile: 409 with a diff, no write
+    (ws / "models" / "my_lm.py").write_text("print('theirs')\n")
+    conflict = client.put(path, json={"content": "print('mine, again')\n"},
+                          headers={"If-Match": saved.json()["etag"]})
+    assert conflict.status_code == 409
+    problem = conflict.json()
+    assert problem["current_etag"] == client.get(path).json()["etag"]
+    assert "--- models/my_lm.py (on disk)" in problem["diff"]
+    assert "-print('theirs')" in problem["diff"] and "+print('mine, again')" in problem["diff"]
+    assert (ws / "models" / "my_lm.py").read_text() == "print('theirs')\n"
+    # no temp files are left behind, and the traversal guard covers writes too
+    assert not [p for p in (ws / "models").iterdir() if p.name.endswith(".tmp")]
+    assert client.put("/api/files/../escape.py", json={"content": "x"}).status_code in (400, 404)
+    assert client.put("/api/files/%2e%2e/escape.py", json={"content": "x"}).status_code == 400
