@@ -4,7 +4,7 @@ The build list for [`plan-tool.md`](plan-tool.md), sections 4-10, with the decis
 2026-10-05 (plan section 11) applied. Phase numbers follow the plan's section 10. Every
 item is one line, so scripts and agents can grep and edit it.
 
-**Current focus:** P10 HTTP API. Next item: P10.03.
+**Current focus:** P10 HTTP API. Next item: P10.05.
 
 ## Progress
 
@@ -14,7 +14,7 @@ item is one line, so scripts and agents can grep and edit it.
 | P7 | Queue and workers (5-6 d) | 28 / 28 | done |
 | P8 | Blocks, describe, rebuilt models (10-13 d) | 52 / 52 | done |
 | P9 | Curriculum engine, gating, two paths (14-17 d) | 61 / 61 | done |
-| P10 | HTTP API (8-10 d) | 2 / 47 | in progress |
+| P10 | HTTP API (8-10 d) | 4 / 47 | in progress |
 | P11 | Release prep: PyPI + GHCR (2-3 d) | 0 / 17 | not started |
 | P12 | docker-compose (3-4 d) | 0 / 20 | not started |
 | P13 | GUI MVP 1: shell, Learn/Tinker screens (12-15 d) | 0 / 37 | not started |
@@ -384,8 +384,8 @@ touch or create (new ones marked `(new)`).
 - [x] P10.02 Make `Comparison.to_dict()` include the curves per set and the precision plan. · files: nanoscope/compare.py, tests/test_compare.py · deps: P10.01, P6.60 · done: `uv run pytest tests/test_compare.py -k to_dict_curves` passes ✓ 2026-10-06 f2a2b63: Comparison.to_dict() gains curves (per set, per seed, [tokens, value] points) and precision_plan; comparison.v1 schema extended
 
 ### P10 · Server skeleton and security
-- [ ] P10.03 Add the `server` extra (fastapi, uvicorn[standard], watchfiles, libcst, ruff) and httpx in dev. · files: pyproject.toml, uv.lock · deps: P9.99 · done: `uv sync --extra server && uv run python -c "import fastapi, watchfiles"` exits 0
-- [ ] P10.04 Create `nanoscope/server/app.py` with `create_app(settings)` (API under `/api`, `/api/health`, `/api/version`) and `nanoscope serve [--host 127.0.0.1] [--port 8000]`. · files: nanoscope/server/__init__.py (new), nanoscope/server/app.py (new), nanoscope/cli.py, tests/server/test_app.py (new) · deps: P10.03 · done: `uv run pytest tests/server/test_app.py -k health` passes
+- [x] P10.03 Add the `server` extra (fastapi, uvicorn[standard], watchfiles, libcst, ruff) and httpx in dev. · files: pyproject.toml, uv.lock · deps: P9.99 · done: `uv sync --extra server && uv run python -c "import fastapi, watchfiles"` exits 0 ✓ 2026-10-06 c40880a: server extra (fastapi, uvicorn[standard], watchfiles, libcst, ruff), httpx in dev
+- [x] P10.04 Create `nanoscope/server/app.py` with `create_app(settings)` (API under `/api`, `/api/health`, `/api/version`) and `nanoscope serve [--host 127.0.0.1] [--port 8000]`. · files: nanoscope/server/__init__.py (new), nanoscope/server/app.py (new), nanoscope/cli.py, tests/server/test_app.py (new) · deps: P10.03 · done: `uv run pytest tests/server/test_app.py -k health` passes ✓ 2026-10-06 c40880a: nanoscope/server/{app,settings}.py: create_app(settings) with everything under /api (docs at /api/docs), /api/health, /api/version; nanoscope serve [--host --port]
 - [ ] P10.05 Token handling: on a non-loopback start, generate a token into `home()/server/token` (mode 0600) and print a login URL; refuse a non-loopback bind without a token. · files: nanoscope/server/settings.py (new), tests/server/test_auth.py (new) · deps: P10.04 · done: `uv run pytest tests/server/test_auth.py -k refuse_without_token` passes
 - [ ] P10.06 Auth middleware: no auth on loopback; otherwise a bearer header, or an HttpOnly cookie set by `GET /login?token=`. · files: nanoscope/server/auth.py (new), tests/server/test_auth.py · deps: P10.05 · done: `uv run pytest tests/server/test_auth.py` passes
 - [ ] P10.07 Return errors as RFC 9457 `application/problem+json`. Library `ValueError`/`TypeError` messages pass through word for word as 422, and `LockedBlockError` becomes a 422 naming the lesson. · files: nanoscope/server/errors.py (new), tests/server/test_app.py · deps: P10.04 · done: `uv run pytest tests/server/test_app.py -k problem_json` asserts the exact library text
