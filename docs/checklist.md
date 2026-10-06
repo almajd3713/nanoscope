@@ -4,7 +4,7 @@ The build list for [`plan-tool.md`](plan-tool.md), sections 4-10, with the decis
 2026-10-05 (plan section 11) applied. Phase numbers follow the plan's section 10. Every
 item is one line, so scripts and agents can grep and edit it.
 
-**Current focus:** P8 blocks library, describe, rebuilt models. Next item: P8.19.
+**Current focus:** P8 blocks library, describe, rebuilt models. Next item: P8.21.
 
 ## Progress
 
@@ -12,7 +12,7 @@ item is one line, so scripts and agents can grep and edit it.
 |---|---|---|---|
 | P6 | Servable library + CI baseline (9-11 d) | 67 / 67 | done |
 | P7 | Queue and workers (5-6 d) | 28 / 28 | done |
-| P8 | Blocks, describe, rebuilt models (10-13 d) | 18 / 52 | in progress |
+| P8 | Blocks, describe, rebuilt models (10-13 d) | 20 / 52 | in progress |
 | P9 | Curriculum engine, gating, two paths (14-17 d) | 0 / 61 | not started |
 | P10 | HTTP API (8-10 d) | 0 / 47 | not started |
 | P11 | Release prep: PyPI + GHCR (2-3 d) | 0 / 17 | not started |
@@ -247,8 +247,8 @@ touch or create (new ones marked `(new)`).
 - [x] P8.16 `Attention(n_heads, n_kv_heads, pos, qk_norm, window=None)`, checked against the loop reference for `n_kv_heads` in {1, 2, 4} × RoPE on/off × QK-norm on/off × a window. · files: nanoscope/blocks/attention.py (new), tests/test_blocks.py · deps: P8.15, P8.14, P8.04 · done: `uv run pytest tests/test_blocks.py -k attention` passes ✓ 2026-10-06 47d154c: blocks/attention.py: Attention (q/k/v/proj/q_norm/k_norm names as Modern; pos built at head_dim, default NoPE; window mask buffer); naive_causal_attention gained window=
 - [x] P8.17 `GELUMLP` and `SwiGLU(hidden)`, checked against their formulas and for parameter parity. · files: nanoscope/blocks/mlp.py (new), tests/test_blocks.py · deps: P8.06, P8.01 · done: `uv run pytest tests/test_blocks.py -k mlp` passes ✓ 2026-10-06 eca7871: blocks/mlp.py: GELUMLP(hidden, bias; fc/proj), SwiGLU(hidden; w1/w3/proj), formula and parameter-parity tests
 - [x] P8.18 `Block(norm, attn, mlp, pre/post)`, checked against a reference composition. · files: nanoscope/blocks/structure.py (new), tests/test_blocks.py · deps: P8.16, P8.17, P8.11 · done: `uv run pytest tests/test_blocks.py -k block_reference` passes ✓ 2026-10-06 e9d38f5: blocks/structure.py: Block(norm, attn, mlp, order) with norm1/attn/norm2/mlp; norm spec built twice
-- [ ] P8.19 `Decoder(vocab_size, context_length, d_model, n_layers, block, final_norm, tie_weights, z_loss)` with the `(logits, aux)` convention and Modern's init scheme, tested for causality and a near-uniform untrained loss. · files: nanoscope/blocks/structure.py, tests/test_blocks.py · deps: P8.18, P8.13 · done: `uv run pytest tests/test_blocks.py -k decoder` passes
-- [ ] P8.20 `Decoder.flops_per_token`: the sum of the analytic block formulas, equal to the PaLM formula `Modern` uses today. · files: nanoscope/blocks/structure.py, tests/test_blocks.py · deps: P8.19 · done: `uv run pytest tests/test_blocks.py -k decoder_flops` passes
+- [x] P8.19 `Decoder(vocab_size, context_length, d_model, n_layers, block, final_norm, tie_weights, z_loss)` with the `(logits, aux)` convention and Modern's init scheme, tested for causality and a near-uniform untrained loss. · files: nanoscope/blocks/structure.py, tests/test_blocks.py · deps: P8.18, P8.13 · done: `uv run pytest tests/test_blocks.py -k decoder` passes ✓ 2026-10-06 b3c958b: blocks/structure.py: Decoder(vocab_size, context_length, d_model, n_layers, block, final_norm, pos_emb, tie_weights, z_loss); names tok_emb/pos_emb/blocks/norm/head, Modern's init loop, logits or (logits, aux)
+- [x] P8.20 `Decoder.flops_per_token`: the sum of the analytic block formulas, equal to the PaLM formula `Modern` uses today. · files: nanoscope/blocks/structure.py, tests/test_blocks.py · deps: P8.19 · done: `uv run pytest tests/test_blocks.py -k decoder_flops` passes ✓ 2026-10-06 6017be8: Decoder.flops_per_token sums block formulas; equals ModernRef's PaLM formula (tied/untied, rope/learned)
 - [ ] P8.21 Layer patterns: `Decoder(pattern=[spec_a, spec_b])` repeats a list of block specs (e.g. sliding:global). · files: nanoscope/blocks/structure.py, tests/test_blocks.py · deps: P8.19 · done: `uv run pytest tests/test_blocks.py -k pattern` passes
 
 ### P8 · Rebuild GPT2 and Modern (decision 11.4)
