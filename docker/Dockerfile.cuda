@@ -10,7 +10,7 @@ RUN uv build --wheel --out-dir /dist
 # pinned: torch and the CUDA runtime come with the base image, so the wheel's `torch>=2.2` is satisfied
 FROM pytorch/pytorch:2.8.0-cuda12.6-cudnn9-runtime
 COPY --from=build /dist/*.whl /tmp/
-RUN pip install --no-cache-dir "$(ls /tmp/nanoscope_lab-*.whl)[server]" && rm /tmp/*.whl
+RUN pip install --no-cache-dir "$(ls /tmp/nanoscope_lab-*.whl)[server,notebook]" && rm /tmp/*.whl
 
 # git: the workspace is a git repository (preregistration commits); safe.directory because a bind
 # mount is owned by whoever made it. The directories exist so named volumes start owned by uid 1000.

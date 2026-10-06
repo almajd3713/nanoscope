@@ -10,7 +10,7 @@ FROM python:3.12-slim
 # CPU-only torch first, so the wheel's `torch>=2.2` is already satisfied (no CUDA download)
 RUN pip install --no-cache-dir torch --index-url https://download.pytorch.org/whl/cpu
 COPY --from=build /dist/*.whl /tmp/
-RUN pip install --no-cache-dir "$(ls /tmp/nanoscope_lab-*.whl)[server]" && rm /tmp/*.whl
+RUN pip install --no-cache-dir "$(ls /tmp/nanoscope_lab-*.whl)[server,notebook]" && rm /tmp/*.whl
 
 # git: the workspace is a git repository (preregistration commits); safe.directory because a bind
 # mount is owned by whoever made it. The directories exist so named volumes start owned by uid 1000.
