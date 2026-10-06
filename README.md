@@ -37,12 +37,13 @@ result.plot()
 compare(result, "gpt2")                          # against a shipped 3-seed baseline
 ```
 
-Work through the notebooks in order:
+Work through the notebooks in order (marimo notebooks: `pip install "nanoscope-lab[notebook]"`, then
+`marimo edit notebooks/marimo/01_first_model.py`, or `docker compose --profile notebook up`):
 
-1. [`01-first-model`](notebooks/01-first-model.ipynb): write a bigram model and train it.
-2. [`02-gpt2`](notebooks/02-gpt2.ipynb): a real transformer.
-3. [`03-modern-block`](notebooks/03-modern-block.ipynb): RoPE, RMSNorm, SwiGLU, GQA, QK-norm, z-loss.
-4. [`04-ablations`](notebooks/04-ablations.ipynb): which part matters, with seeds and confidence intervals.
+1. [`01_first_model`](notebooks/marimo/01_first_model.py): write a bigram model and train it.
+2. [`02_gpt2`](notebooks/marimo/02_gpt2.py): a real transformer.
+3. [`03_modern_block`](notebooks/marimo/03_modern_block.py): RoPE, RMSNorm, SwiGLU, GQA, QK-norm, z-loss.
+4. [`04_ablations`](notebooks/marimo/04_ablations.py): which part matters, with seeds and confidence intervals.
 
 Token data downloads from the Hub (`RedhouaneLazib/nanoscope-tokens`) when a preset has
 it, and is tokenized locally otherwise. Everything is cached under `~/.nanoscope/data`.

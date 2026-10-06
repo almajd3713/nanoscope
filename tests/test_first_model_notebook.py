@@ -1,5 +1,7 @@
 """Guards the level 0 experience: the first notebook stays short and fast."""
 
+import ast
+import importlib.util
 import json
 import math
 import time
@@ -8,14 +10,25 @@ from pathlib import Path
 import pytest
 import torch
 
-NOTEBOOK = Path(__file__).parent.parent / "notebooks" / "01-first-model.ipynb"
+NOTEBOOKS = Path(__file__).parent.parent / "notebooks"
+NOTEBOOK = NOTEBOOKS / "marimo" / "01_first_model.py"
 MAX_CODE_CELLS = 3
 MAX_CPU_SECONDS = 120
 
 
-def _code_cells() -> list[str]:
-    cells = json.loads(NOTEBOOK.read_text(encoding="utf-8"))["cells"]
-    return ["".join(c["source"]) for c in cells if c["cell_type"] == "code"]
+def _code_cells() -> list[ast.FunctionDef]:
+    """The marimo cells that hold code; `hide_code=True` marks the text-only ones."""
+    tree = ast.parse(NOTEBOOK.read_text(encoding="utf-8"))
+    cells = []
+    for node in tree.body:
+        if isinstance(node, ast.FunctionDef) and node.decorator_list:
+            call = node.decorator_list[0]
+            hidden = isinstance(call, ast.Call) and any(
+                k.arg == "hide_code" and isinstance(k.value, ast.Constant) and k.value.value
+                for k in call.keywords)
+            if not hidden:
+                cells.append(node)
+    return cells
 
 
 def test_first_notebook_has_at_most_three_code_cells():
@@ -35,18 +48,20 @@ def test_first_notebook_trains_on_cpu_in_under_two_minutes(tmp_path, monkeypatch
     monkeypatch.chdir(tmp_path)
     monkeypatch.setattr(torch.cuda, "is_available", lambda: False)
 
-    namespace: dict = {}
+    spec = importlib.util.spec_from_file_location("first_model_notebook", NOTEBOOK)
+    assert spec and spec.loader
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
     start = time.perf_counter()
-    for source in _code_cells():
-        exec(compile(source, str(NOTEBOOK), "exec"), namespace)
+    _, defs = module.app.run()
     elapsed = time.perf_counter() - start
 
-    result = namespace["result"]
+    result = defs["result"]
     assert elapsed < MAX_CPU_SECONDS, f"notebook took {elapsed:.0f}s on CPU"
     assert result.final_step == result.preset.max_steps
     assert result.val_losses[-1][1] < math.log(result.data.tokenizer.vocab_size) - 2
     assert result.samples
-    assert "Δ vs GPT2" in str(namespace["compare"](result, "gpt2"))
+    assert "Δ vs GPT2" in str(defs["compare"](result, "gpt2"))
 
 
 def test_kaggle_notebook_has_at_most_four_code_cells_using_real_commands():
@@ -54,14 +69,14 @@ def test_kaggle_notebook_has_at_most_four_code_cells_using_real_commands():
 
     from nanoscope.cli import build_parser
 
-    path = NOTEBOOK.parent / "kaggle.ipynb"
+    path = NOTEBOOKS / "kaggle.ipynb"
     cells = json.loads(path.read_text(encoding="utf-8"))["cells"]
     sources = ["".join(c["source"]) for c in cells if c["cell_type"] == "code"]
     assert len(sources) <= 4
     parser = build_parser()
     study = "studies/m1_ablation.py"
     assert f'STUDY = "{study}"' in sources[0]
-    assert (NOTEBOOK.parent.parent / study).exists()
+    assert (NOTEBOOKS.parent / study).exists()
     commands = [line.removeprefix("!nanoscope ") for s in sources for line in s.splitlines()
                 if line.startswith("!nanoscope ")]
     assert len(commands) == 2

@@ -5,7 +5,7 @@ summary = "Predict the next token from the current token alone: the smallest lan
 [experiment]
 kind = "run"
 model = "MyBigram"
-notebook = "notebooks/01-first-model.ipynb"
+notebook = "notebooks/marimo/01_first_model.py"
 
 [[checks]]
 id = "built"
