@@ -89,3 +89,33 @@ def test_broken_lessons_never_break_the_lock_table(home, lock_curricula):
     (lock_curricula / "modern" / "01-rope" / "lesson.toml").write_text("title = [")
     gating.reload()
     assert gating.lock_table() == {"block:Attention": "foundations/04-attention"}
+
+
+def test_import_gate(home, lock_curricula):
+    import importlib
+
+    from nanoscope.learn.gating import LockedBlockError
+
+    blocks = importlib.import_module("nanoscope.blocks")
+    assert blocks.RMSNorm.__name__ == "RMSNorm"  # no unlocks.json: nothing is gated
+    unlocks.set_policy("guided")
+    with pytest.raises(LockedBlockError) as caught:
+        from nanoscope.blocks import Attention  # noqa: F401
+    message = str(caught.value)
+    assert isinstance(caught.value, ImportError)
+    assert "block:Attention is locked until you build it yourself in the lesson " \
+           "foundations/04-attention" in message
+    assert "nanoscope learn start foundations/04-attention" in message
+    assert "nanoscope learn unlock --all" in message
+    assert caught.value.name == "Attention"
+    assert blocks.RMSNorm and blocks.Linear  # not lockable: never locked
+    assert not hasattr(blocks, "NoSuchBlock")
+    # library code imports submodules, so shipped models and tools are not gated
+    from nanoscope.blocks.attention import Attention as Shipped
+    assert Shipped.__name__ == "Attention"
+    from nanoscope.blocks.catalog import catalog
+    assert any(b["name"] == "Attention" for b in catalog()["blocks"])
+    unlocks.earn("foundations/04-attention", ["block:Attention"], "learn/checks/c.json")
+    assert blocks.Attention is Shipped
+    unlocks.set_policy("open")
+    assert blocks.RoPE.__name__ == "RoPE"

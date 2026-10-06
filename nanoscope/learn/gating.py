@@ -26,6 +26,16 @@ class Locked:
     message: str
 
 
+class LockedBlockError(ImportError):
+    """Importing a block the learner has not unlocked yet (an ImportError, so `from
+    nanoscope.blocks import Attention` fails the way a missing name does)."""
+
+    def __init__(self, locked: Locked) -> None:
+        super().__init__(locked.message)
+        self.locked = locked
+        self.name = locked.id.split(":", 1)[-1]
+
+
 @cache
 def _table(root: str) -> dict[str, str]:
     table: dict[str, str] = {}
