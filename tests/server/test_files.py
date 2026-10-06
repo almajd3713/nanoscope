@@ -89,3 +89,56 @@ def test_write_and_conflict_409(client, ws):
     assert not [p for p in (ws / "models").iterdir() if p.name.endswith(".tmp")]
     assert client.put("/api/files/../escape.py", json={"content": "x"}).status_code in (400, 404)
     assert client.put("/api/files/%2e%2e/escape.py", json={"content": "x"}).status_code == 400
+
+
+def test_external_edit_event(ws):
+    """Whatever changes a workspace file (an editor, git, another process) is announced."""
+    import asyncio
+    import json
+
+    from nanoscope.server.routes.files import watch_events
+
+    def parse(frame):
+        event, data = frame.strip().split("\n")
+        return event.removeprefix("event: "), json.loads(data.removeprefix("data: "))
+
+    async def scenario():
+        stop = asyncio.Event()
+        stream = watch_events(stop, interval_ms=500)
+
+        async def touch():
+            await asyncio.sleep(0.4)
+            (ws / "models" / "my_lm.py").write_text("print('edited by hand')\n")
+            (ws / "fresh.py").write_text("x = 1\n")
+            (ws / "__pycache__" / "junk.pyc").write_bytes(b"1")  # ignored
+            (ws / "notes.md").unlink()
+
+        task = asyncio.create_task(touch())
+        seen = {}
+
+        async def collect():
+            async for frame in stream:
+                if frame.startswith(":"):
+                    continue
+                event, data = parse(frame)
+                assert event == "change"
+                seen[data["path"]] = data
+                if {"models/my_lm.py", "fresh.py", "notes.md"} <= set(seen):
+                    break
+
+        await asyncio.wait_for(collect(), 20)  # asyncio.timeout needs Python 3.11
+        stop.set()
+        await task
+        return seen
+
+    seen = asyncio.run(scenario())
+    assert seen["models/my_lm.py"]["kind"] == "modified" and seen["models/my_lm.py"]["etag"]
+    assert seen["fresh.py"]["kind"] == "added"
+    assert seen["notes.md"]["kind"] == "deleted" and seen["notes.md"]["etag"] is None
+    assert "__pycache__/junk.pyc" not in seen
+
+
+def test_the_events_route_is_not_shadowed_by_the_file_route(client):
+    spec = client.get("/api/openapi.json").json()["paths"]
+    assert "/api/files/events" in spec and "/api/files/{path}" in spec
+    assert list(spec).index("/api/files/events") < list(spec).index("/api/files/{path}")

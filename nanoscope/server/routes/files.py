@@ -1,11 +1,15 @@
 from __future__ import annotations
 
+import asyncio
+from collections.abc import AsyncIterator
+from pathlib import Path
 from typing import Any
 
 from fastapi import APIRouter, Request, Response
+from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
 
-from nanoscope.server import workspace
+from nanoscope.server import sse, workspace
 from nanoscope.server.errors import problem
 
 router = APIRouter(prefix="/api", tags=["files"])
@@ -33,6 +37,42 @@ def list_files(glob: str = "**/*") -> list[FileEntry]:
         out.append(FileEntry(path=workspace.relative(path), size=stat.st_size,
                              modified=stat.st_mtime, etag=workspace.etag_of(path)))
     return out
+
+
+KINDS = {1: "added", 2: "modified", 3: "deleted"}  # watchfiles.Change values
+
+
+async def watch_events(stop: asyncio.Event | None = None,
+                       interval_ms: int = 15000) -> AsyncIterator[str]:
+    """SSE frames for every change under the workspace (an editor, `git checkout`, the API's
+    own saves), and a keepalive comment while it is quiet."""
+    from watchfiles import awatch
+
+    base = workspace.root()
+    base.mkdir(parents=True, exist_ok=True)
+    async for changes in awatch(base, stop_event=stop, yield_on_timeout=True,
+                                rust_timeout=interval_ms, debounce=50):
+        if not changes:
+            yield sse.KEEPALIVE
+            continue
+        for change, name in sorted(changes, key=lambda c: c[1]):
+            path = Path(name)
+            if not path.is_relative_to(base):
+                continue
+            parts = path.relative_to(base).parts
+            if any(p in workspace.IGNORED or p.startswith(".git") for p in parts) or (
+                    path.name.endswith(".tmp")):
+                continue
+            etag = workspace.etag_of(path) if path.is_file() else None
+            yield sse.frame("change", {"path": path.relative_to(base).as_posix(),
+                                       "kind": KINDS[change.value], "etag": etag})
+
+
+@router.get("/files/events")
+async def file_events() -> StreamingResponse:
+    """Server-sent events: `change` {path, kind, etag} when a workspace file is added, edited
+    or deleted by anything, so an open editor can reload."""
+    return sse.response(watch_events())
 
 
 @router.get("/files/{path:path}", response_model=FileDoc)
