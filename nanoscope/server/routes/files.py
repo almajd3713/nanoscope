@@ -126,3 +126,47 @@ def write_file(path: str, body: FileWrite, request: Request) -> Any:
     etag = workspace.etag_of(target)
     return JSONResponse({"path": path, "content": body.content, "etag": etag},
                         status_code=200 if existed else 201, headers={"ETag": etag})
+
+
+class Diagnostic(BaseModel):
+    code: str | None
+    message: str
+    line: int
+    column: int
+    end_line: int
+    end_column: int
+    fixable: bool = False
+
+
+class LintRequest(BaseModel):
+    content: str | None = None  # lint unsaved editor text instead of the file on disk
+
+
+RUFF_ARGS = ["check", "--isolated", "--no-cache", "--select", "E,F,W,B", "--ignore", "E501",
+             "--output-format", "json"]
+
+
+@router.post("/files/{path:path}/lint")
+def lint_file(path: str, body: LintRequest | None = None) -> list[Diagnostic]:
+    """Diagnostics from ruff for a workspace file, or for unsaved text sent as `content`. The
+    text goes to ruff on stdin: nothing is imported or run, and ruff reads no project config,
+    so a learner's file is judged the same everywhere."""
+    import json
+    import shutil
+    import subprocess
+    import sys
+
+    target = workspace.safe_path(path)
+    text = body.content if body and body.content is not None else target.read_text(
+        encoding="utf-8")
+    ruff = shutil.which("ruff")
+    cmd = [ruff] if ruff else [sys.executable, "-m", "ruff"]
+    done = subprocess.run([*cmd, *RUFF_ARGS, "--stdin-filename", path, "-"], input=text,
+                          capture_output=True, text=True, timeout=30)
+    if done.returncode not in (0, 1):  # 1 means "found problems"
+        raise RuntimeError(f"ruff failed: {done.stderr.strip() or done.stdout.strip()}")
+    return [Diagnostic(
+        code=d.get("code"), message=d["message"], line=d["location"]["row"],
+        column=d["location"]["column"], end_line=d["end_location"]["row"],
+        end_column=d["end_location"]["column"], fixable=bool(d.get("fix")))
+        for d in json.loads(done.stdout or "[]")]

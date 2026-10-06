@@ -244,3 +244,23 @@ def test_graph_patch_refuses_locked_blocks_under_guided(client, ws):
     ok = client.post("/api/files/mylm.py/graph/patch", json={"edits": [gqa]},
                      headers={"If-Match": graph["etag"]})
     assert ok.status_code == 200 and "n_kv_heads=1" in (ws / "mylm.py").read_text()
+
+
+def test_lint(client, ws):
+    (ws / "bad.py").write_text(
+        "import os\nimport torch.nn as nn\n\nclass M(nn.Module):\n    def f(self):\n"
+        "        x = 1\n        raise RuntimeError('never run')\n")
+    found = client.post("/api/files/bad.py/lint").json()
+    by_code = {d["code"]: d for d in found}
+    assert set(by_code) == {"F401", "F841"}
+    assert by_code["F401"]["message"] == "`os` imported but unused" and by_code["F401"][
+        "line"] == 1 and by_code["F401"]["fixable"] is True
+    assert by_code["F841"]["line"] == 6 and by_code["F841"]["column"] == 9
+    # unsaved editor text, and a syntax error
+    live = client.post("/api/files/bad.py/lint", json={"content": "def (:\n"}).json()
+    assert live and {d["code"] for d in live} == {"invalid-syntax"} and live[0]["line"] == 1
+    clean = client.post("/api/files/models/my_lm.py/lint")
+    assert clean.status_code == 200 and clean.json() == []
+    assert client.post("/api/files/nope.py/lint").status_code == 404
+    # nothing was executed or written
+    assert (ws / "bad.py").read_text().count("never run") == 1
