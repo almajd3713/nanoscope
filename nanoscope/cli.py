@@ -175,6 +175,18 @@ def build_parser() -> argparse.ArgumentParser:
 
 
 def main(argv: list[str] | None = None) -> None:
+    try:
+        _main(argv)
+    except ImportError as exc:
+        from nanoscope.learn.gating import LockedBlockError
+
+        if not isinstance(exc, LockedBlockError):
+            raise
+        print(exc)  # a locked block: say how to unlock it, exit 2 like a usage error
+        raise SystemExit(2) from exc
+
+
+def _main(argv: list[str] | None = None) -> None:
     parser = build_parser()
     args = parser.parse_args(argv)
     if args.command is None:
@@ -341,6 +353,9 @@ def main(argv: list[str] | None = None) -> None:
     if args.command == "run":
         model_cls = _load_model_class(args.model)
         kwargs = _parse_set(args.overrides)
+        from nanoscope.learn.gating import refuse
+
+        refuse(model_cls)  # a learner's model may only use what they have unlocked
 
         result = run(
             model_cls,

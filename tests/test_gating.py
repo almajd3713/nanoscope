@@ -394,3 +394,37 @@ def test_learn_status(home, lock_curricula, capsys):
         ["block:Attention", "earned"], ["block:RoPE", "locked"], ["feature:gqa", "skipped"]]
     assert "foundations/04-attention" in table[0] and "modern/01-rope" in table[1]
     assert "skipped (used it at work)" in table[2]
+
+
+def test_cli_and_study(home, lock_curricula, tmp_path, capsys):
+    from nanoscope import Study
+    from nanoscope.cli import _load_model_class, main
+    from nanoscope.learn.gating import LockedBlockError
+    from nanoscope.models import Modern
+
+    file = tmp_path / "mine.py"
+    file.write_text(GUIDED_FILE.replace("from nanoscope.blocks import Attention, RoPE",
+                                        "from nanoscope.blocks.attention import Attention\n"
+                                        "from nanoscope.blocks.positional import RoPE"))
+    unlocks.set_policy("guided")
+    with pytest.raises(SystemExit) as caught:
+        main(["run", f"{file}:MyLM", "--preset", "tinystories-5min"])
+    assert caught.value.code == 2
+    out = capsys.readouterr().out
+    assert "mine.py line 11" in out and "feature:gqa is locked" in out
+    assert "nanoscope learn unlock --all" in out
+    assert not (paths.runs_dir() / "tinystories-5min").exists()  # nothing was started
+
+    MyLM = _load_model_class(f"{file}:MyLM")
+    study = Study("gated", preset="tinystories-5min", seeds=1)
+    study.add("mine", MyLM)
+    with pytest.raises(LockedBlockError):
+        study.run()
+    with pytest.raises(LockedBlockError):
+        study.enqueue()
+    shipped = Study("fine", preset="tinystories-5min", seeds=1)
+    shipped.add("modern", Modern, n_kv_heads=1)  # GQA in a shipped model: always allowed
+    shipped._refuse_locked()
+    # an open policy lets the same study through the gate
+    unlocks.set_policy("open")
+    study._refuse_locked()

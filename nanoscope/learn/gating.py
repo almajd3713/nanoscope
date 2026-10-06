@@ -155,3 +155,23 @@ def scan(path: str | Path, owner: str = "local") -> list[LockedUse]:
             if name == "z_loss" and node["kind"] == "literal" and node["value"]:
                 note("feature:z_loss", node["span"]["line"])
     return sorted(found.values(), key=lambda u: (u.line, u.id))
+
+
+def refuse(model_cls: type, owner: str = "local") -> None:
+    """Raise `LockedBlockError` before anything is queued or trained if the file that defines
+    `model_cls` uses something locked. Shipped models (and subclasses) are never refused."""
+    from nanoscope.blocks.registry import is_shipped
+    from nanoscope.modelref import source_file
+
+    if is_shipped(model_cls) or not unlocks.exists(owner):
+        return
+    file = source_file(model_cls)
+    if file is None:
+        return
+    try:
+        uses = scan(file, owner)
+    except (OSError, SyntaxError, ValueError):
+        return
+    if uses:
+        raise LockedBlockError([Locked(u.id, u.lesson, f"{file.name} line {u.line}: {u.message}")
+                                for u in uses])
