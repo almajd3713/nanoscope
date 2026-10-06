@@ -4,7 +4,7 @@ The build list for [`plan-tool.md`](plan-tool.md), sections 4-10, with the decis
 2026-10-05 (plan section 11) applied. Phase numbers follow the plan's section 10. Every
 item is one line, so scripts and agents can grep and edit it.
 
-**Current focus:** P8 blocks library, describe, rebuilt models. Next item: P8.99 (the gate): local checks pass (2026-10-06), waiting on the PR and the user's merge.
+**Current focus:** P9 curriculum engine, lesson gating. Next item: P9.01.
 
 ## Progress
 
@@ -12,7 +12,7 @@ item is one line, so scripts and agents can grep and edit it.
 |---|---|---|---|
 | P6 | Servable library + CI baseline (9-11 d) | 67 / 67 | done |
 | P7 | Queue and workers (5-6 d) | 28 / 28 | done |
-| P8 | Blocks, describe, rebuilt models (10-13 d) | 51 / 52 | in progress |
+| P8 | Blocks, describe, rebuilt models (10-13 d) | 52 / 52 | done |
 | P9 | Curriculum engine, gating, two paths (14-17 d) | 0 / 61 | not started |
 | P10 | HTTP API (8-10 d) | 0 / 47 | not started |
 | P11 | Release prep: PyPI + GHCR (2-3 d) | 0 / 17 | not started |
@@ -292,7 +292,7 @@ touch or create (new ones marked `(new)`).
 - [x] P8.51 Add a `test-blocks` Makefile target that runs `test_blocks`, `test_reference`, `test_graph` and `test_describe`. · files: Makefile · deps: P8.41 · done: `make test-blocks` exits 0 ✓ 2026-10-06 c4b8de2: `make test-blocks` runs test_blocks, test_reference, test_graph, test_describe, test_blockstats: 117 pass
 
 ### P8 · Gate
-- [ ] P8.99 PHASE GATE P8. Exit criteria: plan section 10 phase 8. · files: — · deps: P8.* · done: `make check` passes; `make test-blocks` passes; `uv run pytest tests/test_first_model_notebook.py` passes; P8.22, P8.23, P8.24/P8.25, P8.35, P8.36, P8.39 and P8.47 are ticked; CI green; **USER ACTION** merge the PR
+- [x] P8.99 PHASE GATE P8. Exit criteria: plan section 10 phase 8. · files: — · deps: P8.* · done: `make check` passes; `make test-blocks` passes; `uv run pytest tests/test_first_model_notebook.py` passes; P8.22, P8.23, P8.24/P8.25, P8.35, P8.36, P8.39 and P8.47 are ticked; CI green; **USER ACTION** merge the PR ✓ 2026-10-06 31ae7c1: PR #8 merged by the user; CI check jobs (3.10, 3.12) passed on the phase 7 merge, first-notebook failed only for lack of a runner
 
 ---
 
