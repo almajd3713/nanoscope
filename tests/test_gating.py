@@ -309,3 +309,88 @@ def test_passing_without_a_guided_start_records_no_unlocks(home, lock_curricula,
     monkeypatch.setattr(checks, "CHECKERS", ok)
     run_lesson_checks(load_lesson("modern/01-rope"))
     assert not unlocks.exists()  # still open: nothing to earn, nothing was locked
+
+
+def run_cli(*argv):
+    from nanoscope.cli import main
+
+    try:
+        main(["learn", *argv])
+    except SystemExit as exc:
+        return exc.code
+    return 0
+
+
+def test_unlock_cli(home, lock_curricula, capsys):
+    from nanoscope.learn import gating
+
+    assert run_cli("unlock") == 2 and "name what to unlock" in capsys.readouterr().out
+    unlocks.set_policy("guided")
+    assert run_cli("unlock", "Attention") == 2
+    assert "skipping a lesson needs a reason" in capsys.readouterr().out
+    assert run_cli("unlock", "Nope", "--reason", "x") == 2
+    assert "'Nope' is not locked by any lesson" in capsys.readouterr().out
+    assert run_cli("unlock", "Attention", "--reason", "I know this") == 0  # a bare name works
+    out = capsys.readouterr().out
+    assert "block:Attention unlocked (skipped; recorded with your reason)" in out
+    entry = unlocks.read()["unlocks"]["block:Attention"]
+    assert (entry["how"], entry["reason"], entry["lesson"]) == (
+        "skipped", "I know this", "foundations/04-attention")
+    assert gating.check(["block:Attention", "block:RoPE"])[0].id == "block:RoPE"
+    # unlock --all: policy open, every lockable id recorded as open, earned/skipped kept
+    unlocks.earn("modern/01-rope", ["block:RoPE"], "learn/checks/c.json")
+    assert run_cli("unlock", "--all") == 0
+    doc = unlocks.read()
+    assert doc["policy"] == "open"
+    assert {k: v["how"] for k, v in doc["unlocks"].items()} == {
+        "block:Attention": "skipped", "block:RoPE": "earned", "feature:gqa": "open"}
+    assert gating.check(["feature:gqa"]) == []
+    # lock --reset: guided again, keeps earned and skipped, drops what was only opened
+    assert run_cli("lock") == 2
+    assert run_cli("lock", "--reset") == 0
+    doc = unlocks.read()
+    assert doc["policy"] == "guided" and set(doc["unlocks"]) == {"block:Attention", "block:RoPE"}
+    assert [x.id for x in gating.check(["feature:gqa", "block:RoPE"])] == ["feature:gqa"]
+    assert_valid("unlocks", doc)
+
+
+def test_first_start_guided(home, lock_curricula, capsys, monkeypatch, tmp_path):
+    monkeypatch.setenv("NANOSCOPE_WORKSPACE", str(tmp_path / "ws"))
+    assert not unlocks.exists()
+    assert run_cli("start", "foundations/04-attention") == 0
+    out = capsys.readouterr().out
+    assert unlocks.policy() == "guided"
+    assert ("bigger blocks stay locked until you build them in a lesson; to unlock "
+            "everything now: nanoscope learn unlock --all") in out
+    assert run_cli("start", "modern/01-rope") == 0  # the second start changes nothing
+    assert "to unlock everything now" not in capsys.readouterr().out
+    unlocks.set_policy("open")
+    assert run_cli("start", "modern/01-rope") == 0
+    assert unlocks.policy() == "open"  # an existing choice is respected
+
+
+def test_start_open_skips_gating(home, lock_curricula, capsys, monkeypatch, tmp_path):
+    monkeypatch.setenv("NANOSCOPE_WORKSPACE", str(tmp_path / "ws"))
+    assert run_cli("start", "foundations/04-attention", "--open") == 0
+    assert unlocks.policy() == "open"
+    assert "gating is off (--open); turn it on any time: nanoscope learn lock --reset" in (
+        capsys.readouterr().out)
+
+
+def test_learn_status(home, lock_curricula, capsys):
+    assert run_cli("status") == 0
+    out = capsys.readouterr().out
+    assert out.splitlines()[0] == "policy: open (no unlocks.json yet: nothing is locked)"
+    assert "block:Attention  open" in out
+    unlocks.set_policy("guided")
+    unlocks.earn("foundations/04-attention", ["block:Attention"], "learn/checks/c.json")
+    unlocks.grant("feature:gqa", "skipped", "modern/01-rope", reason="used it at work")
+    run_cli("status")
+    out = capsys.readouterr().out
+    assert out.splitlines()[0] == "policy: guided"
+    assert "foundations  foundations (level 0)" in out  # the lessons, as in `learn list`
+    table = out.split("unlocks:\n")[1].splitlines()
+    assert [row.split()[:2] for row in table] == [
+        ["block:Attention", "earned"], ["block:RoPE", "locked"], ["feature:gqa", "skipped"]]
+    assert "foundations/04-attention" in table[0] and "modern/01-rope" in table[1]
+    assert "skipped (used it at work)" in table[2]

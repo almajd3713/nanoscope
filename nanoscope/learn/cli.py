@@ -7,7 +7,7 @@ import shutil
 from pathlib import Path
 
 from nanoscope import paths
-from nanoscope.learn import loader, progress
+from nanoscope.learn import gating, loader, progress, unlocks
 from nanoscope.learn.loader import CurriculumError, LessonSpec, PathSpec
 
 
@@ -25,6 +25,17 @@ def add_parsers(sub: argparse._SubParsersAction) -> None:  # type: ignore[type-a
     check.add_argument("--variant", choices=["cpu", "gpu"], default="cpu",
                        help="which compute variant to run (default cpu)")
 
+    unlock = commands.add_parser("unlock", help="Open locked blocks (everything, or one)")
+    unlock.add_argument("id", nargs="?", help="e.g. block:Attention or feature:gqa")
+    unlock.add_argument("--all", action="store_true", help="unlock everything (policy open)")
+    unlock.add_argument("--reason", help="why you can skip this lesson (needed with an id)")
+
+    lock = commands.add_parser("lock", help="Turn gating back on")
+    lock.add_argument("--reset", action="store_true",
+                      help="back to guided, keeping what you earned or skipped")
+
+    commands.add_parser("status", help="Your lessons and what is unlocked")
+
     predict = commands.add_parser(
         "predict", help="Commit to a prediction before you run the experiment")
     predict.add_argument("lesson")
@@ -35,6 +46,8 @@ def add_parsers(sub: argparse._SubParsersAction) -> None:  # type: ignore[type-a
 
     start = commands.add_parser("start", help="Copy a lesson's starter files to your workspace")
     start.add_argument("lesson", help="e.g. foundations/01-bigram")
+    start.add_argument("--open", action="store_true",
+                       help="don't gate blocks (policy open) when starting for the first time")
 
 
 def _minutes(minutes: float) -> str:
@@ -110,6 +123,77 @@ def start_lesson(lesson: LessonSpec, owner: str = "local") -> tuple[Path, list[P
     return folder, copied, kept
 
 
+def _resolve_id(text: str) -> str:
+    table = gating.lock_table()
+    if text in table:
+        return text
+    for prefix in ("block:", "feature:"):
+        if prefix + text in table:
+            return prefix + text
+    known = ", ".join(sorted(table)) or "none"
+    raise ValueError(f"{text!r} is not locked by any lesson (lockable: {known})")
+
+
+def _unlock(args: argparse.Namespace) -> int:
+    if args.all:
+        unlocks.open_everything(sorted(gating.lock_table()))
+        print("everything is unlocked (policy open); what you earned stays recorded as earned")
+        print("  gating back on, keeping what you earned: nanoscope learn lock --reset")
+        return 0
+    if not args.id:
+        print("name what to unlock, e.g. nanoscope learn unlock block:Attention --reason "
+              "\"I know this\", or use --all")
+        return 2
+    if not args.reason or not args.reason.strip():
+        print("skipping a lesson needs a reason: add --reason \"I know this\"")
+        return 2
+    try:
+        unlock_id = _resolve_id(args.id)
+    except ValueError as exc:
+        print(exc)
+        return 2
+    if not unlocks.exists():
+        unlocks.set_policy("guided")
+    unlocks.grant(unlock_id, "skipped", gating.lock_table()[unlock_id], reason=args.reason.strip())
+    print(f"{unlock_id} unlocked (skipped; recorded with your reason). The lesson "
+          f"{gating.lock_table()[unlock_id]} is still there if you want to build it.")
+    return 0
+
+
+def _lock(args: argparse.Namespace) -> int:
+    if not args.reset:
+        print("usage: nanoscope learn lock --reset")
+        return 2
+    unlocks.reset_to_guided()
+    print("gating is back on (policy guided); earned and skipped unlocks are kept")
+    return 0
+
+
+def format_status(owner: str = "local") -> str:
+    """Policy, lessons and the unlock table."""
+    doc = unlocks.read(owner)
+    lines = [f"policy: {doc['policy']}"
+             + ("" if unlocks.exists(owner) else " (no unlocks.json yet: nothing is locked)"),
+             "", format_paths(load_paths(), owner), "", "unlocks:"]
+    table = gating.lock_table()
+    if not table:
+        lines.append("  nothing is lockable")
+    rows = []
+    for unlock_id, lesson in sorted(table.items()):
+        entry = doc["unlocks"].get(unlock_id)
+        if entry:
+            how = entry["how"] + (f" ({entry['reason']})" if entry.get("reason") else "")
+            rows.append((unlock_id, how, entry["lesson"] or lesson, entry["at"][:10]))
+        elif doc["policy"] == "open":
+            rows.append((unlock_id, "open", lesson, ""))
+        else:
+            rows.append((unlock_id, "locked", lesson, ""))
+    widths = [max(len(r[i]) for r in rows) for i in range(3)] if rows else []
+    lines += [f"  {r[0].ljust(widths[0])}  {r[1].ljust(widths[1])}  {r[2].ljust(widths[2])}  "
+              f"{r[3]}".rstrip() for r in rows]
+    return "\n".join(lines)
+
+
 def _predict(args: argparse.Namespace) -> int:
     import hashlib
 
@@ -165,6 +249,9 @@ def _run(args: argparse.Namespace) -> int:
         return 0
     if command == "start":
         lesson = loader.load_lesson(args.lesson)
+        first = not unlocks.exists()
+        if first:
+            unlocks.set_policy("open" if args.open else "guided")
         folder, copied, kept = start_lesson(lesson)
         print(f"started {lesson.id}: {lesson.title}")
         for path in copied:
@@ -178,9 +265,20 @@ def _run(args: argparse.Namespace) -> int:
         if needs:
             print(f"  note: this lesson builds on {', '.join(needs)}, not passed yet")
         print(f"  next: edit the file, then run: nanoscope learn check {lesson.id}")
+        if first:
+            print("  bigger blocks stay locked until you build them in a lesson; to unlock "
+                  "everything now: nanoscope learn unlock --all" if not args.open else
+                  "  gating is off (--open); turn it on any time: nanoscope learn lock --reset")
         return 0
     if command == "predict":
         return _predict(args)
+    if command == "unlock":
+        return _unlock(args)
+    if command == "lock":
+        return _lock(args)
+    if command == "status":
+        print(format_status())
+        return 0
     if command == "check":
         from nanoscope.learn.checks import run_lesson_checks
 

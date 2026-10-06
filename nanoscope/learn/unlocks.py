@@ -59,8 +59,8 @@ def set_policy(new: str, owner: str = "local") -> dict[str, Any]:
 
 
 def grant(unlock_id: str, how: str, lesson: str | None = None, evidence: str | None = None,
-          owner: str = "local", *, doc: dict[str, Any] | None = None,
-          save: bool = True) -> dict[str, Any]:
+          owner: str = "local", *, doc: dict[str, Any] | None = None, save: bool = True,
+          reason: str | None = None) -> dict[str, Any]:
     """Record an unlock. Something already earned is never downgraded to skipped or open."""
     if how not in HOWS:
         raise ValueError(f"how must be one of {', '.join(HOWS)}, got {how!r}")
@@ -69,7 +69,7 @@ def grant(unlock_id: str, how: str, lesson: str | None = None, evidence: str | N
     if existing and HOWS.index(existing["how"]) < HOWS.index(how):
         return doc  # earned beats skipped beats open
     doc["unlocks"][unlock_id] = {"how": how, "lesson": lesson, "at": now(),
-                                 "evidence": evidence}
+                                 "evidence": evidence, "reason": reason}
     return _write(doc, owner) if save else doc
 
 
@@ -84,3 +84,22 @@ def earn(lesson: str, ids: list[str], evidence: str, owner: str = "local") -> di
 def is_unlocked(unlock_id: str, owner: str = "local") -> bool:
     doc = read(owner)
     return doc["policy"] == "open" or unlock_id in doc["unlocks"]
+
+
+def open_everything(ids: list[str], owner: str = "local") -> dict[str, Any]:
+    """Policy open, recording which lockable ids were opened this way (earned and skipped
+    ones keep their record)."""
+    doc = read(owner)
+    doc["policy"] = "open"
+    for unlock_id in ids:
+        grant(unlock_id, "open", owner=owner, doc=doc, save=False)
+    return _write(doc, owner)
+
+
+def reset_to_guided(owner: str = "local") -> dict[str, Any]:
+    """Back to guided: unlocks that were only opened by `unlock --all` are locked again;
+    earned and skipped ones are kept."""
+    doc = read(owner)
+    doc["policy"] = "guided"
+    doc["unlocks"] = {k: v for k, v in doc["unlocks"].items() if v["how"] != "open"}
+    return _write(doc, owner)
