@@ -525,3 +525,23 @@ def test_kaggle_command_enqueues_the_study_and_starts_a_worker_per_gpu(tmp_path,
     jobs = queue.list_jobs()
     assert len(jobs) == 2
     assert {json.loads(j["payload"])["push_to_hub"] for j in jobs} == {"me/runs"}
+
+
+def test_m1_jobs_stable():
+    """The M1 study's sizes and steps, as computed before GPT2 and Modern were rebuilt on
+    blocks (pre-rebuild commit 6ba8efb): the rebuild must not move a single width."""
+    study = load_study(Path(__file__).parent.parent / "studies" / "m1_ablation.py")
+    jobs = study.jobs()
+    assert len(jobs) == 24
+    first = {j.variant.name: j for j in jobs if j.seed == 0}
+    assert {name: j.variant.kwargs for name, j in first.items()} == {
+        "gpt2": {},
+        "modern": {"ffn_hidden": 384},
+        "no-rope": {"rope": False, "ffn_hidden": 384},
+        "no-swiglu": {"swiglu": False, "ffn_hidden": 584},
+        "no-rmsnorm": {"rmsnorm": False, "ffn_hidden": 384},
+        "no-qk-norm": {"qk_norm": False, "ffn_hidden": 384},
+        "no-gqa": {"n_kv_heads": 4, "ffn_hidden": 344},
+        "no-z-loss": {"z_loss": 0.0, "ffn_hidden": 384},
+    }
+    assert {j.preset.max_steps for j in jobs} == {1954}
