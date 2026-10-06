@@ -210,3 +210,56 @@ def test_trains(make):
     assert "metric 'accuracy'" in run(bad_metric).reason
     crash = make(toml.format(threshold=10), BIGRAM.replace("self.head(self.emb(idx))", "idx + 1"))
     assert run(crash).passed is False
+
+
+DUMB = '''\
+import torch
+import torch.nn as nn
+
+
+class Dumb(nn.Module):
+    """Predicts every token with the same probability: it learns nothing."""
+
+    def __init__(self, vocab_size):
+        super().__init__()
+        self.vocab_size = vocab_size
+        self.p = nn.Parameter(torch.zeros(1))
+
+    def forward(self, idx):
+        return torch.zeros(*idx.shape, self.vocab_size) + self.p
+'''
+
+
+@pytest.mark.usefixtures("fake_data")
+def test_verdict(make):
+    from fakes import tiny
+
+    from nanoscope.presets import register_preset
+
+    register_preset(tiny(name="tinystories-5min", max_steps=30))
+    toml = ('\n[[checks]]\nid = "gap"\nkind = "verdict"\na = "Bigram"\nb = "Dumb"\n'
+            'expect = "{expect}"\nseeds = 3\n')
+    ctx = make(toml.format(expect="better"), DUMB)
+    result = run(ctx)
+    assert result.passed, result.reason
+    assert result.reason.startswith("Bigram vs Dumb: better (val_bpb difference −") or \
+        result.reason.startswith("Bigram vs Dumb: better (val_bpb difference -")
+    assert result.reason.endswith("3 seeds), as the lesson expects")
+    assert result.evidence["verdict"] == "better" and result.evidence["ci95"][1] < 0
+
+    wrong = run(make(toml.format(expect="within noise"), DUMB))
+    assert not wrong.passed and "the lesson expects 'within noise'" in wrong.reason
+    assert "is zero inside it?" in wrong.reason
+
+    near = make(toml.replace('b = "Dumb"', 'b = "Bigram"').format(expect="within noise")
+                + "a_kwargs = { d_model = 16 }\nb_kwargs = { d_model = 17 }\n", DUMB)
+    assert run(near).passed  # two nearly identical models: the interval includes zero
+    twin = make(toml.replace('b = "Dumb"', 'b = "Bigram"').format(expect="within noise"), DUMB)
+    assert "no observed seed variation" in run(twin).reason  # identical: nothing to compare
+
+    two = make(toml.format(expect="better").replace("seeds = 3", "seeds = 2"), DUMB)
+    assert "fewer than 3 seeds" in run(two).reason
+    unknown = make(toml.replace("Dumb", "Nope").format(expect="better"), DUMB)
+    assert "class Nope is not defined in starter.py (it defines: Dumb)" in run(unknown).reason
+    bad = make(toml.format(expect="much better"), DUMB)
+    assert "bug in the lesson" in run(bad).reason

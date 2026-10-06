@@ -468,3 +468,65 @@ def check_trains(ctx: Context, check: Check) -> Result:
     return Result(check.id, check.kind, False,
                   f"{shown} after {steps} steps on {preset} is above the target {threshold:g}: "
                   "the model is not learning enough yet", evidence)
+
+
+# -- verdict ---------------------------------------------------------------------------------
+
+SHIPPED = ("bigram", "gpt2", "modern")
+VERDICTS = ("better", "worse", "within noise")
+
+
+def find_model(ctx: Context, name: str) -> type:
+    """A class from the learner's file, else a shipped model by name (bigram, gpt2, modern)."""
+    try:
+        return user_class(ctx, Check("-", "-", {"class": name}))
+    except (AttributeError, FileNotFoundError):
+        if name.lower() in SHIPPED:
+            from nanoscope import models
+
+            return {"bigram": models.Bigram, "gpt2": models.GPT2,
+                    "modern": models.Modern}[name.lower()]
+        raise
+
+
+@checker("verdict")
+def check_verdict(ctx: Context, check: Check) -> Result:
+    """Train A and B on the lesson's preset with n seeds, `compare()` them, and require the
+    verdict the lesson asks for ("better", "worse" or "within noise" for A against B)."""
+    from nanoscope.compare import compare
+    from nanoscope.run import run
+
+    expect = check.args["expect"]
+    if expect not in VERDICTS:
+        return Result(check.id, check.kind, False,
+                      f"the lesson expects verdict {expect!r}; the verdicts are "
+                      f"{', '.join(VERDICTS)}: this is a bug in the lesson")
+    seeds = int(check.args.get("seeds", 3))
+    metric = check.args.get("metric", "val_bpb")
+    try:
+        preset = lesson_preset(ctx)
+        classes = {side: find_model(ctx, check.args[side]) for side in ("a", "b")}
+    except (AttributeError, FileNotFoundError, ValueError) as exc:
+        return Result(check.id, check.kind, False, str(exc))
+    for side, cls in classes.items():
+        for seed in range(seeds):
+            run(cls, preset, seed=seed, device="cpu" if ctx.variant == "cpu" else None,
+                output_dir=ctx.runs_dir / side / f"seed-{seed}", progress=False,
+                **check.args.get(f"{side}_kwargs", {}))
+    comparison = compare(ctx.runs_dir / "a", ctx.runs_dir / "b", metric=metric)
+    row = comparison.rows[0]
+    delta = row["delta"]
+    label = f"{check.args['a']} vs {check.args['b']}"
+    if delta is None or delta["ci95_low"] is None:
+        why = ("with fewer than 3 seeds there is no confidence interval; the lesson needs 3"
+               if seeds < 3 else (delta or {}).get("status", "no interval"))
+        return Result(check.id, check.kind, False, f"{label}: {why}", {"seeds": seeds})
+    interval = f"{delta['mean']:+.3f} [{delta['ci95_low']:+.3f}, {delta['ci95_high']:+.3f}]"
+    evidence = {"verdict": row["verdict"], "expected": expect, "metric": metric, "seeds": seeds,
+                "delta": delta["mean"], "ci95": [delta["ci95_low"], delta["ci95_high"]]}
+    said = f"{label}: {row['verdict']} ({metric} difference {interval}, {seeds} seeds)"
+    if row["verdict"] == expect:
+        return Result(check.id, check.kind, True, f"{said}, as the lesson expects", evidence)
+    return Result(check.id, check.kind, False,
+                  f"{said}; the lesson expects '{expect}'. Look at what differs between the two "
+                  "models, and at the interval: is zero inside it?", evidence)
