@@ -13,10 +13,11 @@ from nanoscope.server import worker
 from nanoscope.server.auth import install as install_auth
 from nanoscope.server.errors import install as install_errors
 from nanoscope.server.models import Health, Version
-from nanoscope.server.routes import blocks, files, graph, models, presets
+from nanoscope.server.routes import blocks, files, graph, models, presets, validate
 from nanoscope.server.settings import Settings, check
 
-ROUTES = [presets, models, blocks, files, graph]  # every resource module adds its `router` here
+# every resource module adds its `router` here
+ROUTES = [presets, models, blocks, files, graph, validate]
 
 
 @asynccontextmanager

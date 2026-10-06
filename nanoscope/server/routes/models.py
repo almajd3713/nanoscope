@@ -45,6 +45,18 @@ def models() -> list[ModelSpecDoc]:
     return [*shipped_models(), *workspace_models()]
 
 
+def find_model(ref: str) -> tuple[ModelSpecDoc, Path | None]:
+    """The spec for a model ref and, for a workspace model, the file it was read from."""
+    for spec in models():
+        if ref in (spec.ref, spec.name, spec.name.lower()):
+            if spec.shipped:
+                return spec, None
+            file = spec.ref.rpartition(":")[0]
+            return spec, paths.workspace_dir().resolve() / file
+    raise KeyError(f"unknown model {ref!r}; available: "
+                   f"{', '.join(s.ref for s in models()) or 'none'}")
+
+
 def resolve_ref(ref: str) -> str:
     """The ref a worker can load: shipped names and module refs pass through, a workspace file
     ref (`sub/tiny.py:Tiny`) becomes an absolute path (the worker runs elsewhere)."""
