@@ -35,6 +35,19 @@ jobs:
       - run: uv sync --all-extras
       - run: make test-curricula
 
+  server:
+    # The HTTP API end to end (real sockets, real jobs) and its OpenAPI document.
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v5
+        with:
+          python-version: "3.12"
+          enable-cache: true
+      - run: uv sync --extra server --extra dev
+      - run: uv run pytest tests/server -v
+      - run: make openapi && git diff --exit-code docs/openapi.json
+
   first-notebook:
     # Guards level 0: the first notebook stays at 3 cells and trains on CPU in under 2 minutes.
     runs-on: ubuntu-latest
