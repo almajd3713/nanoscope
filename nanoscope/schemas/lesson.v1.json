@@ -1,0 +1,151 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://nanoscope.dev/schemas/lesson.v1.json",
+  "title": "lesson.v1",
+  "description": "A lesson's lesson.toml (as parsed data): its experiment, checks, depth tiers, what it unlocks and forbids, and its cpu (and optional gpu) compute variants. A cpu variant over 15 minutes needs a gpu variant.",
+  "type": "object",
+  "required": [
+    "title",
+    "level",
+    "compute"
+  ],
+  "additionalProperties": false,
+  "properties": {
+    "title": {
+      "type": "string",
+      "minLength": 1
+    },
+    "level": {
+      "enum": [
+        0,
+        1,
+        2,
+        3
+      ]
+    },
+    "summary": {
+      "type": "string"
+    },
+    "prerequisites": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "compute": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "cpu": {
+          "$ref": "#/$defs/variant"
+        },
+        "gpu": {
+          "$ref": "#/$defs/variant"
+        }
+      }
+    },
+    "experiment": {
+      "type": "object",
+      "required": [
+        "kind"
+      ],
+      "properties": {
+        "kind": {
+          "enum": [
+            "run",
+            "study",
+            "check"
+          ]
+        }
+      }
+    },
+    "checks": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": [
+          "id",
+          "kind"
+        ],
+        "properties": {
+          "id": {
+            "type": "string",
+            "minLength": 1
+          },
+          "kind": {
+            "enum": [
+              "defines",
+              "equivalent",
+              "forbid",
+              "trains",
+              "verdict",
+              "predicted",
+              "reproduces"
+            ]
+          }
+        }
+      }
+    },
+    "depth": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "surface": {
+          "type": "object"
+        },
+        "deep": {
+          "type": "object"
+        },
+        "research": {
+          "type": "object"
+        }
+      }
+    },
+    "unlocks": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "pattern": "^(block|feature):[A-Za-z_][A-Za-z0-9_]*$"
+      }
+    },
+    "forbid": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    }
+  },
+  "$defs": {
+    "variant": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "estimate_minutes"
+      ],
+      "properties": {
+        "preset": {
+          "type": "string"
+        },
+        "budget": {
+          "type": "string"
+        },
+        "estimate_minutes": {
+          "type": "number",
+          "exclusiveMinimum": 0
+        }
+      },
+      "oneOf": [
+        {
+          "required": [
+            "preset"
+          ]
+        },
+        {
+          "required": [
+            "budget"
+          ]
+        }
+      ]
+    }
+  }
+}

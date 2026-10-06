@@ -137,3 +137,64 @@ def log_sum_exp(x):
 def z_loss(logits, coefficient):
     """coefficient * mean(log Z squared), with Z the softmax normaliser of each position."""
     return coefficient * (log_sum_exp(logits) ** 2).mean()
+
+
+def naive_attention_head(x, wq, wk, wv, wo):
+    """One causal attention head with its four projections. x is (B, T, D), weights are
+    (out_features, in_features) like nn.Linear's."""
+    q, k, v = x @ wq.T, x @ wk.T, x @ wv.T
+    mixed = naive_causal_attention(q[:, None], k[:, None], v[:, None])[:, 0]
+    return mixed @ wo.T
+
+
+def naive_multi_head_attention(x, wq, wk, wv, wo, n_heads):
+    """n_heads causal heads: head h reads columns h*d .. (h+1)*d of q, k and v (d = D / heads)."""
+    B, T, D = x.shape
+    d = D // n_heads
+    q, k, v = x @ wq.T, x @ wk.T, x @ wv.T
+    heads = []
+    for h in range(n_heads):
+        cols = slice(h * d, (h + 1) * d)
+        heads.append(naive_causal_attention(q[:, None, :, cols], k[:, None, :, cols],
+                                            v[:, None, :, cols])[:, 0])
+    return torch.cat(heads, dim=-1) @ wo.T
+
+
+def naive_gqa(x, wq, wk, wv, wo, n_heads, n_kv_heads):
+    """Grouped-query attention: n_heads query heads, n_kv_heads key/value heads; query head
+    h reads key/value head h // (n_heads / n_kv_heads), so k and v are repeated for the group."""
+    B, T, D = x.shape
+    d = D // n_heads
+    group = n_heads // n_kv_heads
+    q, k, v = x @ wq.T, x @ wk.T, x @ wv.T  # k, v: (B, T, n_kv_heads * d)
+    heads = []
+    for h in range(n_heads):
+        kv = h // group
+        cols = slice(kv * d, (kv + 1) * d)
+        heads.append(naive_causal_attention(q[:, None, :, h * d:(h + 1) * d], k[:, None, :, cols],
+                                            v[:, None, :, cols])[:, 0])
+    return torch.cat(heads, dim=-1) @ wo.T
+
+
+def naive_qk_norm_attention(x, wq, wk, wv, wo, q_norm_weight, k_norm_weight, n_heads):
+    """Multi-head attention that RMS-normalises every query and key vector (per head, over
+    the head dimension, with its own learned scale) before the dot product."""
+    B, T, D = x.shape
+    d = D // n_heads
+    q, k, v = x @ wq.T, x @ wk.T, x @ wv.T
+    heads = []
+    for h in range(n_heads):
+        cols = slice(h * d, (h + 1) * d)
+        qh = rms_norm(q[..., cols], q_norm_weight)
+        kh = rms_norm(k[..., cols], k_norm_weight)
+        heads.append(naive_causal_attention(qh[:, None], kh[:, None], v[:, None, :, cols])[:, 0])
+    return torch.cat(heads, dim=-1) @ wo.T
+
+
+def naive_block(x, ln1_weight, ln1_bias, wq, wk, wv, wo, ln2_weight, ln2_bias, w_fc, w_proj,
+                n_heads):
+    """A pre-LayerNorm transformer layer: x + attention(ln1(x)), then + mlp(ln2(x)) with a
+    GELU MLP (no biases in the attention or the MLP)."""
+    x = x + naive_multi_head_attention(layer_norm(x, ln1_weight, ln1_bias), wq, wk, wv, wo,
+                                       n_heads)
+    return x + gelu(layer_norm(x, ln2_weight, ln2_bias) @ w_fc.T) @ w_proj.T

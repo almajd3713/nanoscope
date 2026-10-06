@@ -132,6 +132,8 @@ Train both at matched non-embedding parameter count *and* matched FLOPs on FineW
 **Acceptance:** you can state the modern-block advantage as a number with a confidence interval, and correctly identify at least one component that contributes *nothing* at this scale.
 **Cements:** Spine items 14–20. And the first hard lesson — at 30M params, several "essential" components will be within noise.
 
+**In the tool:** the learning path `modern-block` (`nanoscope learn list --path modern-block`) is this milestone in small. Lessons M01-M06 build RMSNorm, RoPE, SwiGLU, GQA, QK-norm and z-loss against naive references; lesson M07 assembles them and trains the result against GPT-2 on CPU, and its `verdict` check is the acceptance criterion at toy scale: the advantage must come out as a number whose 95% interval excludes zero. The FineWeb-scale version stays a Study (`studies/m1_ablation.py`) in record mode.
+
 ---
 
 ### M2 — The scaling law *(the crown jewel)* (≈25 hrs)

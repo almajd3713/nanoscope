@@ -1,0 +1,103 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://nanoscope.dev/schemas/progress.v1.json",
+  "title": "progress.v1",
+  "description": "learn/progress.json: where a learner is in each lesson (state, attempts, last check, timestamps). Written atomically.",
+  "type": "object",
+  "required": [
+    "schema",
+    "nanoscope",
+    "lessons"
+  ],
+  "additionalProperties": true,
+  "properties": {
+    "schema": {
+      "const": 1
+    },
+    "nanoscope": {
+      "type": "string"
+    },
+    "lessons": {
+      "type": "object",
+      "additionalProperties": {
+        "type": "object",
+        "required": [
+          "state",
+          "attempts",
+          "last_check",
+          "started_at",
+          "updated_at",
+          "passed_at"
+        ],
+        "additionalProperties": true,
+        "properties": {
+          "state": {
+            "enum": [
+              "not-started",
+              "started",
+              "checking",
+              "passed",
+              "failed"
+            ]
+          },
+          "attempts": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "last_check": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "started_at": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "updated_at": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "passed_at": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "first_checked_at": {
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        }
+      }
+    },
+    "predictions": {
+      "type": "object",
+      "additionalProperties": {
+        "type": "object",
+        "required": [
+          "at",
+          "file",
+          "sha256"
+        ],
+        "properties": {
+          "at": {
+            "type": "string"
+          },
+          "file": {
+            "type": "string"
+          },
+          "sha256": {
+            "type": "string"
+          }
+        }
+      }
+    }
+  }
+}

@@ -105,8 +105,8 @@ def test_library_imports_submodules():
 
     root = Path(nanoscope.__file__).parent
     for file in root.rglob("*.py"):
-        if file == root / "blocks" / "__init__.py":
-            continue
+        if file == root / "blocks" / "__init__.py" or "curricula" in file.parts:
+            continue  # lesson starters are learner code: they import the gated root on purpose
         for node in ast.walk(ast.parse(file.read_text(encoding="utf-8"))):
             if isinstance(node, ast.ImportFrom) and node.module == "nanoscope.blocks":
                 raise AssertionError(f"{file.relative_to(root)} imports the blocks package root")
@@ -691,3 +691,60 @@ def test_composed_trains():
     loaded = store.load_run(result.ref)
     assert type(loaded.model).__name__ == "MyLM" and loaded.step == 20
     assert isinstance(loaded.generate("Once", max_new_tokens=4), str)
+
+
+def test_attention_template():
+    from nanoscope.blocks.primitives import (
+        CausalMask,
+        Linear,
+        ScaledDotScores,
+        Softmax,
+        WeightedSum,
+    )
+    from nanoscope.blocks.templates.attention import AttentionTemplate
+
+    spec = AttentionTemplate(q=Linear(), k=Linear(), v=Linear(), scores=ScaledDotScores(),
+                             mask=CausalMask(), normalize=Softmax(), mix=WeightedSum(),
+                             out=Linear())
+    attn = spec.build(8, 6)
+    x = torch.randn(2, 5, 8)
+    q, k, v = (getattr(attn, n).linear(x) for n in "qkv")
+    expected = attn.out.linear(R.naive_causal_attention(q[:, None], k[:, None], v[:, None])[:, 0])
+    torch.testing.assert_close(attn(x), expected, atol=ATOL, rtol=0)
+    assert attn.flops_per_token(6) == 6 * 4 * 64 + 2 * 6 * 8 * 6
+    # a wrong filling is wrong: no mask lets the model see the future
+    open_attn = AttentionTemplate(
+        q=Linear(), k=Linear(), v=Linear(), scores=ScaledDotScores(), mask=_Identity(),
+        normalize=Softmax(), mix=WeightedSum(), out=Linear()).build(8, 6)
+    open_attn.load_state_dict(attn.state_dict(), strict=False)
+    assert not torch.allclose(open_attn(x), expected, atol=1e-3)
+    with pytest.raises(TypeError, match="needs: mask"):
+        AttentionTemplate(q=Linear(), k=Linear(), v=Linear(), scores=ScaledDotScores(),
+                          normalize=Softmax(), mix=WeightedSum(), out=Linear()).build(8, 6)
+    assert registry.get_info("AttentionTemplate").tier == "primitive"  # never locked
+
+
+class _Identity(BlockModule):
+    def __init__(self, d_model, context_length):
+        super().__init__()
+
+    def forward(self, x):
+        return x
+
+
+def test_block_template():
+    from nanoscope.blocks.attention import Attention
+    from nanoscope.blocks.mlp import SwiGLU
+    from nanoscope.blocks.norm import RMSNorm
+    from nanoscope.blocks.structure import Block
+    from nanoscope.blocks.templates.block import BlockTemplate
+
+    template = BlockTemplate(norm1=RMSNorm(), attn=Attention(n_heads=2), norm2=RMSNorm(),
+                             mlp=SwiGLU()).build(16, 8)
+    reference = Block(norm=RMSNorm(), attn=Attention(n_heads=2), mlp=SwiGLU()).build(16, 8)
+    assert list(template.state_dict()) == list(reference.state_dict())
+    reference.load_state_dict(template.state_dict())
+    x = torch.randn(2, 6, 16)
+    torch.testing.assert_close(template(x), reference(x), atol=ATOL, rtol=0)
+    assert template.norm1 is not template.norm2
+    assert template.flops_per_token(8) == reference.flops_per_token(8)

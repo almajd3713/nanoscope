@@ -1,0 +1,37 @@
+title = "A bigram language model"
+level = 0
+summary = "Predict the next token from the current token alone: the smallest language model."
+
+[experiment]
+kind = "run"
+model = "MyBigram"
+notebook = "notebooks/01-first-model.ipynb"
+
+[[checks]]
+id = "built"
+kind = "defines"
+class = "MyBigram"
+
+[[checks]]
+id = "learns"
+kind = "trains"
+class = "MyBigram"
+metric = "val_bpb"
+threshold = 2.0
+
+[[checks]]
+id = "matches-baseline"
+kind = "reproduces"
+class = "MyBigram"
+baseline = "bigram"
+metric = "val_bpb"
+
+[depth.surface]
+seeds = 1
+
+[depth.deep]
+seeds = 3
+
+[compute.cpu]
+preset = "tinystories-5min"
+estimate_minutes = 3

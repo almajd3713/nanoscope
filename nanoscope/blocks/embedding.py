@@ -10,7 +10,7 @@ from nanoscope.blocks.registry import block
 from nanoscope.blocks.spec import BlockModule
 
 
-@block("embedding", "composite", reference="embed_one_hot")
+@block("embedding", "primitive", reference="embed_one_hot")
 class TokenEmbedding(BlockModule, nn.Embedding):
     """Token ids (B, T) to vectors (B, T, d_model): row `id` of a (vocab_size, d_model) table,
     which is the same as a one-hot vector times the table."""
@@ -22,7 +22,7 @@ class TokenEmbedding(BlockModule, nn.Embedding):
         return 0  # a lookup, no multiply-adds (the tied head counts the matmul)
 
 
-@block("embedding", "composite", reference="add_learned_position")
+@block("embedding", "primitive", reference="add_learned_position")
 class LearnedPosition(BlockModule, nn.Embedding):
     """Adds a learned vector for each position: x[:, t] + table[t]."""
 

@@ -29,6 +29,8 @@ _EXPORTS: dict[str, str] = {
     "NoPE": "nanoscope.blocks.positional",
     "Attention": "nanoscope.blocks.attention",
     "Block": "nanoscope.blocks.structure",
+    "AttentionTemplate": "nanoscope.blocks.templates.attention",
+    "BlockTemplate": "nanoscope.blocks.templates.block",
     "Decoder": "nanoscope.blocks.structure",
     "GELUMLP": "nanoscope.blocks.mlp",
     "SwiGLU": "nanoscope.blocks.mlp",
@@ -42,7 +44,29 @@ def __getattr__(name: str) -> Any:
     module = _EXPORTS.get(name)
     if module is None:
         raise AttributeError(f"module 'nanoscope.blocks' has no block {name!r}")
+    _check_unlocked(name)
     return getattr(importlib.import_module(module), name)
+
+
+def _check_unlocked(name: str) -> None:
+    """Under the `guided` policy a block the learner has not unlocked can't be imported from
+    here. Library code imports the submodules, so this never touches a shipped model."""
+    from nanoscope.learn import unlocks
+
+    if not unlocks.exists():  # the common case: no gating at all
+        return
+    from nanoscope.learn.gating import LockedBlockError, check
+
+    locked = check([f"block:{name}"])
+    if locked:
+        raise LockedBlockError(locked[0])
+
+
+def load_all() -> None:
+    """Import every block module (registering the blocks) without going through the
+    gated names. Used by the catalog and the graph, which are not composing a model."""
+    for module in sorted(set(_EXPORTS.values())):
+        importlib.import_module(module)
 
 
 def __dir__() -> list[str]:

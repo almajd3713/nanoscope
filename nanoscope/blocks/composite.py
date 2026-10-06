@@ -37,6 +37,9 @@ class Composite(BlockModule):
                 f"{type(self).__name__} has the slots {', '.join(self.SLOTS)}"
                 + (f"; unknown: {', '.join(sorted(unknown))}" if unknown else "")
                 + (f"; missing: {', '.join(sorted(missing))}" if missing else ""))
+        from nanoscope.blocks.gate import enforce
+
+        enforce(self, list(slots.values()))
         self.d_model = d_model
         for name in self.SLOTS:
             setattr(self, name, build_option(slots[name], d_model, context_length))

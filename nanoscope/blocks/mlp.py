@@ -11,7 +11,7 @@ from nanoscope.blocks.registry import block
 from nanoscope.blocks.spec import BlockModule
 
 
-@block("mlp", "composite", reference="gelu")
+@block("mlp", "primitive", reference="gelu")
 class GELUMLP(BlockModule):
     """gelu(x W1) W2 with hidden size `hidden` (default 4 * d_model)."""
 

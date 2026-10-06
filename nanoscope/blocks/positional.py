@@ -41,7 +41,7 @@ class RoPE(BlockModule):
         return 0  # elementwise, not counted by the 6N + attention formula
 
 
-@block("positional", "composite")
+@block("positional", "primitive")
 class NoPE(BlockModule):
     """No positional signal at all: the causal mask alone tells attention about order."""
 

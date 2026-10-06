@@ -1,0 +1,26 @@
+title = "z-loss"
+level = 1
+summary = "A small penalty that keeps the softmax normaliser near 1, so the output logits stay well behaved."
+prerequisites = ["foundations/06-gpt2"]
+unlocks = ["feature:z_loss"]
+
+[experiment]
+kind = "check"
+
+[[checks]]
+id = "built"
+kind = "defines"
+class = "ZLoss"
+
+[[checks]]
+id = "same-as-reference"
+kind = "equivalent"
+class = "ZLoss"
+reference = "z_loss"
+inputs = [[[2, 5, 50]], [[3, 7, 20]]]
+call = ["input:0", 0.0001]
+tolerance = 1e-7
+
+[compute.cpu]
+preset = "tinystories-5min"
+estimate_minutes = 0.1

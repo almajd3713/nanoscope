@@ -19,7 +19,7 @@ from nanoscope.blocks.spec import BlockModule, BlockSpec, build_option
 
 
 @block("attention", "composite", reference="naive_causal_attention",
-       features=("gqa", "qk_norm", "window"))
+       features=("gqa", "qk_norm", "sliding_window"))
 class Attention(BlockModule):
     """n_heads query heads share n_kv_heads key/value heads (1 = multi-query, n_heads =
     plain multi-head). `pos` is a positional block (RoPE, NoPE) built at the head size;

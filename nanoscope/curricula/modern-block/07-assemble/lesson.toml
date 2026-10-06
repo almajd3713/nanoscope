@@ -1,0 +1,49 @@
+title = "Assemble the modern block, and measure it"
+level = 1
+summary = "Put RMSNorm, RoPE, SwiGLU, GQA, QK-norm and z-loss into one model and test whether it beats GPT-2 by more than the noise."
+prerequisites = [
+  "modern-block/01-rmsnorm", "modern-block/02-rope", "modern-block/03-swiglu",
+  "modern-block/04-gqa", "modern-block/05-qk-norm", "modern-block/06-z-loss",
+]
+
+[experiment]
+kind = "study"
+a = "MyModern"
+b = "GPT2"
+
+[[checks]]
+id = "built"
+kind = "defines"
+class = "MyModern"
+
+[[checks]]
+id = "uses-what-you-built"
+kind = "forbid"
+
+[[checks]]
+id = "better-than-gpt2"
+kind = "verdict"
+a = "MyModern"
+b = "GPT2"
+expect = "better"
+seeds = 3
+gpu_seeds = 5
+metric = "val_bpb"
+
+[depth.surface]
+seeds = 3
+
+[depth.deep]
+seeds = 5
+
+[depth.research]
+seeds = 5
+mode = "record"
+
+[compute.cpu]
+preset = "tinystories-5min"
+estimate_minutes = 15
+
+[compute.gpu]
+preset = "tinystories-30min"
+estimate_minutes = 10

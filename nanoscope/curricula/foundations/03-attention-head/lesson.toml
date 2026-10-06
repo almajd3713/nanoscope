@@ -1,0 +1,33 @@
+title = "One causal attention head"
+level = 0
+summary = "Let every token look back at the earlier ones and take a weighted average of what it finds."
+prerequisites = ["foundations/02-mlp"]
+forbid = ["torch.nn.MultiheadAttention", "F.scaled_dot_product_attention"]
+
+[experiment]
+kind = "check"
+
+[[checks]]
+id = "built"
+kind = "defines"
+class = "OneHead"
+
+[[checks]]
+id = "same-as-reference"
+kind = "equivalent"
+class = "OneHead"
+reference = "naive_attention_head"
+inputs = [[[2, 6, 16]], [[1, 3, 16]], [[3, 8, 16]]]
+call = ["input:0", "param:q.weight", "param:k.weight", "param:v.weight", "param:out.weight"]
+tolerance = 1e-5
+
+[[checks]]
+id = "built-by-hand"
+kind = "forbid"
+
+[depth.deep]
+seeds = 1
+
+[compute.cpu]
+preset = "tinystories-5min"
+estimate_minutes = 0.5

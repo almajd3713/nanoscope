@@ -1,0 +1,27 @@
+title = "An MLP over a window of tokens"
+level = 0
+summary = "Look at the last few tokens instead of one, and add a hidden layer."
+prerequisites = ["foundations/01-bigram"]
+
+[experiment]
+kind = "run"
+model = "MyMLP"
+
+[[checks]]
+id = "built"
+kind = "defines"
+class = "MyMLP"
+
+[[checks]]
+id = "beats-bigram"
+kind = "trains"
+class = "MyMLP"
+metric = "val_bpb"
+threshold = 1.6
+
+[depth.deep]
+seeds = 3
+
+[compute.cpu]
+preset = "tinystories-5min"
+estimate_minutes = 2

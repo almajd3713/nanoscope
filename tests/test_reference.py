@@ -98,3 +98,38 @@ def test_hand_computed_qk_norm_and_z_loss():
     z = R.z_loss(torch.zeros(1, 2), 0.5)
     torch.testing.assert_close(z, torch.tensor(0.5 * math.log(2) ** 2))
     assert R.z_loss(torch.zeros(3, 2), 0.0).item() == 0.0
+
+
+def test_attention_references_match_the_library_blocks():
+    from nanoscope.blocks.attention import Attention
+    from nanoscope.blocks.mlp import GELUMLP
+    from nanoscope.blocks.norm import LayerNorm
+    from nanoscope.blocks.structure import Block
+    from nanoscope.reference import functional as R
+
+    torch.manual_seed(0)
+    x = torch.randn(2, 6, 16)
+
+    def weights(attn):
+        return [attn.q.weight, attn.k.weight, attn.v.weight, attn.proj.weight]
+
+    one = Attention(n_heads=1).build(16, 8)
+    torch.testing.assert_close(one(x), R.naive_attention_head(x, *weights(one)), atol=ATOL, rtol=0)
+    multi = Attention(n_heads=4).build(16, 8)
+    torch.testing.assert_close(multi(x), R.naive_multi_head_attention(x, *weights(multi), 4),
+                               atol=ATOL, rtol=0)
+    for kv in (1, 2, 4):
+        gqa = Attention(n_heads=4, n_kv_heads=kv).build(16, 8)
+        torch.testing.assert_close(gqa(x), R.naive_gqa(x, *weights(gqa), 4, kv),
+                                   atol=ATOL, rtol=0)
+    normed = Attention(n_heads=4, qk_norm=True).build(16, 8)
+    normed.q_norm.weight.data, normed.k_norm.weight.data = torch.randn(4), torch.randn(4)
+    torch.testing.assert_close(
+        normed(x), R.naive_qk_norm_attention(x, *weights(normed), normed.q_norm.weight,
+                                             normed.k_norm.weight, 4), atol=ATOL, rtol=0)
+    block = Block(norm=LayerNorm(), attn=Attention(n_heads=4), mlp=GELUMLP()).build(16, 8)
+    block.norm1.weight.data, block.norm2.weight.data = torch.randn(16), torch.randn(16)
+    expected = R.naive_block(
+        x, block.norm1.weight, block.norm1.bias, *weights(block.attn)[:3], block.attn.proj.weight,
+        block.norm2.weight, block.norm2.bias, block.mlp.fc.weight, block.mlp.proj.weight, 4)
+    torch.testing.assert_close(block(x), expected, atol=ATOL, rtol=0)

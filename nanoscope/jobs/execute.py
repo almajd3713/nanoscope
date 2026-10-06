@@ -64,8 +64,19 @@ def _bench(job: Any, payload: dict[str, Any]) -> dict[str, Any]:
     return {"report": str(result), **result.to_dict()}
 
 
+def _check(job: Any, payload: dict[str, Any]) -> dict[str, Any]:
+    from nanoscope.learn.checks import run_lesson_checks
+    from nanoscope.learn.loader import load_lesson
+
+    doc = run_lesson_checks(load_lesson(payload["lesson"]), owner=job["owner"] or "local",
+                            variant=payload.get("variant", "cpu"))
+    return {"passed": doc["passed"], "check_id": doc["id"], "lesson": doc["lesson"],
+            "checks": [{"id": c["id"], "passed": c["passed"], "reason": c["reason"]}
+                       for c in doc["checks"]]}
+
+
 HANDLERS: dict[str, Callable[[Any, dict[str, Any]], dict[str, Any]]] = {
-    "run": _run, "prepare-data": _prepare_data, "bench": _bench,
+    "run": _run, "prepare-data": _prepare_data, "bench": _bench, "check": _check,
 }
 
 

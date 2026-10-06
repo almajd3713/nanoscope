@@ -1,0 +1,12 @@
+title = "The modern block"
+level = 1
+summary = "Replace GPT-2's parts with the ones current models use (RMSNorm, RoPE, SwiGLU, grouped-query attention, QK-norm, z-loss), build each yourself, then measure whether they help."
+prerequisites = ["foundations"]
+
+[compute.cpu]
+preset = "tinystories-5min"
+estimate_minutes = 15
+
+[compute.gpu]
+preset = "tinystories-30min"
+estimate_minutes = 10

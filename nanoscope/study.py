@@ -314,6 +314,14 @@ class Study:
             }, indent=2), encoding="utf-8")
         return provenance
 
+    def _refuse_locked(self) -> None:
+        """Variants a learner wrote can't use blocks they haven't unlocked (shipped models
+        are never refused)."""
+        from nanoscope.learn.gating import refuse
+
+        for variant in self.variants.values():
+            refuse(variant.model_cls)
+
     def run(
         self, devices: list[str] | None = None, workers_per_device: int = 1,
         threads: int | None = None,
@@ -326,6 +334,7 @@ class Study:
         which keeps a GPU busy when one small model can't. threads caps the CPU threads each
         run uses; the default splits the cores between the runs sharing a CPU.
         """
+        self._refuse_locked()
         if (devices and len(devices) > 1) or workers_per_device > 1:
             self._run_queued(devices or ["cuda:0" if torch.cuda.is_available() else "cpu"],
                              workers_per_device, threads)
@@ -377,6 +386,7 @@ class Study:
 
         Returns the ids of the jobs that stand for this study's unfinished runs. A run that
         is already done gets no job; one already queued or running keeps its job."""
+        self._refuse_locked()
         provenance = self._provenance() if self.mode == "record" else {}
         jobs = self.jobs()
         for job in jobs:

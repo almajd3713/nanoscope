@@ -141,6 +141,10 @@ def build_parser() -> argparse.ArgumentParser:
     graph_parser.add_argument("target", help="path/to/model.py or path/to/model.py:ClassName")
     graph_parser.add_argument("--json", action="store_true", help="print graph.v1 JSON")
 
+    from nanoscope.learn.cli import add_parsers as add_learn_parsers
+
+    add_learn_parsers(sub)
+
     blocks_parser = sub.add_parser(
         "blocks", help="List the blocks models can be composed from (the palette)")
     blocks_parser.add_argument("--json", action="store_true", help="print blocks.v1 JSON")
@@ -171,6 +175,18 @@ def build_parser() -> argparse.ArgumentParser:
 
 
 def main(argv: list[str] | None = None) -> None:
+    try:
+        _main(argv)
+    except ImportError as exc:
+        from nanoscope.learn.gating import LockedBlockError
+
+        if not isinstance(exc, LockedBlockError):
+            raise
+        print(exc)  # a locked block: say how to unlock it, exit 2 like a usage error
+        raise SystemExit(2) from exc
+
+
+def _main(argv: list[str] | None = None) -> None:
     parser = build_parser()
     args = parser.parse_args(argv)
     if args.command is None:
@@ -261,6 +277,14 @@ def main(argv: list[str] | None = None) -> None:
         print(load_study(args.file, args.name).to_spec().to_toml(), end="")
         return
 
+    if args.command == "learn":
+        from nanoscope.learn.cli import run as run_learn
+
+        code = run_learn(args)
+        if code:
+            raise SystemExit(code)
+        return
+
     if args.command == "graph":
         import json as json_
 
@@ -329,6 +353,9 @@ def main(argv: list[str] | None = None) -> None:
     if args.command == "run":
         model_cls = _load_model_class(args.model)
         kwargs = _parse_set(args.overrides)
+        from nanoscope.learn.gating import refuse
+
+        refuse(model_cls)  # a learner's model may only use what they have unlocked
 
         result = run(
             model_cls,

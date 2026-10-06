@@ -1,0 +1,25 @@
+title = "Rotary position embeddings (RoPE)"
+level = 1
+summary = "Encode where a token is by rotating its query and key, so attention sees relative distance."
+prerequisites = ["modern-block/01-rmsnorm"]
+unlocks = ["block:RoPE"]
+
+[experiment]
+kind = "check"
+
+[[checks]]
+id = "built"
+kind = "defines"
+class = "MyRoPE"
+
+[[checks]]
+id = "same-as-reference"
+kind = "equivalent"
+class = "MyRoPE"
+reference = "naive_rope"
+inputs = [[[2, 3, 8, 16]], [[1, 2, 5, 16]]]
+call = ["input:0"]
+
+[compute.cpu]
+preset = "tinystories-5min"
+estimate_minutes = 0.2

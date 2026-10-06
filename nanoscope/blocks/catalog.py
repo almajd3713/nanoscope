@@ -60,8 +60,7 @@ def _shipped(info: registry.BlockInfo) -> dict[str, Any]:
 def catalog(workspace: str | Path | None = None) -> dict[str, Any]:
     """Every shipped block, plus the `register_block` blocks found under `workspace`."""
     blocks_pkg = importlib.import_module("nanoscope.blocks")
-    for name in dir(blocks_pkg):  # importing each name registers its block
-        getattr(blocks_pkg, name)
+    blocks_pkg.load_all()  # registers every block, whatever is locked
     blocks = [_shipped(info) for info in registry.all_blocks() if not info.user]
     errors: list[dict[str, Any]] = []
     if workspace is not None:

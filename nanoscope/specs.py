@@ -139,6 +139,27 @@ def _type_problem(value: Any, annotation: str | None) -> str | None:
     return None if ok else f"must be {annotation}, got {type(value).__name__} {value!r}"
 
 
+def _locked_problems(model: type) -> list[Problem]:
+    """Locked blocks or features in the file that defines `model` (policy `guided` only;
+    shipped models are never gated)."""
+    from nanoscope.blocks.registry import is_shipped
+    from nanoscope.modelref import source_file
+
+    if is_shipped(model):
+        return []
+    from nanoscope.learn import gating, unlocks
+
+    file = source_file(model)
+    if file is None or not unlocks.exists() or unlocks.policy() == "open":
+        return []
+    try:
+        uses = gating.scan(file)
+    except (OSError, SyntaxError, ValueError):
+        return []
+    return [Problem("locked", None, f"line {use.line}: {use.message}",
+                    f"{use.id} unlocks in the lesson {use.lesson}") for use in uses]
+
+
 def validate_run_request(
     model: type, preset: str | Preset, kwargs: dict[str, Any], seeds: Any = None,
 ) -> list[Problem]:
@@ -171,6 +192,7 @@ def validate_run_request(
                 f"nor a preset field (see nanoscope.Preset)",
                 f"model parameters: {', '.join(params) or 'none'}"))
 
+    problems += _locked_problems(model)
     if seeds is not None:
         bad = (isinstance(seeds, bool)
                or (isinstance(seeds, int) and seeds < 1)

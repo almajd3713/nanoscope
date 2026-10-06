@@ -36,8 +36,7 @@ BASES = {"Decoder": "decoder", "Composite": "composite"}
 
 def _known_blocks() -> dict[str, registry.BlockInfo]:
     blocks = importlib.import_module(BLOCKS_MODULE)
-    for name in dir(blocks):  # importing each name registers its block
-        getattr(blocks, name)
+    blocks.load_all()  # registers every block, whatever is locked
     return {info.name: info for info in registry.all_blocks()}
 
 
