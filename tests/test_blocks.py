@@ -663,3 +663,31 @@ def test_blocks_catalog_cli(capsys, tmp_path):
     assert text.splitlines()[0].split() == ["block", "family", "tier", "options", "reference",
                                             "certified"]
     assert any(line.startswith("Attention") and "n_kv_heads?" in line for line in text.splitlines())
+
+
+@pytest.mark.usefixtures("fake_data")
+def test_composed_trains():
+    """A model written as a composition of blocks in a workspace file trains through run()
+    unchanged, records where it came from, and can be rebuilt from that record."""
+    import json
+    import math
+    from pathlib import Path
+
+    from fakes import tiny
+
+    from nanoscope import run, store
+    from nanoscope.blocks.graph import parse
+    from nanoscope.cli import _load_model_class
+
+    path = Path(__file__).parent / "fixtures" / "graphs" / "mylm.py"
+    assert parse(path)["classes"][0]["representable"]  # the graph can show and edit it
+    MyLM = _load_model_class(f"{path}:MyLM")
+    result = run(MyLM, tiny(), device="cpu", progress=False)
+    assert result.val_losses[-1][1] < math.log(result.data.tokenizer.vocab_size)
+    config = json.loads((result.run_dir / "config.json").read_text())
+    assert config["model"]["ref"] == f"{path.resolve()}:MyLM"
+    assert config["model"]["rebuildable"] is True and config["model"]["class"] == "MyLM"
+    assert config["model"]["kwargs"]["context_length"] == 32
+    loaded = store.load_run(result.ref)
+    assert type(loaded.model).__name__ == "MyLM" and loaded.step == 20
+    assert isinstance(loaded.generate("Once", max_new_tokens=4), str)
