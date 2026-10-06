@@ -180,3 +180,30 @@ def test_no_worker_unless_asked(home, monkeypatch):
     monkeypatch.setattr(subprocess, "Popen", lambda *a, **k: pytest.fail("no worker wanted"))
     with TestClient(create_app()) as client:
         assert client.get("/api/health").status_code == 200
+
+
+def test_spa_fallback(home, tmp_path):
+    site = tmp_path / "static"
+    (site / "assets").mkdir(parents=True)
+    (site / "index.html").write_text("<html>nanoscope app</html>")
+    (site / "assets" / "app.js").write_text("console.log(1)")
+    (tmp_path / "secret.txt").write_text("outside")
+    client = TestClient(create_app(Settings(static_dir=site)))
+    assert client.get("/").text == "<html>nanoscope app</html>"
+    # a client-side route reloads into the app
+    deep = client.get("/runs/tinystories-5min/modern/seed-0")
+    assert deep.status_code == 200 and deep.text == "<html>nanoscope app</html>"
+    assert "no-cache" in deep.headers["cache-control"]
+    assert client.get("/assets/app.js").text == "console.log(1)"
+    assert client.get("/assets/missing.js").status_code == 404  # a missing file is not the app
+    # the API is still the API
+    assert client.get("/api/health").json() == {"status": "ok"}
+    nope = client.get("/api/nope")
+    assert nope.status_code == 404 and nope.headers["content-type"] == "application/problem+json"
+    assert client.get("/api").status_code == 404
+    # no way out of the folder
+    assert "outside" not in client.get("/%2e%2e/secret.txt").text
+    assert "outside" not in client.get("/../secret.txt").text
+    # without a built app there is no page, only the API
+    bare = TestClient(create_app(Settings(static_dir=tmp_path / "nothing")))
+    assert bare.get("/").status_code == 404 and bare.get("/api/health").status_code == 200

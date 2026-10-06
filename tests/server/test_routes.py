@@ -378,3 +378,18 @@ def test_sync_hub(client, monkeypatch, tmp_path):
     env = {"HF_TOKEN": "x", "WANDB_API_KEY": "y", "PATH": "/bin"}
     assert job_env("sync-hub", {}, env) == {"HF_TOKEN": "x", "PATH": "/bin"}
     assert job_env("check", {}, env) == {"PATH": "/bin"}
+
+
+def test_schemas(client):
+    from nanoscope import schemas
+
+    listing = client.get("/api/schemas").json()
+    assert listing == schemas.CURRENT and "status" in listing and "lesson" in listing
+    one = client.get("/api/schemas/status").json()
+    assert one == schemas.get("status") and one["$schema"].endswith("2020-12/schema")
+    assert client.get("/api/schemas/status?version=1").json() == one
+    unknown = client.get("/api/schemas/nope")
+    assert unknown.status_code == 404 and "unknown schema 'nope'" in unknown.json()["detail"]
+    assert client.get("/api/schemas/status?version=9").status_code == 404
+    for name in listing:  # every published schema is served
+        assert client.get(f"/api/schemas/{name}").status_code == 200
