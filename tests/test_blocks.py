@@ -282,3 +282,39 @@ def test_norm_layers_match_their_formulas():
     rms.weight.data = torch.randn(16)
     torch.testing.assert_close(rms(x), R.rms_norm(x, rms.weight), atol=ATOL, rtol=0)
     assert rms.flops_per_token(8) == 6 * 16
+
+
+def test_rope_matches_complex_rotation_and_is_relative():
+    from nanoscope.blocks.positional import RoPE
+
+    rope = RoPE().build(8, 16)
+    q, k = torch.randn(2, 3, 16, 8), torch.randn(2, 3, 16, 8)
+    rq, rk = rope(q, k)
+    torch.testing.assert_close(rq, R.naive_rope(q), atol=ATOL, rtol=0)
+    torch.testing.assert_close(rk, R.naive_rope(k), atol=ATOL, rtol=0)
+    # the score between positions m and n depends only on n - m: put the same vectors at
+    # shifted positions and the dot product does not change
+    v, w = torch.randn(8), torch.randn(8)
+
+    def score(m, n):
+        x = torch.zeros(1, 1, 16, 8)
+        y = torch.zeros(1, 1, 16, 8)
+        x[..., m, :], y[..., n, :] = v, w
+        a, b = rope(x, y)
+        return (a[..., m, :] * b[..., n, :]).sum()
+
+    torch.testing.assert_close(score(2, 5), score(7, 10), atol=1e-5, rtol=0)
+    assert not torch.allclose(score(2, 5), score(2, 6), atol=1e-5)
+    assert rope(q[..., :5, :], k[..., :5, :])[0].shape == (2, 3, 5, 8)
+    assert not list(rope.state_dict())  # tables are not saved
+    with pytest.raises(ValueError, match="even"):
+        RoPE().build(7, 16)
+
+
+def test_nope_changes_nothing():
+    from nanoscope.blocks.positional import NoPE
+
+    nope = NoPE().build(8, 16)
+    q, k = torch.randn(1, 2, 4, 8), torch.randn(1, 2, 4, 8)
+    assert nope(q, k)[0] is q and nope(q, k)[1] is k
+    assert nope.flops_per_token(16) == 0
