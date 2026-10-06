@@ -76,3 +76,63 @@ def test_describe_a_composed_model(tmp_path):
     report = describe(cls, tiny())
     assert report["model"] == "MyLM"
     assert rows_by_path(report)["blocks.3.attn"]["block"] == "Attention"
+
+
+BAD_MODEL = '''\
+import torch.nn as nn
+
+from nanoscope.blocks import Attention, Block, Decoder, RMSNorm, SwiGLU
+from nanoscope.blocks.spec import BlockModule
+
+
+class Wrong(BlockModule):
+    def __init__(self, d_model, context_length):
+        super().__init__()
+        self.fc = nn.Linear(d_model + 1, d_model)
+
+    def forward(self, x):
+        return self.fc(x)
+
+
+class Broken(Decoder):
+    def __init__(self, vocab_size: int, context_length: int = 32):
+        super().__init__(
+            vocab_size, context_length, d_model=32, n_layers=2,
+            block=Block(norm=RMSNorm(),
+                        attn=Wrong(),
+                        mlp=SwiGLU()),
+            final_norm=RMSNorm(),
+        )
+'''
+
+
+def test_shape_error_line(tmp_path):
+    from nanoscope.inspect import ShapeError
+    from nanoscope.modelref import load_class
+
+    path = tmp_path / "broken.py"
+    path.write_text(BAD_MODEL)
+    cls = load_class(f"{path}:Broken")
+    with pytest.raises(ShapeError) as caught:
+        describe(cls, tiny())
+    err = caught.value
+    assert err.module == "blocks.0.attn.fc"  # the innermost module that was running
+    assert err.file == str(path) and err.line == 21  # the `attn=Wrong(),` line
+    assert err.reason.startswith("RuntimeError")
+    assert f"{path}:21" in str(err)
+
+
+def test_shape_error_falls_back_to_the_traceback_for_code_only_models(tmp_path):
+    from nanoscope.inspect import ShapeError
+    from nanoscope.modelref import load_class
+
+    path = tmp_path / "broken2.py"
+    path.write_text("import torch.nn as nn\n\n\nclass Tiny(nn.Module):\n"
+                    "    def __init__(self, vocab_size: int):\n        super().__init__()\n"
+                    "        self.emb = nn.Embedding(vocab_size, 8)\n"
+                    "        self.fc = nn.Linear(9, 8)\n\n"
+                    "    def forward(self, idx):\n        return self.fc(self.emb(idx))\n")
+    with pytest.raises(ShapeError) as caught:
+        describe(load_class(f"{path}:Tiny"), tiny())
+    assert caught.value.module == "fc"
+    assert caught.value.line is None or caught.value.file == str(path)

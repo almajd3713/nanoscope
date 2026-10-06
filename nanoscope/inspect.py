@@ -28,6 +28,16 @@ BYTES_PER_PARAM = 4  # fp32 master weights, gradients and AdamW's two moments
 ACTIVATION_BYTES = {"fp32": 4, "fp16": 2, "bf16": 2}
 
 
+class ShapeError(ValueError):
+    """The meta trace failed inside `module`; `line` is where in `file` it is written (the
+    graph's span for that block when the file is representable, else the traceback's)."""
+
+    def __init__(self, module: str, message: str, file: str | None, line: int | None) -> None:
+        where = f" ({file}:{line})" if file and line else ""
+        super().__init__(f"{module or '<model>'}: {message}{where}")
+        self.module, self.reason, self.file, self.line = module, message, file, line
+
+
 def _vocab_size(preset: Preset) -> int:
     if preset.tokenizer == "bpe":
         if preset.vocab_size is None:
@@ -74,7 +84,7 @@ def describe(model_cls: type[nn.Module], preset: str | Preset = "tinystories-5mi
 
     with torch.device("meta"):
         model = model_cls(**model_kwargs)
-    rows = _trace(model, preset)
+    rows = _trace(model, preset, model_cls)
 
     total, non_embedding = count_params(model)
     own_flops = _flops(model, preset.context_length)
@@ -106,7 +116,7 @@ def _flops(module: nn.Module, context_length: int) -> tuple[int, str]:
     return 6 * count_params(module)[1], "6N"
 
 
-def _trace(model: nn.Module, preset: Preset) -> list[dict[str, Any]]:
+def _trace(model: nn.Module, preset: Preset, model_cls: type[nn.Module]) -> list[dict[str, Any]]:
     """One forward pass on meta tensors with a hook on every module: a row per module, with
     the shapes of its first call (None for a module the pass never called, like a ModuleList)."""
     names = {id(m): n for n, m in model.named_modules()}
@@ -119,12 +129,26 @@ def _trace(model: nn.Module, preset: Preset) -> list[dict[str, Any]]:
         shapes_out = _shapes(output)
         rows[name] = {"in": _shapes(args), "out": shapes_out, "_out_numel": _numel(shapes_out)}
 
-    handles = [m.register_forward_hook(hook) for m in model.modules()]
+    active: list[str] = []  # modules entered and not yet left: the last is where an error is
+
+    def enter(module: nn.Module, args: tuple[Any, ...]) -> None:
+        active.append(names[id(module)])
+
+    def leave(module: nn.Module, args: tuple[Any, ...], output: Any) -> None:
+        active.pop()
+        hook(module, args, output)
+
+    handles = [m.register_forward_pre_hook(enter) for m in model.modules()]
+    handles += [m.register_forward_hook(leave) for m in model.modules()]
     try:
         idx = torch.zeros(preset.batch_size, preset.context_length, dtype=torch.long,
                           device="meta")
         with torch.no_grad():
             model(idx)
+    except Exception as exc:
+        module = active[-1] if active else ""
+        file, line = _locate(model_cls, module, exc)
+        raise ShapeError(module, f"{type(exc).__name__}: {exc}", file, line) from exc
     finally:
         for h in handles:
             h.remove()
@@ -149,3 +173,67 @@ def _trace(model: nn.Module, preset: Preset) -> list[dict[str, Any]]:
             "_leaf": seen is not None and not list(module.children()),
         })
     return out
+
+
+# -- where in the source a module is written ---------------------------------------------------
+
+BLOCK_ARGS = {"norm1": "norm", "norm2": "norm", "norm": "final_norm"}  # module attr -> graph arg
+
+
+def _locate(model_cls: type[nn.Module], module: str,
+            exc: BaseException) -> tuple[str | None, int | None]:
+    """(file, line) for the module that failed: its node in the file's graph if the class is
+    representable, else the innermost frame of the traceback that is in the model's file."""
+    try:
+        file = _inspect.getsourcefile(model_cls)
+    except (TypeError, OSError):
+        file = None
+    if file is None:
+        return None, None
+    from nanoscope.blocks.graph import parse
+
+    try:
+        cls = next((c for c in parse(file)["classes"] if c["name"] == model_cls.__name__), None)
+    except (OSError, ValueError):
+        cls = None
+    if cls is not None and cls["representable"] and cls["kind"] == "decoder":
+        span = _span_of(cls, module)
+        if span is not None:
+            return file, span["line"]
+    tb, line = exc.__traceback__, None
+    while tb is not None:
+        if tb.tb_frame.f_code.co_filename == file:
+            line = tb.tb_lineno
+        tb = tb.tb_next
+    return file, line
+
+
+def _span_of(cls: dict[str, Any], module: str) -> dict[str, int] | None:
+    args = cls["args"]
+    parts = module.split(".") if module else []
+    if not parts:
+        return cls["call_span"] if "call_span" in cls else cls["span"]
+    node: dict[str, Any] | None
+    if parts[0] == "blocks" and len(parts) >= 2 and parts[1].isdigit():
+        if "block" in args:
+            node = args["block"]
+        elif "pattern" in args and args["pattern"]["kind"] == "list" and args["pattern"]["items"]:
+            items = args["pattern"]["items"]
+            node = items[int(parts[1]) % len(items)]
+        else:
+            return None
+        rest = parts[2:]
+    elif parts[0] in ("norm", "pos_emb"):
+        node = args.get("final_norm" if parts[0] == "norm" else "pos_emb")
+        rest = parts[1:]
+    else:  # tok_emb and head have no node of their own
+        return cls.get("call_span") or cls["span"]
+    span = node["span"] if node else None
+    for part in rest:
+        if node is None or node["kind"] != "block":
+            break
+        child = node["args"].get(BLOCK_ARGS.get(part, part))
+        if child is None:
+            break
+        node, span = child, child["span"]
+    return span or cls["span"]
