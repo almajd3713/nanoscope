@@ -129,3 +129,282 @@ def run_lesson_checks(lesson: LessonSpec, owner: str = "local",
     info(f"result: {done} of {len(results)} checks passed"
          + ("" if passed else ": read the reasons above, edit your file, and check again"))
     return doc
+
+
+# -- loading the learner's file --------------------------------------------------------------
+
+DEFAULT_ARGS = {"d_model": 16, "context_length": 8, "vocab_size": 50, "n_heads": 2,
+                "n_layers": 2}  # small sizes for a class's required constructor arguments
+
+
+def load_user_module(ctx: Context) -> Any:
+    """Import the learner's file fresh (cached for the rest of this check run)."""
+    import importlib.util
+    import sys
+
+    if "module" in ctx.shared:
+        return ctx.shared["module"]
+    file = ctx.user_file
+    if not file.exists():
+        raise FileNotFoundError(
+            f"{file} does not exist: run `nanoscope learn start {ctx.lesson.id}` first")
+    name = f"_nanoscope_lesson_{abs(hash((str(file), file.stat().st_mtime_ns)))}"
+    spec = importlib.util.spec_from_file_location(name, file)
+    assert spec is not None and spec.loader is not None
+    module = importlib.util.module_from_spec(spec)
+    sys.modules[name] = module
+    try:
+        spec.loader.exec_module(module)
+    except SyntaxError as exc:
+        raise ValueError(f"{file.name} line {exc.lineno}: {exc.msg}") from exc
+    finally:
+        sys.modules.pop(name, None)
+    ctx.shared["module"] = module
+    return module
+
+
+def user_class(ctx: Context, check: Check) -> type:
+    """The class a check is about: its `class` argument, else the one `defines` found."""
+    import torch.nn as nn
+
+    wanted = check.args.get("class") or ctx.shared.get("class_name")
+    if not wanted:
+        raise ValueError("no class to check: name it with class = \"...\" in the check")
+    module = load_user_module(ctx)
+    cls = getattr(module, wanted, None)
+    if cls is None:
+        known = [n for n, v in vars(module).items()
+                 if isinstance(v, type) and issubclass(v, nn.Module)
+                 and v.__module__ == module.__name__]
+        raise AttributeError(
+            f"class {wanted} is not defined in {ctx.user_file.name}"
+            + (f" (it defines: {', '.join(known)})" if known else ""))
+    return cls
+
+
+def constructor_args(cls: type, given: dict[str, Any] | None) -> dict[str, Any]:
+    """The lesson's `args` plus small defaults for any required argument it did not give."""
+    import inspect
+
+    args = dict(given or {})
+    for name, param in inspect.signature(cls).parameters.items():
+        if name in args or param.kind in (param.VAR_POSITIONAL, param.VAR_KEYWORD):
+            continue
+        if param.default is inspect.Parameter.empty:
+            if name not in DEFAULT_ARGS:
+                raise TypeError(f"{cls.__name__}() needs a value for {name}; the lesson's check "
+                                "should list it under args")
+            args[name] = DEFAULT_ARGS[name]
+    return args
+
+
+@checker("defines")
+def check_defines(ctx: Context, check: Check) -> Result:
+    """The class exists in the learner's file and builds (on the meta device: no memory)."""
+    import torch
+
+    from nanoscope.sizing import count_params
+
+    ctx.shared.pop("module", None)  # re-read the file: this is where a check run starts
+    ctx.shared["class_name"] = check.args["class"]
+    try:
+        cls = user_class(ctx, check)
+    except (FileNotFoundError, AttributeError, ValueError) as exc:
+        return Result(check.id, check.kind, False, str(exc))
+    try:
+        kwargs = constructor_args(cls, check.args.get("args"))
+    except TypeError as exc:
+        return Result(check.id, check.kind, False, str(exc))
+    try:
+        with torch.device("meta"):
+            built = cls(**kwargs)
+    except Exception as exc:
+        return Result(check.id, check.kind, False,
+                      f"{cls.__name__}({_kwargs_text(kwargs)}) failed to build: "
+                      f"{type(exc).__name__}: {exc}")
+    total, _ = count_params(built)
+    return Result(check.id, check.kind, True,
+                  f"{cls.__name__}({_kwargs_text(kwargs)}) builds, {total:,} parameters",
+                  {"class": cls.__name__, "parameters": total})
+
+
+def _kwargs_text(kwargs: dict[str, Any]) -> str:
+    return ", ".join(f"{k}={v}" for k, v in kwargs.items())
+
+
+# -- equivalent ------------------------------------------------------------------------------
+
+def _make_inputs(specs: list[Any], generator: Any) -> list[Any]:
+    """Random tensors for one trial: a list of ints is a normal-distributed float tensor of
+    that shape; {shape = [...], ints = N} is token ids below N."""
+    import torch
+
+    tensors = []
+    for spec in specs:
+        if isinstance(spec, dict):
+            tensors.append(torch.randint(0, int(spec["ints"]), tuple(spec["shape"]),
+                                         generator=generator))
+        else:
+            tensors.append(torch.randn(*spec, generator=generator))
+    return tensors
+
+
+def _input_sets(inputs: list[Any]) -> list[list[Any]]:
+    """`inputs` is one set of specs, or a list of sets (to try several shapes)."""
+    first = inputs[0] if inputs else None
+    if isinstance(first, list) and first and isinstance(first[0], (list, dict)):
+        return list(inputs)
+    return [list(inputs)]
+
+
+@checker("equivalent")
+def check_equivalent(ctx: Context, check: Check) -> Result:
+    """The learner's module matches a naive reference on random inputs. Weights are copied
+    from the module into the reference call by the lesson's `call` list: "input:0" is the
+    first random input, "param:weight" the module's `weight`, anything else a constant."""
+    import torch
+
+    from nanoscope.reference import functional
+
+    name = check.args["reference"]
+    reference = getattr(functional, name, None)
+    if reference is None:
+        return Result(check.id, check.kind, False,
+                      f"the lesson names reference {name!r}, which nanoscope.reference doesn't "
+                      "have: this is a bug in the lesson, not in your code")
+    try:
+        cls = user_class(ctx, check)
+        torch.manual_seed(0)
+        module = cls(**constructor_args(cls, check.args.get("args"))).eval()
+    except (AttributeError, FileNotFoundError, ValueError, TypeError) as exc:
+        return Result(check.id, check.kind, False, str(exc))
+    params = dict(module.named_parameters()) | dict(module.named_buffers())
+    tolerance = float(check.args.get("tolerance", 1e-5))
+    generator = torch.Generator().manual_seed(1234)
+    worst, shapes = 0.0, []
+    for specs in _input_sets(check.args["inputs"]):
+        for _ in range(int(check.args.get("trials", 3))):
+            inputs = _make_inputs(specs, generator)
+            shape = [list(t.shape) for t in inputs]
+            try:
+                call = []
+                for item in check.args["call"]:
+                    if isinstance(item, str) and item.startswith("input:"):
+                        call.append(inputs[int(item[6:])])
+                    elif isinstance(item, str) and item.startswith("param:"):
+                        key = item[6:]
+                        if key not in params:
+                            return Result(
+                                check.id, check.kind, False,
+                                f"{cls.__name__} has no parameter named {key!r} (it has: "
+                                f"{', '.join(params) or 'none'}): the lesson expects that name")
+                        call.append(params[key].detach())
+                    else:
+                        call.append(item)
+                with torch.no_grad():
+                    got = module(*inputs)
+                    got = got[0] if isinstance(got, tuple) else got
+                    want = reference(*call)
+            except Exception as exc:
+                return Result(check.id, check.kind, False,
+                              f"running on inputs of shape {shape} raised "
+                              f"{type(exc).__name__}: {exc}", {"input_shapes": shape})
+            if got.shape != want.shape:
+                return Result(check.id, check.kind, False,
+                              f"output shape {list(got.shape)} but the reference gives "
+                              f"{list(want.shape)} for inputs {shape}", {"input_shapes": shape})
+            diff = float((got.float() - want.float()).abs().max())
+            worst = max(worst, diff)
+            shapes.append(shape)
+            if not diff <= tolerance:
+                return Result(
+                    check.id, check.kind, False,
+                    f"output differs from the reference: max abs diff {diff:.3g} on inputs of "
+                    f"shape {shape} (tolerance {tolerance:g})",
+                    {"max_abs_diff": diff, "tolerance": tolerance, "input_shapes": shape,
+                     "reference": name})
+    return Result(check.id, check.kind, True,
+                  f"matches the reference {name}: max abs diff {worst:.3g} over {len(shapes)} "
+                  f"random inputs (tolerance {tolerance:g})",
+                  {"max_abs_diff": worst, "tolerance": tolerance, "trials": len(shapes),
+                   "reference": name})
+
+
+# -- forbid ----------------------------------------------------------------------------------
+
+ALIASES = {"F.": "torch.nn.functional.", "nn.": "torch.nn."}
+
+
+def _canonical(name: str) -> str:
+    for short, full in ALIASES.items():
+        if name.startswith(short):
+            return full + name[len(short):]
+    return name
+
+
+def forbidden_uses(source: str, forbidden: list[str]) -> list[tuple[int, str]]:
+    """(line, name) for every use of a forbidden name, found in the AST with imports resolved,
+    so `import torch.nn.functional as F` then `F.scaled_dot_product_attention` is caught."""
+    import ast
+
+    tree = ast.parse(source)
+    imports: dict[str, str] = {}
+    hits: set[tuple[int, str]] = set()
+    wanted = [_canonical(f) for f in forbidden]
+
+    def flagged(qualified: str) -> str | None:
+        for entry in wanted:
+            if qualified == entry or qualified.startswith(entry + "."):
+                return entry
+            if "." not in entry and qualified.rsplit(".", 1)[-1] == entry:
+                return entry
+        return None
+
+    for node in ast.walk(tree):
+        if isinstance(node, ast.ImportFrom) and node.module and not node.level:
+            for alias in node.names:
+                full = f"{node.module}.{alias.name}"
+                imports[alias.asname or alias.name] = full
+                if (hit := flagged(full)):
+                    hits.add((node.lineno, hit))
+        elif isinstance(node, ast.Import):
+            for alias in node.names:
+                imports[alias.asname or alias.name.split(".")[0]] = (
+                    alias.name if alias.asname else alias.name.split(".")[0])
+                if (hit := flagged(alias.name)):
+                    hits.add((node.lineno, hit))
+    for node in ast.walk(tree):
+        chain: list[str] = []
+        cur: ast.expr = node if isinstance(node, (ast.Name, ast.Attribute)) else ast.Constant(0)
+        while isinstance(cur, ast.Attribute):
+            chain.append(cur.attr)
+            cur = cur.value
+        if isinstance(cur, ast.Name) and isinstance(node, (ast.Name, ast.Attribute)):
+            qualified = ".".join([imports.get(cur.id, cur.id), *reversed(chain)])
+            if (hit := flagged(qualified)):
+                hits.add((node.lineno, hit))
+    return sorted(hits)
+
+
+@checker("forbid")
+def check_forbid(ctx: Context, check: Check) -> Result:
+    """The learner's file does not use the shortcuts the lesson forbids (`forbid` in
+    lesson.toml), nor blocks they have not unlocked."""
+    names = ctx.lesson.forbid
+    file = ctx.user_file
+    if not file.exists():
+        return Result(check.id, check.kind, False,
+                      f"{file} does not exist: run `nanoscope learn start {ctx.lesson.id}` first")
+    try:
+        source = file.read_text(encoding="utf-8")
+        found = forbidden_uses(source, names)
+    except SyntaxError as exc:
+        return Result(check.id, check.kind, False, f"{file.name} line {exc.lineno}: {exc.msg}")
+    if found:
+        listing = "; ".join(f"line {line}: {name}" for line, name in found)
+        return Result(check.id, check.kind, False,
+                      f"{file.name} uses what this lesson asks you to build yourself: {listing}",
+                      {"uses": [{"line": line, "name": name} for line, name in found]})
+    return Result(check.id, check.kind, True,
+                  f"{file.name} avoids {', '.join(names) or 'nothing in particular'}",
+                  {"forbidden": names})
