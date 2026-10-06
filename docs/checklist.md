@@ -4,7 +4,7 @@ The build list for [`plan-tool.md`](plan-tool.md), sections 4-10, with the decis
 2026-10-05 (plan section 11) applied. Phase numbers follow the plan's section 10. Every
 item is one line, so scripts and agents can grep and edit it.
 
-**Current focus:** P10 HTTP API. Next item: P10.99 (gate).
+**Current focus:** P11 release prep. Next item: P11.01.
 
 ## Progress
 
@@ -14,7 +14,7 @@ item is one line, so scripts and agents can grep and edit it.
 | P7 | Queue and workers (5-6 d) | 28 / 28 | done |
 | P8 | Blocks, describe, rebuilt models (10-13 d) | 52 / 52 | done |
 | P9 | Curriculum engine, gating, two paths (14-17 d) | 61 / 61 | done |
-| P10 | HTTP API (8-10 d) | 46 / 47 | in progress |
+| P10 | HTTP API (8-10 d) | 47 / 47 | done |
 | P11 | Release prep: PyPI + GHCR (2-3 d) | 0 / 17 | not started |
 | P12 | docker-compose (3-4 d) | 0 / 20 | not started |
 | P13 | GUI MVP 1: shell, Learn/Tinker screens (12-15 d) | 0 / 37 | not started |
@@ -434,7 +434,7 @@ touch or create (new ones marked `(new)`).
 - [x] P10.46 Test that every POST endpoint body has the same defaults as the library function it calls, so an empty body gives level-0 behaviour. · files: tests/server/test_api_models.py · deps: P10.31, P10.25 · done: `uv run pytest tests/server/test_api_models.py -k level0_defaults` passes ✓ 2026-10-06 (this commit): RunRequest/BenchRequest/DescribeRequest/CompareRequest/CheckRequest defaults equal the library signatures
 
 ### P10 · Gate
-- [ ] P10.99 PHASE GATE P10. Exit criteria: plan section 10 phase 10. · files: — · deps: P10.* · done: `make check` passes; `uv run pytest tests/server` passes; `uv run pytest tests/test_first_model_notebook.py` passes; `make openapi && git diff --exit-code docs/openapi.json`; P10.05, P10.09, P10.10 and P10.40-P10.43 are ticked; CI green; **USER ACTION** merge the PR
+- [x] P10.99 PHASE GATE P10. Exit criteria: plan section 10 phase 10. · files: — · deps: P10.* · done: `make check` passes; `uv run pytest tests/server` passes; `uv run pytest tests/test_first_model_notebook.py` passes; `make openapi && git diff --exit-code docs/openapi.json`; P10.05, P10.09, P10.10 and P10.40-P10.43 are ticked; CI green; **USER ACTION** merge the PR ✓ 2026-10-06 d72663c: PR #10 merged, CI green (incl. server job)
 
 ---
 
