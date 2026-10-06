@@ -15,7 +15,7 @@ from nanoscope.server import worker
 from nanoscope.server.auth import install as install_auth
 from nanoscope.server.errors import install as install_errors
 from nanoscope.server.errors import problem
-from nanoscope.server.models import Health, Version
+from nanoscope.server.models import Health, ProblemDetails, Version
 from nanoscope.server.routes import (
     blocks,
     compare,
@@ -84,7 +84,10 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     check(settings)
     app = FastAPI(
         title="nanoscope", version=__version__, docs_url="/api/docs",
-        openapi_url="/api/openapi.json", redoc_url=None, lifespan=lifespan)
+        openapi_url="/api/openapi.json", redoc_url=None, lifespan=lifespan,
+        responses={
+            422: {"model": ProblemDetails, "description": "The request cannot be done as asked"},
+            "4XX": {"model": ProblemDetails, "description": "An error (RFC 9457)"}})
     app.state.settings = settings
 
     api = APIRouter(prefix="/api")

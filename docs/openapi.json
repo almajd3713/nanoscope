@@ -1,0 +1,5204 @@
+{
+  "components": {
+    "schemas": {
+      "BenchDoc": {
+        "additionalProperties": true,
+        "description": "One bench result (bench.v1).",
+        "properties": {
+          "at": {
+            "title": "At",
+            "type": "string"
+          },
+          "device": {
+            "title": "Device",
+            "type": "string"
+          },
+          "model": {
+            "title": "Model",
+            "type": "string"
+          },
+          "schema": {
+            "title": "Schema",
+            "type": "integer"
+          },
+          "step_ms": {
+            "title": "Step Ms",
+            "type": "number"
+          },
+          "tflops": {
+            "title": "Tflops",
+            "type": "number"
+          },
+          "tokens_per_sec": {
+            "title": "Tokens Per Sec",
+            "type": "number"
+          },
+          "verdict": {
+            "title": "Verdict",
+            "type": "string"
+          }
+        },
+        "required": [
+          "schema",
+          "at",
+          "model",
+          "device",
+          "step_ms",
+          "tokens_per_sec",
+          "tflops",
+          "verdict"
+        ],
+        "title": "BenchDoc",
+        "type": "object"
+      },
+      "BenchRequest": {
+        "properties": {
+          "model": {
+            "title": "Model",
+            "type": "string"
+          },
+          "preset": {
+            "default": "tinystories-5min",
+            "title": "Preset",
+            "type": "string"
+          },
+          "steps": {
+            "default": 60,
+            "title": "Steps",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "model"
+        ],
+        "title": "BenchRequest",
+        "type": "object"
+      },
+      "BlocksDoc": {
+        "additionalProperties": true,
+        "description": "The palette catalog (blocks.v1), with the lock state added per block.",
+        "properties": {
+          "blocks": {
+            "items": {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            "title": "Blocks",
+            "type": "array"
+          },
+          "errors": {
+            "items": {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            "title": "Errors",
+            "type": "array"
+          },
+          "nanoscope": {
+            "title": "Nanoscope",
+            "type": "string"
+          },
+          "schema": {
+            "title": "Schema",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "schema",
+          "nanoscope",
+          "blocks",
+          "errors"
+        ],
+        "title": "BlocksDoc",
+        "type": "object"
+      },
+      "CheckRequest": {
+        "properties": {
+          "variant": {
+            "default": "cpu",
+            "title": "Variant",
+            "type": "string"
+          }
+        },
+        "title": "CheckRequest",
+        "type": "object"
+      },
+      "CheckpointEntry": {
+        "properties": {
+          "archived": {
+            "title": "Archived",
+            "type": "boolean"
+          },
+          "bytes": {
+            "title": "Bytes",
+            "type": "integer"
+          },
+          "latest": {
+            "title": "Latest",
+            "type": "boolean"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "step": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Step"
+          }
+        },
+        "required": [
+          "name",
+          "step",
+          "bytes",
+          "archived",
+          "latest"
+        ],
+        "title": "CheckpointEntry",
+        "type": "object"
+      },
+      "CompareRequest": {
+        "description": "What to compare: run refs (a set of seeds, or one run), the shipped baselines by name\n(`gpt2`, with `preset`), and which one the others are measured against.",
+        "properties": {
+          "baseline": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Baseline"
+          },
+          "metric": {
+            "default": "val_bpb",
+            "title": "Metric",
+            "type": "string"
+          },
+          "preset": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Preset"
+          },
+          "sets": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Sets",
+            "type": "array"
+          }
+        },
+        "required": [
+          "sets"
+        ],
+        "title": "CompareRequest",
+        "type": "object"
+      },
+      "ComparisonDoc": {
+        "additionalProperties": true,
+        "description": "`compare().to_dict()` (comparison.v1).",
+        "properties": {
+          "baseline": {
+            "title": "Baseline",
+            "type": "string"
+          },
+          "curves": {
+            "anyOf": [
+              {
+                "items": {
+                  "additionalProperties": true,
+                  "type": "object"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Curves"
+          },
+          "metric": {
+            "title": "Metric",
+            "type": "string"
+          },
+          "notes": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Notes",
+            "type": "array"
+          },
+          "precision_plan": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Precision Plan"
+          },
+          "rows": {
+            "items": {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            "title": "Rows",
+            "type": "array"
+          },
+          "schema": {
+            "title": "Schema",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "schema",
+          "metric",
+          "baseline",
+          "rows",
+          "notes"
+        ],
+        "title": "ComparisonDoc",
+        "type": "object"
+      },
+      "ComputeDoc": {
+        "properties": {
+          "budget": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Budget"
+          },
+          "estimate_minutes": {
+            "title": "Estimate Minutes",
+            "type": "number"
+          },
+          "preset": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Preset"
+          }
+        },
+        "required": [
+          "preset",
+          "budget",
+          "estimate_minutes"
+        ],
+        "title": "ComputeDoc",
+        "type": "object"
+      },
+      "ConfigDoc": {
+        "additionalProperties": true,
+        "description": "A run's config.json (config.v1).",
+        "properties": {
+          "model": {
+            "additionalProperties": true,
+            "title": "Model",
+            "type": "object"
+          },
+          "preset": {
+            "additionalProperties": true,
+            "title": "Preset",
+            "type": "object"
+          },
+          "schema": {
+            "title": "Schema",
+            "type": "integer"
+          },
+          "seed": {
+            "title": "Seed",
+            "type": "integer"
+          },
+          "tokenizer": {
+            "title": "Tokenizer",
+            "type": "string"
+          }
+        },
+        "required": [
+          "schema",
+          "model",
+          "preset",
+          "tokenizer",
+          "seed"
+        ],
+        "title": "ConfigDoc",
+        "type": "object"
+      },
+      "DataEntry": {
+        "properties": {
+          "dataset": {
+            "title": "Dataset",
+            "type": "string"
+          },
+          "prepare": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/PrepareDoc"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "preset": {
+            "title": "Preset",
+            "type": "string"
+          },
+          "tokenizer": {
+            "title": "Tokenizer",
+            "type": "string"
+          },
+          "vocab_size": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Vocab Size"
+          }
+        },
+        "required": [
+          "preset",
+          "dataset",
+          "tokenizer",
+          "vocab_size",
+          "prepare"
+        ],
+        "title": "DataEntry",
+        "type": "object"
+      },
+      "DescribeRequest": {
+        "properties": {
+          "kwargs": {
+            "additionalProperties": true,
+            "default": {},
+            "title": "Kwargs",
+            "type": "object"
+          },
+          "preset": {
+            "default": "tinystories-5min",
+            "title": "Preset",
+            "type": "string"
+          }
+        },
+        "title": "DescribeRequest",
+        "type": "object"
+      },
+      "Device": {
+        "properties": {
+          "kind": {
+            "title": "Kind",
+            "type": "string"
+          },
+          "memory_free": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Memory Free"
+          },
+          "memory_total": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Memory Total"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          }
+        },
+        "required": [
+          "name",
+          "kind"
+        ],
+        "title": "Device",
+        "type": "object"
+      },
+      "Diagnostic": {
+        "properties": {
+          "code": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Code"
+          },
+          "column": {
+            "title": "Column",
+            "type": "integer"
+          },
+          "end_column": {
+            "title": "End Column",
+            "type": "integer"
+          },
+          "end_line": {
+            "title": "End Line",
+            "type": "integer"
+          },
+          "fixable": {
+            "default": false,
+            "title": "Fixable",
+            "type": "boolean"
+          },
+          "line": {
+            "title": "Line",
+            "type": "integer"
+          },
+          "message": {
+            "title": "Message",
+            "type": "string"
+          }
+        },
+        "required": [
+          "code",
+          "message",
+          "line",
+          "column",
+          "end_line",
+          "end_column"
+        ],
+        "title": "Diagnostic",
+        "type": "object"
+      },
+      "FieldSpecDoc": {
+        "properties": {
+          "default": {
+            "title": "Default"
+          },
+          "help": {
+            "title": "Help",
+            "type": "string"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "required": {
+            "title": "Required",
+            "type": "boolean"
+          },
+          "type": {
+            "title": "Type",
+            "type": "string"
+          }
+        },
+        "required": [
+          "name",
+          "type",
+          "default",
+          "required",
+          "help"
+        ],
+        "title": "FieldSpecDoc",
+        "type": "object"
+      },
+      "FileDoc": {
+        "properties": {
+          "content": {
+            "title": "Content",
+            "type": "string"
+          },
+          "etag": {
+            "title": "Etag",
+            "type": "string"
+          },
+          "path": {
+            "title": "Path",
+            "type": "string"
+          }
+        },
+        "required": [
+          "path",
+          "content",
+          "etag"
+        ],
+        "title": "FileDoc",
+        "type": "object"
+      },
+      "FileEntry": {
+        "properties": {
+          "etag": {
+            "title": "Etag",
+            "type": "string"
+          },
+          "modified": {
+            "title": "Modified",
+            "type": "number"
+          },
+          "path": {
+            "title": "Path",
+            "type": "string"
+          },
+          "size": {
+            "title": "Size",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "path",
+          "size",
+          "modified",
+          "etag"
+        ],
+        "title": "FileEntry",
+        "type": "object"
+      },
+      "FileWrite": {
+        "properties": {
+          "content": {
+            "title": "Content",
+            "type": "string"
+          }
+        },
+        "required": [
+          "content"
+        ],
+        "title": "FileWrite",
+        "type": "object"
+      },
+      "GenerateRequest": {
+        "properties": {
+          "max_new_tokens": {
+            "default": 200,
+            "maximum": 4096.0,
+            "minimum": 1.0,
+            "title": "Max New Tokens",
+            "type": "integer"
+          },
+          "prompt": {
+            "default": "",
+            "title": "Prompt",
+            "type": "string"
+          },
+          "seed": {
+            "default": 42,
+            "title": "Seed",
+            "type": "integer"
+          },
+          "temperature": {
+            "default": 0.8,
+            "exclusiveMinimum": 0.0,
+            "title": "Temperature",
+            "type": "number"
+          },
+          "timeout": {
+            "default": 30.0,
+            "exclusiveMinimum": 0.0,
+            "maximum": 600.0,
+            "title": "Timeout",
+            "type": "number"
+          }
+        },
+        "title": "GenerateRequest",
+        "type": "object"
+      },
+      "GraphResponse": {
+        "additionalProperties": true,
+        "properties": {
+          "classes": {
+            "items": {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            "title": "Classes",
+            "type": "array"
+          },
+          "etag": {
+            "title": "Etag",
+            "type": "string"
+          },
+          "nanoscope": {
+            "title": "Nanoscope",
+            "type": "string"
+          },
+          "path": {
+            "title": "Path",
+            "type": "string"
+          },
+          "schema": {
+            "title": "Schema",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "schema",
+          "nanoscope",
+          "path",
+          "classes",
+          "etag"
+        ],
+        "title": "GraphResponse",
+        "type": "object"
+      },
+      "Hardware": {
+        "properties": {
+          "cpu_count": {
+            "title": "Cpu Count",
+            "type": "integer"
+          },
+          "devices": {
+            "items": {
+              "$ref": "#/components/schemas/Device"
+            },
+            "title": "Devices",
+            "type": "array"
+          },
+          "torch": {
+            "title": "Torch",
+            "type": "string"
+          },
+          "workers": {
+            "items": {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            "title": "Workers",
+            "type": "array"
+          }
+        },
+        "required": [
+          "devices",
+          "cpu_count",
+          "torch",
+          "workers"
+        ],
+        "title": "Hardware",
+        "type": "object"
+      },
+      "Health": {
+        "properties": {
+          "status": {
+            "title": "Status",
+            "type": "string"
+          }
+        },
+        "required": [
+          "status"
+        ],
+        "title": "Health",
+        "type": "object"
+      },
+      "HubSync": {
+        "properties": {
+          "path": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Path"
+          },
+          "ref": {
+            "title": "Ref",
+            "type": "string"
+          },
+          "repo": {
+            "title": "Repo",
+            "type": "string"
+          }
+        },
+        "required": [
+          "repo",
+          "ref"
+        ],
+        "title": "HubSync",
+        "type": "object"
+      },
+      "JobDoc": {
+        "description": "A queue job: what to do, where it stands, and what came of it.",
+        "properties": {
+          "attempts": {
+            "default": 0,
+            "title": "Attempts",
+            "type": "integer"
+          },
+          "created_at": {
+            "title": "Created At",
+            "type": "number"
+          },
+          "device": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Device"
+          },
+          "error": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Error"
+          },
+          "finished_at": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Finished At"
+          },
+          "id": {
+            "title": "Id",
+            "type": "integer"
+          },
+          "kind": {
+            "title": "Kind",
+            "type": "string"
+          },
+          "lane": {
+            "title": "Lane",
+            "type": "string"
+          },
+          "owner": {
+            "default": "local",
+            "title": "Owner",
+            "type": "string"
+          },
+          "payload": {
+            "additionalProperties": true,
+            "title": "Payload",
+            "type": "object"
+          },
+          "ref": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Ref"
+          },
+          "result": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Result"
+          },
+          "started_at": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Started At"
+          },
+          "state": {
+            "title": "State",
+            "type": "string"
+          },
+          "worker_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Worker Id"
+          }
+        },
+        "required": [
+          "id",
+          "kind",
+          "lane",
+          "state",
+          "payload",
+          "created_at"
+        ],
+        "title": "JobDoc",
+        "type": "object"
+      },
+      "LessonDetail": {
+        "properties": {
+          "checks": {
+            "items": {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            "title": "Checks",
+            "type": "array"
+          },
+          "compute": {
+            "additionalProperties": {
+              "$ref": "#/components/schemas/ComputeDoc"
+            },
+            "title": "Compute",
+            "type": "object"
+          },
+          "depth": {
+            "additionalProperties": {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            "title": "Depth",
+            "type": "object"
+          },
+          "experiment": {
+            "additionalProperties": true,
+            "title": "Experiment",
+            "type": "object"
+          },
+          "files": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Files",
+            "type": "array"
+          },
+          "forbid": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Forbid",
+            "type": "array"
+          },
+          "id": {
+            "title": "Id",
+            "type": "string"
+          },
+          "level": {
+            "title": "Level",
+            "type": "integer"
+          },
+          "locked_by": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Locked By",
+            "type": "array"
+          },
+          "prerequisites": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Prerequisites",
+            "type": "array"
+          },
+          "slug": {
+            "title": "Slug",
+            "type": "string"
+          },
+          "state": {
+            "title": "State",
+            "type": "string"
+          },
+          "summary": {
+            "title": "Summary",
+            "type": "string"
+          },
+          "text": {
+            "additionalProperties": {
+              "type": "string"
+            },
+            "title": "Text",
+            "type": "object"
+          },
+          "title": {
+            "title": "Title",
+            "type": "string"
+          },
+          "unlocks": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Unlocks",
+            "type": "array"
+          },
+          "workspace": {
+            "title": "Workspace",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "slug",
+          "title",
+          "summary",
+          "level",
+          "state",
+          "locked_by",
+          "unlocks",
+          "compute",
+          "prerequisites",
+          "forbid",
+          "checks",
+          "experiment",
+          "depth",
+          "text",
+          "files",
+          "workspace"
+        ],
+        "title": "LessonDetail",
+        "type": "object"
+      },
+      "LessonSummary": {
+        "properties": {
+          "compute": {
+            "additionalProperties": {
+              "$ref": "#/components/schemas/ComputeDoc"
+            },
+            "title": "Compute",
+            "type": "object"
+          },
+          "id": {
+            "title": "Id",
+            "type": "string"
+          },
+          "level": {
+            "title": "Level",
+            "type": "integer"
+          },
+          "locked_by": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Locked By",
+            "type": "array"
+          },
+          "slug": {
+            "title": "Slug",
+            "type": "string"
+          },
+          "state": {
+            "title": "State",
+            "type": "string"
+          },
+          "summary": {
+            "title": "Summary",
+            "type": "string"
+          },
+          "title": {
+            "title": "Title",
+            "type": "string"
+          },
+          "unlocks": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Unlocks",
+            "type": "array"
+          }
+        },
+        "required": [
+          "id",
+          "slug",
+          "title",
+          "summary",
+          "level",
+          "state",
+          "locked_by",
+          "unlocks",
+          "compute"
+        ],
+        "title": "LessonSummary",
+        "type": "object"
+      },
+      "LintRequest": {
+        "properties": {
+          "content": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Content"
+          }
+        },
+        "title": "LintRequest",
+        "type": "object"
+      },
+      "MetricsPage": {
+        "properties": {
+          "last_step": {
+            "title": "Last Step",
+            "type": "integer"
+          },
+          "rows": {
+            "items": {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            "title": "Rows",
+            "type": "array"
+          }
+        },
+        "required": [
+          "rows",
+          "last_step"
+        ],
+        "title": "MetricsPage",
+        "type": "object"
+      },
+      "ModelSpecDoc": {
+        "description": "A model class and its constructor parameters (`nanoscope.specs.ModelSpec`).",
+        "properties": {
+          "doc": {
+            "title": "Doc",
+            "type": "string"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "params": {
+            "items": {
+              "$ref": "#/components/schemas/ParamSpecDoc"
+            },
+            "title": "Params",
+            "type": "array"
+          },
+          "ref": {
+            "title": "Ref",
+            "type": "string"
+          },
+          "shipped": {
+            "default": false,
+            "title": "Shipped",
+            "type": "boolean"
+          },
+          "source": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Source"
+          }
+        },
+        "required": [
+          "name",
+          "ref",
+          "doc",
+          "params"
+        ],
+        "title": "ModelSpecDoc",
+        "type": "object"
+      },
+      "ParamSpecDoc": {
+        "properties": {
+          "annotation": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Annotation"
+          },
+          "default": {
+            "title": "Default"
+          },
+          "from_data": {
+            "title": "From Data",
+            "type": "boolean"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "required": {
+            "title": "Required",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "name",
+          "annotation",
+          "default",
+          "required",
+          "from_data"
+        ],
+        "title": "ParamSpecDoc",
+        "type": "object"
+      },
+      "PatchRequest": {
+        "description": "Either the edited graph (every changed argument is patched into the source), or an\nexplicit list of edits (`set_arg`, `replace_block`, `remove_arg`).",
+        "properties": {
+          "edits": {
+            "anyOf": [
+              {
+                "items": {
+                  "additionalProperties": true,
+                  "type": "object"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Edits"
+          },
+          "graph": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Graph"
+          }
+        },
+        "title": "PatchRequest",
+        "type": "object"
+      },
+      "PathSummary": {
+        "properties": {
+          "compute": {
+            "additionalProperties": {
+              "$ref": "#/components/schemas/ComputeDoc"
+            },
+            "title": "Compute",
+            "type": "object"
+          },
+          "id": {
+            "title": "Id",
+            "type": "string"
+          },
+          "lessons": {
+            "items": {
+              "$ref": "#/components/schemas/LessonSummary"
+            },
+            "title": "Lessons",
+            "type": "array"
+          },
+          "level": {
+            "title": "Level",
+            "type": "integer"
+          },
+          "prerequisites": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Prerequisites",
+            "type": "array"
+          },
+          "summary": {
+            "title": "Summary",
+            "type": "string"
+          },
+          "title": {
+            "title": "Title",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "title",
+          "level",
+          "summary",
+          "prerequisites",
+          "compute",
+          "lessons"
+        ],
+        "title": "PathSummary",
+        "type": "object"
+      },
+      "PolicyRequest": {
+        "properties": {
+          "policy": {
+            "title": "Policy",
+            "type": "string"
+          }
+        },
+        "required": [
+          "policy"
+        ],
+        "title": "PolicyRequest",
+        "type": "object"
+      },
+      "PrepareDoc": {
+        "additionalProperties": true,
+        "description": "Data preparation state (prepare.v1).",
+        "properties": {
+          "preset": {
+            "title": "Preset",
+            "type": "string"
+          },
+          "schema": {
+            "title": "Schema",
+            "type": "integer"
+          },
+          "stage": {
+            "title": "Stage",
+            "type": "string"
+          },
+          "started_at": {
+            "title": "Started At",
+            "type": "string"
+          },
+          "updated_at": {
+            "title": "Updated At",
+            "type": "string"
+          }
+        },
+        "required": [
+          "schema",
+          "preset",
+          "stage",
+          "started_at",
+          "updated_at"
+        ],
+        "title": "PrepareDoc",
+        "type": "object"
+      },
+      "PresetSpecDoc": {
+        "description": "A preset and every field that can be overridden (`nanoscope.specs.PresetSpec`).",
+        "properties": {
+          "fields": {
+            "items": {
+              "$ref": "#/components/schemas/FieldSpecDoc"
+            },
+            "title": "Fields",
+            "type": "array"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          }
+        },
+        "required": [
+          "name",
+          "fields"
+        ],
+        "title": "PresetSpecDoc",
+        "type": "object"
+      },
+      "ProblemDetails": {
+        "additionalProperties": true,
+        "description": "The body of every error response (RFC 9457).",
+        "properties": {
+          "detail": {
+            "title": "Detail",
+            "type": "string"
+          },
+          "instance": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Instance"
+          },
+          "problems": {
+            "anyOf": [
+              {
+                "items": {
+                  "$ref": "#/components/schemas/ProblemItem"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Problems"
+          },
+          "status": {
+            "title": "Status",
+            "type": "integer"
+          },
+          "title": {
+            "title": "Title",
+            "type": "string"
+          },
+          "type": {
+            "title": "Type",
+            "type": "string"
+          }
+        },
+        "required": [
+          "type",
+          "title",
+          "status",
+          "detail"
+        ],
+        "title": "ProblemDetails",
+        "type": "object"
+      },
+      "ProblemItem": {
+        "description": "One thing wrong with a request (problem.v1).",
+        "properties": {
+          "code": {
+            "title": "Code",
+            "type": "string"
+          },
+          "field": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Field"
+          },
+          "hint": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Hint"
+          },
+          "message": {
+            "title": "Message",
+            "type": "string"
+          }
+        },
+        "required": [
+          "code",
+          "message"
+        ],
+        "title": "ProblemItem",
+        "type": "object"
+      },
+      "ProgressDoc": {
+        "additionalProperties": true,
+        "description": "learn/progress.json (progress.v1).",
+        "properties": {
+          "lessons": {
+            "additionalProperties": {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            "title": "Lessons",
+            "type": "object"
+          },
+          "nanoscope": {
+            "title": "Nanoscope",
+            "type": "string"
+          },
+          "schema": {
+            "title": "Schema",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "schema",
+          "nanoscope",
+          "lessons"
+        ],
+        "title": "ProgressDoc",
+        "type": "object"
+      },
+      "RunDetail": {
+        "properties": {
+          "config": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ConfigDoc"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "ref": {
+            "title": "Ref",
+            "type": "string"
+          },
+          "status": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/StatusDoc"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "summary": {
+            "additionalProperties": true,
+            "title": "Summary",
+            "type": "object"
+          }
+        },
+        "required": [
+          "ref",
+          "config",
+          "status",
+          "summary"
+        ],
+        "title": "RunDetail",
+        "type": "object"
+      },
+      "RunEntry": {
+        "description": "One line of the run table.",
+        "properties": {
+          "error": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Error"
+          },
+          "max_steps": {
+            "title": "Max Steps",
+            "type": "integer"
+          },
+          "ref": {
+            "title": "Ref",
+            "type": "string"
+          },
+          "stale": {
+            "default": false,
+            "title": "Stale",
+            "type": "boolean"
+          },
+          "state": {
+            "title": "State",
+            "type": "string"
+          },
+          "step": {
+            "title": "Step",
+            "type": "integer"
+          },
+          "updated": {
+            "title": "Updated",
+            "type": "number"
+          },
+          "val_bpb": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Val Bpb"
+          }
+        },
+        "required": [
+          "ref",
+          "state",
+          "step",
+          "max_steps",
+          "val_bpb",
+          "updated"
+        ],
+        "title": "RunEntry",
+        "type": "object"
+      },
+      "RunRequest": {
+        "description": "Train one seed of a model on a preset. Every field but `model` has the library's\ndefault, so `{\"model\": \"bigram\"}` is the level-0 request.",
+        "properties": {
+          "compile": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "string"
+              }
+            ],
+            "default": false,
+            "title": "Compile"
+          },
+          "kwargs": {
+            "additionalProperties": true,
+            "default": {},
+            "title": "Kwargs",
+            "type": "object"
+          },
+          "model": {
+            "title": "Model",
+            "type": "string"
+          },
+          "preset": {
+            "default": "tinystories-5min",
+            "title": "Preset",
+            "type": "string"
+          },
+          "push_to_hub": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Push To Hub"
+          },
+          "seed": {
+            "default": 0,
+            "title": "Seed",
+            "type": "integer"
+          },
+          "wandb": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "string"
+              }
+            ],
+            "default": false,
+            "title": "Wandb"
+          }
+        },
+        "required": [
+          "model"
+        ],
+        "title": "RunRequest",
+        "type": "object"
+      },
+      "RunValidation": {
+        "properties": {
+          "kwargs": {
+            "additionalProperties": true,
+            "default": {},
+            "title": "Kwargs",
+            "type": "object"
+          },
+          "model": {
+            "title": "Model",
+            "type": "string"
+          },
+          "preset": {
+            "default": "tinystories-5min",
+            "title": "Preset",
+            "type": "string"
+          },
+          "seeds": {
+            "title": "Seeds"
+          }
+        },
+        "required": [
+          "model"
+        ],
+        "title": "RunValidation",
+        "type": "object"
+      },
+      "Sample": {
+        "properties": {
+          "step": {
+            "title": "Step",
+            "type": "integer"
+          },
+          "text": {
+            "title": "Text",
+            "type": "string"
+          }
+        },
+        "required": [
+          "step",
+          "text"
+        ],
+        "title": "Sample",
+        "type": "object"
+      },
+      "StartRequest": {
+        "properties": {
+          "gating": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Gating"
+          }
+        },
+        "title": "StartRequest",
+        "type": "object"
+      },
+      "StartResult": {
+        "properties": {
+          "copied": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Copied",
+            "type": "array"
+          },
+          "first_start": {
+            "title": "First Start",
+            "type": "boolean"
+          },
+          "kept": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Kept",
+            "type": "array"
+          },
+          "lesson": {
+            "title": "Lesson",
+            "type": "string"
+          },
+          "policy": {
+            "title": "Policy",
+            "type": "string"
+          },
+          "state": {
+            "title": "State",
+            "type": "string"
+          },
+          "workspace": {
+            "title": "Workspace",
+            "type": "string"
+          }
+        },
+        "required": [
+          "lesson",
+          "workspace",
+          "copied",
+          "kept",
+          "state",
+          "policy",
+          "first_start"
+        ],
+        "title": "StartResult",
+        "type": "object"
+      },
+      "StatusDoc": {
+        "additionalProperties": true,
+        "description": "A run's status.json (status.v1).",
+        "properties": {
+          "error": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Error"
+          },
+          "max_steps": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Max Steps"
+          },
+          "schema": {
+            "title": "Schema",
+            "type": "integer"
+          },
+          "state": {
+            "title": "State",
+            "type": "string"
+          },
+          "step": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Step"
+          },
+          "updated_at": {
+            "title": "Updated At",
+            "type": "string"
+          }
+        },
+        "required": [
+          "schema",
+          "state",
+          "updated_at"
+        ],
+        "title": "StatusDoc",
+        "type": "object"
+      },
+      "StudyEntry": {
+        "properties": {
+          "mode": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Mode"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "preset": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Preset"
+          },
+          "runs_by_state": {
+            "additionalProperties": {
+              "type": "integer"
+            },
+            "default": {},
+            "title": "Runs By State",
+            "type": "object"
+          },
+          "runs_total": {
+            "default": 0,
+            "title": "Runs Total",
+            "type": "integer"
+          },
+          "seeds": {
+            "default": [],
+            "items": {
+              "type": "integer"
+            },
+            "title": "Seeds",
+            "type": "array"
+          },
+          "spec": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Spec"
+          },
+          "variants": {
+            "default": [],
+            "items": {
+              "$ref": "#/components/schemas/VariantInfo"
+            },
+            "title": "Variants",
+            "type": "array"
+          }
+        },
+        "required": [
+          "name",
+          "spec"
+        ],
+        "title": "StudyEntry",
+        "type": "object"
+      },
+      "StudyRun": {
+        "properties": {
+          "job": {
+            "$ref": "#/components/schemas/JobDoc"
+          },
+          "study": {
+            "title": "Study",
+            "type": "string"
+          }
+        },
+        "required": [
+          "study",
+          "job"
+        ],
+        "title": "StudyRun",
+        "type": "object"
+      },
+      "StudyUpload": {
+        "properties": {
+          "overwrite": {
+            "default": false,
+            "title": "Overwrite",
+            "type": "boolean"
+          },
+          "spec": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Spec"
+          },
+          "toml": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Toml"
+          }
+        },
+        "title": "StudyUpload",
+        "type": "object"
+      },
+      "StudyValidation": {
+        "properties": {
+          "spec": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Spec"
+          },
+          "toml": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Toml"
+          }
+        },
+        "title": "StudyValidation",
+        "type": "object"
+      },
+      "UnlockRequest": {
+        "properties": {
+          "all": {
+            "default": false,
+            "title": "All",
+            "type": "boolean"
+          },
+          "id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Id"
+          },
+          "reason": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Reason"
+          }
+        },
+        "title": "UnlockRequest",
+        "type": "object"
+      },
+      "UnlocksView": {
+        "description": "The unlocks document plus every lockable id with its current state.",
+        "properties": {
+          "lockable": {
+            "additionalProperties": {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            "title": "Lockable",
+            "type": "object"
+          },
+          "policy": {
+            "title": "Policy",
+            "type": "string"
+          },
+          "schema_version": {
+            "title": "Schema Version",
+            "type": "integer"
+          },
+          "unlocks": {
+            "additionalProperties": {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            "title": "Unlocks",
+            "type": "object"
+          }
+        },
+        "required": [
+          "schema_version",
+          "policy",
+          "unlocks",
+          "lockable"
+        ],
+        "title": "UnlocksView",
+        "type": "object"
+      },
+      "Validation": {
+        "properties": {
+          "ok": {
+            "title": "Ok",
+            "type": "boolean"
+          },
+          "problems": {
+            "items": {
+              "$ref": "#/components/schemas/ProblemItem"
+            },
+            "title": "Problems",
+            "type": "array"
+          }
+        },
+        "required": [
+          "ok",
+          "problems"
+        ],
+        "title": "Validation",
+        "type": "object"
+      },
+      "VariantInfo": {
+        "properties": {
+          "model": {
+            "title": "Model",
+            "type": "string"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          }
+        },
+        "required": [
+          "name",
+          "model"
+        ],
+        "title": "VariantInfo",
+        "type": "object"
+      },
+      "Version": {
+        "properties": {
+          "nanoscope": {
+            "title": "Nanoscope",
+            "type": "string"
+          },
+          "schemas": {
+            "additionalProperties": {
+              "type": "integer"
+            },
+            "title": "Schemas",
+            "type": "object"
+          }
+        },
+        "required": [
+          "nanoscope",
+          "schemas"
+        ],
+        "title": "Version",
+        "type": "object"
+      },
+      "nanoscope__server__routes__runs__StopResult": {
+        "properties": {
+          "cancelled_jobs": {
+            "items": {
+              "type": "integer"
+            },
+            "title": "Cancelled Jobs",
+            "type": "array"
+          },
+          "ref": {
+            "title": "Ref",
+            "type": "string"
+          },
+          "stopping": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Stopping",
+            "type": "array"
+          }
+        },
+        "required": [
+          "ref",
+          "stopping",
+          "cancelled_jobs"
+        ],
+        "title": "StopResult",
+        "type": "object"
+      },
+      "nanoscope__server__routes__studies__StopResult": {
+        "properties": {
+          "stopping": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Stopping",
+            "type": "array"
+          },
+          "study": {
+            "title": "Study",
+            "type": "string"
+          }
+        },
+        "required": [
+          "study",
+          "stopping"
+        ],
+        "title": "StopResult",
+        "type": "object"
+      }
+    }
+  },
+  "info": {
+    "title": "nanoscope",
+    "version": "0.2.0"
+  },
+  "openapi": "3.1.0",
+  "paths": {
+    "/api/bench": {
+      "post": {
+        "description": "Measure training speed on a worker's device (a job: it trains for real).",
+        "operationId": "bench_api_bench_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/BenchRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "202": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/JobDoc"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "The request cannot be done as asked"
+          },
+          "4XX": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "An error (RFC 9457)"
+          }
+        },
+        "summary": "Bench",
+        "tags": [
+          "data and hardware"
+        ]
+      }
+    },
+    "/api/blocks": {
+      "get": {
+        "description": "The palette: every block with its options, tier, reference, whether it is certified\nagainst it, and its lock state under the current gating policy. Blocks registered in the\nworkspace are listed too (found by reading the files).",
+        "operationId": "blocks_api_blocks_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BlocksDoc"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "The request cannot be done as asked"
+          },
+          "4XX": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "An error (RFC 9457)"
+          }
+        },
+        "summary": "Blocks",
+        "tags": [
+          "blocks"
+        ]
+      }
+    },
+    "/api/compare": {
+      "post": {
+        "description": "Rows with the difference from the baseline and its 95% interval, a verdict word per row,\nevery seed's curve and the precision plan: exactly `nanoscope.compare(...).to_dict()`.",
+        "operationId": "compare_api_compare_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CompareRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ComparisonDoc"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "The request cannot be done as asked"
+          },
+          "4XX": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "An error (RFC 9457)"
+          }
+        },
+        "summary": "Compare",
+        "tags": [
+          "compare"
+        ]
+      }
+    },
+    "/api/curricula": {
+      "get": {
+        "description": "Every learning path with its lessons, state and compute estimates.",
+        "operationId": "curricula_api_curricula_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/PathSummary"
+                  },
+                  "title": "Response Curricula Api Curricula Get",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "The request cannot be done as asked"
+          },
+          "4XX": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "An error (RFC 9457)"
+          }
+        },
+        "summary": "Curricula",
+        "tags": [
+          "learn"
+        ]
+      }
+    },
+    "/api/curricula/{path}/{lesson}": {
+      "get": {
+        "description": "One lesson: its text (Surface, Deep, Reading), checks, unlocks and starter files.",
+        "operationId": "lesson_detail_api_curricula__path___lesson__get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "path",
+            "required": true,
+            "schema": {
+              "title": "Path",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "lesson",
+            "required": true,
+            "schema": {
+              "title": "Lesson",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LessonDetail"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "The request cannot be done as asked"
+          },
+          "4XX": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "An error (RFC 9457)"
+          }
+        },
+        "summary": "Lesson Detail",
+        "tags": [
+          "learn"
+        ]
+      }
+    },
+    "/api/curricula/{path}/{lesson}/check": {
+      "post": {
+        "description": "Run the lesson's checks on your file as a job (they train models and run your code, so\na worker does it). The result lands in `learn/checks/` and in `/learn/progress`.",
+        "operationId": "check_api_curricula__path___lesson__check_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "path",
+            "required": true,
+            "schema": {
+              "title": "Path",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "lesson",
+            "required": true,
+            "schema": {
+              "title": "Lesson",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "anyOf": [
+                  {
+                    "$ref": "#/components/schemas/CheckRequest"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "title": "Body"
+              }
+            }
+          }
+        },
+        "responses": {
+          "202": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/JobDoc"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "The request cannot be done as asked"
+          },
+          "4XX": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "An error (RFC 9457)"
+          }
+        },
+        "summary": "Check",
+        "tags": [
+          "learn"
+        ]
+      }
+    },
+    "/api/curricula/{path}/{lesson}/start": {
+      "post": {
+        "description": "Copy the lesson's starter files into your workspace (never over your edits) and mark it\nstarted. The very first start turns gating on (`guided`) unless you ask for `open`.",
+        "operationId": "start_api_curricula__path___lesson__start_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "path",
+            "required": true,
+            "schema": {
+              "title": "Path",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "lesson",
+            "required": true,
+            "schema": {
+              "title": "Lesson",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "anyOf": [
+                  {
+                    "$ref": "#/components/schemas/StartRequest"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "title": "Body"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StartResult"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "The request cannot be done as asked"
+          },
+          "4XX": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "An error (RFC 9457)"
+          }
+        },
+        "summary": "Start",
+        "tags": [
+          "learn"
+        ]
+      }
+    },
+    "/api/data": {
+      "get": {
+        "description": "Every preset and the state of its data (downloading, tokenizing, done, failed), read\nfrom the `prepare.json` files that `prepare-data` and `run` write while they work.",
+        "operationId": "data_api_data_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/DataEntry"
+                  },
+                  "title": "Response Data Api Data Get",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "The request cannot be done as asked"
+          },
+          "4XX": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "An error (RFC 9457)"
+          }
+        },
+        "summary": "Data",
+        "tags": [
+          "data and hardware"
+        ]
+      }
+    },
+    "/api/data/{preset}/prepare": {
+      "post": {
+        "description": "Download and tokenize a preset's data as a job (it can take minutes).",
+        "operationId": "prepare_api_data__preset__prepare_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "preset",
+            "required": true,
+            "schema": {
+              "title": "Preset",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "202": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/JobDoc"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "The request cannot be done as asked"
+          },
+          "4XX": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "An error (RFC 9457)"
+          }
+        },
+        "summary": "Prepare",
+        "tags": [
+          "data and hardware"
+        ]
+      }
+    },
+    "/api/events": {
+      "get": {
+        "description": "The events of every run under a ref prefix on one stream (each event names its `ref`).\nRuns that appear while it is open are followed from their first row.",
+        "operationId": "all_events_api_events_get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "prefix",
+            "required": false,
+            "schema": {
+              "default": "",
+              "title": "Prefix",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "The request cannot be done as asked"
+          },
+          "4XX": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "An error (RFC 9457)"
+          }
+        },
+        "summary": "All Events",
+        "tags": [
+          "events"
+        ]
+      }
+    },
+    "/api/files": {
+      "get": {
+        "description": "Files in the workspace matching `glob` (default: all).",
+        "operationId": "list_files_api_files_get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "glob",
+            "required": false,
+            "schema": {
+              "default": "**/*",
+              "title": "Glob",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/FileEntry"
+                  },
+                  "title": "Response List Files Api Files Get",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "The request cannot be done as asked"
+          },
+          "4XX": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "An error (RFC 9457)"
+          }
+        },
+        "summary": "List Files",
+        "tags": [
+          "files"
+        ]
+      }
+    },
+    "/api/files/events": {
+      "get": {
+        "description": "Server-sent events: `change` {path, kind, etag} when a workspace file is added, edited\nor deleted by anything, so an open editor can reload.",
+        "operationId": "file_events_api_files_events_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "The request cannot be done as asked"
+          },
+          "4XX": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "An error (RFC 9457)"
+          }
+        },
+        "summary": "File Events",
+        "tags": [
+          "files"
+        ]
+      }
+    },
+    "/api/files/{path}": {
+      "get": {
+        "description": "A text file with its ETag. Send it back as `If-Match` when you save, so an edit made\nelsewhere is never overwritten silently.",
+        "operationId": "read_file_api_files__path__get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "path",
+            "required": true,
+            "schema": {
+              "title": "Path",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FileDoc"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "The request cannot be done as asked"
+          },
+          "4XX": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "An error (RFC 9457)"
+          }
+        },
+        "summary": "Read File",
+        "tags": [
+          "files"
+        ]
+      },
+      "put": {
+        "description": "Save a file. For an existing file send `If-Match` with the ETag you read: if the file\nchanged since, nothing is written and the answer is 409 with the diff between what is on\ndisk and what you sent. A new file needs no ETag.",
+        "operationId": "write_file_api_files__path__put",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "path",
+            "required": true,
+            "schema": {
+              "title": "Path",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/FileWrite"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FileDoc"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "The request cannot be done as asked"
+          },
+          "4XX": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "An error (RFC 9457)"
+          }
+        },
+        "summary": "Write File",
+        "tags": [
+          "files"
+        ]
+      }
+    },
+    "/api/files/{path}/graph": {
+      "post": {
+        "description": "The architecture graph of a model file, read with `ast` (the file is never imported).",
+        "operationId": "file_graph_api_files__path__graph_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "path",
+            "required": true,
+            "schema": {
+              "title": "Path",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GraphResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "The request cannot be done as asked"
+          },
+          "4XX": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "An error (RFC 9457)"
+          }
+        },
+        "summary": "File Graph",
+        "tags": [
+          "graph"
+        ]
+      }
+    },
+    "/api/files/{path}/graph/patch": {
+      "post": {
+        "description": "Apply graph edits to the source, changing only the edited arguments. Needs `If-Match`\nlike any save. Under the `guided` policy a patch that adds a block or feature the learner\nhas not unlocked is refused with a 422 naming the lesson.",
+        "operationId": "patch_graph_api_files__path__graph_patch_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "path",
+            "required": true,
+            "schema": {
+              "title": "Path",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PatchRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "title": "Response Patch Graph Api Files  Path  Graph Patch Post"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "The request cannot be done as asked"
+          },
+          "4XX": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "An error (RFC 9457)"
+          }
+        },
+        "summary": "Patch Graph",
+        "tags": [
+          "graph"
+        ]
+      }
+    },
+    "/api/files/{path}/lint": {
+      "post": {
+        "description": "Diagnostics from ruff for a workspace file, or for unsaved text sent as `content`. The\ntext goes to ruff on stdin: nothing is imported or run, and ruff reads no project config,\nso a learner's file is judged the same everywhere.",
+        "operationId": "lint_file_api_files__path__lint_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "path",
+            "required": true,
+            "schema": {
+              "title": "Path",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "anyOf": [
+                  {
+                    "$ref": "#/components/schemas/LintRequest"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "title": "Body"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/Diagnostic"
+                  },
+                  "title": "Response Lint File Api Files  Path  Lint Post",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "The request cannot be done as asked"
+          },
+          "4XX": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "An error (RFC 9457)"
+          }
+        },
+        "summary": "Lint File",
+        "tags": [
+          "files"
+        ]
+      }
+    },
+    "/api/hardware": {
+      "get": {
+        "description": "What this machine can train on, and which workers are running.",
+        "operationId": "hardware_api_hardware_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Hardware"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "The request cannot be done as asked"
+          },
+          "4XX": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "An error (RFC 9457)"
+          }
+        },
+        "summary": "Hardware",
+        "tags": [
+          "data and hardware"
+        ]
+      }
+    },
+    "/api/hardware/bench": {
+      "get": {
+        "description": "Every saved bench result (`nanoscope bench --save`), oldest first.",
+        "operationId": "bench_results_api_hardware_bench_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/BenchDoc"
+                  },
+                  "title": "Response Bench Results Api Hardware Bench Get",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "The request cannot be done as asked"
+          },
+          "4XX": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "An error (RFC 9457)"
+          }
+        },
+        "summary": "Bench Results",
+        "tags": [
+          "data and hardware"
+        ]
+      }
+    },
+    "/api/health": {
+      "get": {
+        "operationId": "health_api_health_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Health"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "The request cannot be done as asked"
+          },
+          "4XX": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "An error (RFC 9457)"
+          }
+        },
+        "summary": "Health",
+        "tags": [
+          "meta"
+        ]
+      }
+    },
+    "/api/jobs": {
+      "get": {
+        "description": "Jobs, newest last: queued, running, done, failed or cancelled. Filter by `state` and\n`kind` (run, study, describe, check, generate, bench, prepare-data).",
+        "operationId": "list_jobs_api_jobs_get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "state",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "State"
+            }
+          },
+          {
+            "in": "query",
+            "name": "kind",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Kind"
+            }
+          },
+          {
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "default": 200,
+              "title": "Limit",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/JobDoc"
+                  },
+                  "title": "Response List Jobs Api Jobs Get",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "The request cannot be done as asked"
+          },
+          "4XX": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "An error (RFC 9457)"
+          }
+        },
+        "summary": "List Jobs",
+        "tags": [
+          "jobs"
+        ]
+      }
+    },
+    "/api/jobs/{job_id}": {
+      "get": {
+        "operationId": "get_job_api_jobs__job_id__get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "job_id",
+            "required": true,
+            "schema": {
+              "title": "Job Id",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/JobDoc"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "The request cannot be done as asked"
+          },
+          "4XX": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "An error (RFC 9457)"
+          }
+        },
+        "summary": "Get Job",
+        "tags": [
+          "jobs"
+        ]
+      }
+    },
+    "/api/jobs/{job_id}/cancel": {
+      "post": {
+        "description": "Cancel a job: a queued one never starts; a running run gets a STOP (it checkpoints and\ncan be resumed). A job that already finished stays as it is.",
+        "operationId": "cancel_job_api_jobs__job_id__cancel_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "job_id",
+            "required": true,
+            "schema": {
+              "title": "Job Id",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/JobDoc"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "The request cannot be done as asked"
+          },
+          "4XX": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "An error (RFC 9457)"
+          }
+        },
+        "summary": "Cancel Job",
+        "tags": [
+          "jobs"
+        ]
+      }
+    },
+    "/api/learn/events": {
+      "get": {
+        "description": "Server-sent events: `unlocks` or `progress` with the new document whenever either file\nchanges (a lesson check finished, `nanoscope learn unlock` ran in a terminal).",
+        "operationId": "learn_events_api_learn_events_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "The request cannot be done as asked"
+          },
+          "4XX": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "An error (RFC 9457)"
+          }
+        },
+        "summary": "Learn Events",
+        "tags": [
+          "learn"
+        ]
+      }
+    },
+    "/api/learn/policy": {
+      "post": {
+        "description": "`open` unlocks everything; `guided` turns gating back on, keeping what you earned or\nskipped.",
+        "operationId": "learn_policy_api_learn_policy_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PolicyRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UnlocksView"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "The request cannot be done as asked"
+          },
+          "4XX": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "An error (RFC 9457)"
+          }
+        },
+        "summary": "Learn Policy",
+        "tags": [
+          "learn"
+        ]
+      }
+    },
+    "/api/learn/progress": {
+      "get": {
+        "description": "Where you are in each lesson (progress.json).",
+        "operationId": "learn_progress_api_learn_progress_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProgressDoc"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "The request cannot be done as asked"
+          },
+          "4XX": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "An error (RFC 9457)"
+          }
+        },
+        "summary": "Learn Progress",
+        "tags": [
+          "learn"
+        ]
+      }
+    },
+    "/api/learn/unlock": {
+      "post": {
+        "description": "Unlock everything (`all`), or skip one lesson's lock with a reason. Both are recorded, so\nyour progress shows what you earned and what you skipped.",
+        "operationId": "learn_unlock_api_learn_unlock_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UnlockRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UnlocksView"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "The request cannot be done as asked"
+          },
+          "4XX": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "An error (RFC 9457)"
+          }
+        },
+        "summary": "Learn Unlock",
+        "tags": [
+          "learn"
+        ]
+      }
+    },
+    "/api/learn/unlocks": {
+      "get": {
+        "description": "The gating policy, what you earned or skipped, and what is still locked.",
+        "operationId": "learn_unlocks_api_learn_unlocks_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UnlocksView"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "The request cannot be done as asked"
+          },
+          "4XX": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "An error (RFC 9457)"
+          }
+        },
+        "summary": "Learn Unlocks",
+        "tags": [
+          "learn"
+        ]
+      }
+    },
+    "/api/models": {
+      "get": {
+        "description": "The shipped models and the model classes found in the workspace.",
+        "operationId": "models_api_models_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/ModelSpecDoc"
+                  },
+                  "title": "Response Models Api Models Get",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "The request cannot be done as asked"
+          },
+          "4XX": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "An error (RFC 9457)"
+          }
+        },
+        "summary": "Models",
+        "tags": [
+          "models"
+        ]
+      }
+    },
+    "/api/models/{ref}": {
+      "get": {
+        "operationId": "model_api_models__ref__get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "ref",
+            "required": true,
+            "schema": {
+              "title": "Ref",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ModelSpecDoc"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "The request cannot be done as asked"
+          },
+          "4XX": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "An error (RFC 9457)"
+          }
+        },
+        "summary": "Model",
+        "tags": [
+          "models"
+        ]
+      }
+    },
+    "/api/models/{ref}/describe": {
+      "post": {
+        "description": "Shapes, parameters, FLOPs and memory per module. It builds the model, which runs the\nlearner's code, so it is a job for a worker, never done in this process.",
+        "operationId": "describe_model_api_models__ref__describe_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "ref",
+            "required": true,
+            "schema": {
+              "title": "Ref",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "anyOf": [
+                  {
+                    "$ref": "#/components/schemas/DescribeRequest"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "title": "Body"
+              }
+            }
+          }
+        },
+        "responses": {
+          "202": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/JobDoc"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "The request cannot be done as asked"
+          },
+          "4XX": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "An error (RFC 9457)"
+          }
+        },
+        "summary": "Describe Model",
+        "tags": [
+          "models"
+        ]
+      }
+    },
+    "/api/presets": {
+      "get": {
+        "description": "Every preset with its fields (what a run form shows, and what can be overridden).",
+        "operationId": "presets_api_presets_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/PresetSpecDoc"
+                  },
+                  "title": "Response Presets Api Presets Get",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "The request cannot be done as asked"
+          },
+          "4XX": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "An error (RFC 9457)"
+          }
+        },
+        "summary": "Presets",
+        "tags": [
+          "presets"
+        ]
+      }
+    },
+    "/api/presets/{name}": {
+      "get": {
+        "operationId": "preset_api_presets__name__get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "name",
+            "required": true,
+            "schema": {
+              "title": "Name",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PresetSpecDoc"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "The request cannot be done as asked"
+          },
+          "4XX": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "An error (RFC 9457)"
+          }
+        },
+        "summary": "Preset",
+        "tags": [
+          "presets"
+        ]
+      }
+    },
+    "/api/runs": {
+      "get": {
+        "description": "Every run under a ref prefix (all when empty), optionally only those in one state.",
+        "operationId": "list_runs_api_runs_get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "prefix",
+            "required": false,
+            "schema": {
+              "default": "",
+              "title": "Prefix",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "state",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "State"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/RunEntry"
+                  },
+                  "title": "Response List Runs Api Runs Get",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "The request cannot be done as asked"
+          },
+          "4XX": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "An error (RFC 9457)"
+          }
+        },
+        "summary": "List Runs",
+        "tags": [
+          "runs"
+        ]
+      },
+      "post": {
+        "description": "Queue a run on the interactive lane. A run that is already done returns it (200); one\nalready queued or running returns its job (202). The model is read, never imported here:\nthe worker runs it.",
+        "operationId": "submit_run_api_runs_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RunRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "202": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "title": "Response Submit Run Api Runs Post"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "The request cannot be done as asked"
+          },
+          "4XX": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "An error (RFC 9457)"
+          }
+        },
+        "summary": "Submit Run",
+        "tags": [
+          "runs"
+        ]
+      }
+    },
+    "/api/runs/{ref}": {
+      "get": {
+        "description": "A run's config, status and a summary of its metrics.",
+        "operationId": "get_run_api_runs__ref__get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "ref",
+            "required": true,
+            "schema": {
+              "title": "Ref",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RunDetail"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "The request cannot be done as asked"
+          },
+          "4XX": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "An error (RFC 9457)"
+          }
+        },
+        "summary": "Get Run",
+        "tags": [
+          "runs"
+        ]
+      }
+    },
+    "/api/runs/{ref}/blockstats": {
+      "get": {
+        "description": "Per-block statistics recorded at each eval step (runs started with block_stats=True).",
+        "operationId": "run_blockstats_api_runs__ref__blockstats_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "ref",
+            "required": true,
+            "schema": {
+              "title": "Ref",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "additionalProperties": true,
+                    "type": "object"
+                  },
+                  "title": "Response Run Blockstats Api Runs  Ref  Blockstats Get",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "The request cannot be done as asked"
+          },
+          "4XX": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "An error (RFC 9457)"
+          }
+        },
+        "summary": "Run Blockstats",
+        "tags": [
+          "runs"
+        ]
+      }
+    },
+    "/api/runs/{ref}/checkpoints": {
+      "get": {
+        "description": "The checkpoint files of a run (the weights are not served).",
+        "operationId": "run_checkpoints_api_runs__ref__checkpoints_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "ref",
+            "required": true,
+            "schema": {
+              "title": "Ref",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/CheckpointEntry"
+                  },
+                  "title": "Response Run Checkpoints Api Runs  Ref  Checkpoints Get",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "The request cannot be done as asked"
+          },
+          "4XX": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "An error (RFC 9457)"
+          }
+        },
+        "summary": "Run Checkpoints",
+        "tags": [
+          "runs"
+        ]
+      }
+    },
+    "/api/runs/{ref}/events": {
+      "get": {
+        "description": "Server-sent events for one run: `state`, `step` (at most 4 a second), `eval`, `sample`,\n`checkpoint`, `blockstats`, and `reset` when the metrics file is rewritten (a resume).\nWithout `since_step` the stream starts now; with it, rows after that step are replayed.\nWorks for runs started from the CLI too: it reads the same files.",
+        "operationId": "run_events_api_runs__ref__events_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "ref",
+            "required": true,
+            "schema": {
+              "title": "Ref",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "since_step",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "integer"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Since Step"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "The request cannot be done as asked"
+          },
+          "4XX": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "An error (RFC 9457)"
+          }
+        },
+        "summary": "Run Events",
+        "tags": [
+          "events"
+        ]
+      }
+    },
+    "/api/runs/{ref}/generate": {
+      "post": {
+        "description": "Text from a trained run. It is a `generate` job on the interactive lane: a worker keeps\nrecently used models loaded and does the work, never this process. The answer comes back\nin this response; if the generation outruns `timeout` it is stopped (504), and with no\nworker to take the job it is cancelled (503).",
+        "operationId": "generate_text_api_runs__ref__generate_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "ref",
+            "required": true,
+            "schema": {
+              "title": "Ref",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/GenerateRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "title": "Response Generate Text Api Runs  Ref  Generate Post"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "The request cannot be done as asked"
+          },
+          "4XX": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "An error (RFC 9457)"
+          }
+        },
+        "summary": "Generate Text",
+        "tags": [
+          "runs"
+        ]
+      }
+    },
+    "/api/runs/{ref}/metrics": {
+      "get": {
+        "description": "The rows of metrics.jsonl after `since_step` (all of them by default).",
+        "operationId": "run_metrics_api_runs__ref__metrics_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "ref",
+            "required": true,
+            "schema": {
+              "title": "Ref",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "since_step",
+            "required": false,
+            "schema": {
+              "default": 0,
+              "title": "Since Step",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MetricsPage"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "The request cannot be done as asked"
+          },
+          "4XX": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "An error (RFC 9457)"
+          }
+        },
+        "summary": "Run Metrics",
+        "tags": [
+          "runs"
+        ]
+      }
+    },
+    "/api/runs/{ref}/resume": {
+      "post": {
+        "description": "Continue a stopped or interrupted run from its last checkpoint, with exactly the\nconfiguration it started with. A finished run has nothing to resume (409).",
+        "operationId": "resume_run_api_runs__ref__resume_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "ref",
+            "required": true,
+            "schema": {
+              "title": "Ref",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "202": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "title": "Response Resume Run Api Runs  Ref  Resume Post"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "The request cannot be done as asked"
+          },
+          "4XX": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "An error (RFC 9457)"
+          }
+        },
+        "summary": "Resume Run",
+        "tags": [
+          "runs"
+        ]
+      }
+    },
+    "/api/runs/{ref}/samples": {
+      "get": {
+        "description": "The generated samples, one per `sample_interval`, oldest first.",
+        "operationId": "run_samples_api_runs__ref__samples_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "ref",
+            "required": true,
+            "schema": {
+              "title": "Ref",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/Sample"
+                  },
+                  "title": "Response Run Samples Api Runs  Ref  Samples Get",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "The request cannot be done as asked"
+          },
+          "4XX": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "An error (RFC 9457)"
+          }
+        },
+        "summary": "Run Samples",
+        "tags": [
+          "runs"
+        ]
+      }
+    },
+    "/api/runs/{ref}/stop": {
+      "post": {
+        "description": "Ask a run to stop at its next step (it saves a checkpoint, and `resume` continues it);\na job that has not started is cancelled. Works for runs started outside the API too.",
+        "operationId": "stop_run_api_runs__ref__stop_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "ref",
+            "required": true,
+            "schema": {
+              "title": "Ref",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/nanoscope__server__routes__runs__StopResult"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "The request cannot be done as asked"
+          },
+          "4XX": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "An error (RFC 9457)"
+          }
+        },
+        "summary": "Stop Run",
+        "tags": [
+          "runs"
+        ]
+      }
+    },
+    "/api/schemas": {
+      "get": {
+        "description": "Every JSON Schema nanoscope publishes and its current version.",
+        "operationId": "list_schemas_api_schemas_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": {
+                    "type": "integer"
+                  },
+                  "title": "Response List Schemas Api Schemas Get",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "The request cannot be done as asked"
+          },
+          "4XX": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "An error (RFC 9457)"
+          }
+        },
+        "summary": "List Schemas",
+        "tags": [
+          "meta"
+        ]
+      }
+    },
+    "/api/schemas/{name}": {
+      "get": {
+        "description": "One JSON Schema (2020-12), the version the library writes now unless you ask for another.",
+        "operationId": "get_schema_api_schemas__name__get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "name",
+            "required": true,
+            "schema": {
+              "title": "Name",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "version",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "integer"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Version"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "title": "Response Get Schema Api Schemas  Name  Get",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "The request cannot be done as asked"
+          },
+          "4XX": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "An error (RFC 9457)"
+          }
+        },
+        "summary": "Get Schema",
+        "tags": [
+          "meta"
+        ]
+      }
+    },
+    "/api/studies": {
+      "get": {
+        "description": "Studies in the workspace (`studies/<name>.toml`) and studies that have been run.",
+        "operationId": "list_studies_api_studies_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/StudyEntry"
+                  },
+                  "title": "Response List Studies Api Studies Get",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "The request cannot be done as asked"
+          },
+          "4XX": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "An error (RFC 9457)"
+          }
+        },
+        "summary": "List Studies",
+        "tags": [
+          "studies"
+        ]
+      },
+      "post": {
+        "description": "Save a study spec as `studies/<name>.toml` in the workspace, after the same checks as\n`/validate/study`. It is the committable file: nothing runs yet.",
+        "operationId": "save_study_api_studies_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/StudyUpload"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StudyEntry"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "The request cannot be done as asked"
+          },
+          "4XX": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "An error (RFC 9457)"
+          }
+        },
+        "summary": "Save Study",
+        "tags": [
+          "studies"
+        ]
+      }
+    },
+    "/api/studies/{name}/report": {
+      "get": {
+        "description": "The study's results as data (results.v1): the comparison of its variants against the\nbaseline, and any preregistered predictions scored. Computed from the run files, so it works\nfor a study that is still running, and for one started from the command line.",
+        "operationId": "study_report_api_studies__name__report_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "name",
+            "required": true,
+            "schema": {
+              "title": "Name",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "title": "Response Study Report Api Studies  Name  Report Get"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "The request cannot be done as asked"
+          },
+          "4XX": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "An error (RFC 9457)"
+          }
+        },
+        "summary": "Study Report",
+        "tags": [
+          "studies"
+        ]
+      }
+    },
+    "/api/studies/{name}/run": {
+      "post": {
+        "description": "Queue a study (explore mode). A worker loads the spec, which imports its models, and puts\nevery unfinished run on the batch lane; watch them with `/jobs` or `/events?prefix=`.",
+        "operationId": "run_study_api_studies__name__run_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "name",
+            "required": true,
+            "schema": {
+              "title": "Name",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "202": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StudyRun"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "The request cannot be done as asked"
+          },
+          "4XX": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "An error (RFC 9457)"
+          }
+        },
+        "summary": "Run Study",
+        "tags": [
+          "studies"
+        ]
+      }
+    },
+    "/api/studies/{name}/stop": {
+      "post": {
+        "description": "Stop a study: queued runs are cancelled and running ones checkpoint and stop.",
+        "operationId": "stop_study_api_studies__name__stop_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "name",
+            "required": true,
+            "schema": {
+              "title": "Name",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/nanoscope__server__routes__studies__StopResult"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "The request cannot be done as asked"
+          },
+          "4XX": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "An error (RFC 9457)"
+          }
+        },
+        "summary": "Stop Study",
+        "tags": [
+          "studies"
+        ]
+      }
+    },
+    "/api/sync/hub": {
+      "post": {
+        "description": "Pull a run that was trained on Kaggle or Colab (with `push_to_hub=`) into this machine.\nIt is a job (it downloads checkpoints); the HF token is passed to it and to nothing else.",
+        "operationId": "sync_hub_api_sync_hub_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/HubSync"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "202": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/JobDoc"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "The request cannot be done as asked"
+          },
+          "4XX": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "An error (RFC 9457)"
+          }
+        },
+        "summary": "Sync Hub",
+        "tags": [
+          "hub"
+        ]
+      }
+    },
+    "/api/validate/run": {
+      "post": {
+        "description": "Every problem with a run request at once, locked blocks included: what `run()` would\nrefuse, without running anything or importing the model.",
+        "operationId": "validate_run_api_validate_run_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RunValidation"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Validation"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "The request cannot be done as asked"
+          },
+          "4XX": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "An error (RFC 9457)"
+          }
+        },
+        "summary": "Validate Run",
+        "tags": [
+          "validate"
+        ]
+      }
+    },
+    "/api/validate/study": {
+      "post": {
+        "description": "Every problem with a study spec: its preset, seeds, baseline and each variant's model\nand keywords (named by their place in the spec, e.g. `variants[1].kwargs.n_kv_heads`).",
+        "operationId": "validate_study_api_validate_study_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/StudyValidation"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Validation"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "The request cannot be done as asked"
+          },
+          "4XX": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "An error (RFC 9457)"
+          }
+        },
+        "summary": "Validate Study",
+        "tags": [
+          "validate"
+        ]
+      }
+    },
+    "/api/version": {
+      "get": {
+        "operationId": "version_api_version_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Version"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "The request cannot be done as asked"
+          },
+          "4XX": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "An error (RFC 9457)"
+          }
+        },
+        "summary": "Version",
+        "tags": [
+          "meta"
+        ]
+      }
+    },
+    "/api/workers": {
+      "get": {
+        "description": "The running workers (worker.v1 files), each with the age of its last heartbeat.",
+        "operationId": "workers_api_workers_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "additionalProperties": true,
+                    "type": "object"
+                  },
+                  "title": "Response Workers Api Workers Get",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "The request cannot be done as asked"
+          },
+          "4XX": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "An error (RFC 9457)"
+          }
+        },
+        "summary": "Workers",
+        "tags": [
+          "jobs"
+        ]
+      }
+    }
+  }
+}
