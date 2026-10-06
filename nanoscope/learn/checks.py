@@ -409,6 +409,15 @@ def check_forbid(ctx: Context, check: Check) -> Result:
         found = forbidden_uses(source, names)
     except SyntaxError as exc:
         return Result(check.id, check.kind, False, f"{file.name} line {exc.lineno}: {exc.msg}")
+    from nanoscope.learn import gating
+
+    locked = gating.scan(file, ctx.owner)
+    if locked:
+        listing = "; ".join(f"line {u.line}: {u.id} (locked until {u.lesson})" for u in locked)
+        return Result(check.id, check.kind, False,
+                      f"{file.name} uses blocks you have not unlocked yet: {listing}",
+                      {"locked": [{"line": u.line, "id": u.id, "lesson": u.lesson}
+                                  for u in locked]})
     if found:
         listing = "; ".join(f"line {line}: {name}" for line, name in found)
         return Result(check.id, check.kind, False,

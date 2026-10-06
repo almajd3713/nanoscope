@@ -167,3 +167,87 @@ def test_build_gate(home, lock_curricula):
         Template(attn=RoPE()).build(16, 8)
     unlocks.set_policy("open")
     assert decoder(n_kv_heads=2, pos=RoPE()).blocks[0].attn.n_kv_heads == 2
+
+
+GUIDED_FILE = '''\
+from nanoscope.blocks import Block, Decoder, RMSNorm, SwiGLU
+from nanoscope.blocks import Attention, RoPE
+
+
+class MyLM(Decoder):
+    def __init__(self, vocab_size: int):
+        super().__init__(
+            vocab_size, 8, d_model=16, n_layers=1, z_loss=1e-4,
+            block=Block(norm=RMSNorm(), mlp=SwiGLU(),
+                        attn=Attention(n_heads=4, n_kv_heads=2, pos=RoPE(), qk_norm=True)),
+        )
+'''
+
+
+def test_scan(home, lock_curricula, tmp_path):
+    from nanoscope.learn import gating
+
+    file = tmp_path / "mine.py"
+    file.write_text(GUIDED_FILE)
+    assert gating.scan(file) == []  # no unlocks.json: open
+    unlocks.set_policy("guided")
+    uses = gating.scan(file)
+    assert [(u.id, u.line) for u in uses] == [
+        ("block:Attention", 2), ("block:RoPE", 2), ("block:Attention", 10), ("block:RoPE", 10),
+        ("feature:gqa", 10)]
+    assert uses[0].lesson == "foundations/04-attention"
+    assert "nanoscope learn start foundations/04-attention" in uses[0].message
+    unlocks.earn("foundations/04-attention", ["block:Attention"], "e")
+    assert {u.id for u in gating.scan(file)} == {"block:RoPE", "feature:gqa"}
+    unlocks.set_policy("open")
+    assert gating.scan(file) == []
+    # reading the file runs nothing
+    boom = tmp_path / "boom.py"
+    boom.write_text("raise RuntimeError('never')\nfrom nanoscope.blocks import RoPE\n")
+    unlocks.set_policy("guided")
+    assert [u.id for u in gating.scan(boom)] == ["block:RoPE"]
+
+
+def test_scan_feeds_run_request_validation(home, lock_curricula, tmp_path):
+    from nanoscope.cli import _load_model_class
+    from nanoscope.models import Modern
+    from nanoscope.specs import validate_run_request
+
+    file = tmp_path / "mine.py"
+    file.write_text(GUIDED_FILE.replace("from nanoscope.blocks import Attention, RoPE",
+                                        "from nanoscope.blocks.attention import Attention\n"
+                                        "from nanoscope.blocks.positional import RoPE"))
+    MyLM = _load_model_class(f"{file}:MyLM")
+    assert validate_run_request(MyLM, "tinystories-5min", {}) == []  # open
+    unlocks.set_policy("guided")
+    problems = validate_run_request(MyLM, "tinystories-5min", {})
+    assert {p.code for p in problems} == {"locked"}
+    assert any("line 11" in p.message and "feature:gqa is locked" in p.message
+               for p in problems)
+    assert all("unlocks in the lesson" in p.hint for p in problems)
+    assert validate_run_request(Modern, "tinystories-5min", {"n_kv_heads": 1}) == []  # shipped
+
+
+def test_forbid_check_refuses_locked_blocks(home, lock_curricula, tmp_path, monkeypatch):
+    from learn_helpers import lesson_with
+
+    from nanoscope.learn.checks import run_one
+
+    toml = '\n[[checks]]\nid = "own"\nkind = "forbid"\n'
+    ctx = lesson_with(tmp_path / "cur", tmp_path / "ws", monkeypatch, toml, GUIDED_FILE)
+    monkeypatch.setattr("nanoscope.learn.loader.curricula_dir", lambda: lock_curricula)
+    gating_reload()
+    assert run_one(ctx, ctx.lesson.checks[0]).passed  # no unlocks.json
+    unlocks.set_policy("guided")
+    result = run_one(ctx, ctx.lesson.checks[0])
+    assert not result.passed
+    assert result.reason.startswith("starter.py uses blocks you have not unlocked yet: line 2: "
+                                    "block:Attention (locked until foundations/04-attention)")
+    assert result.evidence["locked"][0] == {
+        "line": 2, "id": "block:Attention", "lesson": "foundations/04-attention"}
+
+
+def gating_reload():
+    from nanoscope.learn import gating
+
+    gating.reload()

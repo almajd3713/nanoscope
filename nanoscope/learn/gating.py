@@ -14,6 +14,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from functools import cache
 from pathlib import Path
+from typing import Any
 
 from nanoscope.learn import loader, unlocks
 from nanoscope.learn.loader import CurriculumError
@@ -86,3 +87,71 @@ def check(ids: list[str], owner: str = "local") -> list[Locked]:
     earned = unlocks.read(owner)["unlocks"]
     return [Locked(i, table[i], message_for(i, table[i]))
             for i in ids if i in table and i not in earned]
+
+
+@dataclass(frozen=True)
+class LockedUse:
+    """A locked block or feature a file uses, and where."""
+
+    id: str
+    line: int
+    lesson: str
+    message: str
+
+
+def scan(path: str | Path, owner: str = "local") -> list[LockedUse]:
+    """Locked uses in a file, found by reading it (ast only, nothing is imported or run):
+    imports of locked names from `nanoscope.blocks`, locked block calls in a composition, and
+    locked features (GQA, QK-norm, sliding window, z-loss). The editor shows these on save;
+    `validate_run_request` refuses a run that has them."""
+    import ast
+
+    if unlocks.policy(owner) == "open":
+        return []
+    table = lock_table()
+    earned = unlocks.read(owner)["unlocks"]
+    found: dict[tuple[str, int], LockedUse] = {}
+
+    def note(unlock_id: str, line: int) -> None:
+        if unlock_id in table and unlock_id not in earned:
+            found.setdefault((unlock_id, line), LockedUse(
+                unlock_id, line, table[unlock_id], message_for(unlock_id, table[unlock_id])))
+
+    source = Path(path).read_text(encoding="utf-8")
+    for node in ast.walk(ast.parse(source, filename=str(path))):
+        if isinstance(node, ast.ImportFrom) and node.module == "nanoscope.blocks":
+            for alias in node.names:
+                note(f"block:{alias.name}", node.lineno)
+
+    from nanoscope.blocks.graph import parse
+
+    def walk(node: dict[str, Any]) -> None:
+        if node["kind"] == "list":
+            for item in node["items"]:
+                walk(item)
+        elif node["kind"] == "block":
+            line = node["span"]["line"]
+            if not node.get("local"):
+                note(f"block:{node['block']}", line)
+            args = node["args"]
+            if node["block"] == "Attention":
+                heads, kv = args.get("n_heads"), args.get("n_kv_heads")
+                if heads and kv and heads["kind"] == kv["kind"] == "literal" \
+                        and kv["value"] < heads["value"]:
+                    note("feature:gqa", kv["span"]["line"])
+                if args.get("qk_norm", {}).get("value") is True:
+                    note("feature:qk_norm", args["qk_norm"]["span"]["line"])
+                window = args.get("window")
+                if window and not (window["kind"] == "literal" and window["value"] is None):
+                    note("feature:sliding_window", window["span"]["line"])
+            for child in args.values():
+                walk(child)
+
+    for cls in parse(path)["classes"]:
+        if not cls["representable"] or cls["kind"] != "decoder":
+            continue
+        for name, node in cls["args"].items():
+            walk(node)
+            if name == "z_loss" and node["kind"] == "literal" and node["value"]:
+                note("feature:z_loss", node["span"]["line"])
+    return sorted(found.values(), key=lambda u: (u.line, u.id))

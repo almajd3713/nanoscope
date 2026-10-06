@@ -221,7 +221,8 @@ def _split_kwargs(
     model_cls: type[nn.Module], preset: Preset, kwargs: dict[str, Any],
 ) -> tuple[dict[str, Any], dict[str, Any]]:
     """Route each keyword to the model constructor or to the preset."""
-    problems = validate_run_request(model_cls, preset, kwargs)
+    # a locked block is refused at build time with its own error, not as a TypeError here
+    problems = [p for p in validate_run_request(model_cls, preset, kwargs) if p.code != "locked"]
     if problems:
         raise TypeError(problems[0].message)  # the first one; the API reports them all
     params = {
