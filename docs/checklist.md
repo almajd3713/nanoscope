@@ -13,7 +13,7 @@ item is one line, so scripts and agents can grep and edit it.
 | P6 | Servable library + CI baseline (9-11 d) | 67 / 67 | done |
 | P7 | Queue and workers (5-6 d) | 28 / 28 | done |
 | P8 | Blocks, describe, rebuilt models (10-13 d) | 52 / 52 | done |
-| P9 | Curriculum engine, gating, two paths (14-17 d) | 55 / 61 | in progress |
+| P9 | Curriculum engine, gating, two paths (14-17 d) | 57 / 61 | in progress |
 | P10 | HTTP API (8-10 d) | 0 / 47 | not started |
 | P11 | Release prep: PyPI + GHCR (2-3 d) | 0 / 17 | not started |
 | P12 | docker-compose (3-4 d) | 0 / 20 | not started |
@@ -366,8 +366,8 @@ touch or create (new ones marked `(new)`).
 - [ ] P9.55 Write lesson M07: assemble Modern, then a `verdict` against GPT-2. CPU variant: tinystories-5min, 3 seeds, about 10-15 min CPU estimate. GPU variant: tinystories-30min, 5 seeds, about 10 min on one GPU. Plus its CI test with `fake_data`. · files: nanoscope/curricula/modern-block/07-assemble/*, tests/solutions/modern-block/07-assemble.py, tests/test_curricula.py · deps: P9.50, P9.51, P9.52, P9.53, P9.54, P9.15 · done: `uv run pytest tests/test_curricula.py -k m07` passes
 
 ### P9 · Migration and CI
-- [ ] P9.56 Mine the reading lists in `docs/archive/roadmap-v2.md` (B/R/S/K tiers) into the "## Reading" sections of all 13 lessons (plan 13). · files: nanoscope/curricula/*/*/lesson.md · deps: P9.55, P9.47, P6.66 · done: `grep -L '^## Reading' nanoscope/curricula/*/*/lesson.md` is empty
-- [ ] P9.57 Add `make test-curricula` and a CI job that runs every solution check on CPU (offline ones on every PR; network-marked ones in the notebook job). · files: Makefile, .github/workflows/ci.yml · deps: P9.55, P9.47 · done: `make test-curricula` exits 0
+- [x] P9.56 Mine the reading lists in `docs/archive/roadmap-v2.md` (B/R/S/K tiers) into the "## Reading" sections of all 13 lessons (plan 13). · files: nanoscope/curricula/*/*/lesson.md · deps: P9.55, P9.47, P6.66 · done: `grep -L '^## Reading' nanoscope/curricula/*/*/lesson.md` is empty ✓ 2026-10-06 7a4b2a2: every lesson's ## Reading rewritten with the roadmap-v2 B/R/S/K tiers and links (13/13 lessons; grep -L is empty)
+- [x] P9.57 Add `make test-curricula` and a CI job that runs every solution check on CPU (offline ones on every PR; network-marked ones in the notebook job). · files: Makefile, .github/workflows/ci.yml · deps: P9.55, P9.47 · done: `make test-curricula` exits 0 ✓ 2026-10-06 7a4b2a2: make test-curricula (offline: curricula, checks, learn, gating tests: 60 pass) and test-curricula-full (real data); CI job 'curricula' on every PR, and the first-notebook job also runs the F01 real-data test
 - [ ] P9.58 Add an end-to-end test: `nanoscope learn` runs Foundations and The modern block from start to `passed`, using the solutions (`fake_data`). · files: tests/test_curricula.py · deps: P9.57 · done: `uv run pytest tests/test_curricula.py -k end_to_end` passes
 - [ ] P9.59 Link the M1 milestone in `docs/project-nanoscope.md` to the modern-block path, and its acceptance criteria to M07's verdict check. · files: docs/project-nanoscope.md · deps: P9.55 · done: `grep -n 'modern-block' docs/project-nanoscope.md` matches
 - [x] P9.60 Test that a gated learner who never starts a lesson sees no change: with no `unlocks.json`, the first-notebook cells and `run(GPT2)` behave exactly as before. · files: tests/test_gating.py · deps: P9.22 · done: `uv run pytest tests/test_gating.py -k level0_untouched` passes ✓ 2026-10-06 b3cc219: test_level0_untouched: with no unlocks.json every locked name imports, check/scan return nothing, run(GPT2) and run(Bigram) work, and no learn files are written
