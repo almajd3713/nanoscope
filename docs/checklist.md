@@ -13,7 +13,7 @@ item is one line, so scripts and agents can grep and edit it.
 | P6 | Servable library + CI baseline (9-11 d) | 67 / 67 | done |
 | P7 | Queue and workers (5-6 d) | 28 / 28 | done |
 | P8 | Blocks, describe, rebuilt models (10-13 d) | 52 / 52 | done |
-| P9 | Curriculum engine, gating, two paths (14-17 d) | 28 / 61 | in progress |
+| P9 | Curriculum engine, gating, two paths (14-17 d) | 30 / 61 | in progress |
 | P10 | HTTP API (8-10 d) | 0 / 47 | not started |
 | P11 | Release prep: PyPI + GHCR (2-3 d) | 0 / 17 | not started |
 | P12 | docker-compose (3-4 d) | 0 / 20 | not started |
@@ -332,8 +332,8 @@ touch or create (new ones marked `(new)`).
 - [x] P9.27 Make the first `nanoscope learn start` create `unlocks.json` with policy `guided` (`--open` skips gating) and print one line on how to unlock everything. · files: nanoscope/learn/cli.py, tests/test_gating.py · deps: P9.26, P9.07 · done: `uv run pytest tests/test_gating.py -k first_start_guided` asserts the line ✓ 2026-10-06 67a3a07: the first learn start writes unlocks.json with policy guided (--open writes open) and prints one line on how to unlock everything; later starts leave it alone
 - [x] P9.28 Make `nanoscope learn status` print the lessons and the unlock table (earned, skipped, open). · files: nanoscope/learn/cli.py, tests/test_gating.py · deps: P9.26 · done: `uv run pytest tests/test_gating.py -k learn_status` asserts the table ✓ 2026-10-06 67a3a07: learn status: policy, the lesson table, and every lockable id as earned / skipped / open / locked with its lesson
 - [x] P9.29 Apply the gate to `nanoscope run file.py:Cls` and to Study variants, exiting with code 2 and the message, but never to shipped models. · files: nanoscope/cli.py, nanoscope/study.py, tests/test_gating.py · deps: P9.23 · done: `uv run pytest tests/test_gating.py -k cli_and_study` passes ✓ 2026-10-06 bcd5e6d: cli.main turns LockedBlockError into its message + exit code 2; nanoscope run refuses a locked learner model before anything starts (gating.refuse: static scan, never shipped models); Study.run/enqueue refuse locked variants
-- [ ] P9.30 Route all learner state through `learn_dir(owner="local")` so deployment B can namespace it per user. · files: nanoscope/paths.py, nanoscope/learn/*.py · deps: P9.19 · done: `uv run pytest tests/test_gating.py -k owner_path` passes
-- [ ] P9.31 Write `docs/learn.md`: paths, checks, the CLI, locked components, the escape, how gating works in raw files versus the editor, and its honest limits. · files: docs/learn.md (new), README.md · deps: P9.28 · done: `grep -c 'not security' docs/learn.md` prints at least 1
+- [x] P9.30 Route all learner state through `learn_dir(owner="local")` so deployment B can namespace it per user. · files: nanoscope/paths.py, nanoscope/learn/*.py · deps: P9.19 · done: `uv run pytest tests/test_gating.py -k owner_path` passes ✓ 2026-10-06 31c78d0: test_owner_path: progress, unlocks, check results and gating all go through paths.learn_dir(owner); an AST test forbids learn_dir() without an owner
+- [x] P9.31 Write `docs/learn.md`: paths, checks, the CLI, locked components, the escape, how gating works in raw files versus the editor, and its honest limits. · files: docs/learn.md (new), README.md · deps: P9.28 · done: `grep -c 'not security' docs/learn.md` prints at least 1 ✓ 2026-10-06 31c78d0: docs/learn.md (paths, checks, CLI, locked components, escapes, raw files vs editor, honest limits), linked from the README
 
 ### P9 · Templates for building from primitives
 - [ ] P9.32 Attention template: a `Composite` with slots q, k, v, scores, mask, normalize, mix and out; its correct filling matches the reference. · files: nanoscope/blocks/templates/attention.py (new), tests/test_blocks.py · deps: P8.10, P8.11 · done: `uv run pytest tests/test_blocks.py -k attention_template` passes
