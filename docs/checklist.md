@@ -4,7 +4,7 @@ The build list for [`plan-tool.md`](plan-tool.md), sections 4-10, with the decis
 2026-10-05 (plan section 11) applied. Phase numbers follow the plan's section 10. Every
 item is one line, so scripts and agents can grep and edit it.
 
-**Current focus:** P8 blocks library, describe, rebuilt models. Next item: P8.30.
+**Current focus:** P8 blocks library, describe, rebuilt models. Next item: P8.31.
 
 ## Progress
 
@@ -12,7 +12,7 @@ item is one line, so scripts and agents can grep and edit it.
 |---|---|---|---|
 | P6 | Servable library + CI baseline (9-11 d) | 67 / 67 | done |
 | P7 | Queue and workers (5-6 d) | 28 / 28 | done |
-| P8 | Blocks, describe, rebuilt models (10-13 d) | 29 / 52 | in progress |
+| P8 | Blocks, describe, rebuilt models (10-13 d) | 31 / 52 | in progress |
 | P9 | Curriculum engine, gating, two paths (14-17 d) | 0 / 61 | not started |
 | P10 | HTTP API (8-10 d) | 0 / 47 | not started |
 | P11 | Release prep: PyPI + GHCR (2-3 d) | 0 / 17 | not started |
@@ -262,7 +262,7 @@ touch or create (new ones marked `(new)`).
 - [x] P8.29 Test that `studies/m1_ablation.py` gives the same `jobs()` (sizes and steps) before and after the rebuild. · files: tests/test_study.py · deps: P8.23 · done: `uv run pytest tests/test_study.py -k m1_jobs_stable` passes ✓ 2026-10-06 7416733: test_m1_jobs_stable pins widths (384/584/344) and steps (1954) taken from the pre-rebuild commit
 
 ### P8 · Graph parse and emit
-- [ ] P8.30 Add `libcst` to a new `graph` extra (later included by `server`); it stays out of the core dependencies. · files: pyproject.toml, uv.lock · deps: P6.99 · done: `uv sync --extra graph && uv run python -c "import libcst"` exits 0
+- [x] P8.30 Add `libcst` to a new `graph` extra (later included by `server`); it stays out of the core dependencies. · files: pyproject.toml, uv.lock · deps: P6.99 · done: `uv sync --extra graph && uv run python -c "import libcst"` exits 0 ✓ 2026-10-06 b38887d: `graph = [libcst]` extra, also in dev so CI (`--all-extras`) runs the graph tests; hypothesis added to dev here too (P8.36 still needs its test)
 - [ ] P8.31 Create `nanoscope/blocks/graph.py` with `parse(path)`. It uses `ast` only and turns each `Decoder`/`Composite` subclass into nodes, args and source spans, unknown calls into opaque nodes, and other statements into code-only classes with the reason and line. · files: nanoscope/blocks/graph.py (new), tests/test_graph.py (new) · deps: P8.21, P8.11 · done: `uv run pytest tests/test_graph.py -k parse` passes
 - [ ] P8.32 Add the `graph.v1` schema and validate `parse` output against it. · files: nanoscope/schemas/graph.v1.json (new), tests/test_graph.py · deps: P8.31 · done: `uv run pytest tests/test_graph.py -k schema` passes
 - [ ] P8.33 Add graph fixtures: GPT-2-like, Modern-like, a layer pattern, an opaque custom block, a code-only class, comments with odd formatting, and a `Composite` template. · files: tests/fixtures/graphs/*.py (new) · deps: P8.31 · done: `ls tests/fixtures/graphs/*.py | wc -l` prints at least 7
@@ -288,7 +288,7 @@ touch or create (new ones marked `(new)`).
 - [ ] P8.47 Plan done-when: a composed `MyLM` fixture trains through `run()` unchanged, and `config.json` records its workspace `model.ref`. · files: tests/test_blocks.py, tests/fixtures/graphs/mylm.py · deps: P8.21, P6.38 · done: `uv run pytest tests/test_blocks.py -k composed_trains` passes
 - [ ] P8.48 Write `docs/blocks.md`: the composition style, the representable subset, every block with its reference, `Composite` templates, and how to register a block. Link it from the README. · files: docs/blocks.md (new), README.md · deps: P8.46 · done: `grep -c '^## ' docs/blocks.md` prints at least 4 and `grep -n blocks.md README.md` matches
 - [ ] P8.49 Make `describe` and the catalog report each block's `tier`, ready for gating. · files: nanoscope/inspect.py, nanoscope/blocks/registry.py · deps: P8.46, P8.38 · done: `uv run nanoscope blocks --json | grep -c '"tier"'` is greater than 0
-- [ ] P8.50 Delete the inline `Attention`, `RMSNorm`, `SwiGLU`, `GELUMLP` and `Block` classes left in `models/` and import from `blocks` submodules instead. · files: nanoscope/models/*.py · deps: P8.27 · done: `grep -n "^class " nanoscope/models/modern.py` lists only `Modern`
+- [x] P8.50 Delete the inline `Attention`, `RMSNorm`, `SwiGLU`, `GELUMLP` and `Block` classes left in `models/` and import from `blocks` submodules instead. · files: nanoscope/models/*.py · deps: P8.27 · done: `grep -n "^class " nanoscope/models/modern.py` lists only `Modern` ✓ 2026-10-06 b38887d: already true after P8.22/P8.23: `grep '^class ' models/modern.py` lists only Modern (gpt2.py only GPT2)
 - [ ] P8.51 Add a `test-blocks` Makefile target that runs `test_blocks`, `test_reference`, `test_graph` and `test_describe`. · files: Makefile · deps: P8.41 · done: `make test-blocks` exits 0
 
 ### P8 · Gate
