@@ -24,6 +24,8 @@ coefficient (1e-4) enough, and what would a large one do to the model's confiden
 
 ## Reading
 
-- Chowdhery et al., "PaLM: Scaling Language Modeling with Pathways" (2022), section 5.
-- Wortsman et al., "Small-scale proxies for large-scale Transformer training instabilities"
-  (2023): logit growth and z-loss.
+Tiers: **B** build it, **R** read closely, **S** skim, **K** know it exists.
+
+- **R**: [OLMo 2](https://arxiv.org/pdf/2501.00656) (2024): stability engineering.
+- **R**: [ST-MoE](https://arxiv.org/pdf/2202.08906) (Zoph et al., 2022): the z-loss.
+- **S**: Chowdhery et al., "PaLM" (2022), where the auxiliary loss on log Z appears.

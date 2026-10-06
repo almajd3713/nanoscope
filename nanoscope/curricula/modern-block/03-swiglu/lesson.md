@@ -21,5 +21,7 @@ the two MLPs have (almost) the same number of parameters, so a comparison betwee
 
 ## Reading
 
-- Shazeer, "GLU Variants Improve Transformer" (2020).
-- Dauphin et al., "Language Modeling with Gated Convolutional Networks" (2016), the gating idea.
+Tiers: **B** build it, **R** read closely, **S** skim, **K** know it exists.
+
+- **B**: [GLU Variants Improve Transformer](https://arxiv.org/pdf/2002.05202) (Shazeer, 2020).
+- **R**: [LLaMA](https://arxiv.org/pdf/2302.13971) (2023) and [Mistral 7B](https://arxiv.org/pdf/2310.06825) (2023): SwiGLU at the 8/3 width.

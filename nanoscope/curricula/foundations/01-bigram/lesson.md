@@ -34,6 +34,7 @@ it? What information does it throw away?
 
 ## Reading
 
-- Karpathy, "The spelled-out intro to language modeling: building makemore" (bigram part).
-- Eldan and Li, "TinyStories: How Small Can Language Models Be and Still Speak Coherent
-  English?" (the dataset).
+Tiers: **B** build it, **R** read closely, **S** skim, **K** know it exists.
+
+- **B**: Karpathy, "The spelled-out intro to language modeling: building makemore" (the bigram part): build it again from a blank file.
+- **S**: Eldan and Li, "TinyStories: How Small Can Language Models Be and Still Speak Coherent English?" (2023), the dataset the lessons train on.

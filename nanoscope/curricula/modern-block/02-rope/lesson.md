@@ -27,5 +27,8 @@ saw absolute embeddings for.
 
 ## Reading
 
-- Su et al., "RoFormer: Enhanced Transformer with Rotary Position Embedding" (2021).
-- EleutherAI blog, "Rotary Embeddings: A Relative Revolution".
+Tiers: **B** build it, **R** read closely, **S** skim, **K** know it exists.
+
+- **B**: [RoFormer / RoPE](https://arxiv.org/pdf/2104.09864) (Su, 2021).
+- **K**: [ALiBi](https://arxiv.org/pdf/2108.12409), and [NoPE](https://arxiv.org/pdf/2203.16634): no positional encoding at all: the alternatives, and the surprise that no encoding is competitive.
+- **S**: EleutherAI, "Rotary Embeddings: A Relative Revolution".

@@ -22,5 +22,8 @@ divides the scale away. Why does a network want that property between layers?
 
 ## Reading
 
-- Zhang and Sennrich, "Root Mean Square Layer Normalization" (2019).
-- Touvron et al., "LLaMA: Open and Efficient Foundation Language Models" (2023).
+Tiers: **B** build it, **R** read closely, **S** skim, **K** know it exists.
+
+- **B**: [Root Mean Square Layer Normalization](https://arxiv.org/pdf/1910.07467) (Zhang and Sennrich, 2019).
+- **R**: [LLaMA](https://arxiv.org/pdf/2302.13971) (2023) and [Mistral 7B](https://arxiv.org/pdf/2310.06825) (2023): the convergent recipe, with RMSNorm in it.
+- **R**: [On Layer Normalization in the Transformer Architecture](https://arxiv.org/pdf/2002.04745) (Xiong et al., 2020): pre-LN versus post-LN.

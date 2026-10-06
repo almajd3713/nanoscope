@@ -25,6 +25,8 @@ count the FLOPs. What did splitting change, and what did it not?
 
 ## Reading
 
-- Vaswani et al., "Attention Is All You Need" (2017), section 3.2.2 (multi-head).
-- Elhage et al., "A Mathematical Framework for Transformer Circuits": heads as independent
-  readers and writers.
+Tiers: **B** build it, **R** read closely, **S** skim, **K** know it exists.
+
+- **B**: [Attention Is All You Need](https://arxiv.org/pdf/1706.03762) (2017), section 3.2.2.
+- **R**: Elhage et al., [A Mathematical Framework for Transformer Circuits](https://transformer-circuits.pub/2021/framework/index.html): heads as independent readers and writers of the residual stream.
+- **K**: [Multi-Query Attention](https://arxiv.org/pdf/1911.02150) (Shazeer, 2019): the next lesson's cousin.

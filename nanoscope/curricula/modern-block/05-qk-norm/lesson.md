@@ -25,6 +25,8 @@ what role does the learned scale play?
 
 ## Reading
 
-- Henry et al., "Query-Key Normalization for Transformers" (2020).
-- Dehghani et al., "Scaling Vision Transformers to 22 Billion Parameters" (2023): QK-norm for
-  stability at scale.
+Tiers: **B** build it, **R** read closely, **S** skim, **K** know it exists.
+
+- **R**: [OLMo 2](https://arxiv.org/pdf/2501.00656) (2024): read it for stability engineering (QK-norm, z-loss, why runs diverge).
+- **S**: Henry et al., "Query-Key Normalization for Transformers" (2020).
+- **S**: Dehghani et al., "Scaling Vision Transformers to 22 Billion Parameters" (2023): QK-norm at scale.

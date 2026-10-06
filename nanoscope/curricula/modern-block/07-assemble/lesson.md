@@ -32,6 +32,12 @@ within noise at this size. Say so, with the interval.
 
 ## Reading
 
-- Touvron et al., "Llama 2: Open Foundation and Fine-Tuned Chat Models" (2023), architecture.
-- Dubey et al., "The Llama 3 Herd of Models" (2024).
-- The M1 milestone in `docs/project-nanoscope.md`: this is its small version.
+Tiers: **B** build it, **R** read closely, **S** skim, **K** know it exists.
+
+- **R**: [LLaMA](https://arxiv.org/pdf/2302.13971) (2023) and [Mistral 7B](https://arxiv.org/pdf/2310.06825) (2023): the convergent recipe you just built.
+- **R**: [OLMo 2](https://arxiv.org/pdf/2501.00656) (2024).
+- **R**: [DeepSeek-V3 Technical Report](https://arxiv.org/pdf/2412.19437) (2024): the most complete public recipe (MLA, MoE, FP8, MTP).
+- **R**: [Chinchilla Scaling: A Replication Attempt](https://arxiv.org/pdf/2404.10102) (Besiroglu et al., 2024): scaling laws are curve fits with error bars
+- **R**: [T5](https://arxiv.org/pdf/1910.10683) (2019): ablation methodology.
+- **S**: [FineWeb](https://arxiv.org/pdf/2406.17557) (2024): read the ablation methodology for how to evaluate cheaply.
+- **K**: The M1 milestone in `docs/project-nanoscope.md`: this lesson is its small version.

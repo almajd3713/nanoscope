@@ -29,7 +29,9 @@ people train 100-layer models?
 
 ## Reading
 
-- He et al., "Deep Residual Learning for Image Recognition" (2015).
-- Ba et al., "Layer Normalization" (2016); Xiong et al., "On Layer Normalization in the
-  Transformer Architecture" (2020), pre-norm versus post-norm.
-- Radford et al., "Language Models are Unsupervised Multitask Learners" (GPT-2).
+Tiers: **B** build it, **R** read closely, **S** skim, **K** know it exists.
+
+- **B**: [Attention Is All You Need](https://arxiv.org/pdf/1706.03762) (2017): the block is its figure 1.
+- **R**: [On Layer Normalization in the Transformer Architecture](https://arxiv.org/pdf/2002.04745) (Xiong et al., 2020): pre-LN versus post-LN.
+- **R**: [GPT-2: Language Models are Unsupervised Multitask Learners](https://cdn.openai.com/better-language-models/language_models_are_unsupervised_multitask_learners.pdf) (2019): the exact block you are writing.
+- **K**: [BERT](https://arxiv.org/pdf/1810.04805) (2018): the encoder branch, and why it lost for generation.

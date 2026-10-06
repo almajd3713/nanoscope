@@ -29,5 +29,7 @@ about how far back the text matters?
 
 ## Reading
 
-- Bengio et al., "A Neural Probabilistic Language Model" (2003): this model, twenty years ago.
-- Karpathy, "Building makemore Part 2: MLP".
+Tiers: **B** build it, **R** read closely, **S** skim, **K** know it exists.
+
+- **R**: Bengio et al., "A Neural Probabilistic Language Model" (2003): this lesson's model, twenty years early.
+- **B**: Karpathy, "Building makemore Part 2: MLP".

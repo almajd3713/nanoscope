@@ -24,6 +24,8 @@ Count the K/V cache for a 2048-token context with 32 heads of size 128, at `n_kv
 
 ## Reading
 
-- Ainslie et al., "GQA: Training Generalized Multi-Query Transformer Models from Multi-Head
-  Checkpoints" (2023).
-- Shazeer, "Fast Transformer Decoding: One Write-Head is All You Need" (2019).
+Tiers: **B** build it, **R** read closely, **S** skim, **K** know it exists.
+
+- **B**: [Multi-Query Attention](https://arxiv.org/pdf/1911.02150) (Shazeer, 2019) and [GQA](https://arxiv.org/pdf/2305.13245) (Ainslie et al., 2023).
+- **B**: [DeepSeek-V2: Multi-head Latent Attention](https://arxiv.org/pdf/2405.04434) (2024): low-rank key/value compression, the most important cache idea since GQA.
+- **R**: [LLaMA](https://arxiv.org/pdf/2302.13971) (2023) and [Mistral 7B](https://arxiv.org/pdf/2310.06825) (2023).

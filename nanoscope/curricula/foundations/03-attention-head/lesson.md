@@ -33,6 +33,8 @@ would it learn to cheat during training?
 
 ## Reading
 
-- Vaswani et al., "Attention Is All You Need" (2017), section 3.2.
-- Karpathy, "Let's build GPT: from scratch, in code, spelled out" (the single head).
-- Jay Alammar, "The Illustrated Transformer".
+Tiers: **B** build it, **R** read closely, **S** skim, **K** know it exists.
+
+- **B**: [Attention Is All You Need](https://arxiv.org/pdf/1706.03762) (2017), section 3.2: implement it from scratch, then again without looking.
+- **B**: The Illustrated / Annotated Transformer, and Karpathy's nanoGPT: read the code line by line.
+- **S**: Jay Alammar, "The Illustrated Transformer".

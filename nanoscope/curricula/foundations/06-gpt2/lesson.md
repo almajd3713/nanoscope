@@ -32,6 +32,9 @@ asks: is the difference bigger than the noise?
 
 ## Reading
 
-- Radford et al., "Language Models are Unsupervised Multitask Learners" (GPT-2, 2019).
-- Press and Wolf, "Using the Output Embedding to Improve Language Models" (weight tying).
-- Karpathy, "Let's build GPT: from scratch, in code, spelled out", and nanoGPT.
+Tiers: **B** build it, **R** read closely, **S** skim, **K** know it exists.
+
+- **R**: [GPT-2: Language Models are Unsupervised Multitask Learners](https://cdn.openai.com/better-language-models/language_models_are_unsupervised_multitask_learners.pdf) (2019): the decoder-only, zero-shot-as-text framing.
+- **B**: The Illustrated / Annotated Transformer, and Karpathy's nanoGPT.
+- **R**: [T5](https://arxiv.org/pdf/1910.10683) (2019): read it for the *ablation methodology*, not the model: this is how a systematic architecture study is run.
+- **S**: [Scaling Laws for Neural Language Models](https://arxiv.org/pdf/2001.08361) (Kaplan et al., 2020): why one more layer is not the point.
