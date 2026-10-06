@@ -321,3 +321,41 @@ def test_m07_assemble_real_data(home):
     assert doc["passed"], reasons(doc)
     verdict = doc["checks"][2]["evidence"]
     assert verdict["verdict"] == "better" and verdict["ci95"][1] < 0
+
+
+@pytest.mark.usefixtures("fake_data")
+def test_end_to_end(monkeypatch, capsys):
+    """`nanoscope learn` from the first start to every lesson passed, with the solutions: the
+    gate turns on at the first start, each lesson earns what it unlocks, and the last lesson
+    assembles a model out of blocks that were all locked an hour earlier."""
+    from nanoscope.cli import main
+    from nanoscope.learn import loader
+
+    real_load = loader.load_lesson
+    monkeypatch.setattr(loader, "load_lesson", lambda ref, root=None: offline(real_load(ref, root)))
+    set_preset(monkeypatch, tiny(name="tinystories-5min", context_length=16))
+    order = [f"foundations/{s}" for s in (
+        "01-bigram", "02-mlp", "03-attention-head", "04-multi-head", "05-block", "06-gpt2")] + [
+        f"modern-block/{s}" for s in (
+            "01-rmsnorm", "02-rope", "03-swiglu", "04-gqa", "05-qk-norm", "06-z-loss",
+            "07-assemble")]
+    assert order == [lesson.id for p in ("foundations", "modern-block")
+                     for lesson in loader.load_path(p).lessons]
+
+    for lesson_id in order:
+        main(["learn", "start", lesson_id])
+        if lesson_id == order[0]:
+            assert unlocks.policy() == "guided"  # the first start turns gating on
+        file = workspace_lesson_dir(real_load(lesson_id)) / "starter.py"
+        file.write_text(solution(lesson_id), encoding="utf-8")
+        main(["learn", "check", lesson_id])  # exit code 0, or SystemExit fails the test
+        assert progress.state(lesson_id) == "passed", lesson_id
+
+    earned = unlocks.read()["unlocks"]
+    assert {k: v["how"] for k, v in earned.items()} == {k: "earned" for k in (
+        "block:Attention", "block:Block", "block:Decoder", "block:RMSNorm", "block:RoPE",
+        "block:SwiGLU", "feature:gqa", "feature:qk_norm", "feature:z_loss")}
+    capsys.readouterr()
+    main(["learn", "status"])
+    out = capsys.readouterr().out
+    assert out.count("passed") == 13 and "locked" not in out.split("unlocks:")[1]
