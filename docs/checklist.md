@@ -4,7 +4,7 @@ The build list for [`plan-tool.md`](plan-tool.md), sections 4-10, with the decis
 2026-10-05 (plan section 11) applied. Phase numbers follow the plan's section 10. Every
 item is one line, so scripts and agents can grep and edit it.
 
-**Current focus:** P9 curriculum engine, lesson gating. Next item: P9.10.
+**Current focus:** P9 curriculum engine, lesson gating. Next item: P9.11.
 
 ## Progress
 
@@ -13,7 +13,7 @@ item is one line, so scripts and agents can grep and edit it.
 | P6 | Servable library + CI baseline (9-11 d) | 67 / 67 | done |
 | P7 | Queue and workers (5-6 d) | 28 / 28 | done |
 | P8 | Blocks, describe, rebuilt models (10-13 d) | 52 / 52 | done |
-| P9 | Curriculum engine, gating, two paths (14-17 d) | 9 / 61 | in progress |
+| P9 | Curriculum engine, gating, two paths (14-17 d) | 10 / 61 | in progress |
 | P10 | HTTP API (8-10 d) | 0 / 47 | not started |
 | P11 | Release prep: PyPI + GHCR (2-3 d) | 0 / 17 | not started |
 | P12 | docker-compose (3-4 d) | 0 / 20 | not started |
@@ -308,7 +308,7 @@ touch or create (new ones marked `(new)`).
 - [x] P9.07 Add `nanoscope learn start <path/lesson>`. It copies `starter.py` (and `notebook.py` if present) into `workspace_dir()/lessons/<slug>/` without overwriting edits, records `started`, and prints the estimate and the next command. · files: nanoscope/learn/cli.py, tests/test_learn.py · deps: P9.06 · done: `uv run pytest tests/test_learn.py -k learn_start` passes, including the never-overwrite case ✓ 2026-10-06 6cc8f55: learn start <path/lesson>: copies starter.py and notebook.py to workspace/lessons/<path>/<slug>/ (path folder added so slugs can't collide across paths), never overwrites, records started, prints estimate and next command
 - [x] P9.08 Add `nanoscope learn check <lesson>`. It runs the lesson's checks in-process with live progress, writes `learn/checks/<id>.json` (schema `check.v1`), and prints each check's verdict and reasons. · files: nanoscope/learn/cli.py, nanoscope/learn/checks.py (new), nanoscope/schemas/check.v1.json (new) · deps: P9.07 · done: `uv run pytest tests/test_learn.py -k learn_check_output` asserts the pass and fail text ✓ 2026-10-06 853070d: learn/checks.py: Context/Result, CHECKERS registry per kind, run_lesson_checks (live verdicts, skips after a failed defines, crashes reported as reasons, progress marked), schemas/check.v1.json; learn check --variant; exit 0/1
 - [x] P9.09 Add `nanoscope learn check --queue`, which enqueues a `check` job on the interactive lane; `run-job` dispatches it. · files: nanoscope/learn/cli.py, nanoscope/jobs/execute.py · deps: P9.08, P7.99 · done: `uv run pytest tests/test_learn.py -k check_job` passes ✓ 2026-10-06 27c22bd: job.v1 gained a check kind {lesson, variant}; run-job dispatches it (_check); learn check --queue enqueues on the interactive lane
-- [ ] P9.10 Write `nanoscope/estimate.py` with `estimate_seconds(model, preset, device)` from `hardware/bench.jsonl`, falling back to the lesson's declared estimate. · files: nanoscope/estimate.py (new), tests/test_estimate.py (new) · deps: P6.58 · done: `uv run pytest tests/test_estimate.py` passes
+- [x] P9.10 Write `nanoscope/estimate.py` with `estimate_seconds(model, preset, device)` from `hardware/bench.jsonl`, falling back to the lesson's declared estimate. · files: nanoscope/estimate.py (new), tests/test_estimate.py (new) · deps: P6.58 · done: `uv run pytest tests/test_estimate.py` passes ✓ 2026-10-06 e241468: nanoscope/estimate.py estimate_seconds(model, preset, device, declared_minutes) -> Estimate(seconds, source bench|declared|unknown, detail); tokens / measured tokens_per_sec, same model and device kind, preferring the same preset
 
 ### P9 · Checks
 - [ ] P9.11 Check `defines`: the class exists in the lesson file and builds on `meta`. · files: nanoscope/learn/checks.py, tests/test_checks.py (new) · deps: P9.08 · done: `uv run pytest tests/test_checks.py -k defines` passes
