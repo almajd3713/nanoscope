@@ -31,6 +31,9 @@ def _parse_set(items: list[str]) -> dict:
         if "=" not in item:
             raise ValueError(f"--set expects key=value, got {item!r}")
         key, value = item.split("=", 1)
+        if value in ("true", "false"):
+            result[key] = value == "true"
+            continue
         for convert in (int, float):
             try:
                 value = convert(value)
@@ -107,6 +110,8 @@ def build_parser() -> argparse.ArgumentParser:
                                help="show data preparation (downloads, tokenizing) instead")
     status_parser.add_argument("--workers", action="store_true",
                                help="show the running workers and their jobs instead")
+    status_parser.add_argument("--blocks", metavar="REF", default=None,
+                               help="show the latest per-block statistics of this run instead")
     status_parser.add_argument("path", nargs="?", default=None,
                                help="runs folder (default: $NANOSCOPE_HOME/runs, or ./runs)")
 
@@ -130,6 +135,26 @@ def build_parser() -> argparse.ArgumentParser:
     spec_parser = sub.add_parser("spec", help="Print a study as TOML (a spec you can commit)")
     spec_parser.add_argument("file", help="path/to/study.py")
     spec_parser.add_argument("--name", default=None, help="which Study, if the file has several")
+
+    graph_parser = sub.add_parser(
+        "graph", help="Show a model file's architecture graph (reads the file, runs nothing)")
+    graph_parser.add_argument("target", help="path/to/model.py or path/to/model.py:ClassName")
+    graph_parser.add_argument("--json", action="store_true", help="print graph.v1 JSON")
+
+    blocks_parser = sub.add_parser(
+        "blocks", help="List the blocks models can be composed from (the palette)")
+    blocks_parser.add_argument("--json", action="store_true", help="print blocks.v1 JSON")
+    blocks_parser.add_argument("--workspace", default=None,
+                               help="also list register_block blocks found under this folder")
+
+    describe_parser = sub.add_parser(
+        "describe", help="Shapes, parameters, FLOPs and memory of a model, traced without data")
+    describe_parser.add_argument("model", help="path/to/model.py:ClassName (it is imported)")
+    describe_parser.add_argument("--preset", default="tinystories-5min")
+    describe_parser.add_argument("--json", action="store_true", help="print describe.v1 JSON")
+    describe_parser.add_argument(
+        "--set", nargs="*", default=[], dest="overrides", metavar="key=value",
+        help="model keywords or preset fields, e.g. n_layers=6 context_length=512")
 
     stop_parser = sub.add_parser(
         "stop", help="Ask running runs to stop: they save a checkpoint and can be resumed")
@@ -219,6 +244,13 @@ def main(argv: list[str] | None = None) -> None:
 
             print(format_prepare(read_all()))
             return
+        if args.blocks:
+            from nanoscope.blockstats import read_blockstats
+            from nanoscope.progress import format_blockstats
+            from nanoscope.store import resolve
+
+            print(format_blockstats(args.blocks, read_blockstats(resolve(args.blocks))))
+            return
         root = args.path or paths.runs_dir()
         print(format_snapshot(snapshot(root), root))
         return
@@ -227,6 +259,41 @@ def main(argv: list[str] | None = None) -> None:
         from nanoscope.study import load_study
 
         print(load_study(args.file, args.name).to_spec().to_toml(), end="")
+        return
+
+    if args.command == "graph":
+        import json as json_
+
+        from nanoscope.blocks.graph import format_graph, parse
+
+        file, _, cls = args.target.partition(":")
+        graph = parse(file)
+        if cls and cls not in {c["name"] for c in graph["classes"]}:
+            raise SystemExit(f"no Decoder or Composite class {cls!r} in {file}")
+        if cls:
+            graph["classes"] = [c for c in graph["classes"] if c["name"] == cls]
+        print(json_.dumps(graph, indent=2) if args.json else format_graph(graph))
+        return
+
+    if args.command == "blocks":
+        import json as json_
+
+        from nanoscope.blocks.catalog import catalog, format_catalog
+
+        doc = catalog(args.workspace)
+        print(json_.dumps(doc, indent=2) if args.json else format_catalog(doc))
+        return
+
+    if args.command == "describe":
+        import json as json_
+
+        from nanoscope.inspect import ShapeError, describe, format_describe
+        try:
+            report = describe(_load_model_class(args.model), args.preset,
+                              **_parse_set(args.overrides))
+        except ShapeError as exc:
+            raise SystemExit(f"shape error in {exc}") from exc
+        print(json_.dumps(report, indent=2) if args.json else format_describe(report))
         return
 
     if args.command == "stop":

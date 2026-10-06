@@ -1,0 +1,416 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://nanoscope.dev/schemas/graph.v1.json",
+  "title": "graph.v1",
+  "description": "The architecture graph of a model file, from `nanoscope graph` / blocks.graph.parse: every Decoder or Composite subclass with its block tree, source spans, and, for a class outside the representable subset, the reason and line.",
+  "type": "object",
+  "required": [
+    "schema",
+    "nanoscope",
+    "path",
+    "classes"
+  ],
+  "additionalProperties": false,
+  "properties": {
+    "schema": {
+      "const": 1
+    },
+    "nanoscope": {
+      "type": "string"
+    },
+    "path": {
+      "type": "string"
+    },
+    "classes": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/class"
+      }
+    }
+  },
+  "$defs": {
+    "span": {
+      "type": "object",
+      "required": [
+        "line",
+        "col",
+        "end_line",
+        "end_col"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "line": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "col": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "end_line": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "end_col": {
+          "type": "integer",
+          "minimum": 0
+        }
+      }
+    },
+    "node": {
+      "oneOf": [
+        {
+          "$ref": "#/$defs/literal"
+        },
+        {
+          "$ref": "#/$defs/param"
+        },
+        {
+          "$ref": "#/$defs/block"
+        },
+        {
+          "$ref": "#/$defs/list"
+        },
+        {
+          "$ref": "#/$defs/opaque"
+        },
+        {
+          "$ref": "#/$defs/expr"
+        }
+      ]
+    },
+    "literal": {
+      "type": "object",
+      "required": [
+        "kind",
+        "value",
+        "span"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "kind": {
+          "const": "literal"
+        },
+        "value": true,
+        "span": {
+          "$ref": "#/$defs/span"
+        }
+      }
+    },
+    "param": {
+      "type": "object",
+      "required": [
+        "kind",
+        "name",
+        "span"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "kind": {
+          "const": "param"
+        },
+        "name": {
+          "type": "string"
+        },
+        "span": {
+          "$ref": "#/$defs/span"
+        }
+      }
+    },
+    "block": {
+      "type": "object",
+      "required": [
+        "kind",
+        "block",
+        "args",
+        "span"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "kind": {
+          "const": "block"
+        },
+        "block": {
+          "type": "string"
+        },
+        "args": {
+          "type": "object",
+          "additionalProperties": {
+            "$ref": "#/$defs/node"
+          }
+        },
+        "family": {
+          "type": "string"
+        },
+        "tier": {
+          "enum": [
+            "primitive",
+            "composite"
+          ]
+        },
+        "local": {
+          "const": true
+        },
+        "span": {
+          "$ref": "#/$defs/span"
+        }
+      }
+    },
+    "list": {
+      "type": "object",
+      "required": [
+        "kind",
+        "items",
+        "span"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "kind": {
+          "const": "list"
+        },
+        "items": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/node"
+          }
+        },
+        "span": {
+          "$ref": "#/$defs/span"
+        }
+      }
+    },
+    "opaque": {
+      "type": "object",
+      "required": [
+        "kind",
+        "call",
+        "source",
+        "span"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "kind": {
+          "const": "opaque"
+        },
+        "call": {
+          "type": "string"
+        },
+        "source": {
+          "type": "string"
+        },
+        "reason": {
+          "type": "string"
+        },
+        "span": {
+          "$ref": "#/$defs/span"
+        }
+      }
+    },
+    "expr": {
+      "type": "object",
+      "required": [
+        "kind",
+        "source",
+        "span"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "kind": {
+          "const": "expr"
+        },
+        "source": {
+          "type": "string"
+        },
+        "span": {
+          "$ref": "#/$defs/span"
+        }
+      }
+    },
+    "param_decl": {
+      "type": "object",
+      "required": [
+        "name",
+        "annotation",
+        "has_default"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "name": {
+          "type": "string"
+        },
+        "annotation": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "has_default": {
+          "type": "boolean"
+        },
+        "default": true,
+        "default_source": {
+          "type": "string"
+        }
+      }
+    },
+    "class": {
+      "type": "object",
+      "required": [
+        "name",
+        "kind",
+        "line",
+        "end_line",
+        "span",
+        "bases",
+        "representable",
+        "reason",
+        "reason_line"
+      ],
+      "properties": {
+        "name": {
+          "type": "string"
+        },
+        "kind": {
+          "enum": [
+            "decoder",
+            "composite"
+          ]
+        },
+        "line": {
+          "type": "integer"
+        },
+        "end_line": {
+          "type": "integer"
+        },
+        "span": {
+          "$ref": "#/$defs/span"
+        },
+        "bases": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "representable": {
+          "type": "boolean"
+        },
+        "reason": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "reason_line": {
+          "type": [
+            "integer",
+            "null"
+          ]
+        },
+        "params": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/param_decl"
+          }
+        },
+        "args": {
+          "type": "object",
+          "additionalProperties": {
+            "$ref": "#/$defs/node"
+          }
+        },
+        "init_span": {
+          "oneOf": [
+            {
+              "$ref": "#/$defs/span"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "call_span": {
+          "$ref": "#/$defs/span"
+        },
+        "slots": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "forward_span": {
+          "oneOf": [
+            {
+              "$ref": "#/$defs/span"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "if": {
+        "properties": {
+          "representable": {
+            "const": true
+          }
+        }
+      },
+      "then": {
+        "oneOf": [
+          {
+            "required": [
+              "params",
+              "args",
+              "init_span"
+            ],
+            "properties": {
+              "kind": {
+                "const": "decoder"
+              }
+            }
+          },
+          {
+            "required": [
+              "slots",
+              "forward_span"
+            ],
+            "properties": {
+              "kind": {
+                "const": "composite"
+              }
+            }
+          }
+        ]
+      },
+      "else": {
+        "properties": {
+          "reason": {
+            "type": "string"
+          },
+          "reason_line": {
+            "type": "integer"
+          }
+        },
+        "not": {
+          "anyOf": [
+            {
+              "required": [
+                "args"
+              ]
+            },
+            {
+              "required": [
+                "slots"
+              ]
+            },
+            {
+              "required": [
+                "params"
+              ]
+            }
+          ]
+        }
+      }
+    }
+  }
+}

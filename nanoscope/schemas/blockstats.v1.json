@@ -1,0 +1,71 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://nanoscope.dev/schemas/blockstats.v1.json",
+  "title": "blockstats.v1",
+  "description": "One line of a run's blockstats.jsonl: per-block statistics measured on the first validation batch at an eval step.",
+  "type": "object",
+  "required": [
+    "schema",
+    "nanoscope",
+    "step",
+    "val_loss",
+    "blocks"
+  ],
+  "additionalProperties": false,
+  "properties": {
+    "schema": {
+      "const": 1
+    },
+    "nanoscope": {
+      "type": "string"
+    },
+    "step": {
+      "type": "integer",
+      "minimum": 1
+    },
+    "val_loss": {
+      "type": "number"
+    },
+    "blocks": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": [
+          "name",
+          "activation_rms",
+          "grad_norm",
+          "update_to_weight",
+          "attention_entropy"
+        ],
+        "additionalProperties": false,
+        "properties": {
+          "name": {
+            "type": "string"
+          },
+          "activation_rms": {
+            "type": [
+              "number",
+              "null"
+            ]
+          },
+          "grad_norm": {
+            "type": "number",
+            "minimum": 0
+          },
+          "update_to_weight": {
+            "type": [
+              "number",
+              "null"
+            ]
+          },
+          "attention_entropy": {
+            "type": [
+              "number",
+              "null"
+            ]
+          }
+        }
+      }
+    }
+  }
+}

@@ -321,6 +321,7 @@ def run(
     push_to_hub: str | None = None,
     progress: bool = True,
     compile: bool | str = False,
+    block_stats: bool = False,
     checkpoint_steps: list[int] | None = None,
     study: dict[str, Any] | None = None,
     **model_kwargs: Any,
@@ -332,6 +333,9 @@ def run(
     push_to_hub="user/repo" mirrors the run (checkpoints included) in a private Hub repo and
     resumes from it when the local folder is empty, e.g. in a new Kaggle session.
     `study` is set by nanoscope.Study and recorded in config.json.
+    block_stats=True records, at each eval step, every block's activation size, gradient norm,
+    update-to-weight ratio and attention entropy in <run>/blockstats.jsonl
+    (`nanoscope status --blocks <ref>` shows the latest).
     compile=True speeds up training with torch.compile (see train_loop.train); it doesn't
     change the run's identity, so a run can resume with it on or off.
     checkpoint_steps=[100, 500] keeps a full checkpoint at those steps in checkpoints/archive/
@@ -345,7 +349,8 @@ def run(
             cast(RunResult, run(
                 model_cls, preset, seed=s, device=device, resume=resume, on_step=on_step,
                 on_eval=on_eval, wandb=wandb, push_to_hub=push_to_hub, progress=progress,
-                study=study, compile=compile, checkpoint_steps=checkpoint_steps,
+                study=study, compile=compile, block_stats=block_stats,
+                checkpoint_steps=checkpoint_steps,
                 **model_kwargs))
             for s in seed_list
         ])
@@ -444,6 +449,17 @@ def run(
             cancelled = cancelled or stop_file.exists()
             return cancelled
 
+        if block_stats:
+            from nanoscope.blockstats import BlockStats
+
+            stats_hook = BlockStats(model, data, preset, run_dir, resolved_device)
+            user_on_eval = on_eval
+
+            def eval_hooks(step: int, val_loss: float) -> None:
+                if user_on_eval:
+                    user_on_eval(step, val_loss)
+                stats_hook(step, val_loss)
+            on_eval = eval_hooks
         result = train(
             model=model,
             data=data,

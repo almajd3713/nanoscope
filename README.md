@@ -46,6 +46,11 @@ it, and is tokenized locally otherwise. Everything is cached under `~/.nanoscope
 See the [research guide](docs/research.md). The research program itself is in
 [`docs/project-nanoscope.md`](docs/project-nanoscope.md).
 
+## Build models from blocks
+
+`GPT2` and `Modern` are short compositions of the blocks in `nanoscope.blocks`, and so can your
+own models. See [docs/blocks.md](docs/blocks.md).
+
 ## Command line
 
 ```bash
@@ -56,6 +61,9 @@ nanoscope study studies/m1_ablation.py --devices cuda:0
 nanoscope report studies/m1_ablation.py             # writes experiments/<name>/
 nanoscope bench modern --compile reduce-overhead    # speed, and whether CPU or GPU is the limit
 nanoscope status runs                               # what is running and how far along
+nanoscope describe nanoscope/models/modern.py:Modern  # shapes, params, FLOPs, memory per module
+nanoscope graph my_model.py                         # a model file's architecture, without running it
+nanoscope blocks                                    # the blocks models are composed from
 nanoscope prepare-data tinystories-5min             # download or tokenize now
 nanoscope publish-data tinystories-5min user/repo   # upload tokens to a Hub dataset
 ```
