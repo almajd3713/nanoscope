@@ -1059,3 +1059,45 @@ re-exported baselines are enough. The graph route for gating stays slot-filling 
 | This file + `plan-tool-landscape.md` | Proposal; decisions recorded in section 11. The landscape doc still uses the old phase numbers and calls questions "open". | Once phases start, fold the agreed parts into `docs/architecture.md` and keep these as the decision record. |
 | `docs/checklist.md` | The build list for sections 4-10. | Tick items as they land; record scope changes there and in section 11. |
 | Empty local `configs/` and `reports/` folders | Leftovers from the deleted stack (untracked). | Delete locally in phase 6. |
+
+---
+
+## 14. Deferred directions (not on the roadmap)
+
+Ideas the user raised that wait until the checklist (P6-P17) is done. None of them may shape
+earlier phases: do not generalize the API, schemas or GUI for them ahead of time.
+
+### 14.1 Pre-LLM ML (raised 2026-10-06)
+
+Two different things hide under "pre-LLM ML", and they fit nanoscope very differently.
+
+**Pre-transformer language models: a good fit, plan as a curriculum path.** The lineage
+n-gram counts -> bigram (shipped) -> MLP language model (Bengio 2003) -> RNN -> LSTM/GRU ->
+seq2seq with additive attention -> transformer uses the same token data, `train()` loop,
+`compare()`, statistics and gating. It is new blocks plus one path ("Prehistory"). It teaches
+why attention exists: the learner sees an RNN fail at long context before earning
+`Attention` (6.4). Work it needs:
+
+- A recurrent block family. `Decoder` and the graph view assume stacks of attention/MLP
+  blocks (3.3); a recurrent layer can sit in a stack, so this stays within "no free-form
+  wiring".
+- A recurrence-aware `flops_per_token` (6 * params understates the sequential cost).
+- Sampling that carries hidden state (the current sampler re-reads a token window).
+
+Estimate: a few days of blocks plus the lessons. Schedule it with or right after P17.
+
+**General classical ML and vision: not now.** Linear/logistic regression, trees, SVMs,
+k-means, CNNs on MNIST and tabular data share less of the foundation than it seems. Generic
+today: the queue and workers, status, the run store, schemas, `Study`/`compare`/statistics,
+the curriculum engine, progress, the API and the GUI shell. LM-specific today: `train_loop.py`
+(next-token cross-entropy over `context_length + 1` windows), `dataset.py` (uint16 token
+shards), the tokenizer, presets (`vocab_size`, `context_length`), `sizing`/`flops_per_token`,
+the `Decoder` blocks, `describe`'s token input, sampling, and the GUI's model page and graph
+editor. Supporting general ML needs a task abstraction under all of these, which comes close to
+the "second training path" non-goal (3.3). Non-gradient models (trees, SVMs) do not fit the
+step/loss/checkpoint model at all. It would also compete with sklearn's docs, d2l and fast.ai,
+and blur what makes nanoscope distinct.
+
+Revisit after P17 with real usage. If it is still wanted, the first step is a small `Task`
+seam in `train()` (batch source, loss, eval metrics), proven on one non-LM example such as an
+MNIST MLP before anything else is generalized.

@@ -702,6 +702,7 @@ touch or create (new ones marked `(new)`).
 
 Append one line per decision: `- YYYY-MM-DD <item id or plan section>: <decision> (<who>)`.
 
+- 2026-10-06 plan 14.1: pre-LLM ML is deferred until after P17. Pre-transformer language models (MLP LM, RNN, LSTM, seq2seq attention) are a candidate curriculum path; general classical ML/vision waits for real usage and must not shape earlier phases (user asked, agent recommended, user agreed).
 - 2026-10-05 plan 11: the user answered Q1-Q11 and added lesson gating; the roadmap was renumbered to P6-P17 and the MVP is P6-P14 (user).
 - 2026-10-05 P10.04: the API lives under `/api` so the SPA can own `/` (agent; the plan's endpoint table omits the prefix).
 - 2026-10-05 P9.01: curricula ship inside the package (`nanoscope/curricula/`) so PyPI users get the lessons; solutions stay in `tests/solutions/` (agent; plan 6.1 updated).
@@ -721,6 +722,7 @@ right phase, then tick it here as `[x] → P<n>.<id>`.
 - [ ] Not Linux: job children only die with their worker through PR_SET_PDEATHSIG (Linux). On macOS/Windows a killed worker leaves its child; add a pid check before requeue if those platforms matter.
 - [ ] The repo has no CI workflow yet. → covered by P6.04-P6.06.
 - [ ] `docs/plan-tool-landscape.md` still uses the old phase numbers ("Export (phase 13)") and calls questions "open". Fix it when folding into `docs/architecture.md` (P14.32).
+- [ ] After P17: a "Prehistory" curriculum path of pre-transformer language models (MLP LM, RNN, LSTM/GRU, seq2seq attention): recurrent blocks, recurrence-aware `flops_per_token`, stateful sampling. General classical ML/vision is a later, separate call. See plan 14.1.
 - 2026-10-06 (agent): P8.25 dropped. The rebuilt GPT2 has different `state_dict` keys from the old one
   (`norm1/norm2/norm`, separate `q/k/v` instead of `qkv`) but the same-seed initial weights, and the
   shipped baselines hold metrics only. Pre-rebuild GPT2 checkpoints no longer load; no key map, no
