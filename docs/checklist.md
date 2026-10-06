@@ -4,7 +4,7 @@ The build list for [`plan-tool.md`](plan-tool.md), sections 4-10, with the decis
 2026-10-05 (plan section 11) applied. Phase numbers follow the plan's section 10. Every
 item is one line, so scripts and agents can grep and edit it.
 
-**Current focus:** P8 blocks library, describe, rebuilt models. Next item: P8.40.
+**Current focus:** P8 blocks library, describe, rebuilt models. Next item: P8.41.
 
 ## Progress
 
@@ -12,7 +12,7 @@ item is one line, so scripts and agents can grep and edit it.
 |---|---|---|---|
 | P6 | Servable library + CI baseline (9-11 d) | 67 / 67 | done |
 | P7 | Queue and workers (5-6 d) | 28 / 28 | done |
-| P8 | Blocks, describe, rebuilt models (10-13 d) | 40 / 52 | in progress |
+| P8 | Blocks, describe, rebuilt models (10-13 d) | 41 / 52 | in progress |
 | P9 | Curriculum engine, gating, two paths (14-17 d) | 0 / 61 | not started |
 | P10 | HTTP API (8-10 d) | 0 / 47 | not started |
 | P11 | Release prep: PyPI + GHCR (2-3 d) | 0 / 17 | not started |
@@ -274,7 +274,7 @@ touch or create (new ones marked `(new)`).
 ### P8 · Describe
 - [x] P8.38 Create `nanoscope/inspect.py` with `describe(model_cls, preset, **kw)`. It traces on `meta` with forward hooks and reports per module: shapes, params (total and non-embedding), FLOPs per token (analytic, falling back to 6N), and memory (weights + AdamW state + activations). · files: nanoscope/inspect.py (new), tests/test_describe.py (new) · deps: P8.20 · done: `uv run pytest tests/test_describe.py -k describe` passes ✓ 2026-10-06 47476f6: nanoscope/inspect.py: describe(model_cls, preset, **kw) -> dict; meta-device forward with a hook per module; per-row shapes, params, analytic or 6N FLOPs, block/family/tier; memory = weights + grads + AdamW state + activations (leaf outputs, rough)
 - [x] P8.39 Test that the describe totals equal `count_params`/`flops_per_token` for Bigram, GPT2, Modern and a composed model. · files: tests/test_describe.py · deps: P8.38 · done: `uv run pytest tests/test_describe.py -k totals` passes ✓ 2026-10-06 47476f6: totals equal count_params and flops_per_token for Bigram, GPT2, Modern (two switch sets) and a composed MyLM runs
-- [ ] P8.40 Catch shape errors during the meta trace and map them to the module and its source line, through the graph spans when available. · files: nanoscope/inspect.py, tests/test_describe.py · deps: P8.38, P8.31 · done: `uv run pytest tests/test_describe.py -k shape_error_line` asserts the line number
+- [x] P8.40 Catch shape errors during the meta trace and map them to the module and its source line, through the graph spans when available. · files: nanoscope/inspect.py, tests/test_describe.py · deps: P8.38, P8.31 · done: `uv run pytest tests/test_describe.py -k shape_error_line` asserts the line number ✓ 2026-10-06 7cb4bb5: ShapeError(module, reason, file, line) from describe; the failing module is the innermost one entered (pre/post hooks); line from the graph span of its block, else the traceback frame in the model's file
 - [ ] P8.41 Add `nanoscope describe file.py:MyLM [--preset] [--json]` with a readable table and a `describe.v1` schema for the JSON. · files: nanoscope/cli.py, nanoscope/schemas/describe.v1.json (new), tests/test_describe.py · deps: P8.38 · done: `uv run pytest tests/test_describe.py -k cli` asserts the table output
 
 ### P8 · Block stats
