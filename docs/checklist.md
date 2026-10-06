@@ -725,3 +725,15 @@ right phase, then tick it here as `[x] → P<n>.<id>`.
   (`norm1/norm2/norm`, separate `q/k/v` instead of `qkv`) but the same-seed initial weights, and the
   shipped baselines hold metrics only. Pre-rebuild GPT2 checkpoints no longer load; no key map, no
   schema bump. Modern's keys are unchanged. Tell the user if they have GPT2 checkpoints to keep.
+- 2026-10-06 (agent) phase 9 choices, all reversible in code: (1) lesson files are copied to
+  `workspace/lessons/<path>/<slug>/` (the path folder avoids slug clashes across paths). (2) `reproduces`
+  compares one new run with the baseline seeds' 95% prediction interval (mean +- t*sd*sqrt(1/n_new+1/n)),
+  not the narrower CI of the mean. (3) A `verdict` where both models score identically on every seed has no
+  interval; it counts as "within noise" (exact zero difference), and fails any other expectation. (4) Tiers:
+  "primitive" now means never locked, so embeddings, Head, LayerNorm, GELUMLP, NoPE and the templates are
+  primitive; the composite tier is exactly the six lockable blocks. Feature ids use the registry's
+  `features` (Attention: gqa, qk_norm, sliding_window; Decoder: z_loss). (5) `BlockTemplate` has two norm
+  slots (norm1, norm2) so the norms do not share weights. (6) F06 has no separate `trains` check because
+  `reproduces` already trains once. (7) Check timestamps use microseconds so "before the first check" is a
+  strict ordering. (8) Pyright and ruff skip `nanoscope/curricula` (starter files with TODOs).
+
