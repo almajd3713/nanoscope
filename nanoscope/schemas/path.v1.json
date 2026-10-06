@@ -1,0 +1,80 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://nanoscope.dev/schemas/path.v1.json",
+  "title": "path.v1",
+  "description": "A curriculum path's path.toml (as parsed data): title, level, prerequisites and the estimated compute of the whole path.",
+  "type": "object",
+  "required": [
+    "title",
+    "level"
+  ],
+  "additionalProperties": false,
+  "properties": {
+    "title": {
+      "type": "string",
+      "minLength": 1
+    },
+    "level": {
+      "enum": [
+        0,
+        1,
+        2,
+        3
+      ]
+    },
+    "summary": {
+      "type": "string"
+    },
+    "prerequisites": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "compute": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "cpu": {
+          "$ref": "#/$defs/variant"
+        },
+        "gpu": {
+          "$ref": "#/$defs/variant"
+        }
+      }
+    }
+  },
+  "$defs": {
+    "variant": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "estimate_minutes"
+      ],
+      "properties": {
+        "preset": {
+          "type": "string"
+        },
+        "budget": {
+          "type": "string"
+        },
+        "estimate_minutes": {
+          "type": "number",
+          "exclusiveMinimum": 0
+        }
+      },
+      "oneOf": [
+        {
+          "required": [
+            "preset"
+          ]
+        },
+        {
+          "required": [
+            "budget"
+          ]
+        }
+      ]
+    }
+  }
+}
