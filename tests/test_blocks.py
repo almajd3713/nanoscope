@@ -625,3 +625,41 @@ def test_discover_without_import(tmp_path):
         ("MyLM", "decoder"), ("Slots", "composite")]
     assert [e["file"].endswith("typo.py") for e in found["errors"]] == [True]
     assert not (tmp_path / "__pycache__").exists()  # nothing was imported
+
+
+def test_blocks_catalog_cli(capsys, tmp_path):
+    import json
+
+    from helpers import assert_valid
+
+    from nanoscope.cli import main
+
+    main(["blocks", "--json"])
+    doc = json.loads(capsys.readouterr().out)
+    assert_valid("blocks", doc)
+    blocks = {b["name"]: b for b in doc["blocks"]}
+    assert len(blocks) >= 15 and not any(b["user"] for b in blocks.values())
+    attn = blocks["Attention"]
+    assert (attn["family"], attn["tier"], attn["certified"]) == ("attention", "composite", True)
+    assert attn["reference"] == "naive_causal_attention" and "gqa" in attn["features"]
+    assert {a["name"]: a["required"] for a in attn["args"]}["n_heads"] is True
+    assert {a["name"]: a for a in attn["args"]}["n_kv_heads"]["default"] is None
+    assert blocks["Linear"]["tier"] == "primitive" and blocks["Residual"]["tier"] == "primitive"
+    assert [a["name"] for a in blocks["Decoder"]["args"]][:4] == [
+        "vocab_size", "context_length", "d_model", "n_layers"]
+    assert blocks["Attention"]["doc"].startswith("n_heads query heads")
+
+    (tmp_path / "mine.py").write_text(
+        "@register_block(reference=naive, family='mlp')\n"
+        "class Gate(nn.Module):\n    '''Mine.'''\n"
+        "    def __init__(self, d_model, context_length, hidden: int = 8):\n        pass\n")
+    main(["blocks", "--json", "--workspace", str(tmp_path)])
+    mine = {b["name"]: b for b in json.loads(capsys.readouterr().out)["blocks"]}["Gate"]
+    assert (mine["user"], mine["certified"], mine["family"]) == (True, False, "mlp")
+    assert mine["args"] == [{"name": "hidden", "type": "int", "required": False, "default": 8}]
+
+    main(["blocks"])
+    text = capsys.readouterr().out
+    assert text.splitlines()[0].split() == ["block", "family", "tier", "options", "reference",
+                                            "certified"]
+    assert any(line.startswith("Attention") and "n_kv_heads?" in line for line in text.splitlines())

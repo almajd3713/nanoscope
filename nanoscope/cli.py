@@ -141,6 +141,12 @@ def build_parser() -> argparse.ArgumentParser:
     graph_parser.add_argument("target", help="path/to/model.py or path/to/model.py:ClassName")
     graph_parser.add_argument("--json", action="store_true", help="print graph.v1 JSON")
 
+    blocks_parser = sub.add_parser(
+        "blocks", help="List the blocks models can be composed from (the palette)")
+    blocks_parser.add_argument("--json", action="store_true", help="print blocks.v1 JSON")
+    blocks_parser.add_argument("--workspace", default=None,
+                               help="also list register_block blocks found under this folder")
+
     describe_parser = sub.add_parser(
         "describe", help="Shapes, parameters, FLOPs and memory of a model, traced without data")
     describe_parser.add_argument("model", help="path/to/model.py:ClassName (it is imported)")
@@ -267,6 +273,15 @@ def main(argv: list[str] | None = None) -> None:
         if cls:
             graph["classes"] = [c for c in graph["classes"] if c["name"] == cls]
         print(json_.dumps(graph, indent=2) if args.json else format_graph(graph))
+        return
+
+    if args.command == "blocks":
+        import json as json_
+
+        from nanoscope.blocks.catalog import catalog, format_catalog
+
+        doc = catalog(args.workspace)
+        print(json_.dumps(doc, indent=2) if args.json else format_catalog(doc))
         return
 
     if args.command == "describe":
