@@ -110,3 +110,40 @@ def test_describe_job(client, tmp_path, monkeypatch):
     assert shipped.json()["payload"] == {
         "model": "nanoscope.models.gpt2:GPT2", "preset": "tinystories-5min", "kwargs": {}}
     assert client.post("/api/models/nope/describe").status_code == 404
+
+
+def test_blocks_lock_state(client, tmp_path, monkeypatch):
+    from nanoscope.learn import unlocks
+
+    monkeypatch.setenv("NANOSCOPE_WORKSPACE", str(tmp_path / "ws"))
+    (tmp_path / "ws").mkdir()
+    (tmp_path / "ws" / "gate.py").write_text(
+        "@register_block(reference=naive, family='mlp')\nclass Gate(nn.Module):\n"
+        "    def __init__(self, d_model, context_length, hidden: int = 8):\n        pass\n")
+    doc = client.get("/api/blocks").json()
+    assert doc["policy"] == "open" and doc["schema"] == 1
+    blocks = {b["name"]: b for b in doc["blocks"]}
+    assert len(blocks) >= 20
+    attn = blocks["Attention"]
+    assert (attn["family"], attn["tier"], attn["certified"]) == ("attention", "composite", True)
+    assert attn["lock"] == {"lockable": True, "locked": False,
+                            "lesson": "foundations/04-multi-head",
+                            "how": "open"}  # no unlocks.json: nothing is locked
+    assert blocks["Linear"]["lock"]["lockable"] is False
+    assert blocks["Linear"]["tier"] == "primitive"
+    mine = blocks["Gate"]
+    assert mine["user"] is True and mine["certified"] is False and mine["lock"]["locked"] is False
+    # guided: composite blocks lock until earned
+    unlocks.set_policy("guided")
+    unlocks.earn("foundations/04-multi-head", ["block:Attention"], "learn/checks/c.json")
+    doc = client.get("/api/blocks").json()
+    blocks = {b["name"]: b for b in doc["blocks"]}
+    assert doc["policy"] == "guided"
+    assert blocks["Attention"]["lock"]["locked"] is False and blocks["Attention"]["lock"][
+        "how"] == "earned"
+    assert blocks["RoPE"]["lock"] == {"lockable": True, "locked": True,
+                                      "lesson": "modern-block/02-rope", "how": None}
+    assert blocks["RMSNorm"]["lock"]["locked"] is True
+    assert blocks["GELUMLP"]["lock"]["locked"] is False  # primitives are never locked
+    locked = sorted(n for n, b in blocks.items() if b["lock"]["locked"])
+    assert locked == ["Block", "Decoder", "RMSNorm", "RoPE", "SwiGLU"]
