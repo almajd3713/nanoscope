@@ -4,7 +4,7 @@ The build list for [`plan-tool.md`](plan-tool.md), sections 4-10, with the decis
 2026-10-05 (plan section 11) applied. Phase numbers follow the plan's section 10. Every
 item is one line, so scripts and agents can grep and edit it.
 
-**Current focus:** P9 curriculum engine, lesson gating. Next item: P9.55.
+**Current focus:** P9 curriculum engine, lesson gating. Next item: P9.99.
 
 ## Progress
 
@@ -13,7 +13,7 @@ item is one line, so scripts and agents can grep and edit it.
 | P6 | Servable library + CI baseline (9-11 d) | 67 / 67 | done |
 | P7 | Queue and workers (5-6 d) | 28 / 28 | done |
 | P8 | Blocks, describe, rebuilt models (10-13 d) | 52 / 52 | done |
-| P9 | Curriculum engine, gating, two paths (14-17 d) | 59 / 61 | in progress |
+| P9 | Curriculum engine, gating, two paths (14-17 d) | 60 / 61 | in progress |
 | P10 | HTTP API (8-10 d) | 0 / 47 | not started |
 | P11 | Release prep: PyPI + GHCR (2-3 d) | 0 / 17 | not started |
 | P12 | docker-compose (3-4 d) | 0 / 20 | not started |
@@ -363,7 +363,7 @@ touch or create (new ones marked `(new)`).
 - [x] P9.52 Write lesson M04 GQA (`unlocks feature:gqa`; reference: explicitly repeated heads). · files: nanoscope/curricula/modern-block/04-gqa/*, tests/solutions/modern-block/04-gqa.py, tests/test_curricula.py · deps: P9.49, P9.23 · done: `uv run pytest tests/test_curricula.py -k m04` passes ✓ 2026-10-06 c5d98bd: M04 GQA (unlocks feature:gqa; equivalent naive_gqa with repeated heads; forbid SDPA)
 - [x] P9.53 Write lesson M05 QK-norm (`unlocks feature:qk_norm`). · files: nanoscope/curricula/modern-block/05-qk-norm/*, tests/solutions/modern-block/05-qk-norm.py, tests/test_curricula.py · deps: P9.49 · done: `uv run pytest tests/test_curricula.py -k m05` passes ✓ 2026-10-06 c5d98bd: M05 QK-norm (unlocks feature:qk_norm; equivalent naive_qk_norm_attention)
 - [x] P9.54 Write lesson M06 z-loss (`unlocks feature:z_loss`; aux returned through `(logits, aux)`). · files: nanoscope/curricula/modern-block/06-z-loss/*, tests/solutions/modern-block/06-z-loss.py, tests/test_curricula.py · deps: P9.49 · done: `uv run pytest tests/test_curricula.py -k m06` passes ✓ 2026-10-06 c5d98bd: M06 z-loss (unlocks feature:z_loss; equivalent z_loss)
-- [ ] P9.55 Write lesson M07: assemble Modern, then a `verdict` against GPT-2. CPU variant: tinystories-5min, 3 seeds, about 10-15 min CPU estimate. GPU variant: tinystories-30min, 5 seeds, about 10 min on one GPU. Plus its CI test with `fake_data`. · files: nanoscope/curricula/modern-block/07-assemble/*, tests/solutions/modern-block/07-assemble.py, tests/test_curricula.py · deps: P9.50, P9.51, P9.52, P9.53, P9.54, P9.15 · done: `uv run pytest tests/test_curricula.py -k m07` passes
+- [x] P9.55 Write lesson M07: assemble Modern, then a `verdict` against GPT-2. CPU variant: tinystories-5min, 3 seeds, about 10-15 min CPU estimate. GPU variant: tinystories-30min, 5 seeds, about 10 min on one GPU. Plus its CI test with `fake_data`. · files: nanoscope/curricula/modern-block/07-assemble/*, tests/solutions/modern-block/07-assemble.py, tests/test_curricula.py · deps: P9.50, P9.51, P9.52, P9.53, P9.54, P9.15 · done: `uv run pytest tests/test_curricula.py -k m07` passes ✓ 2026-10-06 b90651e: M07 assemble: MyModern (library blocks) vs shipped GPT2, 3 seeds each on tinystories-5min CPU, verdict 'better' with the 95% interval below zero; real-data test passes in 21m41s; offline test covers prerequisites' unlocks and the locked-import refusal; cpu estimate 15 min, gpu variant tinystories-30min with 5 seeds
 
 ### P9 · Migration and CI
 - [x] P9.56 Mine the reading lists in `docs/archive/roadmap-v2.md` (B/R/S/K tiers) into the "## Reading" sections of all 13 lessons (plan 13). · files: nanoscope/curricula/*/*/lesson.md · deps: P9.55, P9.47, P6.66 · done: `grep -L '^## Reading' nanoscope/curricula/*/*/lesson.md` is empty ✓ 2026-10-06 7a4b2a2: every lesson's ## Reading rewritten with the roadmap-v2 B/R/S/K tiers and links (13/13 lessons; grep -L is empty)
