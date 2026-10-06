@@ -373,3 +373,23 @@ def test_attention_options_flops_and_errors():
         Attention(n_heads=4, window=0).build(16, 8)
     x = torch.randn(1, 3, 16)  # shorter than the context
     assert Attention(n_heads=4, window=2).build(16, 8)(x).shape == x.shape
+
+
+def test_mlp_matches_formulas_and_parameter_parity():
+    from nanoscope.blocks.mlp import GELUMLP, SwiGLU
+
+    x = torch.randn(2, 5, 16)
+    swi = SwiGLU().build(16, 8)
+    torch.testing.assert_close(
+        swi(x), R.swiglu(x, swi.w1.weight, swi.w3.weight, swi.proj.weight), atol=ATOL, rtol=0)
+    gelu = GELUMLP(bias=True).build(16, 8)
+    expected = R.gelu(x @ gelu.fc.weight.T + gelu.fc.bias) @ gelu.proj.weight.T + gelu.proj.bias
+    torch.testing.assert_close(gelu(x), expected, atol=ATOL, rtol=0)
+    assert list(GELUMLP().build(16, 8).state_dict()) == ["fc.weight", "proj.weight"]
+    assert list(swi.state_dict()) == ["w1.weight", "w3.weight", "proj.weight"]
+    # d=96: 4d GELU and the default SwiGLU hidden hold the same number of weights
+    n = lambda m: sum(p.numel() for p in m.parameters())  # noqa: E731
+    assert n(SwiGLU().build(96, 8)) == n(GELUMLP().build(96, 8))
+    assert SwiGLU().build(16, 8).flops_per_token(8) == 6 * 3 * 16 * 48
+    assert GELUMLP().build(16, 8).flops_per_token(8) == 6 * 2 * 16 * 64
+    assert SwiGLU(hidden=10).build(16, 8).w1.out_features == 10
