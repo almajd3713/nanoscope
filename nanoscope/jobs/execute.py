@@ -103,9 +103,21 @@ def _study(job: Any, payload: dict[str, Any]) -> dict[str, Any]:
     return {"study": spec.name, "runs": len(study.jobs()), "jobs": ids}
 
 
+def _sync_hub(job: Any, payload: dict[str, Any]) -> dict[str, Any]:
+    """Pull a run that was trained elsewhere (Kaggle, Colab) from its private Hub repo, so
+    it can be listed, compared and resumed here."""
+    from nanoscope.integrations import HubSync
+
+    ref = payload["ref"]
+    run_dir = store.resolve(ref, must_exist=False)
+    pulled = HubSync(payload["repo"], run_dir, payload.get("path", ref)).pull()
+    return {"ref": ref, "repo": payload["repo"], "pulled": pulled,
+            "present": (run_dir / "latest.json").exists()}
+
+
 HANDLERS: dict[str, Callable[[Any, dict[str, Any]], dict[str, Any]]] = {
     "run": _run, "prepare-data": _prepare_data, "bench": _bench, "check": _check,
-    "describe": _describe, "study": _study,
+    "describe": _describe, "study": _study, "sync-hub": _sync_hub,
 }
 
 

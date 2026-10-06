@@ -331,3 +331,50 @@ def test_jobs(client):
         "heartbeat_at": "2026-10-06T10:00:05+00:00"}))
     workers = client.get("/api/workers").json()
     assert [w["worker_id"] for w in workers] == ["w1"] and "age" in workers[0]
+
+
+@pytest.mark.usefixtures("fake_data")
+def test_sync_hub(client, monkeypatch, tmp_path):
+    import json
+    import shutil
+
+    from test_study import FakeHub
+
+    from nanoscope import paths, queue
+    from nanoscope.cli import main
+    from nanoscope.models import Bigram
+    from nanoscope.run import run
+
+    hub = FakeHub(tmp_path / "hub")
+    hub.root.mkdir()
+    monkeypatch.setattr("huggingface_hub.HfApi", hub.api())
+    monkeypatch.setattr("huggingface_hub.snapshot_download", hub.snapshot_download)
+    monkeypatch.setenv("HF_TOKEN", "hf_secret_value")
+    trained = run(Bigram, tiny(), device="cpu", push_to_hub="me/runs", progress=False)
+    ref = trained.ref
+    shutil.rmtree(trained.run_dir)  # "this machine" has nothing: the run lives on the Hub
+    assert client.get(f"/api/runs/{ref}").status_code == 404
+    response = client.post("/api/sync/hub", json={"repo": "me/runs", "ref": ref})
+    assert response.status_code == 202
+    job = response.json()
+    assert job["kind"] == "sync-hub" and job["payload"] == {"repo": "me/runs", "ref": ref}
+    queue.claim("w", "cpu")
+    with pytest.raises(SystemExit) as stopped:
+        main(["run-job", str(job["id"])])
+    assert stopped.value.code == 0
+    result = json.loads(queue.get(job["id"])["result"])
+    assert result == {"ref": ref, "repo": "me/runs", "pulled": True, "present": True}
+    pulled = client.get(f"/api/runs/{ref}").json()
+    assert pulled["summary"]["final_step"] == 20 and pulled["config"]["model"]["class"] == "Bigram"
+    assert (paths.runs_dir() / ref / "latest.json").exists()
+    # a second pull has nothing to do: the run is already here
+    again = client.post("/api/sync/hub", json={"repo": "me/runs", "ref": ref}).json()
+    queue.claim("w", "cpu")
+    with pytest.raises(SystemExit):
+        main(["run-job", str(again["id"])])
+    assert json.loads(queue.get(again["id"])["result"])["pulled"] is False
+    # the token reaches only the jobs that need it
+    from nanoscope.jobs.runner import job_env
+    env = {"HF_TOKEN": "x", "WANDB_API_KEY": "y", "PATH": "/bin"}
+    assert job_env("sync-hub", {}, env) == {"HF_TOKEN": "x", "PATH": "/bin"}
+    assert job_env("check", {}, env) == {"PATH": "/bin"}
