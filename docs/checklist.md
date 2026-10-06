@@ -4,7 +4,7 @@ The build list for [`plan-tool.md`](plan-tool.md), sections 4-10, with the decis
 2026-10-05 (plan section 11) applied. Phase numbers follow the plan's section 10. Every
 item is one line, so scripts and agents can grep and edit it.
 
-**Current focus:** P8 blocks library, describe, rebuilt models. Next item: P8.44.
+**Current focus:** P8 blocks library, describe, rebuilt models. Next item: P8.45.
 
 ## Progress
 
@@ -12,7 +12,7 @@ item is one line, so scripts and agents can grep and edit it.
 |---|---|---|---|
 | P6 | Servable library + CI baseline (9-11 d) | 67 / 67 | done |
 | P7 | Queue and workers (5-6 d) | 28 / 28 | done |
-| P8 | Blocks, describe, rebuilt models (10-13 d) | 44 / 52 | in progress |
+| P8 | Blocks, describe, rebuilt models (10-13 d) | 45 / 52 | in progress |
 | P9 | Curriculum engine, gating, two paths (14-17 d) | 0 / 61 | not started |
 | P10 | HTTP API (8-10 d) | 0 / 47 | not started |
 | P11 | Release prep: PyPI + GHCR (2-3 d) | 0 / 17 | not started |
@@ -282,7 +282,7 @@ touch or create (new ones marked `(new)`).
 - [x] P8.43 Add `nanoscope status --blocks <ref>`, which prints the latest stats per block. · files: nanoscope/progress.py, nanoscope/cli.py, tests/test_blockstats.py · deps: P8.42 · done: `uv run pytest tests/test_blockstats.py -k status_blocks` asserts the output ✓ 2026-10-06 2256f42: `nanoscope status --blocks REF` prints the latest blockstats line as a table (progress.format_blockstats); says how to enable when a run has none
 
 ### P8 · User blocks and the catalog
-- [ ] P8.44 Add the public `@register_block(reference=fn, family=...)` for users' `nn.Module`s. · files: nanoscope/blocks/registry.py, tests/test_blocks.py · deps: P8.05 · done: `uv run pytest tests/test_blocks.py -k register_block` passes
+- [x] P8.44 Add the public `@register_block(reference=fn, family=...)` for users' `nn.Module`s. · files: nanoscope/blocks/registry.py, tests/test_blocks.py · deps: P8.05 · done: `uv run pytest tests/test_blocks.py -k register_block` passes ✓ 2026-10-06 4c4d677: blocks.register_block(reference=fn, family=...) (bare or called): wraps a plain nn.Module as a BlockModule so it composes (spec on options-only call), needs d_model/context_length in __init__; BlockInfo.user; registry.reference_for(name)
 - [ ] P8.45 Discover `@register_block` and `Decoder`/`Composite` subclasses in a workspace by AST alone, without importing it. · files: nanoscope/blocks/discover.py (new), tests/test_blocks.py · deps: P8.44, P8.31 · done: `uv run pytest tests/test_blocks.py -k discover_without_import` passes against a module that raises on import
 - [ ] P8.46 Add `nanoscope blocks [--json]`, which prints the palette catalog (name, family, tier, args with types and defaults, docstring, reference, certified) in a `blocks.v1` schema. · files: nanoscope/cli.py, nanoscope/schemas/blocks.v1.json (new), tests/test_blocks.py · deps: P8.44 · done: `uv run nanoscope blocks --json | uv run python -c "import json,sys; assert len(json.load(sys.stdin)['blocks'])>=15"` exits 0
 - [ ] P8.47 Plan done-when: a composed `MyLM` fixture trains through `run()` unchanged, and `config.json` records its workspace `model.ref`. · files: tests/test_blocks.py, tests/fixtures/graphs/mylm.py · deps: P8.21, P6.38 · done: `uv run pytest tests/test_blocks.py -k composed_trains` passes
