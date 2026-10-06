@@ -36,11 +36,12 @@ def test_block_stats_are_written_at_eval_steps():
 
 
 def test_block_stats_are_off_by_default_and_leave_training_unchanged():
-    plain = run(Modern, tiny(), device="cpu", progress=False, output_dir=Path("plain"), **SMALL)
+    plain = run(Modern, tiny(), device="cpu", progress=False,
+                output_dir=paths.runs_dir() / "plain", **SMALL)
     assert not (plain.run_dir / FILE).exists()
     assert read_blockstats(plain.run_dir) == []
     watched = run(Modern, tiny(), device="cpu", progress=False, block_stats=True,
-                  output_dir=Path("watched"), **SMALL)
+                  output_dir=paths.runs_dir() / "watched", **SMALL)
     assert [loss for _, loss in watched.val_losses] == [loss for _, loss in plain.val_losses]
 
 
@@ -51,7 +52,7 @@ def test_models_without_attention_or_blocks_still_get_stats():
     assert only["name"] == "model" and only["attention_entropy"] is None
 
 
-def test_hook_does_not_touch_the_training_gradients():
+def test_hook_does_not_touch_the_training_gradients(tmp_path):
     from nanoscope.blockstats import BlockStats
     from nanoscope.dataset import load_data
 
@@ -61,7 +62,7 @@ def test_hook_does_not_touch_the_training_gradients():
     out = model(torch.zeros(2, 32, dtype=torch.long))
     out.sum().backward()
     before = [p.grad.clone() for p in model.parameters()]
-    stats = BlockStats(model, data, preset, Path("."), torch.device("cpu"))
+    stats = BlockStats(model, data, preset, tmp_path, torch.device("cpu"))
     stats(10, 1.0)
     assert model.training
     for p, g in zip(model.parameters(), before, strict=True):
