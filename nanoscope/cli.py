@@ -141,6 +141,10 @@ def build_parser() -> argparse.ArgumentParser:
     graph_parser.add_argument("target", help="path/to/model.py or path/to/model.py:ClassName")
     graph_parser.add_argument("--json", action="store_true", help="print graph.v1 JSON")
 
+    from nanoscope.learn.cli import add_parsers as add_learn_parsers
+
+    add_learn_parsers(sub)
+
     blocks_parser = sub.add_parser(
         "blocks", help="List the blocks models can be composed from (the palette)")
     blocks_parser.add_argument("--json", action="store_true", help="print blocks.v1 JSON")
@@ -259,6 +263,14 @@ def main(argv: list[str] | None = None) -> None:
         from nanoscope.study import load_study
 
         print(load_study(args.file, args.name).to_spec().to_toml(), end="")
+        return
+
+    if args.command == "learn":
+        from nanoscope.learn.cli import run as run_learn
+
+        code = run_learn(args)
+        if code:
+            raise SystemExit(code)
         return
 
     if args.command == "graph":

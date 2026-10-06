@@ -239,3 +239,68 @@ def test_progress_is_kept_per_owner(home):
     assert paths.learn_dir("ada") == paths.learn_dir().parent / "users" / "ada" / "learn"
     with pytest.raises(ValueError, match="owner"):
         paths.learn_dir("../etc")
+
+
+@pytest.fixture
+def curricula(tmp_path, monkeypatch):
+    """Two paths of fake lessons, installed as the package's curricula."""
+    root = tmp_path / "curricula"
+    make(root, slug="01-bigram", toml=LESSON.replace(
+        "[compute.cpu]", '[compute.gpu]\nbudget = "1e16 FLOPs"\nestimate_minutes = 240\n'
+        "[compute.cpu]"), path_toml='title = "Foundations"\nlevel = 0\n')
+    (root / "foundations" / "01-bigram" / "starter.py").write_text("# your bigram\n")
+    make(root, slug="02-mlp", toml=LESSON.replace("[experiment]", 'prerequisites = '
+         '["foundations/01-bigram"]\n[experiment]').replace("Bigram", "MLP"),
+         path_toml='title = "Foundations"\nlevel = 0\n')
+    make(root, path="modern", slug="01-rope", toml=LESSON.replace("level = 0", "level = 1"),
+         path_toml='title = "The modern block"\nlevel = 1\n')
+    monkeypatch.setattr("nanoscope.learn.loader.curricula_dir", lambda: root)
+    return root
+
+
+def test_learn_list(curricula, home, capsys):
+    from nanoscope.cli import main
+    from nanoscope.learn import progress
+
+    main(["learn", "list"])
+    out = capsys.readouterr().out.splitlines()
+    assert out[0] == "foundations  Foundations (level 0)"
+    assert out[1].startswith("  01-bigram  not-started") and "cpu 2 min / gpu 4 h" in out[1]
+    assert "locked (needs foundations/01-bigram)" in out[2] and out[2].endswith("MLP")
+    assert "modern  The modern block (level 1)" in out
+    progress.mark("foundations/01-bigram", "passed")
+    main(["learn", "list", "--path", "foundations"])
+    out = capsys.readouterr().out
+    assert "passed" in out.splitlines()[1] and "locked" not in out and "modern" not in out
+
+
+def test_learn_start(curricula, home, capsys, monkeypatch, tmp_path):
+    from nanoscope import paths
+    from nanoscope.cli import main
+    from nanoscope.learn import progress
+
+    monkeypatch.setenv("NANOSCOPE_WORKSPACE", str(tmp_path / "ws"))
+    main(["learn", "start", "foundations/01-bigram"])
+    out = capsys.readouterr().out
+    target = paths.workspace_dir() / "lessons" / "foundations" / "01-bigram" / "starter.py"
+    assert target.read_text() == "# your bigram\n"
+    assert "started foundations/01-bigram: Bigram" in out and f"copied {target}" in out
+    assert "compute: cpu 2 min / gpu 4 h" in out
+    assert "next: edit the file, then run: nanoscope learn check foundations/01-bigram" in out
+    assert progress.state("foundations/01-bigram") == "started"
+    # never overwrite the learner's edits
+    target.write_text("# my work\n")
+    main(["learn", "start", "foundations/01-bigram"])
+    out = capsys.readouterr().out
+    assert target.read_text() == "# my work\n" and f"kept your {target} (not overwritten)" in out
+    assert progress.state("foundations/01-bigram") == "started"
+    # a lesson with no starter files, built on one not passed yet
+    main(["learn", "start", "foundations/02-mlp"])
+    out = capsys.readouterr().out
+    assert "no starter files" in out and "builds on foundations/01-bigram, not passed yet" in out
+    with pytest.raises(CurriculumError):
+        load_lesson("foundations/99-none")
+    # a passed lesson restarted keeps its state
+    progress.mark("foundations/01-bigram", "passed")
+    main(["learn", "start", "foundations/01-bigram"])
+    assert progress.state("foundations/01-bigram") == "passed"
