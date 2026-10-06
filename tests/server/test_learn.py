@@ -96,3 +96,74 @@ def test_check_is_a_job(client, tmp_path, monkeypatch):
     assert progress["state"] == "passed" and progress["attempts"] == 1
     assert client.post("/api/curricula/foundations/04-multi-head/check",
                        json={"variant": "gpu"}).status_code == 422
+
+
+def test_unlocks(client):
+    view = client.get("/api/learn/unlocks").json()
+    assert view["policy"] == "open" and view["unlocks"] == {}
+    assert view["lockable"]["block:Attention"] == {
+        "lesson": "foundations/04-multi-head", "state": "open", "reason": None}
+    assert len(view["lockable"]) == 9
+    assert client.post("/api/learn/policy", json={"policy": "guided"}).json()["policy"] == "guided"
+    view = client.get("/api/learn/unlocks").json()
+    assert {v["state"] for v in view["lockable"].values()} == {"locked"}
+    # skipping one lesson needs a reason, and names the lock
+    assert client.post("/api/learn/unlock", json={"id": "Attention"}).status_code == 422
+    nope = client.post("/api/learn/unlock", json={"id": "Nope", "reason": "x"})
+    assert nope.status_code == 422 and "'Nope' is not locked by any lesson" in nope.json()["detail"]
+    skipped = client.post("/api/learn/unlock", json={"id": "Attention", "reason": "I know this"})
+    state = skipped.json()["lockable"]["block:Attention"]
+    assert skipped.status_code == 200
+    assert state == {"lesson": "foundations/04-multi-head", "state": "skipped",
+                     "reason": "I know this"}
+    # earned unlocks stay earned through open and back to guided; "open" ones come and go
+    unlocks.earn("modern-block/02-rope", ["block:RoPE"], "learn/checks/c.json")
+    opened = client.post("/api/learn/policy", json={"policy": "open"}).json()
+    assert opened["policy"] == "open"
+    assert opened["lockable"]["block:RoPE"]["state"] == "earned"
+    assert opened["lockable"]["feature:gqa"]["state"] == "open"
+    back = client.post("/api/learn/policy", json={"policy": "guided"}).json()
+    states = {k: v["state"] for k, v in back["lockable"].items()}
+    assert states["block:RoPE"] == "earned" and states["block:Attention"] == "skipped"
+    assert states["feature:gqa"] == "locked"
+    assert client.post("/api/learn/policy", json={"policy": "wild"}).status_code == 422
+    everything = client.post("/api/learn/unlock", json={"all": True}).json()
+    assert everything["policy"] == "open"
+    assert client.post("/api/learn/unlock", json={}).status_code == 422
+
+
+def test_learn_events(home):
+    import asyncio
+
+    from nanoscope.server.routes.learn import learn_changes
+
+    async def scenario():
+        stop = asyncio.Event()
+        stream = learn_changes(stop, interval_ms=500)
+
+        async def change():
+            for i in range(40):
+                await asyncio.sleep(0.25)
+                unlocks.set_policy("guided" if i % 2 else "open")
+                from nanoscope.learn import progress
+                progress.mark("foundations/01-bigram", "started")
+
+        task = asyncio.create_task(change())
+        seen = set()
+
+        async def collect():
+            async for frame in stream:
+                if frame.startswith(":"):
+                    continue
+                event, data = frame.strip().split("\n")
+                seen.add(event.removeprefix("event: "))
+                assert json.loads(data.removeprefix("data: "))
+                if seen == {"unlocks", "progress"}:
+                    break
+
+        await asyncio.wait_for(collect(), 20)
+        stop.set()
+        task.cancel()
+        return seen
+
+    assert asyncio.run(scenario()) == {"unlocks", "progress"}
