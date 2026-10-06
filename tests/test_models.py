@@ -200,3 +200,22 @@ def test_modern_matches_reference(switches):
         torch.testing.assert_close(out, expected, atol=ATOL, rtol=0)
     for ctx in (8, 16):
         assert model.flops_per_token(ctx) == reference.flops_per_token(ctx)
+
+
+@pytest.mark.parametrize("seed", [0, 1, 2])
+def test_same_init_as_the_reference_models(seed):
+    from nanoscope.reference.gpt2_ref import GPT2Ref
+    from nanoscope.reference.modern_ref import ModernRef
+
+    kwargs = dict(vocab_size=50, context_length=16, d_model=32, n_layers=2, n_heads=4)
+    torch.manual_seed(seed)
+    reference = ModernRef(**kwargs)
+    torch.manual_seed(seed)
+    model = Modern(**kwargs)
+    for key, value in model.state_dict().items():
+        torch.testing.assert_close(value, reference.state_dict()[key], atol=0, rtol=0)
+    torch.manual_seed(seed)
+    gpt2_ref = gpt2_ref_keys(GPT2Ref(**kwargs).state_dict())
+    torch.manual_seed(seed)
+    for key, value in GPT2(**kwargs).state_dict().items():
+        torch.testing.assert_close(value, gpt2_ref[key], atol=0, rtol=0)
