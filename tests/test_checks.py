@@ -165,3 +165,48 @@ def test_forbid(make):
 
 def test_registered_kinds():
     assert {"defines", "equivalent", "forbid"} <= set(CHECKERS)
+
+
+BIGRAM = '''\
+import torch.nn as nn
+
+
+class MyBigram(nn.Module):
+    def __init__(self, vocab_size, d_model=16):
+        super().__init__()
+        self.emb = nn.Embedding(vocab_size, d_model)
+        self.head = nn.Linear(d_model, vocab_size, bias=False)
+
+    def forward(self, idx):
+        return self.head(self.emb(idx))
+'''
+
+
+@pytest.mark.usefixtures("fake_data")
+def test_trains(make):
+    from fakes import tiny
+
+    from nanoscope.presets import register_preset
+
+    register_preset(tiny(name="tinystories-5min"))  # the lesson's cpu preset, kept small here
+    toml = ('\n[[checks]]\nid = "learns"\nkind = "trains"\nclass = "MyBigram"\n'
+            'metric = "val_bpb"\nthreshold = {threshold}\n')
+    ctx = make(toml.format(threshold=10), BIGRAM)
+    result = run(ctx)
+    assert result.passed, result.reason
+    assert result.reason.startswith("val_bpb ")
+    assert "after 20 steps on tinystories-5min" in result.reason
+    assert "at or below the target 10" in result.reason
+    assert result.evidence["threshold"] == 10.0 and len(result.evidence["runs"]) == 1
+
+    hard = make(toml.format(threshold=0.01), BIGRAM)
+    result = run(hard)
+    assert not result.passed and "is above the target 0.01" in result.reason
+
+    two = make(toml.format(threshold=10) + "seeds = 2\n", BIGRAM)
+    assert "(mean of 2 seeds)" in run(two).reason
+
+    bad_metric = make(toml.replace("val_bpb", "accuracy").format(threshold=1), BIGRAM)
+    assert "metric 'accuracy'" in run(bad_metric).reason
+    crash = make(toml.format(threshold=10), BIGRAM.replace("self.head(self.emb(idx))", "idx + 1"))
+    assert run(crash).passed is False

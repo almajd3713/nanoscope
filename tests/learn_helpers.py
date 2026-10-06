@@ -1,5 +1,6 @@
 """Fake curricula for the learn tests: one lesson per call, a learner's file in the workspace."""
 
+import uuid
 from pathlib import Path
 
 from nanoscope.learn.loader import load_lesson
@@ -27,7 +28,7 @@ def lesson_with(root: Path, workspace: Path, monkeypatch, checks_toml: str, user
     monkeypatch.setenv("NANOSCOPE_WORKSPACE", str(workspace))
     monkeypatch.setattr("nanoscope.learn.loader.curricula_dir", lambda: root)
     lesson = load_lesson(f"p/{slug}")
-    ctx = Context(lesson)
+    ctx = Context(lesson, check_id=uuid.uuid4().hex)  # a fresh runs folder per context
     ctx.user_file.parent.mkdir(parents=True, exist_ok=True)
     ctx.user_file.write_text(user_code)
     return ctx

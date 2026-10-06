@@ -50,6 +50,7 @@ class Context:
     lesson: LessonSpec
     owner: str = "local"
     variant: str = "cpu"  # which [compute.*] variant to run
+    check_id: str = "adhoc"  # names the folder this run's training runs go in
     shared: dict[str, Any] = field(default_factory=dict)  # checks pass things on (the class)
 
     @property
@@ -57,6 +58,13 @@ class Context:
         from nanoscope.learn.cli import workspace_lesson_dir
 
         return workspace_lesson_dir(self.lesson) / "starter.py"
+
+
+    @property
+    def runs_dir(self) -> Path:
+        """Training runs made by checks: a fresh folder per check, so edits to the learner's
+        file are never answered with an old finished run."""
+        return paths.runs_dir() / "lessons" / self.lesson.path / self.lesson.slug / self.check_id
 
 
 Checker = Callable[[Context, Check], Result]
@@ -102,7 +110,7 @@ def run_lesson_checks(lesson: LessonSpec, owner: str = "local",
     Returns the check.v1 document."""
     cid = check_id(lesson)
     progress.mark(lesson.id, "checking", check_id=cid, owner=owner)
-    ctx = Context(lesson, owner, variant)
+    ctx = Context(lesson, owner, variant, cid)
     n = len(lesson.checks)
     info(f"checking {lesson.id} ({n} check{'s' if n != 1 else ''})")
     results: list[Result] = []
@@ -408,3 +416,55 @@ def check_forbid(ctx: Context, check: Check) -> Result:
     return Result(check.id, check.kind, True,
                   f"{file.name} avoids {', '.join(names) or 'nothing in particular'}",
                   {"forbidden": names})
+
+
+# -- trains ----------------------------------------------------------------------------------
+
+LOWER_IS_BETTER = ("val_bpb", "val_loss")
+
+
+def lesson_preset(ctx: Context) -> str:
+    variant = ctx.lesson.compute.get(ctx.variant)
+    if variant is None or variant.preset is None:
+        raise ValueError(f"the {ctx.variant} variant of {ctx.lesson.id} has no preset "
+                         "(a budget variant is run as a study, not a single run)")
+    return variant.preset
+
+
+@checker("trains")
+def check_trains(ctx: Context, check: Check) -> Result:
+    """`run()` of the learner's model on the lesson's preset reaches the metric target."""
+    from nanoscope.run import RunResult, run
+
+    metric = check.args["metric"]
+    if metric not in LOWER_IS_BETTER:
+        return Result(check.id, check.kind, False,
+                      f"the lesson asks for metric {metric!r}; this check knows "
+                      f"{', '.join(LOWER_IS_BETTER)}")
+    threshold = float(check.args["threshold"])
+    try:
+        cls = user_class(ctx, check)
+        preset = lesson_preset(ctx)
+    except (AttributeError, FileNotFoundError, ValueError) as exc:
+        return Result(check.id, check.kind, False, str(exc))
+    seeds = int(check.args.get("seeds", 1))
+    values, refs = [], []
+    for seed in range(seeds):
+        result = run(cls, preset, seed=seed, device="cpu" if ctx.variant == "cpu" else None,
+                     output_dir=ctx.runs_dir / f"seed-{seed}", progress=False,
+                     **check.args.get("kwargs", {}))
+        assert isinstance(result, RunResult)
+        values.append(result.val_losses[-1][1] if metric == "val_loss" else result.val_bpb[-1][1])
+        refs.append(result.ref)
+    mean = sum(values) / len(values)
+    steps = result.final_step
+    evidence = {"metric": metric, "values": values, "mean": mean, "threshold": threshold,
+                "preset": preset, "runs": refs}
+    shown = f"{metric} {mean:.3f}" + (f" (mean of {seeds} seeds)" if seeds > 1 else "")
+    if mean <= threshold:
+        return Result(check.id, check.kind, True,
+                      f"{shown} after {steps} steps on {preset}, at or below the target "
+                      f"{threshold:g}", evidence)
+    return Result(check.id, check.kind, False,
+                  f"{shown} after {steps} steps on {preset} is above the target {threshold:g}: "
+                  "the model is not learning enough yet", evidence)

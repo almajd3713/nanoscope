@@ -27,7 +27,7 @@ CHECK_KINDS = {  # kind -> (required args, optional args)
     "defines": ({"class"}, {"args"}),
     "equivalent": ({"reference", "call", "inputs"}, {"class", "args", "tolerance", "trials"}),
     "forbid": (set(), set()),
-    "trains": ({"metric", "threshold"}, {"seeds"}),
+    "trains": ({"metric", "threshold"}, {"seeds", "class", "kwargs"}),
     "verdict": ({"a", "b", "expect"}, {"seeds", "metric"}),
     "predicted": ({"quantity"}, set()),
     "reproduces": ({"baseline"}, {"metric"}),
