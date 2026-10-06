@@ -4,7 +4,7 @@ The build list for [`plan-tool.md`](plan-tool.md), sections 4-10, with the decis
 2026-10-05 (plan section 11) applied. Phase numbers follow the plan's section 10. Every
 item is one line, so scripts and agents can grep and edit it.
 
-**Current focus:** P9 curriculum engine, lesson gating. Next item: P9.20.
+**Current focus:** P9 curriculum engine, lesson gating. Next item: P9.21.
 
 ## Progress
 
@@ -13,7 +13,7 @@ item is one line, so scripts and agents can grep and edit it.
 | P6 | Servable library + CI baseline (9-11 d) | 67 / 67 | done |
 | P7 | Queue and workers (5-6 d) | 28 / 28 | done |
 | P8 | Blocks, describe, rebuilt models (10-13 d) | 52 / 52 | done |
-| P9 | Curriculum engine, gating, two paths (14-17 d) | 19 / 61 | in progress |
+| P9 | Curriculum engine, gating, two paths (14-17 d) | 20 / 61 | in progress |
 | P10 | HTTP API (8-10 d) | 0 / 47 | not started |
 | P11 | Release prep: PyPI + GHCR (2-3 d) | 0 / 17 | not started |
 | P12 | docker-compose (3-4 d) | 0 / 20 | not started |
@@ -322,7 +322,7 @@ touch or create (new ones marked `(new)`).
 
 ### P9 · Gating (plan 6.4)
 - [x] P9.19 Add the `unlocks.v1` schema and the `learn/unlocks.json` store (atomic writes) holding `policy` and per id: how, lesson, at, evidence. · files: nanoscope/learn/unlocks.py (new), nanoscope/schemas/unlocks.v1.json (new), tests/test_gating.py (new) · deps: P9.05 · done: `uv run pytest tests/test_gating.py -k store` passes ✓ 2026-10-06 3a824c2: learn/unlocks.py (read/policy/set_policy/grant/earn/is_unlocked, atomic; earned beats skipped beats open), schemas/unlocks.v1.json; no file means policy open
-- [ ] P9.20 Create `nanoscope/learn/gating.py`: lockable ids come from the curricula's `unlocks`; `check(ids)` returns `Locked(id, lesson, message)` entries; the policy is `open` when `unlocks.json` is absent. · files: nanoscope/learn/gating.py (new), tests/test_gating.py · deps: P9.19, P9.02 · done: `uv run pytest tests/test_gating.py -k policy_default_open` passes
+- [x] P9.20 Create `nanoscope/learn/gating.py`: lockable ids come from the curricula's `unlocks`; `check(ids)` returns `Locked(id, lesson, message)` entries; the policy is `open` when `unlocks.json` is absent. · files: nanoscope/learn/gating.py (new), tests/test_gating.py · deps: P9.19, P9.02 · done: `uv run pytest tests/test_gating.py -k policy_default_open` passes ✓ 2026-10-06 dfe97c7: learn/gating.py: lock_table() from every lesson's unlocks (broken lessons skipped), check(ids, owner) -> Locked(id, lesson, message), open when unlocks.json is absent, reload(); P9.21 waits for the content (P9.55)
 - [ ] P9.21 Test that every lockable id has exactly one unlocking lesson and names a registered block or feature, and that every composite-tier block is lockable. · files: tests/test_gating.py · deps: P9.20, P9.55 · done: `uv run pytest tests/test_gating.py -k lock_table_consistent` passes
 - [ ] P9.22 Import gate: under `guided`, `nanoscope.blocks.__getattr__` raises `LockedBlockError` (a subclass of `ImportError`) for a locked name, naming the lesson, `nanoscope learn start ...` and `nanoscope learn unlock --all`. · files: nanoscope/blocks/__init__.py, nanoscope/learn/gating.py, tests/test_gating.py · deps: P9.20 · done: `uv run pytest tests/test_gating.py -k import_gate` asserts the message
 - [ ] P9.23 Build gate: constructing a non-shipped `Decoder`/`Composite` checks its blocks and features (gqa, qk_norm, z_loss, sliding_window) against the policy; shipped classes are skipped. · files: nanoscope/blocks/structure.py, nanoscope/blocks/composite.py, nanoscope/learn/gating.py · deps: P9.22, P8.08 · done: `uv run pytest tests/test_gating.py -k build_gate` passes, including `run(Modern, n_kv_heads=1)` under `guided`
