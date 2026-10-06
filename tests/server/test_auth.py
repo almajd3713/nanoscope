@@ -85,3 +85,50 @@ def test_bearer_header_or_login_cookie_beyond_loopback(home):
     assert client.get("/api/version").status_code == 200  # the cookie is kept by the client
     other = TestClient(create_app(remote()))
     assert other.get("/api/version").status_code == 401  # a fresh client has none
+
+
+def test_no_secrets(home, tmp_path, monkeypatch):
+    """No response carries the value of a secret in the server's environment."""
+    secrets = {"HF_TOKEN": "hf_SECRET_value_123", "HUGGING_FACE_HUB_TOKEN": "hf_SECOND_value_456",
+               "WANDB_API_KEY": "wandb_SECRET_value_789", "NANOSCOPE_TOKEN": TOKEN}
+    for key, value in secrets.items():
+        monkeypatch.setenv(key, value)
+    monkeypatch.setenv("NANOSCOPE_WORKSPACE", str(tmp_path / "ws"))
+    (tmp_path / "ws").mkdir()
+    (tmp_path / "ws" / "m.py").write_text("import torch.nn as nn\nclass M(nn.Module):\n    pass\n")
+    client = TestClient(create_app(remote()))
+    auth = {"Authorization": f"Bearer {TOKEN}"}
+    spec = client.get("/api/openapi.json", headers=auth).json()
+    # work that moves secrets around: a run that pushes to the Hub and logs to W&B, a sync
+    posted = [
+        client.post("/api/runs", headers=auth, json={
+            "model": "bigram", "push_to_hub": "me/runs", "wandb": True}),
+        client.post("/api/sync/hub", headers=auth, json={"repo": "me/runs", "ref": "p/m/seed-0"}),
+        client.post("/api/data/tinystories-5min/prepare", headers=auth),
+        client.post("/api/models/bigram/describe", headers=auth),
+        client.post("/api/bench", headers=auth, json={"model": "bigram"}),
+    ]
+    assert [r.status_code for r in posted] == [202] * 5
+    urls = []
+    for path, methods in spec["paths"].items():
+        if "get" in methods and "{" not in path and path not in (
+                "/api/events", "/api/files/events", "/api/learn/events"):  # endless streams
+            urls.append(path)
+    urls += ["/api/models/bigram", "/api/jobs/1", "/api/jobs/2", "/api/presets/tinystories-5min",
+             "/api/files/m.py", "/api/curricula/foundations/01-bigram", "/api/schemas/job",
+             "/api/runs/nope/seed-0", "/api/nope"]
+    seen = 0
+    for url in urls:
+        response = client.get(url, headers=auth)
+        everything = response.text + " ".join(f"{k}: {v}" for k, v in response.headers.items())
+        for name, value in secrets.items():
+            assert value not in everything, f"{name} leaked in GET {url}"
+        seen += 1
+    assert seen > 25
+    for response in posted:  # the queued jobs' payloads name the repo, never the token
+        assert "hf_SECRET" not in response.text and "wandb_SECRET" not in response.text
+    # the one place the token is meant to appear: the cookie `GET /login` sets, never a body
+    login = client.get(f"/login?token={TOKEN}", follow_redirects=False)
+    assert TOKEN not in login.text and "nanoscope_token=" in login.headers["set-cookie"]
+    denied = TestClient(create_app(remote())).get("/api/version")
+    assert TOKEN not in denied.text + str(denied.headers)
