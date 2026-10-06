@@ -243,3 +243,50 @@ def test_compare_equals_library(client):
     one = client.post("/api/compare", json={"sets": [a.ref]})
     assert one.status_code == 422 and "needs at least two sets" in one.json()["detail"]
     assert client.post("/api/compare", json={"sets": [a.ref, "nope/x"]}).status_code in (404, 422)
+
+
+def test_data_and_hardware(client, monkeypatch):
+    import json
+
+    from nanoscope import paths
+    from nanoscope.prepare import PrepareFile
+
+    listing = client.get("/api/data").json()
+    assert [d["preset"] for d in listing] == list_presets()
+    assert all(d["prepare"] is None for d in listing)
+    first = next(d for d in listing if d["preset"] == "tinystories-5min")
+    assert first["dataset"] == "roneneldan/TinyStories" and first["vocab_size"] == 4096
+    # a download in progress shows its stage
+    prepare = PrepareFile("tinystories-5min")
+    prepare.stage("tokenizing", "train", 40, 100)
+    now = {d["preset"]: d for d in client.get("/api/data").json()}["tinystories-5min"]["prepare"]
+    assert (now["stage"], now["done"], now["total"], now["label"]) == ("tokenizing", 40, 100,
+                                                                      "train")
+    prepare.finish()
+    assert {d["preset"]: d for d in client.get("/api/data").json()}["tinystories-5min"][
+        "prepare"]["stage"] == "done"
+    job = client.post("/api/data/tinystories-5min/prepare")
+    assert job.status_code == 202 and job.json()["kind"] == "prepare-data"
+    assert job.json()["payload"] == {"preset": "tinystories-5min"}
+    assert client.post("/api/data/nope/prepare").status_code == 404
+
+    hardware = client.get("/api/hardware").json()
+    assert hardware["devices"][0] == {"name": "cpu", "kind": "cpu", "memory_total": None,
+                                      "memory_free": None}
+    assert hardware["cpu_count"] >= 1 and hardware["torch"] and hardware["workers"] == []
+    # a bench is a job, and its saved results are listed
+    bench = client.post("/api/bench", json={"model": "bigram", "steps": 3, "preset": "test-tiny"})
+    assert bench.status_code == 404  # test-tiny is not a registered preset here
+    bench = client.post("/api/bench", json={"model": "bigram", "steps": 3})
+    assert bench.status_code == 202
+    assert bench.json()["payload"] == {"model": "nanoscope.models.bigram:Bigram",
+                                       "preset": "tinystories-5min", "steps": 3}
+    assert client.get("/api/hardware/bench").json() == []
+    row = {"schema": 1, "at": "2026-10-06T10:00:00+00:00", "model": "Bigram", "device": "cpu",
+           "step_ms": 12.5, "tokens_per_sec": 1000.0, "tflops": 0.01, "verdict": "CPU run",
+           "preset": "tinystories-5min"}
+    folder = paths.hardware_dir()
+    folder.mkdir(parents=True, exist_ok=True)
+    (folder / "bench.jsonl").write_text(json.dumps(row) + "\nnot json\n")
+    rows = client.get("/api/hardware/bench").json()
+    assert len(rows) == 1 and rows[0]["model"] == "Bigram" and rows[0]["schema"] == 1
