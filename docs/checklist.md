@@ -4,7 +4,7 @@ The build list for [`plan-tool.md`](plan-tool.md), sections 4-10, with the decis
 2026-10-05 (plan section 11) applied. Phase numbers follow the plan's section 10. Every
 item is one line, so scripts and agents can grep and edit it.
 
-**Current focus:** P9 curriculum engine, lesson gating. Next item: P9.01.
+**Current focus:** P9 curriculum engine, lesson gating. Next item: P9.05.
 
 ## Progress
 
@@ -13,7 +13,7 @@ item is one line, so scripts and agents can grep and edit it.
 | P6 | Servable library + CI baseline (9-11 d) | 67 / 67 | done |
 | P7 | Queue and workers (5-6 d) | 28 / 28 | done |
 | P8 | Blocks, describe, rebuilt models (10-13 d) | 52 / 52 | done |
-| P9 | Curriculum engine, gating, two paths (14-17 d) | 0 / 61 | not started |
+| P9 | Curriculum engine, gating, two paths (14-17 d) | 4 / 61 | in progress |
 | P10 | HTTP API (8-10 d) | 0 / 47 | not started |
 | P11 | Release prep: PyPI + GHCR (2-3 d) | 0 / 17 | not started |
 | P12 | docker-compose (3-4 d) | 0 / 20 | not started |
@@ -299,10 +299,10 @@ touch or create (new ones marked `(new)`).
 ## P9 Curriculum engine, lesson gating, two paths
 
 ### P9 · Engine
-- [ ] P9.01 Create the `nanoscope/learn/` package and `nanoscope/curricula/` as package data, with `path.v1` and `lesson.v1` schemas. · files: nanoscope/learn/__init__.py (new), nanoscope/curricula/ (new), nanoscope/schemas/path.v1.json (new), nanoscope/schemas/lesson.v1.json (new) · deps: P8.99 · done: `uv run python -c "import nanoscope.learn"` exits 0
-- [ ] P9.02 Write the loader: `load_path`/`load_lesson` parse and validate the TOML and return every problem at once. · files: nanoscope/learn/loader.py (new), tests/test_learn.py (new) · deps: P9.01 · done: `uv run pytest tests/test_learn.py -k loader` passes, including a file with several errors
-- [ ] P9.03 Define the `lesson.toml` fields: title, level, prerequisites, experiment (run, study or check, with args), checks, depth tiers, `unlocks`, `forbid`, `[compute.cpu]` and `[compute.gpu]` (each with preset or budget and `estimate_minutes`). A `gpu` variant requires a `cpu` variant, and a CPU estimate over 15 min requires a `gpu` variant. · files: nanoscope/schemas/lesson.v1.json, nanoscope/learn/loader.py · deps: P9.02 · done: `uv run pytest tests/test_learn.py -k compute_variants` passes
-- [ ] P9.04 Parse `lesson.md` into "## Surface", "## Deep" and "## Reading"; a missing Surface section is an error. · files: nanoscope/learn/loader.py, tests/test_learn.py · deps: P9.02 · done: `uv run pytest tests/test_learn.py -k lesson_md` passes
+- [x] P9.01 Create the `nanoscope/learn/` package and `nanoscope/curricula/` as package data, with `path.v1` and `lesson.v1` schemas. · files: nanoscope/learn/__init__.py (new), nanoscope/curricula/ (new), nanoscope/schemas/path.v1.json (new), nanoscope/schemas/lesson.v1.json (new) · deps: P8.99 · done: `uv run python -c "import nanoscope.learn"` exits 0 ✓ 2026-10-06 ef40146: nanoscope/learn/ and nanoscope/curricula/ (package data), schemas path.v1 and lesson.v1
+- [x] P9.02 Write the loader: `load_path`/`load_lesson` parse and validate the TOML and return every problem at once. · files: nanoscope/learn/loader.py (new), tests/test_learn.py (new) · deps: P9.01 · done: `uv run pytest tests/test_learn.py -k loader` passes, including a file with several errors ✓ 2026-10-06 ef40146: learn/loader.py load_path/load_lesson/list_path_ids; CurriculumError.problems lists every Problem (file: field)
+- [x] P9.03 Define the `lesson.toml` fields: title, level, prerequisites, experiment (run, study or check, with args), checks, depth tiers, `unlocks`, `forbid`, `[compute.cpu]` and `[compute.gpu]` (each with preset or budget and `estimate_minutes`). A `gpu` variant requires a `cpu` variant, and a CPU estimate over 15 min requires a `gpu` variant. · files: nanoscope/schemas/lesson.v1.json, nanoscope/learn/loader.py · deps: P9.02 · done: `uv run pytest tests/test_learn.py -k compute_variants` passes ✓ 2026-10-06 ef40146: lesson.toml fields incl. [[checks]] per-kind args, depth tiers, unlocks, forbid, compute.cpu/gpu (preset XOR budget); gpu needs cpu, cpu over 15 min needs gpu
+- [x] P9.04 Parse `lesson.md` into "## Surface", "## Deep" and "## Reading"; a missing Surface section is an error. · files: nanoscope/learn/loader.py, tests/test_learn.py · deps: P9.02 · done: `uv run pytest tests/test_learn.py -k lesson_md` passes ✓ 2026-10-06 ef40146: parse_lesson_md: intro, Surface (required), Deep, Reading
 - [ ] P9.05 Store progress in `learn_dir()/progress.json` (schema `progress.v1`, atomic writes): per lesson, its state (not-started, started, checking, passed, failed), attempts, last check id and timestamps. · files: nanoscope/learn/progress.py (new), nanoscope/schemas/progress.v1.json (new), tests/test_learn.py · deps: P9.01, P6.08 · done: `uv run pytest tests/test_learn.py -k progress_store` passes
 - [ ] P9.06 Add `nanoscope learn list [--path]`, which prints paths and lessons with their state, lock marks and CPU/GPU estimates. · files: nanoscope/learn/cli.py (new), nanoscope/cli.py, tests/test_learn.py · deps: P9.05 · done: `uv run pytest tests/test_learn.py -k learn_list` asserts the output
 - [ ] P9.07 Add `nanoscope learn start <path/lesson>`. It copies `starter.py` (and `notebook.py` if present) into `workspace_dir()/lessons/<slug>/` without overwriting edits, records `started`, and prints the estimate and the next command. · files: nanoscope/learn/cli.py, tests/test_learn.py · deps: P9.06 · done: `uv run pytest tests/test_learn.py -k learn_start` passes, including the never-overwrite case
