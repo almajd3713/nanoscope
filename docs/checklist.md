@@ -16,7 +16,7 @@ item is one line, so scripts and agents can grep and edit it.
 | P9 | Curriculum engine, gating, two paths (14-17 d) | 61 / 61 | done |
 | P10 | HTTP API (8-10 d) | 47 / 47 | done |
 | P11 | Release prep: PyPI + GHCR (2-3 d) | 17 / 17 | done |
-| P12 | docker-compose (3-4 d) | 0 / 20 | not started |
+| P12 | docker-compose (3-4 d) | 7 / 20 | in progress |
 | P13 | GUI MVP 1: shell, Learn/Tinker screens (12-15 d) | 0 / 37 | not started |
 | P14 | GUI MVP 2: model page, drag-and-drop (14-17 d) | 0 / 34 | not started |
 | P15 | GUI Research (10-13 d) | 0 / 30 | not started |
@@ -463,12 +463,12 @@ touch or create (new ones marked `(new)`).
 ## P12 docker-compose
 
 - [ ] P12.01 Write `docker/Dockerfile.cuda` on a pinned PyTorch CUDA runtime base, with the same layout as the CPU image. · files: docker/Dockerfile.cuda (new) · deps: P11.99 · done: `docker build -f docker/Dockerfile.cuda .` succeeds (CI or the user's machine)
-- [ ] P12.02 Write a root `compose.yaml` with `api`, `worker`, `worker-gpu` (profile gpu) and `notebook` (profile notebook), the volumes (`nanoscope-home`, `nanoscope-data`, `hf-cache`, `compile-cache`) and the workspace bind; images come from GHCR with a build fallback. · files: compose.yaml (new) · deps: P12.01 · done: `docker compose config -q` exits 0
-- [ ] P12.03 Harden the workers: user 1000, `cap_drop: [ALL]`, `no-new-privileges`, `read_only` with a tmpfs `/tmp`, `mem_limit`/`cpus`/`pids_limit` from env, no Docker socket. · files: compose.yaml · deps: P12.02 · done: `docker compose config | grep -c 'no-new-privileges'` is at least 2
-- [ ] P12.04 Publish the API only on `127.0.0.1:8000`; generate the token into the home volume and log the login URL. · files: compose.yaml, nanoscope/server/settings.py · deps: P12.02, P10.05 · done: `docker compose config | grep -n '127.0.0.1:8000'` matches
-- [ ] P12.05 GPU profile: an NVIDIA reservation with `count: all`, `NANOSCOPE_SLOTS`, and documented `NVIDIA_VISIBLE_DEVICES` use for one worker per GPU. · files: compose.yaml, docs/deploy.md · deps: P12.02 · done: `docker compose --profile gpu config -q` exits 0
-- [ ] P12.06 Support `NANOSCOPE_JOBS_OFFLINE=1` in `run-job`: jobs that need the network are refused with a message once data is cached. · files: nanoscope/jobs/execute.py, tests/test_jobs.py · deps: P11.99 · done: `uv run pytest tests/test_jobs.py -k offline` asserts the message
-- [ ] P12.07 Set `TORCHINDUCTOR_CACHE_DIR` and `HF_HOME` to the cache volumes in all services. · files: compose.yaml · deps: P12.02 · done: `docker compose config | grep -c TORCHINDUCTOR_CACHE_DIR` is at least 2
+- [x] P12.02 (2026-10-07, 771c0e4) Write a root `compose.yaml` with `api`, `worker`, `worker-gpu` (profile gpu) and `notebook` (profile notebook), the volumes (`nanoscope-home`, `nanoscope-data`, `hf-cache`, `compile-cache`) and the workspace bind; images come from GHCR with a build fallback. · files: compose.yaml (new) · deps: P12.01 · done: `docker compose config -q` exits 0
+- [x] P12.03 (2026-10-07, 771c0e4) Harden the workers: user 1000, `cap_drop: [ALL]`, `no-new-privileges`, `read_only` with a tmpfs `/tmp`, `mem_limit`/`cpus`/`pids_limit` from env, no Docker socket. · files: compose.yaml · deps: P12.02 · done: `docker compose config | grep -c 'no-new-privileges'` is at least 2
+- [x] P12.04 (2026-10-07, 771c0e4) Publish the API only on `127.0.0.1:8000`; generate the token into the home volume and log the login URL. · files: compose.yaml, nanoscope/server/settings.py · deps: P12.02, P10.05 · done: `docker compose config | grep -n '127.0.0.1:8000'` matches
+- [x] P12.05 (2026-10-07, 771c0e4) GPU profile: an NVIDIA reservation with `count: all`, `NANOSCOPE_SLOTS`, and documented `NVIDIA_VISIBLE_DEVICES` use for one worker per GPU. · files: compose.yaml, docs/deploy.md · deps: P12.02 · done: `docker compose --profile gpu config -q` exits 0
+- [x] P12.06 (2026-10-07, e7f3632) Support `NANOSCOPE_JOBS_OFFLINE=1` in `run-job`: jobs that need the network are refused with a message once data is cached. · files: nanoscope/jobs/execute.py, tests/test_jobs.py · deps: P11.99 · done: `uv run pytest tests/test_jobs.py -k offline` asserts the message
+- [x] P12.07 (2026-10-07, 771c0e4) Set `TORCHINDUCTOR_CACHE_DIR` and `HF_HOME` to the cache volumes in all services. · files: compose.yaml · deps: P12.02 · done: `docker compose config | grep -c TORCHINDUCTOR_CACHE_DIR` is at least 2
 - [ ] P12.08 Add `git config --system safe.directory /nanoscope/workspace` to the images, and document PUID/PGID for bind-mount ownership. · files: docker/Dockerfile.cpu, docker/Dockerfile.cuda, docs/deploy.md · deps: P12.01 · done: `docker run --rm nanoscope:cpu git config --system --get safe.directory` prints /nanoscope/workspace
 - [ ] P12.09 Add the `notebook` service (decision 11.7): marimo editing `workspace/notebooks`, the same `NANOSCOPE_HOME`, a loopback port and a token. · files: compose.yaml, pyproject.toml (`notebook` extra with marimo), docker/Dockerfile.cpu · deps: P12.02 · done: `docker compose --profile notebook config -q` exits 0
 - [ ] P12.10 Write marimo versions of notebooks 01-04 under `notebooks/marimo/`. The user allows breaking away from the `.ipynb` files (2026-10-05): once the marimo versions work, retire the `.ipynb` notebooks (keep a Colab/Kaggle path only if it is cheap) and repoint the first-notebook guard test at the marimo version. · files: notebooks/marimo/01_first_model.py ... 04_ablations.py (new) · deps: P12.09 · done: `uv run --extra notebook marimo check notebooks/marimo/` exits 0
@@ -480,7 +480,7 @@ touch or create (new ones marked `(new)`).
 - [ ] P12.16 **USER ACTION** Run `docker compose --profile gpu up` on a GPU machine and check that `POST /api/bench` reports `cuda`; record it in the PR. · files: PR description · deps: P12.05 · done: the PR shows the bench output with cuda
 - [ ] P12.17 Write `docs/deploy.md`: compose usage, profiles, token login, SSH tunnel or Tailscale, backing up `nanoscope-home` (with `queue.db`), WSL2/Docker Desktop, native `nanoscope serve` for MPS/ROCm, and Kaggle sync. · files: docs/deploy.md (new) · deps: P12.14 · done: `grep -c '^## ' docs/deploy.md` prints at least 6
 - [ ] P12.18 Update the README for four levels, `nanoscope serve`, `docker compose up` and `nanoscope learn` (plan 13). · files: README.md · deps: P12.17 · done: `grep -cE 'docker compose up|nanoscope learn|nanoscope serve' README.md` prints at least 3
-- [ ] P12.19 Add `NANOSCOPE_TOKEN`, `NANOSCOPE_WORKSPACE`, `NANOSCOPE_SLOTS` and `NANOSCOPE_JOBS_OFFLINE` to `.env.example`. · files: .env.example · deps: P12.02 · done: `grep -c NANOSCOPE_ .env.example` prints at least 4
+- [x] P12.19 (2026-10-07, 771c0e4) Add `NANOSCOPE_TOKEN`, `NANOSCOPE_WORKSPACE`, `NANOSCOPE_SLOTS` and `NANOSCOPE_JOBS_OFFLINE` to `.env.example`. · files: .env.example · deps: P12.02 · done: `grep -c NANOSCOPE_ .env.example` prints at least 4
 - [ ] P12.99 PHASE GATE P12. Exit criteria: plan section 10 phase 12. · files: — · deps: P12.* · done: `make check` passes; `uv run pytest tests/test_first_model_notebook.py` passes; the compose CI job is green (bigram under 2 min, restart resumes, hardened); P12.16 recorded; **USER ACTION** merge the PR
 
 ---
@@ -743,3 +743,7 @@ right phase, then tick it here as `[x] → P<n>.<id>`.
 - 2026-10-06 P11.10: the image smoke test found `jsonschema` imported by queue.py but only in the dev extra; moved to core dependencies. Image is 2.29 GB (CPU torch).
 - 2026-10-06 P11.09: user ticked it without finishing the clean-venv install; `uv pip install` against TestPyPI found 0.3.0rc1 but failed building scipy from source (mixed indexes). Re-check after merge.
 - 2026-10-06 P11.14: first v0.3.0 tag was pushed before the version commit; both runs were cancelled before publishing, the tag was deleted and recreated on the merge commit. The version commit must precede the tag.
+- 2026-10-07 P12.02: the API is published on `127.0.0.1:${NANOSCOPE_PORT:-8765}` (user asked for a port other than 8000); the container still serves on 8000. `login_url` honours `NANOSCOPE_PUBLIC_PORT`, which compose sets, so the logged URL works. P12.04's grep check therefore looks for `host_ip: 127.0.0.1` in `docker compose config`.
+- 2026-10-07 P12.05: `NANOSCOPE_SLOTS` is a compose variable, passed as `--slots`; the code has no such env var.
+- 2026-10-07 P12.02: only `api` has a `build:` (two services building one tag collide). The fallback is `docker compose build api && docker compose up --pull never`.
+- 2026-10-07 P12.08: the published `ghcr.io/almajd3713/nanoscope:cpu` is the 0.3.0 image: it lacks the volume directories and git, so a hardened worker on a fresh volume cannot write. A new image must be published (release tag or version bump) before compose works from GHCR. This is a USER ACTION.
