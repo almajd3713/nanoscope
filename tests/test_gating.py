@@ -37,3 +37,55 @@ def test_store(home):
         unlocks.grant("block:X", "stolen")
     # one owner's unlocks are not another's
     assert unlocks.policy(owner="ada") == "open" and not unlocks.exists("ada")
+
+
+from learn_helpers import BASE  # noqa: E402
+
+
+@pytest.fixture
+def lock_curricula(tmp_path, monkeypatch):
+    """foundations/04-attention unlocks block:Attention; modern/01-rope unlocks two more."""
+    from nanoscope.learn import gating
+
+    root = tmp_path / "curricula"
+    for path, slug, ids in (("foundations", "04-attention", ["block:Attention"]),
+                            ("modern", "01-rope", ["block:RoPE", "feature:gqa"])):
+        folder = root / path / slug
+        folder.mkdir(parents=True)
+        (root / path / "path.toml").write_text(f'title = "{path}"\nlevel = 0\n')
+        (folder / "lesson.toml").write_text(BASE.format(extra=f"unlocks = {json.dumps(ids)}"))
+        (folder / "lesson.md").write_text("## Surface\nHi\n")
+    monkeypatch.setattr("nanoscope.learn.loader.curricula_dir", lambda: root)
+    gating.reload()
+    yield root
+    gating.reload()
+
+
+def test_policy_default_open(home, lock_curricula):
+    from nanoscope.learn import gating
+
+    assert gating.lock_table() == {
+        "block:Attention": "foundations/04-attention", "block:RoPE": "modern/01-rope",
+        "feature:gqa": "modern/01-rope"}
+    assert gating.lockable("block:RoPE") and not gating.lockable("block:Linear")
+    # no unlocks.json: policy open, nothing is locked
+    assert gating.check(["block:Attention", "feature:gqa"]) == []
+    unlocks.set_policy("guided")
+    locked = gating.check(["block:Attention", "block:Linear", "feature:gqa"])
+    assert [(x.id, x.lesson) for x in locked] == [
+        ("block:Attention", "foundations/04-attention"), ("feature:gqa", "modern/01-rope")]
+    assert "nanoscope learn start foundations/04-attention" in locked[0].message
+    assert "nanoscope learn unlock --all" in locked[0].message
+    unlocks.earn("foundations/04-attention", ["block:Attention"], "learn/checks/c.json")
+    assert [x.id for x in gating.check(["block:Attention", "feature:gqa"])] == ["feature:gqa"]
+    unlocks.set_policy("open")
+    assert gating.check(["feature:gqa"]) == []
+    assert gating.check(["feature:gqa"], owner="ada") == []  # another owner: no file, open
+
+
+def test_broken_lessons_never_break_the_lock_table(home, lock_curricula):
+    from nanoscope.learn import gating
+
+    (lock_curricula / "modern" / "01-rope" / "lesson.toml").write_text("title = [")
+    gating.reload()
+    assert gating.lock_table() == {"block:Attention": "foundations/04-attention"}
