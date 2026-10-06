@@ -4,7 +4,7 @@ The build list for [`plan-tool.md`](plan-tool.md), sections 4-10, with the decis
 2026-10-05 (plan section 11) applied. Phase numbers follow the plan's section 10. Every
 item is one line, so scripts and agents can grep and edit it.
 
-**Current focus:** P11 release prep. Next item: P11.02.
+**Current focus:** P11 release prep. Next item: P11.03.
 
 ## Progress
 
@@ -15,7 +15,7 @@ item is one line, so scripts and agents can grep and edit it.
 | P8 | Blocks, describe, rebuilt models (10-13 d) | 52 / 52 | done |
 | P9 | Curriculum engine, gating, two paths (14-17 d) | 61 / 61 | done |
 | P10 | HTTP API (8-10 d) | 47 / 47 | done |
-| P11 | Release prep: PyPI + GHCR (2-3 d) | 1 / 17 | in progress |
+| P11 | Release prep: PyPI + GHCR (2-3 d) | 2 / 17 | in progress |
 | P12 | docker-compose (3-4 d) | 0 / 20 | not started |
 | P13 | GUI MVP 1: shell, Learn/Tinker screens (12-15 d) | 0 / 37 | not started |
 | P14 | GUI MVP 2: model page, drag-and-drop (14-17 d) | 0 / 34 | not started |
@@ -441,7 +441,7 @@ touch or create (new ones marked `(new)`).
 ## P11 Release prep: PyPI + GHCR (decision 11.10)
 
 - [x] P11.01 (2026-10-06, 0fdfc99) Add an MIT `LICENSE` (decided by the user, 2026-10-05; copyright holder almajd3713) and the `license` field. · files: LICENSE (new), pyproject.toml · deps: P10.99 · done: `test -f LICENSE && grep -n '^license' pyproject.toml`
-- [ ] P11.02 Fill in the pyproject metadata (authors, URLs, classifiers, keywords) and single-source the version from `nanoscope/__init__.py` (`dynamic = ["version"]`, `[tool.hatch.version]`). · files: pyproject.toml · deps: P11.01 · done: `uv build` produces a wheel whose version equals `uv run python -c "import nanoscope; print(nanoscope.__version__)"`
+- [x] P11.02 (2026-10-06, bfe4d3e) Fill in the pyproject metadata (authors, URLs, classifiers, keywords) and single-source the version from `nanoscope/__init__.py` (`dynamic = ["version"]`, `[tool.hatch.version]`). · files: pyproject.toml · deps: P11.01 · done: `uv build` produces a wheel whose version equals `uv run python -c "import nanoscope; print(nanoscope.__version__)"`
 - [ ] P11.03 Add a wheel-content test: the wheel includes baselines, schemas, curricula and reference, and excludes `tests/solutions`, `notebooks` and `runs`. · files: tests/test_packaging.py (new) · deps: P11.02 · done: `uv run pytest tests/test_packaging.py -k wheel_contents` passes
 - [ ] P11.04 Exclude `data/`, `runs/`, `.kaggle-outputs` and experiment artifacts from the sdist. · files: pyproject.toml, tests/test_packaging.py · deps: P11.02 · done: `uv run pytest tests/test_packaging.py -k sdist_excludes` passes
 - [ ] P11.05 Write `CHANGELOG.md` with the 0.3.0 entry (phases 6-10). · files: CHANGELOG.md (new) · deps: P11.02 · done: `grep -n '0.3.0' CHANGELOG.md` matches

@@ -1256,7 +1256,6 @@ wheels = [
 
 [[package]]
 name = "nanoscope-lab"
-version = "0.2.0"
 source = { editable = "." }
 dependencies = [
     { name = "datasets" },
@@ -1331,7 +1330,7 @@ requires-dist = [
     { name = "wandb", marker = "extra == 'wandb'", specifier = ">=0.19,<1" },
     { name = "watchfiles", marker = "extra == 'server'", specifier = ">=0.24,<2" },
 ]
-provides-extras = ["wandb", "graph", "server", "dev"]
+provides-extras = ["dev", "graph", "server", "wandb"]
 
 [[package]]
 name = "nbformat"
