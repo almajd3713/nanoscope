@@ -27,13 +27,20 @@ class Locked:
 
 
 class LockedBlockError(ImportError):
-    """Importing a block the learner has not unlocked yet (an ImportError, so `from
-    nanoscope.blocks import Attention` fails the way a missing name does)."""
+    """Using a block or feature the learner has not unlocked yet. An ImportError, so `from
+    nanoscope.blocks import Attention` fails the way a missing name does. `locked` is the
+    first locked id; `all` lists every one when a model uses several."""
 
-    def __init__(self, locked: Locked) -> None:
-        super().__init__(locked.message)
-        self.locked = locked
-        self.name = locked.id.split(":", 1)[-1]
+    def __init__(self, locked: Locked | list[Locked]) -> None:
+        everything = [locked] if isinstance(locked, Locked) else list(locked)
+        message = everything[0].message
+        if len(everything) > 1:
+            names = ", ".join(x.id for x in everything)
+            message = f"this model uses {len(everything)} locked parts: {names}\n" + "\n".join(
+                x.message for x in everything)
+        super().__init__(message)
+        self.locked, self.all = everything[0], everything
+        self.name = everything[0].id.split(":", 1)[-1]
 
 
 @cache

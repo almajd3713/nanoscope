@@ -119,3 +119,51 @@ def test_import_gate(home, lock_curricula):
     assert blocks.Attention is Shipped
     unlocks.set_policy("open")
     assert blocks.RoPE.__name__ == "RoPE"
+
+
+def test_build_gate(home, lock_curricula):
+    from nanoscope.blocks.attention import Attention
+    from nanoscope.blocks.composite import Composite
+    from nanoscope.blocks.mlp import SwiGLU
+    from nanoscope.blocks.norm import RMSNorm
+    from nanoscope.blocks.positional import RoPE
+    from nanoscope.blocks.structure import Block, Decoder
+    from nanoscope.learn.gating import LockedBlockError
+    from nanoscope.models import Modern
+
+    def decoder(**attn):
+        return Decoder(vocab_size=20, context_length=8, d_model=16, n_layers=1,
+                       block=Block(norm=RMSNorm(), attn=Attention(n_heads=4, **attn),
+                                   mlp=SwiGLU()))
+
+    decoder(n_kv_heads=2)  # no unlocks.json: nothing is checked
+    unlocks.set_policy("guided")
+    with pytest.raises(LockedBlockError, match="block:Attention is locked") as caught:
+        decoder()
+    assert [x.id for x in caught.value.all] == ["block:Attention"]
+    unlocks.earn("foundations/04-attention", ["block:Attention"], "learn/checks/c.json")
+    assert decoder().blocks[0].attn.n_kv_heads == 4  # plain multi-head is fine now
+    with pytest.raises(LockedBlockError, match="feature:gqa is locked") as caught:
+        decoder(n_kv_heads=2)  # a feature lock an import check can't see
+    assert caught.value.locked.id == "feature:gqa"
+    with pytest.raises(LockedBlockError) as caught:
+        decoder(n_kv_heads=2, pos=RoPE())
+    assert [x.id for x in caught.value.all] == ["block:RoPE", "feature:gqa"]
+    assert "this model uses 2 locked parts: block:RoPE, feature:gqa" in str(caught.value)
+    # a subclass is gated too, a shipped model never is
+    class Mine(Decoder):
+        def __init__(self, vocab_size):
+            super().__init__(vocab_size, 8, d_model=16, n_layers=1, block=Block(
+                norm=RMSNorm(), attn=Attention(n_heads=2, n_kv_heads=1), mlp=SwiGLU()))
+    with pytest.raises(LockedBlockError):
+        Mine(20)
+    model = Modern(vocab_size=20, context_length=8, d_model=16, n_layers=1, n_heads=4,
+                   n_kv_heads=1)  # GQA, RoPE, QK-norm, z-loss: all fine, it is shipped
+    assert model.blocks[0].attn.n_kv_heads == 1
+    # composite templates check their slots
+    class Template(Composite):
+        SLOTS = ("attn",)
+    with pytest.raises(LockedBlockError, match="block:RoPE"):
+        Template(attn=RoPE()).build(16, 8)
+    unlocks.set_policy("open")
+    assert decoder(n_kv_heads=2, pos=RoPE()).blocks[0].attn.n_kv_heads == 2

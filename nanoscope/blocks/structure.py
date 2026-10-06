@@ -66,6 +66,10 @@ class Decoder(nn.Module):
                  pos_emb: BlockSpec | None = None, tie_weights: bool = True,
                  z_loss: float = 0.0, pattern: list[BlockSpec] | None = None) -> None:
         super().__init__()
+        from nanoscope.blocks.gate import enforce
+
+        enforce(self, [block, pattern, final_norm, pos_emb],
+                ("feature:z_loss",) if z_loss else ())
         if (block is None) == (pattern is None) or pattern == []:
             raise TypeError("Decoder needs exactly one of block (every layer the same) or "
                             "pattern (a non-empty list of blocks repeated through the layers)")
