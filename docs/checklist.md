@@ -14,7 +14,7 @@ item is one line, so scripts and agents can grep and edit it.
 | P7 | Queue and workers (5-6 d) | 28 / 28 | done |
 | P8 | Blocks, describe, rebuilt models (10-13 d) | 52 / 52 | done |
 | P9 | Curriculum engine, gating, two paths (14-17 d) | 61 / 61 | done |
-| P10 | HTTP API (8-10 d) | 10 / 47 | in progress |
+| P10 | HTTP API (8-10 d) | 13 / 47 | in progress |
 | P11 | Release prep: PyPI + GHCR (2-3 d) | 0 / 17 | not started |
 | P12 | docker-compose (3-4 d) | 0 / 20 | not started |
 | P13 | GUI MVP 1: shell, Learn/Tinker screens (12-15 d) | 0 / 37 | not started |
@@ -396,9 +396,9 @@ touch or create (new ones marked `(new)`).
 - [x] P10.12 Add `nanoscope serve --worker cpu`, which starts a local worker subprocess for native (non-compose) use. · files: nanoscope/cli.py, nanoscope/server/app.py · deps: P10.04, P7.99 · done: `uv run pytest tests/server/test_app.py -k serve_with_worker` passes ✓ 2026-10-06 b875d2e: serve --worker DEVICE: server/worker.py starts a plain 'nanoscope worker' subprocess in the app lifespan (log in server/worker.log) and stops it (terminate, then kill) with the server; none unless asked
 
 ### P10 · Resources
-- [ ] P10.13 Add `GET /api/presets` and `/api/presets/{name}` (PresetSpec). · files: nanoscope/server/routes/presets.py (new), tests/server/test_routes.py (new) · deps: P10.08, P6.45 · done: `uv run pytest tests/server/test_routes.py -k presets` passes
-- [ ] P10.14 Add `GET /api/models` and `/api/models/{ref}`: ModelSpec for shipped models, and AST discovery (no import) for workspace models. · files: nanoscope/server/routes/models.py (new), tests/server/test_routes.py · deps: P10.08, P8.45 · done: `uv run pytest tests/server/test_routes.py -k models` passes
-- [ ] P10.15 Add `POST /api/models/{ref}/describe`, which enqueues a `describe` job; `run-job` handles the `describe` kind. · files: nanoscope/server/routes/models.py, nanoscope/jobs/execute.py · deps: P10.14, P8.41 · done: `uv run pytest tests/server/test_routes.py -k describe_job` passes
+- [x] P10.13 Add `GET /api/presets` and `/api/presets/{name}` (PresetSpec). · files: nanoscope/server/routes/presets.py (new), tests/server/test_routes.py (new) · deps: P10.08, P6.45 · done: `uv run pytest tests/server/test_routes.py -k presets` passes ✓ 2026-10-06 bfb99db: GET /api/presets and /api/presets/{name} (PresetSpec; unknown preset is a 404 problem with the library's text)
+- [x] P10.14 Add `GET /api/models` and `/api/models/{ref}`: ModelSpec for shipped models, and AST discovery (no import) for workspace models. · files: nanoscope/server/routes/models.py (new), tests/server/test_routes.py · deps: P10.08, P8.45 · done: `uv run pytest tests/server/test_routes.py -k models` passes ✓ 2026-10-06 bfb99db: GET /api/models and /api/models/{ref}: the shipped models plus workspace classes found by blocks.discover.discover_models (ast only, never imported); refs are workspace-relative
+- [x] P10.15 Add `POST /api/models/{ref}/describe`, which enqueues a `describe` job; `run-job` handles the `describe` kind. · files: nanoscope/server/routes/models.py, nanoscope/jobs/execute.py · deps: P10.14, P8.41 · done: `uv run pytest tests/server/test_routes.py -k describe_job` passes ✓ 2026-10-06 bfb99db: POST /api/models/{ref}/describe: 202 with a describe job on the interactive lane; job.v1 gained a describe kind; run-job runs inspect.describe; the worker resolves workspace refs to absolute paths
 - [ ] P10.16 Add `GET /api/blocks`: the palette with tier, lock state from gating, and certification. · files: nanoscope/server/routes/blocks.py (new), tests/server/test_routes.py · deps: P10.08, P8.46, P9.20 · done: `uv run pytest tests/server/test_routes.py -k blocks_lock_state` passes
 - [ ] P10.17 Add `GET /api/files?glob=` and `GET /api/files/{path}` with an ETag (mtime + hash), confined to the workspace with a traversal guard. · files: nanoscope/server/routes/files.py (new), tests/server/test_files.py (new) · deps: P10.04 · done: `uv run pytest tests/server/test_files.py -k "read or traversal"` passes
 - [ ] P10.18 Add `PUT /api/files/{path}` with `If-Match` and an atomic write; a mismatch returns 409 with a unified diff. · files: nanoscope/server/routes/files.py, tests/server/test_files.py · deps: P10.17 · done: `uv run pytest tests/server/test_files.py -k conflict_409` passes
