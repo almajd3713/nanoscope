@@ -4,7 +4,7 @@ The build list for [`plan-tool.md`](plan-tool.md), sections 4-10, with the decis
 2026-10-05 (plan section 11) applied. Phase numbers follow the plan's section 10. Every
 item is one line, so scripts and agents can grep and edit it.
 
-**Current focus:** P8 blocks library, describe, rebuilt models. Next item: P8.29.
+**Current focus:** P8 blocks library, describe, rebuilt models. Next item: P8.30.
 
 ## Progress
 
@@ -12,7 +12,7 @@ item is one line, so scripts and agents can grep and edit it.
 |---|---|---|---|
 | P6 | Servable library + CI baseline (9-11 d) | 67 / 67 | done |
 | P7 | Queue and workers (5-6 d) | 28 / 28 | done |
-| P8 | Blocks, describe, rebuilt models (10-13 d) | 28 / 52 | in progress |
+| P8 | Blocks, describe, rebuilt models (10-13 d) | 29 / 52 | in progress |
 | P9 | Curriculum engine, gating, two paths (14-17 d) | 0 / 61 | not started |
 | P10 | HTTP API (8-10 d) | 0 / 47 | not started |
 | P11 | Release prep: PyPI + GHCR (2-3 d) | 0 / 17 | not started |
@@ -259,7 +259,7 @@ touch or create (new ones marked `(new)`).
 - [x] P8.26 Test that `run(GPT2)` and `run(Modern)` give the same run dir names and `config.json` model kwargs as before the rebuild. · files: tests/test_models.py · deps: P8.22, P8.23 · done: `uv run pytest tests/test_models.py -k run_identity_unchanged` passes ✓ 2026-10-06 : test_run_identity_unchanged: same signature as the frozen refs, same run-dir names (with and without overrides), same config.json model class and kwargs
 - [x] P8.27 Migrate `tests/test_models.py` onto the blocks and the rebuilt models, keeping every existing test. · files: tests/test_models.py · deps: P8.26 · done: `uv run pytest tests/test_models.py --collect-only -q | tail -1` shows at least the original count, and all pass ✓ 2026-10-06 : every old test_models test kept (12 functions; 27 -> 44 collected), migrated onto blocks (RoPE, RMSNorm, SwiGLU, Attention) with the rebuilt models
 - [x] P8.28 Repoint text in notebooks 02-03 and the README that refers to the internals of `gpt2.py`/`modern.py` at the blocks or reference files. · files: notebooks/02-gpt2.ipynb, notebooks/03-modern-block.ipynb, README.md · deps: P8.27 · done: `grep -rn "modern.py\|gpt2.py" notebooks README.md` shows only valid paths ✓ 2026-10-06 99b9bc3: notebooks 02-03 describe the Decoder composition and point at blocks/; README only names the gpt2.py path (valid)
-- [ ] P8.29 Test that `studies/m1_ablation.py` gives the same `jobs()` (sizes and steps) before and after the rebuild. · files: tests/test_study.py · deps: P8.23 · done: `uv run pytest tests/test_study.py -k m1_jobs_stable` passes
+- [x] P8.29 Test that `studies/m1_ablation.py` gives the same `jobs()` (sizes and steps) before and after the rebuild. · files: tests/test_study.py · deps: P8.23 · done: `uv run pytest tests/test_study.py -k m1_jobs_stable` passes ✓ 2026-10-06 7416733: test_m1_jobs_stable pins widths (384/584/344) and steps (1954) taken from the pre-rebuild commit
 
 ### P8 · Graph parse and emit
 - [ ] P8.30 Add `libcst` to a new `graph` extra (later included by `server`); it stays out of the core dependencies. · files: pyproject.toml, uv.lock · deps: P6.99 · done: `uv sync --extra graph && uv run python -c "import libcst"` exits 0
