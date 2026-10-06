@@ -73,7 +73,7 @@ def test_steps_are_coalesced_to_four_a_second_but_evals_never_are(run_dir):
     assert got[1][1] == {"ref": "r", "step": 14, "val_loss": 2.5, "val_bpb": 1.2}
     assert got[4][1]["text"] == "once upon"
     assert "sample" not in got[2][1]  # a step event does not carry the (long) sample text
-    assert tail.finish() == []  # nothing held back
+    assert [d["step"] for _, d in tail.finish()] == [15]  # the step held back at the end
 
 
 def test_a_step_held_back_is_flushed_at_the_end(run_dir):
