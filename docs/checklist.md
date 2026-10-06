@@ -4,7 +4,7 @@ The build list for [`plan-tool.md`](plan-tool.md), sections 4-10, with the decis
 2026-10-05 (plan section 11) applied. Phase numbers follow the plan's section 10. Every
 item is one line, so scripts and agents can grep and edit it.
 
-**Current focus:** P11 release prep. Next item: P11.08 (USER ACTION); agent can do P11.10.
+**Current focus:** P11 release prep. Next item: P11.08 (USER ACTION); agent can do P11.11.
 
 ## Progress
 
@@ -15,7 +15,7 @@ item is one line, so scripts and agents can grep and edit it.
 | P8 | Blocks, describe, rebuilt models (10-13 d) | 52 / 52 | done |
 | P9 | Curriculum engine, gating, two paths (14-17 d) | 61 / 61 | done |
 | P10 | HTTP API (8-10 d) | 47 / 47 | done |
-| P11 | Release prep: PyPI + GHCR (2-3 d) | 7 / 17 | in progress |
+| P11 | Release prep: PyPI + GHCR (2-3 d) | 8 / 17 | in progress |
 | P12 | docker-compose (3-4 d) | 0 / 20 | not started |
 | P13 | GUI MVP 1: shell, Learn/Tinker screens (12-15 d) | 0 / 37 | not started |
 | P14 | GUI MVP 2: model page, drag-and-drop (14-17 d) | 0 / 34 | not started |
@@ -449,7 +449,7 @@ touch or create (new ones marked `(new)`).
 - [x] P11.07 (2026-10-06, e8c7512) Add a release workflow: on a `v*` tag, build the sdist and wheel, test the installed wheel, and publish with `pypa/gh-action-pypi-publish` via trusted publishing (rc tags go to TestPyPI). · files: .github/workflows/release.yml (new) · deps: P11.03 · done: `uvx actionlint .github/workflows/release.yml` exits 0 (or the workflow passes a manual `workflow_dispatch` dry run)
 - [ ] P11.08 **USER ACTION** Check that `nanoscope-lab` is free on PyPI and TestPyPI, and register the trusted publishers for `almajd3713/nanoscope` and `release.yml`. · files: — · deps: P11.07 · done: the user confirms both publishers exist
 - [ ] P11.09 **USER ACTION** Push the tag `v0.3.0rc1` to publish to TestPyPI, then check `pip install -i https://test.pypi.org/simple --extra-index-url https://pypi.org/simple nanoscope-lab==0.3.0rc1` in a clean venv. · files: — · deps: P11.08, P11.06 · done: `nanoscope presets` works from that venv (the user reports it)
-- [ ] P11.10 Write `docker/Dockerfile.cpu`: python:3.12-slim, CPU torch from the PyTorch CPU index, the wheel with `[server]` installed, non-root uid 1000, `NANOSCOPE_HOME=/nanoscope`, and a HEALTHCHECK on `/api/health`; add `.dockerignore`. · files: docker/Dockerfile.cpu (new), .dockerignore (new) · deps: P11.03 · done: `docker build -f docker/Dockerfile.cpu -t nanoscope:cpu .` succeeds in CI
+- [x] P11.10 (2026-10-06, b71c981; built and smoke-tested locally, CI run pending) Write `docker/Dockerfile.cpu`: python:3.12-slim, CPU torch from the PyTorch CPU index, the wheel with `[server]` installed, non-root uid 1000, `NANOSCOPE_HOME=/nanoscope`, and a HEALTHCHECK on `/api/health`; add `.dockerignore`. · files: docker/Dockerfile.cpu (new), .dockerignore (new) · deps: P11.03 · done: `docker build -f docker/Dockerfile.cpu -t nanoscope:cpu .` succeeds in CI
 - [ ] P11.11 Add an image smoke test in CI: `docker run --rm nanoscope:cpu nanoscope presets`, then `id -u` prints 1000, and the image size is printed. · files: .github/workflows/image.yml (new) · deps: P11.10 · done: the image job is green on the PR
 - [ ] P11.12 Make `image.yml` push `ghcr.io/almajd3713/nanoscope:cpu` and `:cpu-<version>` with OCI labels on a tag, and only build on PRs. · files: .github/workflows/image.yml · deps: P11.11 · done: `uvx actionlint .github/workflows/image.yml` exits 0
 - [ ] P11.13 **USER ACTION** Allow Actions to write packages to GHCR, and make the package public after the first push. · files: — · deps: P11.12 · done: `docker pull ghcr.io/almajd3713/nanoscope:cpu` works anonymously after P11.14
@@ -740,3 +740,4 @@ right phase, then tick it here as `[x] → P<n>.<id>`.
   strict ordering. (8) Pyright and ruff skip `nanoscope/curricula` (starter files with TODOs).
 
 - 2026-10-06 P11.07: actionlint is not on PyPI; run it as `uvx --from actionlint-py actionlint <file>` (P11.12 too).
+- 2026-10-06 P11.10: the image smoke test found `jsonschema` imported by queue.py but only in the dev extra; moved to core dependencies. Image is 2.29 GB (CPU torch).
