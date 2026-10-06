@@ -405,3 +405,38 @@ def test_cli_prints_the_graph_without_running_anything(capsys, tmp_path):
     assert capsys.readouterr().out.strip() == ""
     with pytest.raises(SystemExit, match="no Decoder or Composite class 'Nope'"):
         main(["graph", f"{FIXTURES / 'modern_like.py'}:Nope"])
+
+
+def test_template_slot():
+    """Filling a template slot is an ordinary replace_block on that slot."""
+    path = FIXTURES / "template_fill.py"
+    source = path.read_text()
+    graph = parse(path)
+    cls = graph["classes"][0]
+    assert cls["representable"]
+    block = cls["args"]["block"]
+    assert (block["kind"], block["block"], block["family"], block["tier"]) == (
+        "block", "BlockTemplate", "template", "primitive")
+    assert list(block["args"]) == ["norm1", "attn", "norm2", "mlp"]
+    attn = block["args"]["attn"]
+    assert attn["block"] == "AttentionTemplate" and list(attn["args"]) == [
+        "q", "k", "v", "scores", "mask", "normalize", "mix", "out"]
+    assert attn["args"]["mask"] == {"kind": "literal", "value": None,
+                                    "span": attn["args"]["mask"]["span"]}  # the empty slot
+    # drag a primitive into the slot: one replace_block, one changed line
+    fill = {"kind": "block", "block": "CausalMask", "args": {}, "span": None}
+    attn["args"]["mask"] = fill
+    edits = diff(parse(path), graph)
+    assert edits == [{"op": "replace_block", "class": "FromPrimitives",
+                      "path": ["block", "attn", "mask"], "node": fill}]
+    after = emit(graph, source)
+    assert changed_lines(source, after) == [(
+        13, "                    scores=ScaledDotScores(), mask=None, normalize=Softmax(),",
+        "                    scores=ScaledDotScores(), mask=CausalMask(), normalize=Softmax(),")]
+    again = parse_text(after)["classes"][0]["args"]["block"]["args"]["attn"]["args"]["mask"]
+    assert (again["kind"], again["block"]) == ("block", "CausalMask")
+    # swapping a filled slot works the same way
+    graph = parse_text(after)
+    graph["classes"][0]["args"]["block"]["args"]["attn"]["args"]["normalize"] = {
+        "kind": "block", "block": "Softmax", "args": {}, "span": None}
+    assert emit(graph, after) == after  # same block, nothing to change
