@@ -32,3 +32,10 @@ def lesson_with(root: Path, workspace: Path, monkeypatch, checks_toml: str, user
     ctx.user_file.parent.mkdir(parents=True, exist_ok=True)
     ctx.user_file.write_text(user_code)
     return ctx
+
+
+def set_preset(monkeypatch, preset) -> None:
+    """Install `preset` in the registry for one test only (restored afterwards)."""
+    from nanoscope import presets
+
+    monkeypatch.setitem(presets._PRESETS, preset.name, preset)

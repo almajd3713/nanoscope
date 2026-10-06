@@ -3,7 +3,7 @@
 import textwrap
 
 import pytest
-from learn_helpers import lesson_with
+from learn_helpers import lesson_with, set_preset
 
 from nanoscope.learn.checks import CHECKERS, run_one
 
@@ -184,12 +184,11 @@ class MyBigram(nn.Module):
 
 
 @pytest.mark.usefixtures("fake_data")
-def test_trains(make):
+def test_trains(make, monkeypatch):
     from fakes import tiny
 
-    from nanoscope.presets import register_preset
 
-    register_preset(tiny(name="tinystories-5min"))  # the lesson's cpu preset, kept small here
+    set_preset(monkeypatch, tiny(name="tinystories-5min"))  # the lesson cpu preset, kept small
     toml = ('\n[[checks]]\nid = "learns"\nkind = "trains"\nclass = "MyBigram"\n'
             'metric = "val_bpb"\nthreshold = {threshold}\n')
     ctx = make(toml.format(threshold=10), BIGRAM)
@@ -232,12 +231,11 @@ class Dumb(nn.Module):
 
 
 @pytest.mark.usefixtures("fake_data")
-def test_verdict(make):
+def test_verdict(make, monkeypatch):
     from fakes import tiny
 
-    from nanoscope.presets import register_preset
 
-    register_preset(tiny(name="tinystories-5min", max_steps=30))
+    set_preset(monkeypatch, tiny(name="tinystories-5min", max_steps=30))
     toml = ('\n[[checks]]\nid = "gap"\nkind = "verdict"\na = "Bigram"\nb = "Dumb"\n'
             'expect = "{expect}"\nseeds = 3\n')
     ctx = make(toml.format(expect="better"), DUMB)
@@ -355,12 +353,11 @@ def test_reproduces(make, tmp_path, monkeypatch):
     from fakes import tiny
 
     from nanoscope.models import Bigram
-    from nanoscope.presets import register_preset
     from nanoscope.run import run as train
     from nanoscope.statistics import reproduction_interval
 
     preset = tiny(name="tinystories-5min")
-    register_preset(preset)
+    set_preset(monkeypatch, preset)
     import sys
 
     compare = sys.modules["nanoscope.compare"]  # nanoscope.compare the name is the function
@@ -400,11 +397,10 @@ def test_visible_reasons(make, tmp_path, monkeypatch):
     from nanoscope.learn import progress
     from nanoscope.learn.checks import prediction_path
     from nanoscope.models import Bigram
-    from nanoscope.presets import register_preset
     from nanoscope.run import run as train
 
     preset = tiny(name="tinystories-5min", max_steps=30)
-    register_preset(preset)
+    set_preset(monkeypatch, preset)
     compare = sys.modules["nanoscope.compare"]
     monkeypatch.setattr(compare, "BASELINES_DIR", tmp_path / "baselines")
     compare.export_baseline(train(Bigram, preset, seeds=3, device="cpu", progress=False),
