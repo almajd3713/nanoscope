@@ -237,3 +237,44 @@ def _span_of(cls: dict[str, Any], module: str) -> dict[str, int] | None:
             break
         node, span = child, child["span"]
     return span or cls["span"]
+
+
+# -- text -----------------------------------------------------------------------------------
+
+def _human(n: float, unit: str = "") -> str:
+    for scale, suffix in ((1e12, "T"), (1e9, "G"), (1e6, "M"), (1e3, "k")):
+        if abs(n) >= scale:
+            return f"{n / scale:.3g}{suffix}{unit}"
+    return f"{n:g}{unit}"
+
+
+def _shape(shapes: list[list[int]] | None) -> str:
+    if shapes is None:
+        return "-"
+    return " ".join("x".join(str(d) for d in s) for s in shapes)
+
+
+def format_describe(report: dict[str, Any]) -> str:
+    """The report as a table: one indented row per module, then the totals."""
+    mem = report["memory"]
+    lines = [
+        f"{report['model']}  preset {report['preset']}  "
+        f"batch {report['batch_size']} x context {report['context_length']}",
+        f"params {_human(report['params']['total'])} "
+        f"(non-embedding {_human(report['params']['non_embedding'])})  "
+        f"FLOPs/token {_human(report['flops_per_token'])} ({report['flops_source']})",
+        f"memory ~{_human(mem['total'], 'B')}: weights {_human(mem['weights'], 'B')}, "
+        f"gradients {_human(mem['gradients'], 'B')}, AdamW {_human(mem['adamw_state'], 'B')}, "
+        f"activations {_human(mem['activations'], 'B')}",
+        "",
+    ]
+    rows = [(("  " * r["depth"]) + (r["path"].rsplit(".", 1)[-1] or "(model)"), r["type"],
+             _shape(r["input_shapes"]), _shape(r["output_shapes"]), _human(r["params"]),
+             _human(r["flops_per_token"]) + ("" if r["flops_source"] == "analytic" else "*"))
+            for r in report["modules"]]
+    header = ("module", "type", "in", "out", "params", "FLOPs/token")
+    widths = [max(len(str(row[i])) for row in [header, *rows]) for i in range(6)]
+    for row in [header, *rows]:
+        lines.append("  ".join(str(c).ljust(w) for c, w in zip(row, widths, strict=True)).rstrip())
+    lines += ["", "* FLOPs/token estimated as 6 x non-embedding parameters"]
+    return "\n".join(lines)

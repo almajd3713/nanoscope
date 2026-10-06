@@ -31,6 +31,9 @@ def _parse_set(items: list[str]) -> dict:
         if "=" not in item:
             raise ValueError(f"--set expects key=value, got {item!r}")
         key, value = item.split("=", 1)
+        if value in ("true", "false"):
+            result[key] = value == "true"
+            continue
         for convert in (int, float):
             try:
                 value = convert(value)
@@ -135,6 +138,15 @@ def build_parser() -> argparse.ArgumentParser:
         "graph", help="Show a model file's architecture graph (reads the file, runs nothing)")
     graph_parser.add_argument("target", help="path/to/model.py or path/to/model.py:ClassName")
     graph_parser.add_argument("--json", action="store_true", help="print graph.v1 JSON")
+
+    describe_parser = sub.add_parser(
+        "describe", help="Shapes, parameters, FLOPs and memory of a model, traced without data")
+    describe_parser.add_argument("model", help="path/to/model.py:ClassName (it is imported)")
+    describe_parser.add_argument("--preset", default="tinystories-5min")
+    describe_parser.add_argument("--json", action="store_true", help="print describe.v1 JSON")
+    describe_parser.add_argument(
+        "--set", nargs="*", default=[], dest="overrides", metavar="key=value",
+        help="model keywords or preset fields, e.g. n_layers=6 context_length=512")
 
     stop_parser = sub.add_parser(
         "stop", help="Ask running runs to stop: they save a checkpoint and can be resumed")
@@ -246,6 +258,18 @@ def main(argv: list[str] | None = None) -> None:
         if cls:
             graph["classes"] = [c for c in graph["classes"] if c["name"] == cls]
         print(json_.dumps(graph, indent=2) if args.json else format_graph(graph))
+        return
+
+    if args.command == "describe":
+        import json as json_
+
+        from nanoscope.inspect import ShapeError, describe, format_describe
+        try:
+            report = describe(_load_model_class(args.model), args.preset,
+                              **_parse_set(args.overrides))
+        except ShapeError as exc:
+            raise SystemExit(f"shape error in {exc}") from exc
+        print(json_.dumps(report, indent=2) if args.json else format_describe(report))
         return
 
     if args.command == "stop":

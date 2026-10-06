@@ -136,3 +136,42 @@ def test_shape_error_falls_back_to_the_traceback_for_code_only_models(tmp_path):
         describe(load_class(f"{path}:Tiny"), tiny())
     assert caught.value.module == "fc"
     assert caught.value.line is None or caught.value.file == str(path)
+
+
+def test_cli_prints_a_table_and_json(capsys, tmp_path):
+    import json
+
+    from helpers import assert_valid
+
+    from nanoscope.cli import main
+
+    main(["describe", "nanoscope/models/modern.py:Modern", "--preset", "tinystories-5min",
+          "--set", "n_layers=2", "d_model=32", "n_heads=4", "context_length=64"])
+    text = capsys.readouterr().out
+    lines = text.splitlines()
+    assert lines[0] == "Modern  preset tinystories-5min  batch 8 x context 64"
+    assert lines[1].startswith("params ") and "FLOPs/token" in lines[1] and "(analytic)" in lines[1]
+    assert lines[2].startswith("memory ~")
+    header = next(line for line in lines if line.startswith("module"))
+    assert header.split() == ["module", "type", "in", "out", "params", "FLOPs/token"]
+    attn = next(line for line in lines if line.lstrip().startswith("attn "))
+    assert attn.index("attn") == 6 and "Attention" in attn and "8x64x32" in attn  # depth 3
+    assert lines[-1].startswith("* FLOPs/token estimated")
+
+    main(["describe", "nanoscope/models/gpt2.py:GPT2", "--json", "--set", "n_layers=1",
+          "d_model=32", "n_heads=4"])
+    report = json.loads(capsys.readouterr().out)
+    assert_valid("describe", report)
+    assert report["model"] == "GPT2" and report["kwargs"]["n_layers"] == 1
+
+    broken = tmp_path / "broken.py"
+    broken.write_text(BAD_MODEL)
+    with pytest.raises(SystemExit, match="shape error in blocks.0.attn.fc: .*broken.py:21"):
+        main(["describe", f"{broken}:Broken"])
+
+
+def test_describe_json_validates_for_every_shipped_model():
+    from helpers import assert_valid
+
+    for cls, kw in [(Bigram, {}), (GPT2, SMALL), (Modern, SMALL)]:
+        assert_valid("describe", describe(cls, tiny(), **kw))

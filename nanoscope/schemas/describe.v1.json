@@ -1,0 +1,195 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://nanoscope.dev/schemas/describe.v1.json",
+  "title": "describe.v1",
+  "description": "What `nanoscope describe` reports for a model: one row per module with shapes, parameters and FLOPs per token, plus totals and a rough memory estimate. Traced on the meta device.",
+  "type": "object",
+  "required": [
+    "schema",
+    "nanoscope",
+    "model",
+    "kwargs",
+    "preset",
+    "context_length",
+    "batch_size",
+    "params",
+    "flops_per_token",
+    "flops_source",
+    "memory",
+    "modules"
+  ],
+  "additionalProperties": false,
+  "properties": {
+    "schema": {
+      "const": 1
+    },
+    "nanoscope": {
+      "type": "string"
+    },
+    "model": {
+      "type": "string"
+    },
+    "kwargs": {
+      "type": "object"
+    },
+    "preset": {
+      "type": "string"
+    },
+    "context_length": {
+      "type": "integer",
+      "minimum": 1
+    },
+    "batch_size": {
+      "type": "integer",
+      "minimum": 1
+    },
+    "params": {
+      "type": "object",
+      "required": [
+        "total",
+        "non_embedding"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "total": {
+          "type": "integer"
+        },
+        "non_embedding": {
+          "type": "integer"
+        }
+      }
+    },
+    "flops_per_token": {
+      "type": "integer"
+    },
+    "flops_source": {
+      "enum": [
+        "analytic",
+        "6N"
+      ]
+    },
+    "memory": {
+      "type": "object",
+      "required": [
+        "weights",
+        "gradients",
+        "adamw_state",
+        "activations",
+        "total"
+      ],
+      "additionalProperties": {
+        "type": "integer",
+        "minimum": 0
+      }
+    },
+    "modules": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/row"
+      }
+    }
+  },
+  "$defs": {
+    "row": {
+      "type": "object",
+      "required": [
+        "path",
+        "type",
+        "block",
+        "family",
+        "tier",
+        "depth",
+        "input_shapes",
+        "output_shapes",
+        "params",
+        "params_non_embedding",
+        "flops_per_token",
+        "flops_source"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "path": {
+          "type": "string"
+        },
+        "type": {
+          "type": "string"
+        },
+        "block": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "family": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "tier": {
+          "enum": [
+            "primitive",
+            "composite",
+            null
+          ]
+        },
+        "depth": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "input_shapes": {
+          "oneOf": [
+            {
+              "type": "null"
+            },
+            {
+              "type": "array",
+              "items": {
+                "type": "array",
+                "items": {
+                  "type": "integer",
+                  "minimum": 0
+                }
+              }
+            }
+          ]
+        },
+        "output_shapes": {
+          "oneOf": [
+            {
+              "type": "null"
+            },
+            {
+              "type": "array",
+              "items": {
+                "type": "array",
+                "items": {
+                  "type": "integer",
+                  "minimum": 0
+                }
+              }
+            }
+          ]
+        },
+        "params": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "params_non_embedding": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "flops_per_token": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "flops_source": {
+          "enum": [
+            "analytic",
+            "6N"
+          ]
+        }
+      }
+    }
+  }
+}
