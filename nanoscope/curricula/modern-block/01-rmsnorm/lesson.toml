@@ -1,0 +1,26 @@
+title = "RMSNorm"
+level = 1
+summary = "LayerNorm without the mean and the bias: scale each vector by its root mean square."
+prerequisites = ["foundations/05-block"]
+unlocks = ["block:RMSNorm"]
+
+[experiment]
+kind = "check"
+
+[[checks]]
+id = "built"
+kind = "defines"
+class = "MyRMSNorm"
+
+[[checks]]
+id = "same-as-reference"
+kind = "equivalent"
+class = "MyRMSNorm"
+reference = "rms_norm"
+inputs = [[[4, 16]], [[2, 5, 16]]]
+call = ["input:0", "param:weight"]
+randomize = true
+
+[compute.cpu]
+preset = "tinystories-5min"
+estimate_minutes = 0.2

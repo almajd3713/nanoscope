@@ -1,0 +1,32 @@
+title = "Grouped-query attention (GQA)"
+level = 1
+summary = "Let several query heads share one key/value head, and shrink the memory a model needs when generating."
+prerequisites = ["foundations/04-multi-head"]
+unlocks = ["feature:gqa"]
+forbid = ["torch.nn.MultiheadAttention", "F.scaled_dot_product_attention"]
+
+[experiment]
+kind = "check"
+
+[[checks]]
+id = "built"
+kind = "defines"
+class = "MyGQA"
+
+[[checks]]
+id = "same-as-reference"
+kind = "equivalent"
+class = "MyGQA"
+reference = "naive_gqa"
+inputs = [[[2, 6, 16]], [[1, 3, 16]]]
+call = [
+  "input:0", "param:q.weight", "param:k.weight", "param:v.weight", "param:out.weight", 4, 2,
+]
+
+[[checks]]
+id = "built-by-hand"
+kind = "forbid"
+
+[compute.cpu]
+preset = "tinystories-5min"
+estimate_minutes = 0.3

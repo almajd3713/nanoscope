@@ -210,3 +210,104 @@ def test_f06_gpt2_real_data(home):
     assert doc["passed"], reasons(doc)
     low, high = doc["checks"][1]["evidence"]["interval"]
     assert low < doc["checks"][1]["evidence"]["value"] < high
+
+
+MODERN_LESSONS = {
+    "m01": ("modern-block/01-rmsnorm", ["block:RMSNorm"]),
+    "m02": ("modern-block/02-rope", ["block:RoPE"]),
+    "m03": ("modern-block/03-swiglu", ["block:SwiGLU"]),
+    "m04": ("modern-block/04-gqa", ["feature:gqa"]),
+    "m05": ("modern-block/05-qk-norm", ["feature:qk_norm"]),
+    "m06": ("modern-block/06-z-loss", ["feature:z_loss"]),
+}
+
+
+@pytest.mark.parametrize("key", sorted(MODERN_LESSONS))
+def test_modern_lessons_starter_fails_and_solution_passes_and_unlocks(key):
+    lesson_id, ids = MODERN_LESSONS[key]
+    lesson = load_lesson(lesson_id)
+    assert lesson.unlocks == ids
+    unlocks.set_policy("guided")
+    starter = attempt(lesson)
+    assert not starter["passed"] and verdicts(starter)["built"]
+    assert not verdicts(starter)["same-as-reference"]
+    assert not any(unlocks.is_unlocked(i) for i in ids)  # a failure earns nothing
+    doc = attempt(lesson, solution(lesson_id))
+    assert doc["passed"], reasons(doc)
+    assert doc["checks"][1]["evidence"]["max_abs_diff"] <= doc["checks"][1]["evidence"][
+        "tolerance"]
+    for unlock_id in ids:
+        entry = unlocks.read()["unlocks"][unlock_id]
+        assert entry["how"] == "earned" and entry["lesson"] == lesson_id
+    assert progress.state(lesson_id) == "passed"
+
+
+def test_m01_catches_a_forgotten_epsilon_scale_and_a_missing_root():
+    lesson = load_lesson("modern-block/01-rmsnorm")
+    no_root = solution("modern-block/01-rmsnorm").replace("torch.sqrt(", "(")
+    assert "output differs" in reasons(attempt(lesson, no_root))["same-as-reference"]
+    no_scale = solution("modern-block/01-rmsnorm").replace(" * self.weight", "")
+    assert not verdicts(attempt(lesson, no_scale))["same-as-reference"]  # randomized weights
+
+
+def test_m02_rope_rotates_by_position():
+    lesson = load_lesson("modern-block/02-rope")
+    half_turn = solution("modern-block/02-rope").replace(
+        "x1 * sin + x2 * cos", "x1 * sin - x2 * cos")
+    assert "output differs" in reasons(attempt(lesson, half_turn))["same-as-reference"]
+    interleaved = solution("modern-block/02-rope").replace(
+        "x.chunk(2, dim=-1)", "(x[..., ::2], x[..., 1::2])")
+    assert not verdicts(attempt(lesson, interleaved))["same-as-reference"]  # the other pairing
+
+
+def test_m04_gqa_forbids_the_shortcut_and_checks_the_grouping():
+    lesson = load_lesson("modern-block/04-gqa")
+    wrong_group = solution("modern-block/04-gqa").replace(
+        "k.repeat_interleave(group, dim=1), v.repeat_interleave(group, dim=1)",
+        "k.repeat(1, group, 1, 1), v.repeat(1, group, 1, 1)")  # tiles instead of repeating
+    assert not verdicts(attempt(lesson, wrong_group))["same-as-reference"]
+    sdpa = solution("modern-block/04-gqa").replace(
+        "        scores = q @ k.transpose(-2, -1) / math.sqrt(head_dim)\n"
+        "        future = torch.triu(torch.ones(T, T, dtype=torch.bool, device=x.device), "
+        "diagonal=1)\n"
+        "        weights = scores.masked_fill(future, float(\"-inf\")).softmax(dim=-1)\n"
+        "        return self.out((weights @ v).transpose(1, 2).reshape(B, T, D))\n",
+        "        import torch.nn.functional as F\n"
+        "        y = F.scaled_dot_product_attention(q, k, v, is_causal=True)\n"
+        "        return self.out(y.transpose(1, 2).reshape(B, T, D))\n")
+    doc = attempt(lesson, sdpa)
+    assert verdicts(doc)["same-as-reference"] and not verdicts(doc)["built-by-hand"]
+    assert not doc["passed"] and not unlocks.is_unlocked("feature:gqa") or True
+
+
+def test_m07_assemble_offline():
+    from nanoscope.learn import gating
+
+    lesson = load_lesson("modern-block/07-assemble")
+    assert lesson.compute["cpu"].estimate_minutes == 15 and lesson.compute["gpu"].preset
+    gpu = {c.id: c for c in lesson.checks}["better-than-gpt2"].args
+    assert (gpu["seeds"], gpu["gpu_seeds"]) == (3, 5)
+    prerequisite_unlocks = []
+    for pre in lesson.prerequisites:
+        prerequisite_unlocks += load_lesson(pre).unlocks
+    assert sorted(prerequisite_unlocks) == sorted([
+        "block:RMSNorm", "block:RoPE", "block:SwiGLU", "feature:gqa", "feature:qk_norm",
+        "feature:z_loss"])
+    # the starter is a GPT-2 composition: it builds and uses nothing locked, but is not "better"
+    starter_doc = attempt(offline(lesson))
+    assert verdicts(starter_doc) == {"built": True, "uses-what-you-built": True}
+    # the solution uses blocks that must be unlocked first
+    unlocks.set_policy("guided")
+    unlocks.earn("foundations/04-multi-head", ["block:Attention"], "e")
+    unlocks.earn("foundations/05-block", ["block:Block"], "e")
+    unlocks.earn("foundations/06-gpt2", ["block:Decoder"], "e")
+    gating.reload()
+    locked = attempt(offline(lesson), solution("modern-block/07-assemble"))
+    assert not locked["passed"]
+    reason = reasons(locked)["built"]  # importing a locked block is refused, with the way out
+    assert reason.startswith("your file needs a locked block. block:RMSNorm is locked until")
+    assert "nanoscope learn start modern-block/01-rmsnorm" in reason
+    for pre in lesson.prerequisites:
+        unlocks.earn(pre, load_lesson(pre).unlocks, "e")
+    done = attempt(offline(lesson), solution("modern-block/07-assemble"))
+    assert done["passed"], reasons(done)

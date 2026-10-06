@@ -95,6 +95,19 @@ def run_one(ctx: Context, check: Check) -> Result:
             result = Result(check.id, check.kind, False, f"no checker for {check.kind!r} yet")
         else:
             result = fn(ctx, check)
+    except ImportError as exc:
+        from nanoscope.learn.gating import LockedBlockError
+
+        if not isinstance(exc, LockedBlockError):
+            frames = traceback.extract_tb(exc.__traceback__)
+            where = f" (at {Path(frames[-1].filename).name}:{frames[-1].lineno})" if frames else ""
+            result = Result(check.id, check.kind, False,
+                            f"crashed: {type(exc).__name__}: {exc}{where}")
+            result.seconds = time.perf_counter() - started
+            ctx.shared.setdefault("evidence", {})[check.id] = result.evidence
+            return result
+        # not a crash: the file asks for something the learner has not unlocked yet
+        result = Result(check.id, check.kind, False, f"your file needs a locked block. {exc}")
     except Exception as exc:  # the learner's code, or ours: say which line, never a traceback
         frames = traceback.extract_tb(exc.__traceback__)
         where = f" (at {Path(frames[-1].filename).name}:{frames[-1].lineno})" if frames else ""
@@ -525,7 +538,8 @@ def check_verdict(ctx: Context, check: Check) -> Result:
         return Result(check.id, check.kind, False,
                       f"the lesson expects verdict {expect!r}; the verdicts are "
                       f"{', '.join(VERDICTS)}: this is a bug in the lesson")
-    seeds = int(check.args.get("seeds", 3))
+    seeds = int(check.args.get("gpu_seeds", check.args.get("seeds", 3))
+                if ctx.variant == "gpu" else check.args.get("seeds", 3))
     metric = check.args.get("metric", "val_bpb")
     try:
         preset = lesson_preset(ctx)

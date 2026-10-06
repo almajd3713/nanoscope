@@ -1,0 +1,25 @@
+title = "SwiGLU"
+level = 1
+summary = "A gated MLP: one branch decides how much of the other gets through."
+prerequisites = ["modern-block/01-rmsnorm"]
+unlocks = ["block:SwiGLU"]
+
+[experiment]
+kind = "check"
+
+[[checks]]
+id = "built"
+kind = "defines"
+class = "MySwiGLU"
+
+[[checks]]
+id = "same-as-reference"
+kind = "equivalent"
+class = "MySwiGLU"
+reference = "swiglu"
+inputs = [[[4, 16]], [[2, 5, 16]]]
+call = ["input:0", "param:w1.weight", "param:w3.weight", "param:proj.weight"]
+
+[compute.cpu]
+preset = "tinystories-5min"
+estimate_minutes = 0.2
