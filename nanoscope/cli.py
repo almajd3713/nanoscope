@@ -314,8 +314,14 @@ def _main(argv: list[str] | None = None) -> None:
         except ImportError as exc:
             raise SystemExit(
                 'the server needs its extra: pip install "nanoscope-lab[server]"') from exc
-        settings = Settings(host=args.host, port=args.port)
+        from nanoscope.server.settings import ensure_token, is_loopback, login_url
+
+        token = None if is_loopback(args.host) else ensure_token()
+        settings = Settings(host=args.host, port=args.port, token=token)
         print(f"nanoscope API on http://{settings.host}:{settings.port}/api (docs: /api/docs)")
+        if token:
+            print(f"listening beyond this machine: sign in at {login_url(settings)}")
+            print("  (the token is saved in the server folder, readable only by you)")
         uvicorn.run(create_app(settings), host=settings.host, port=settings.port,
                     log_level="info")
         return

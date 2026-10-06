@@ -56,6 +56,12 @@ def hardware_dir() -> Path:
     return base / "hardware" if base else _USER_HOME / "hardware"
 
 
+def server_dir() -> Path:
+    """The API server's own files (its access token)."""
+    base = home()
+    return base / "server" if base else _USER_HOME / "server"
+
+
 def workspace_dir() -> Path:
     """The user's own model and study files. $NANOSCOPE_WORKSPACE wins over $NANOSCOPE_HOME."""
     explicit = os.environ.get("NANOSCOPE_WORKSPACE")
