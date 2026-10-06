@@ -1,0 +1,36 @@
+title = "GPT-2: stack the blocks"
+level = 0
+summary = "Token and position embeddings, a stack of blocks, a final norm and a tied output layer: that is GPT-2."
+prerequisites = ["foundations/05-block"]
+unlocks = ["block:Decoder"]
+forbid = ["torch.nn.MultiheadAttention", "F.scaled_dot_product_attention"]
+
+[experiment]
+kind = "run"
+model = "MyGPT2"
+
+[[checks]]
+id = "built"
+kind = "defines"
+class = "MyGPT2"
+
+[[checks]]
+id = "matches-baseline"
+kind = "reproduces"
+class = "MyGPT2"
+baseline = "gpt2"
+metric = "val_bpb"
+
+[[checks]]
+id = "built-by-hand"
+kind = "forbid"
+
+[depth.surface]
+seeds = 1
+
+[depth.deep]
+seeds = 3
+
+[compute.cpu]
+preset = "tinystories-5min"
+estimate_minutes = 4

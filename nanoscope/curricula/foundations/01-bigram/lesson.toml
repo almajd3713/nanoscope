@@ -34,4 +34,4 @@ seeds = 3
 
 [compute.cpu]
 preset = "tinystories-5min"
-estimate_minutes = 1.5
+estimate_minutes = 3

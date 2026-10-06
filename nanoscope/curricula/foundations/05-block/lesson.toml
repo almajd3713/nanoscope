@@ -1,0 +1,39 @@
+title = "The transformer block"
+level = 0
+summary = "Wrap attention and an MLP in normalisation and residual connections: the layer GPT is made of."
+prerequisites = ["foundations/04-multi-head"]
+unlocks = ["block:Block"]
+forbid = ["torch.nn.MultiheadAttention", "F.scaled_dot_product_attention"]
+
+[experiment]
+kind = "check"
+
+[[checks]]
+id = "built"
+kind = "defines"
+class = "MyBlock"
+
+[[checks]]
+id = "same-as-reference"
+kind = "equivalent"
+class = "MyBlock"
+reference = "naive_block"
+inputs = [[[2, 6, 16]], [[1, 3, 16]]]
+call = [
+  "input:0", "param:ln1.weight", "param:ln1.bias",
+  "param:attn.q.weight", "param:attn.k.weight", "param:attn.v.weight", "param:attn.out.weight",
+  "param:ln2.weight", "param:ln2.bias", "param:fc.weight", "param:proj.weight", 4,
+]
+randomize = true
+tolerance = 1e-4
+
+[[checks]]
+id = "built-by-hand"
+kind = "forbid"
+
+[depth.deep]
+seeds = 1
+
+[compute.cpu]
+preset = "tinystories-5min"
+estimate_minutes = 0.5
