@@ -304,3 +304,70 @@ def test_learn_start(curricula, home, capsys, monkeypatch, tmp_path):
     progress.mark("foundations/01-bigram", "passed")
     main(["learn", "start", "foundations/01-bigram"])
     assert progress.state("foundations/01-bigram") == "passed"
+
+
+def test_learn_check_output(curricula, home, capsys, monkeypatch):
+    import json
+
+    from nanoscope import paths
+    from nanoscope.cli import main
+    from nanoscope.learn import checks, progress
+    from nanoscope.learn.checks import Result
+
+    verdicts = {"built": True, "learns": False}
+
+    def fake(ctx, check):
+        ok = verdicts[check.id]
+        return Result(check.id, check.kind, ok, "all good" if ok else "val_bpb 3.1 is above 2.5",
+                      {"value": 3.1})
+    monkeypatch.setitem(checks.CHECKERS, "defines", fake)
+    monkeypatch.setitem(checks.CHECKERS, "trains", fake)
+
+    with pytest.raises(SystemExit) as caught:
+        main(["learn", "check", "foundations/01-bigram"])
+    assert caught.value.code == 1
+    out = capsys.readouterr().out
+    assert "checking foundations/01-bigram (2 checks)" in out
+    assert "  [pass] built (defines): all good" in out
+    assert "  [FAIL] learns (trains): val_bpb 3.1 is above 2.5" in out
+    assert "result: 1 of 2 checks passed: read the reasons above" in out
+    assert progress.state("foundations/01-bigram") == "failed"
+    (file,) = list((paths.learn_dir() / "checks").glob("*.json"))
+    doc = json.loads(file.read_text())
+    assert_valid("check", doc)
+    assert doc["passed"] is False and [c["passed"] for c in doc["checks"]] == [True, False]
+    assert progress.entry("foundations/01-bigram")["last_check"] == doc["id"]
+
+    verdicts["learns"] = True
+    main(["learn", "check", "foundations/01-bigram"])  # exit code 0: no SystemExit
+    assert "result: 2 of 2 checks passed" in capsys.readouterr().out
+    assert progress.state("foundations/01-bigram") == "passed"
+    assert len(list((paths.learn_dir() / "checks").glob("*.json"))) == 2
+
+
+def test_failed_defines_skips_the_rest_and_crashes_are_reported(curricula, home, capsys,
+                                                                monkeypatch):
+    from nanoscope.cli import main
+    from nanoscope.learn import checks
+    from nanoscope.learn.checks import Result
+
+    monkeypatch.setitem(checks.CHECKERS, "defines",
+                        lambda ctx, c: Result(c.id, c.kind, False, "class Bigram not found"))
+    with pytest.raises(SystemExit):
+        main(["learn", "check", "foundations/01-bigram"])
+    out = capsys.readouterr().out
+    assert "[FAIL] built (defines): class Bigram not found" in out
+    assert "[skip] learns (trains): skipped: fix the failing 'defines' check first" in out
+
+    def boom(ctx, check):
+        raise ZeroDivisionError("division by zero")
+    monkeypatch.setitem(checks.CHECKERS, "defines", lambda ctx, c: Result(c.id, c.kind, True, "ok"))
+    monkeypatch.setitem(checks.CHECKERS, "trains", boom)
+    with pytest.raises(SystemExit):
+        main(["learn", "check", "foundations/01-bigram"])
+    assert "crashed: ZeroDivisionError: division by zero" in capsys.readouterr().out
+    capsys.readouterr()
+    with pytest.raises(SystemExit) as caught:  # 02-mlp has no gpu variant
+        main(["learn", "check", "foundations/02-mlp", "--variant", "gpu"])
+    assert caught.value.code == 2
+    assert "has no gpu variant; it has: cpu" in capsys.readouterr().out

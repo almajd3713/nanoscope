@@ -18,6 +18,11 @@ def add_parsers(sub: argparse._SubParsersAction) -> None:  # type: ignore[type-a
     ls = commands.add_parser("list", help="Paths and lessons with their state and compute")
     ls.add_argument("--path", default=None, help="only this path, e.g. foundations")
 
+    check = commands.add_parser("check", help="Run a lesson's checks on your file")
+    check.add_argument("lesson", help="e.g. foundations/01-bigram")
+    check.add_argument("--variant", choices=["cpu", "gpu"], default="cpu",
+                       help="which compute variant to run (default cpu)")
+
     start = commands.add_parser("start", help="Copy a lesson's starter files to your workspace")
     start.add_argument("lesson", help="e.g. foundations/01-bigram")
 
@@ -108,7 +113,7 @@ def run(args: argparse.Namespace) -> int:
 def _run(args: argparse.Namespace) -> int:
     command = args.learn_command
     if command is None:
-        print("usage: nanoscope learn list | start <lesson>")
+        print("usage: nanoscope learn list | start <lesson> | check <lesson>")
         return 0
     if command == "list":
         print(format_paths(load_paths(args.path)))
@@ -129,4 +134,14 @@ def _run(args: argparse.Namespace) -> int:
             print(f"  note: this lesson builds on {', '.join(needs)}, not passed yet")
         print(f"  next: edit the file, then run: nanoscope learn check {lesson.id}")
         return 0
+    if command == "check":
+        from nanoscope.learn.checks import run_lesson_checks
+
+        lesson = loader.load_lesson(args.lesson)
+        if args.variant not in lesson.compute:
+            print(f"{lesson.id} has no {args.variant} variant; it has: "
+                  f"{', '.join(lesson.compute)}")
+            return 2
+        doc = run_lesson_checks(lesson, variant=args.variant)
+        return 0 if doc["passed"] else 1
     return 2

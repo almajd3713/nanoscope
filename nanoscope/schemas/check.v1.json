@@ -1,0 +1,85 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://nanoscope.dev/schemas/check.v1.json",
+  "title": "check.v1",
+  "description": "learn/checks/<id>.json: the result of checking a lesson, one verdict with a readable reason per check, and the numbers behind it.",
+  "type": "object",
+  "required": [
+    "schema",
+    "nanoscope",
+    "id",
+    "lesson",
+    "at",
+    "variant",
+    "passed",
+    "checks"
+  ],
+  "additionalProperties": false,
+  "properties": {
+    "schema": {
+      "const": 1
+    },
+    "nanoscope": {
+      "type": "string"
+    },
+    "id": {
+      "type": "string"
+    },
+    "lesson": {
+      "type": "string"
+    },
+    "at": {
+      "type": "string"
+    },
+    "variant": {
+      "enum": [
+        "cpu",
+        "gpu"
+      ]
+    },
+    "passed": {
+      "type": "boolean"
+    },
+    "checks": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": [
+          "id",
+          "kind",
+          "passed",
+          "skipped",
+          "reason",
+          "evidence",
+          "seconds"
+        ],
+        "additionalProperties": false,
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "kind": {
+            "type": "string"
+          },
+          "passed": {
+            "type": "boolean"
+          },
+          "skipped": {
+            "type": "boolean"
+          },
+          "reason": {
+            "type": "string",
+            "minLength": 1
+          },
+          "evidence": {
+            "type": "object"
+          },
+          "seconds": {
+            "type": "number",
+            "minimum": 0
+          }
+        }
+      }
+    }
+  }
+}
