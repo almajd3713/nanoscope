@@ -374,3 +374,34 @@ def test_property_random_palette_graphs_round_trip():
         assert emit(again, patched) == patched  # and a second emit changes nothing
 
     check()
+
+
+def test_cli_prints_the_graph_without_running_anything(capsys, tmp_path):
+    import json
+
+    from helpers import assert_valid
+
+    from nanoscope.cli import main
+
+    main(["graph", str(FIXTURES / "modern_like.py")])
+    text = capsys.readouterr().out
+    assert text.splitlines()[0].startswith("MyModern(Decoder)")
+    assert "  vocab_size = <vocab_size>" in text
+    assert "  d_model = 128" in text
+    assert "    attn = Attention" in text and "      n_kv_heads = 2" in text
+
+    main(["graph", f"{FIXTURES / 'code_only.py'}:Dynamic"])
+    text = capsys.readouterr().out
+    assert "Fine" not in text and "code-only, line 12: __init__ has an assignment" in text
+
+    main(["graph", str(FIXTURES / "composite_template.py"), "--json"])
+    graph = json.loads(capsys.readouterr().out)
+    assert_valid("graph", graph)
+    assert [c["name"] for c in graph["classes"]] == ["PreNormAttention", "UsesTemplate"]
+
+    boom = tmp_path / "boom.py"
+    boom.write_text("raise RuntimeError('imported')\n")
+    main(["graph", str(boom)])  # prints nothing and does not import the file
+    assert capsys.readouterr().out.strip() == ""
+    with pytest.raises(SystemExit, match="no Decoder or Composite class 'Nope'"):
+        main(["graph", f"{FIXTURES / 'modern_like.py'}:Nope"])

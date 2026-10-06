@@ -648,3 +648,46 @@ def _dotted_cst(cst: Any, node: Any) -> str:
     if isinstance(node, cst.Name):
         return node.value
     return f"{_dotted_cst(cst, node.value)}.{node.attr.value}"
+
+
+# -- text -----------------------------------------------------------------------------------
+
+def format_graph(graph: dict[str, Any], only: str | None = None) -> str:
+    """The graph as an indented tree, one class per paragraph."""
+    paragraphs = []
+    for cls in graph["classes"]:
+        if only and cls["name"] != only:
+            continue
+        head = f"{cls['name']}({cls['kind'].capitalize()})  {graph['path']}:{cls['line']}"
+        if not cls["representable"]:
+            paragraphs.append(f"{head}\n  code-only, line {cls['reason_line']}: {cls['reason']}")
+        elif cls["kind"] == "composite":
+            paragraphs.append(f"{head}\n  slots: {', '.join(cls['slots']) or 'none'}")
+        else:
+            lines = [head]
+            for name, node in cls["args"].items():
+                lines += _tree(name, node, 1)
+            paragraphs.append("\n".join(lines))
+    return "\n\n".join(paragraphs)
+
+
+def _tree(name: str, node: dict[str, Any], depth: int) -> list[str]:
+    pad = "  " * depth
+    kind = node["kind"]
+    if kind == "literal":
+        return [f"{pad}{name} = {node['value']!r}"]
+    if kind == "param":
+        return [f"{pad}{name} = <{node['name']}>"]
+    if kind == "expr":
+        return [f"{pad}{name} = {node['source']}  (expression)"]
+    if kind == "opaque":
+        return [f"{pad}{name} = {node['call']}  (custom block, not editable)"]
+    if kind == "list":
+        lines = [f"{pad}{name} = ["]
+        for i, item in enumerate(node["items"]):
+            lines += _tree(str(i), item, depth + 1)
+        return lines
+    lines = [f"{pad}{name} = {node['block']}" + ("  (template)" if node.get("local") else "")]
+    for key, child in node["args"].items():
+        lines += _tree(key, child, depth + 1)
+    return lines

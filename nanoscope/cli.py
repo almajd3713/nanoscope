@@ -131,6 +131,11 @@ def build_parser() -> argparse.ArgumentParser:
     spec_parser.add_argument("file", help="path/to/study.py")
     spec_parser.add_argument("--name", default=None, help="which Study, if the file has several")
 
+    graph_parser = sub.add_parser(
+        "graph", help="Show a model file's architecture graph (reads the file, runs nothing)")
+    graph_parser.add_argument("target", help="path/to/model.py or path/to/model.py:ClassName")
+    graph_parser.add_argument("--json", action="store_true", help="print graph.v1 JSON")
+
     stop_parser = sub.add_parser(
         "stop", help="Ask running runs to stop: they save a checkpoint and can be resumed")
     stop_parser.add_argument("target", help="a run ref, a study name, or a folder")
@@ -227,6 +232,20 @@ def main(argv: list[str] | None = None) -> None:
         from nanoscope.study import load_study
 
         print(load_study(args.file, args.name).to_spec().to_toml(), end="")
+        return
+
+    if args.command == "graph":
+        import json as json_
+
+        from nanoscope.blocks.graph import format_graph, parse
+
+        file, _, cls = args.target.partition(":")
+        graph = parse(file)
+        if cls and cls not in {c["name"] for c in graph["classes"]}:
+            raise SystemExit(f"no Decoder or Composite class {cls!r} in {file}")
+        if cls:
+            graph["classes"] = [c for c in graph["classes"] if c["name"] == cls]
+        print(json_.dumps(graph, indent=2) if args.json else format_graph(graph))
         return
 
     if args.command == "stop":
