@@ -585,3 +585,43 @@ def test_register_block_makes_a_user_module_composable():
         class Bad(nn.Module):
             def __init__(self, width):
                 super().__init__()
+
+
+def test_discover_without_import(tmp_path):
+    from nanoscope.blocks.discover import discover
+
+    (tmp_path / "boom.py").write_text(
+        "raise RuntimeError('this file must never be imported')\n"
+        "from nanoscope.blocks import Decoder, Composite, register_block\n"
+        "import nanoscope.blocks as nb\n\n"
+        "def naive(x):\n    return x\n\n"
+        "@register_block(reference=naive, family='mlp')\n"
+        "class Gate(nn.Module):\n"
+        "    '''A gate.'''\n"
+        "    def __init__(self, d_model, context_length, hidden: int = 64, act=None):\n"
+        "        raise RuntimeError('never run')\n\n"
+        "@nb.register_block\n"
+        "class Plain(nn.Module):\n"
+        "    def __init__(self, d_model, context_length, *, bias: bool):\n        pass\n\n"
+        "class MyLM(Decoder):\n"
+        "    def __init__(self, vocab_size):\n"
+        "        super().__init__(vocab_size, 8, d_model=16, n_layers=1, block=None)\n\n"
+        "class Slots(Composite):\n    SLOTS = ('a',)\n")
+    (tmp_path / "sub").mkdir()
+    (tmp_path / "sub" / "typo.py").write_text("def (:\n")
+    (tmp_path / ".hidden").mkdir()
+    (tmp_path / ".hidden" / "skipped.py").write_text("@register_block\nclass Nope: pass\n")
+    found = discover(tmp_path)
+    blocks = {b["name"]: b for b in found["blocks"]}
+    assert set(blocks) == {"Gate", "Plain"}
+    gate = blocks["Gate"]
+    assert (gate["family"], gate["reference"], gate["doc"]) == ("mlp", "naive", "A gate.")
+    assert [o["name"] for o in gate["options"]] == ["hidden", "act"]
+    assert gate["options"][0] == {"name": "hidden", "annotation": "int", "required": False,
+                                  "default": 64}
+    assert blocks["Plain"]["family"] == "custom" and blocks["Plain"]["reference"] is None
+    assert blocks["Plain"]["options"][0]["required"] is True
+    assert [(m["name"], m["kind"]) for m in found["models"]] == [
+        ("MyLM", "decoder"), ("Slots", "composite")]
+    assert [e["file"].endswith("typo.py") for e in found["errors"]] == [True]
+    assert not (tmp_path / "__pycache__").exists()  # nothing was imported
