@@ -1260,6 +1260,7 @@ source = { editable = "." }
 dependencies = [
     { name = "datasets" },
     { name = "huggingface-hub" },
+    { name = "jsonschema" },
     { name = "matplotlib", version = "3.10.9", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.11'" },
     { name = "matplotlib", version = "3.11.1", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.11'" },
     { name = "numpy", version = "2.2.6", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.11'" },
@@ -1308,6 +1309,7 @@ requires-dist = [
     { name = "httpx", marker = "extra == 'dev'", specifier = ">=0.27,<1" },
     { name = "huggingface-hub", specifier = ">=0.27,<2" },
     { name = "hypothesis", marker = "extra == 'dev'", specifier = ">=6.100,<7" },
+    { name = "jsonschema", specifier = ">=4.20,<5" },
     { name = "jsonschema", marker = "extra == 'dev'", specifier = ">=4.20,<5" },
     { name = "libcst", marker = "extra == 'dev'", specifier = ">=1.1,<2" },
     { name = "libcst", marker = "extra == 'graph'", specifier = ">=1.1,<2" },
