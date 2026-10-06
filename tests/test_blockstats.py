@@ -9,7 +9,7 @@ import torch
 from fakes import tiny
 from helpers import assert_valid
 
-from nanoscope import run
+from nanoscope import paths, run
 from nanoscope.blockstats import FILE, read_blockstats
 from nanoscope.models import GPT2, Bigram, Modern
 
@@ -73,3 +73,24 @@ def test_train_loop_knows_nothing_about_block_stats():
 
     assert "blockstats" not in Path(loop.__file__).read_text().lower()
     assert "block_stats" not in Path(loop.__file__).read_text().lower()
+
+
+def test_status_blocks_prints_the_latest_stats(capsys):
+    from nanoscope.cli import main
+
+    result = run(Modern, tiny(), device="cpu", block_stats=True, progress=False, **SMALL)
+    capsys.readouterr()
+    main(["status", "--blocks", result.ref])
+    lines = capsys.readouterr().out.splitlines()
+    assert lines[0].startswith(f"{result.ref}: block stats at step 20 (validation loss ")
+    assert lines[0].endswith("2 evals recorded")
+    assert lines[2].split() == ["block", "activation", "rms", "grad", "norm", "update/weight",
+                                "attention", "entropy"]
+    assert [row.split()[0] for row in lines[3:]] == ["blocks.0", "blocks.1"]
+    latest = read_blockstats(result.run_dir)[-1]["blocks"][0]
+    assert f"{latest['grad_norm']:.4g}" in lines[3]
+
+    plain = run(Modern, tiny(), device="cpu", progress=False,
+                output_dir=paths.runs_dir() / "nostats", **SMALL)
+    main(["status", "--blocks", plain.ref])
+    assert "no block stats for" in capsys.readouterr().out.splitlines()[-1]

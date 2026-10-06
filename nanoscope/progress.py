@@ -217,3 +217,26 @@ def format_workers(docs: list[dict[str, Any]]) -> str:
         lines.append(f"{d['worker_id']}  {d['device']}  {len(d['jobs'])}/{d['slots']} slots  "
                      f"{jobs}  {health}")
     return "\n".join(lines)
+
+
+def format_blockstats(ref: str, lines: list[dict[str, Any]]) -> str:
+    """The latest per-block statistics of a run, as a table."""
+    if not lines:
+        return (f"no block stats for {ref}: train it with run(..., block_stats=True) "
+                "and they appear at each eval step")
+    latest = lines[-1]
+
+    def cell(value: float | None, spec: str) -> str:
+        return "-" if value is None else format(value, spec)
+
+    rows = [["block", "activation rms", "grad norm", "update/weight", "attention entropy"]]
+    rows += [[b["name"], cell(b["activation_rms"], ".4g"), cell(b["grad_norm"], ".4g"),
+              cell(b["update_to_weight"], ".3g"), cell(b["attention_entropy"], ".3f")]
+             for b in latest["blocks"]]
+    widths = [max(len(row[i]) for row in rows) for i in range(len(rows[0]))]
+    table = ["  ".join(c.ljust(w) for c, w in zip(row, widths, strict=True)).rstrip()
+             for row in rows]
+    evals = f"{len(lines)} eval{'s' if len(lines) != 1 else ''}"
+    head = (f"{ref}: block stats at step {latest['step']} (validation loss "
+            f"{latest['val_loss']:.4f}), {evals} recorded")
+    return "\n".join([head, "", *table])

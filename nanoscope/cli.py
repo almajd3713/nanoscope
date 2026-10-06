@@ -110,6 +110,8 @@ def build_parser() -> argparse.ArgumentParser:
                                help="show data preparation (downloads, tokenizing) instead")
     status_parser.add_argument("--workers", action="store_true",
                                help="show the running workers and their jobs instead")
+    status_parser.add_argument("--blocks", metavar="REF", default=None,
+                               help="show the latest per-block statistics of this run instead")
     status_parser.add_argument("path", nargs="?", default=None,
                                help="runs folder (default: $NANOSCOPE_HOME/runs, or ./runs)")
 
@@ -235,6 +237,13 @@ def main(argv: list[str] | None = None) -> None:
             from nanoscope.prepare import format_prepare, read_all
 
             print(format_prepare(read_all()))
+            return
+        if args.blocks:
+            from nanoscope.blockstats import read_blockstats
+            from nanoscope.progress import format_blockstats
+            from nanoscope.store import resolve
+
+            print(format_blockstats(args.blocks, read_blockstats(resolve(args.blocks))))
             return
         root = args.path or paths.runs_dir()
         print(format_snapshot(snapshot(root), root))
