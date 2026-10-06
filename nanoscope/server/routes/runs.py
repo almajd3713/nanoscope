@@ -8,7 +8,7 @@ from typing import Any
 
 from fastapi import APIRouter, Request
 from fastapi.responses import JSONResponse
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 from nanoscope import paths, queue, store
 from nanoscope.progress import RunState
@@ -210,6 +210,64 @@ def resume_run(ref: str, request: Request) -> Any:
     assert job_id is not None
     job = job_doc(queue.get(job_id))
     return RunSubmission(ref=store.ref_of(run_dir), state=job.state, job=job)
+
+
+class GenerateRequest(BaseModel):
+    prompt: str = ""
+    max_new_tokens: int = Field(200, ge=1, le=4096)
+    temperature: float = Field(0.8, gt=0)
+    seed: int = 42
+    timeout: float = Field(30.0, gt=0, le=600)  # seconds the generation itself may take
+
+
+class GenerateResult(BaseModel):
+    ref: str
+    text: str
+    job_id: int
+
+
+QUEUE_WAIT = 15.0  # seconds a worker may take to pick the job up before we give up
+
+
+@router.post("/runs/{ref:path}/generate")
+async def generate_text(ref: str, body: GenerateRequest, request: Request) -> Any:
+    """Text from a trained run. It is a `generate` job on the interactive lane: a worker keeps
+    recently used models loaded and does the work, never this process. The answer comes back
+    in this response; if the generation outruns `timeout` it is stopped (504), and with no
+    worker to take the job it is cancelled (503)."""
+    import asyncio
+    import time
+
+    store.resolve(ref)  # a missing run is a 404 before anything is queued
+    payload = {"ref": store.ref_of(store.resolve(ref)), **body.model_dump()}
+    job_id = queue.enqueue("generate", payload, lane="interactive")
+    assert job_id is not None
+    started = time.monotonic()
+    while True:
+        row = queue.get(job_id)
+        state = row["state"]
+        if state == "done":
+            result = json.loads(row["result"]) if row["result"] else {}
+            if row["error"] or "text" not in result:
+                return problem(422, row["error"] or "the worker returned no text", request)
+            return GenerateResult(ref=payload["ref"], text=result["text"], job_id=job_id)
+        if state in ("failed", "cancelled"):
+            error = row["error"] or "the job was cancelled"
+            if error.startswith("timeout") or "did not finish" in error:
+                return problem(504, f"generation did not finish in {body.timeout:g}s; "
+                               f"try a shorter text or a longer timeout", request,
+                               title="Generation timed out")
+            return problem(422, error, request)
+        waited = time.monotonic() - started
+        if state == "queued" and waited > QUEUE_WAIT:
+            queue.cancel(job_id)
+            return problem(503, "no worker picked the job up: start one with `nanoscope "
+                           "worker` (or `nanoscope serve --worker cpu`)", request,
+                           title="No worker available")
+        if waited > QUEUE_WAIT + body.timeout + 30:
+            queue.cancel(job_id)
+            return problem(504, "the job is taking too long; it was cancelled", request)
+        await asyncio.sleep(0.1)
 
 
 @router.get("/runs/{ref:path}/metrics")

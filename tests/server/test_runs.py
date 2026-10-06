@@ -215,3 +215,141 @@ def test_stop_resume(client, monkeypatch):
     assert finished.status_code == 409 and "nothing to resume" in finished.json()["detail"]
     assert client.post("/api/runs/nope/seed-0/stop").status_code == 404
     assert client.post("/api/runs/nope/seed-0/resume").status_code == 404
+
+
+def test_inference_keeps_an_lru_of_loaded_models(home, monkeypatch):
+    """The inference process loads a run once, reuses it, reloads after more training, and
+    drops the least recently used model when it holds too many."""
+    import multiprocessing
+    import threading
+
+    from nanoscope.jobs import inference
+
+    loads = []
+
+    class Loaded:
+        def __init__(self, ref):
+            self.ref = ref
+
+        def generate(self, prompt, n, temperature, seed):
+            return f"{self.ref}:{prompt}:{n}:{temperature}:{seed}"
+
+    def load(ref):
+        loads.append(ref)
+        return Loaded(ref)
+
+    stamps = {"a": 1, "b": 1, "c": 1}
+    monkeypatch.setattr(inference, "_checkpoint_stamp", lambda ref: stamps[ref])
+    parent, child = multiprocessing.Pipe()
+    thread = threading.Thread(target=inference.serve, args=(child, 2, load), daemon=True)
+    thread.start()
+
+    def ask(ref, **kw):
+        parent.send({"ref": ref, "prompt": "hi", "max_new_tokens": 3, **kw})
+        return parent.recv()
+
+    assert ask("a")["text"] == "a:hi:3:0.8:42" and loads == ["a"]
+    assert ask("a", temperature=0.5, seed=7)["text"] == "a:hi:3:0.5:7" and loads == ["a"]  # reused
+    ask("b")
+    assert loads == ["a", "b"] and ask("b")["loaded"] == ["a", "b"]
+    ask("c")  # a third model: the least recently used one (a) is dropped
+    assert ask("c")["loaded"] == ["b", "c"] and loads == ["a", "b", "c"]
+    ask("a")
+    assert loads == ["a", "b", "c", "a"]  # reloaded
+    stamps["a"] = 2  # more training happened: the old copy is replaced
+    ask("a")
+    assert loads[-1] == "a" and len(loads) == 5
+    parent.send({"ref": "zzz"})  # a failure is an answer, not a crash
+    assert "KeyError" in parent.recv()["error"]
+    parent.send(None)
+    thread.join(5)
+    assert not thread.is_alive()
+
+
+SLOW_MODEL = '''\
+import os
+import time
+
+import torch.nn as nn
+
+
+class Slow(nn.Module):
+    def __init__(self, vocab_size: int, d_model: int = 8):
+        super().__init__()
+        self.emb = nn.Embedding(vocab_size, d_model)
+        self.head = nn.Linear(d_model, vocab_size, bias=False)
+
+    def forward(self, idx):
+        if os.path.exists(os.environ["SLOW_FLAG"]):
+            time.sleep(0.4)
+        return self.head(self.emb(idx))
+'''
+
+
+@pytest.fixture
+def worker_thread(home):
+    """A real worker ticking in a thread: generate jobs go to its inference process."""
+    import threading
+    import time
+
+    from nanoscope.jobs.worker import Worker
+
+    worker = Worker("cpu", 1, poll_seconds=0.05)
+    stop = threading.Event()
+
+    def loop():
+        while not stop.is_set():
+            worker.tick()
+            time.sleep(0.05)
+
+    thread = threading.Thread(target=loop, daemon=True)
+    thread.start()
+    yield worker
+    stop.set()
+    thread.join(10)
+    if worker._pool is not None:
+        worker._pool.close()
+
+
+def test_generate(client, worker_thread, tmp_path, monkeypatch):
+    from nanoscope import queue
+    from nanoscope.cli import _load_model_class
+
+    monkeypatch.setenv("SLOW_FLAG", str(tmp_path / "slow.flag"))
+    model_file = tmp_path / "slow_model.py"
+    model_file.write_text(SLOW_MODEL)
+    trained = run(_load_model_class(f"{model_file}:Slow"), tiny(), device="cpu", progress=False)
+    ref = trained.ref
+    first = client.post(f"/api/runs/{ref}/generate", json={"prompt": "Once", "max_new_tokens": 8})
+    assert first.status_code == 200, first.text
+    body = first.json()
+    assert body["ref"] == ref and isinstance(body["text"], str) and body["job_id"] > 0
+    job = queue.get(body["job_id"])
+    assert (job["kind"], job["lane"], job["state"]) == ("generate", "interactive", "done")
+    again = client.post(f"/api/runs/{ref}/generate", json={"prompt": "Once", "max_new_tokens": 8})
+    assert again.json()["text"] == body["text"]  # same seed, same text, from the loaded model
+    assert client.post(f"/api/runs/{ref}/generate",
+                       json={"max_new_tokens": 0}).status_code == 422
+    assert client.post("/api/runs/nope/seed-0/generate", json={}).status_code == 404
+    # a generation that outruns its timeout is stopped
+    (tmp_path / "slow.flag").write_text("")
+    slow = client.post(f"/api/runs/{ref}/generate",
+                       json={"prompt": "x", "max_new_tokens": 30, "timeout": 1.5})
+    assert slow.status_code == 504, slow.text
+    assert "did not finish in 1.5s" in slow.json()["detail"]
+    # the worker recovers: the next call (fast again) loads the model afresh and works
+    (tmp_path / "slow.flag").unlink()
+    ok = client.post(f"/api/runs/{ref}/generate", json={"prompt": "Once", "max_new_tokens": 4})
+    assert ok.status_code == 200
+
+
+def test_generate_without_a_worker_is_a_503(client, monkeypatch):
+    from nanoscope import queue
+    from nanoscope.server.routes import runs as runs_route
+
+    monkeypatch.setattr(runs_route, "QUEUE_WAIT", 0.3)
+    group = run(Bigram, tiny(), device="cpu", seeds=1, progress=False)
+    response = client.post(f"/api/runs/{group[0].ref}/generate", json={})
+    assert response.status_code == 503 and "start one with `nanoscope worker`" in response.json()[
+        "detail"]
+    assert [j["state"] for j in queue.list_jobs()] == ["cancelled"]

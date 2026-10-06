@@ -202,6 +202,45 @@
           "additionalProperties": false
         }
       }
+    },
+    {
+      "properties": {
+        "kind": {
+          "const": "generate"
+        },
+        "payload": {
+          "type": "object",
+          "properties": {
+            "ref": {
+              "type": "string",
+              "minLength": 1
+            },
+            "prompt": {
+              "type": "string"
+            },
+            "max_new_tokens": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 4096
+            },
+            "temperature": {
+              "type": "number",
+              "exclusiveMinimum": 0
+            },
+            "seed": {
+              "type": "integer"
+            },
+            "timeout": {
+              "type": "number",
+              "exclusiveMinimum": 0
+            }
+          },
+          "required": [
+            "ref"
+          ],
+          "additionalProperties": false
+        }
+      }
     }
   ]
 }
