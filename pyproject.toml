@@ -4,13 +4,29 @@ build-backend = "hatchling.build"
 
 [project]
 name = "nanoscope-lab"
-version = "0.2.0"
+dynamic = ["version"]
 description = "See what your language model learns"
 readme = "README.md"
+license = "MIT"
+license-files = ["LICENSE"]
+authors = [{ name = "almajd3713" }]
+keywords = ["language-models", "transformers", "pytorch", "education", "research", "interpretability"]
+classifiers = [
+  "Development Status :: 4 - Beta",
+  "Intended Audience :: Education",
+  "Intended Audience :: Science/Research",
+  "Operating System :: OS Independent",
+  "Programming Language :: Python :: 3",
+  "Programming Language :: Python :: 3.10",
+  "Programming Language :: Python :: 3.11",
+  "Programming Language :: Python :: 3.12",
+  "Topic :: Scientific/Engineering :: Artificial Intelligence",
+]
 requires-python = ">=3.10,<3.13"
 dependencies = [
   "datasets>=3.0,<5",
   "huggingface-hub>=0.27,<2",
+  "jsonschema>=4.20,<5",  # queue.py validates job payloads
   "matplotlib>=3.8,<4",
   "numpy>=1.26,<3",
   "scipy>=1.11,<2",
@@ -43,8 +59,21 @@ dev = [
   "httpx>=0.27,<1",
 ]
 
+[project.urls]
+Homepage = "https://github.com/almajd3713/nanoscope"
+Source = "https://github.com/almajd3713/nanoscope"
+Issues = "https://github.com/almajd3713/nanoscope/issues"
+
 [project.scripts]
 nanoscope = "nanoscope.cli:main"
+
+[tool.hatch.version]
+path = "nanoscope/__init__.py"
+
+[tool.hatch.build.targets.sdist]
+include = ["/nanoscope", "/tests", "/docs", "/README.md", "/LICENSE", "/Makefile"]
+exclude = ["/docs/archive", "/data", "/runs", "/studies", "/experiments", "/.kaggle-outputs",
+           "*.pyc", "__pycache__"]
 
 [tool.hatch.build.targets.wheel]
 packages = ["nanoscope"]

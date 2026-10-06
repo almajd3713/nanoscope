@@ -1,0 +1,63 @@
+name: image
+
+on:
+  pull_request:
+  push:
+    tags: ["v*"]
+  workflow_dispatch:
+
+jobs:
+  cpu:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: docker build -f docker/Dockerfile.cpu -t nanoscope:cpu .
+      - name: Smoke test
+        run: |
+          docker run --rm nanoscope:cpu nanoscope presets
+          test "$(docker run --rm nanoscope:cpu id -u)" = 1000
+          docker image ls nanoscope:cpu --format 'image size: {{.Size}}'
+      - name: Health check
+        run: |
+          docker run -d --name ns nanoscope:cpu
+          for i in $(seq 1 30); do
+            s=$(docker inspect -f '{{.State.Health.Status}}' ns)
+            [ "$s" = healthy ] && exit 0
+            sleep 2
+          done
+          docker logs ns
+          exit 1
+
+  push:
+    # only on a tag; PRs build and test but never push
+    if: github.event_name == 'push'
+    needs: cpu
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ghcr.io/almajd3713/nanoscope
+          flavor: latest=false
+          tags: |
+            type=raw,value=cpu
+            type=raw,value=cpu-{{version}}
+          labels: |
+            org.opencontainers.image.licenses=MIT
+            org.opencontainers.image.description=See what your language model learns (CPU)
+      - uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: docker/Dockerfile.cpu
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}

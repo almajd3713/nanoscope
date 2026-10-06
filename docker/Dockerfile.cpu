@@ -1,0 +1,22 @@
+# CPU image: docker build -f docker/Dockerfile.cpu -t nanoscope:cpu .
+FROM python:3.12-slim AS build
+RUN pip install --no-cache-dir uv
+WORKDIR /src
+COPY pyproject.toml LICENSE README.md Makefile ./
+COPY nanoscope ./nanoscope
+RUN uv build --wheel --out-dir /dist
+
+FROM python:3.12-slim
+# CPU-only torch first, so the wheel's `torch>=2.2` is already satisfied (no CUDA download)
+RUN pip install --no-cache-dir torch --index-url https://download.pytorch.org/whl/cpu
+COPY --from=build /dist/*.whl /tmp/
+RUN pip install --no-cache-dir "$(ls /tmp/nanoscope_lab-*.whl)[server]" && rm /tmp/*.whl
+
+RUN useradd --uid 1000 --create-home nanoscope && mkdir /nanoscope && chown 1000:1000 /nanoscope
+USER 1000
+ENV NANOSCOPE_HOME=/nanoscope
+VOLUME /nanoscope
+EXPOSE 8000
+HEALTHCHECK --interval=30s --timeout=5s --start-period=20s \
+  CMD python -c "import urllib.request as u; u.urlopen('http://127.0.0.1:8000/api/health', timeout=4)"
+CMD ["nanoscope", "serve", "--host", "0.0.0.0"]
