@@ -77,3 +77,79 @@ def test_run_files(client, home):
     json.dumps(page)
     for suffix in ("metrics", "samples", "blockstats", "checkpoints"):
         assert client.get(f"/api/runs/nope/seed-0/{suffix}").status_code == 404
+
+
+def test_submit(client, monkeypatch, tmp_path):
+    from learn_helpers import set_preset
+
+    from nanoscope import paths, queue
+    from nanoscope.cli import main
+    from nanoscope.learn import gating, unlocks
+
+    set_preset(monkeypatch, tiny())
+
+    def submit(**body):
+        return client.post("/api/runs", json={"preset": "test-tiny", **body})
+
+    first = submit(model="bigram")
+    assert first.status_code == 202
+    body = first.json()
+    assert body["ref"] == "test-tiny/bigram/seed-0" and body["state"] == "queued"
+    job = body["job"]
+    assert (job["kind"], job["lane"]) == ("run", "interactive") and job["ref"] == body["ref"]
+    assert job["payload"] == {"model": "nanoscope.models.bigram:Bigram", "preset": "test-tiny",
+                              "seed": 0, "kwargs": {}, "compile": False, "wandb": False}
+    again = submit(model="bigram")  # the same run, still queued: the same job
+    assert again.status_code == 202 and again.json()["job"]["id"] == job["id"]
+    # a worker trains it, and the ref the API promised is where the library put it
+    queue.claim("w", "cpu")
+    with pytest.raises(SystemExit) as stopped:
+        main(["run-job", str(job["id"])])
+    assert stopped.value.code == 0
+    assert (paths.runs_dir() / "test-tiny" / "bigram" / "seed-0" / "status.json").exists()
+    done = submit(model="bigram")
+    assert done.status_code == 200
+    assert done.json()["state"] == "done" and done.json()["job"] is None
+    assert done.json()["run"]["status"]["state"] == "done"
+    assert done.json()["run"]["summary"]["final_step"] == 20
+
+    # keywords split into model parameters and preset overrides, and name a different run
+    other = submit(model="bigram", seed=3, kwargs={"d_model": 8, "max_steps": 6}).json()
+    assert other["ref"].startswith("test-tiny/bigram-") and other["ref"].endswith("/seed-3")
+    assert other["job"]["payload"]["kwargs"] == {"d_model": 8}
+    assert other["job"]["payload"]["overrides"] == {"max_steps": 6}
+    queue.claim("w", "cpu")
+    with pytest.raises(SystemExit):
+        main(["run-job", str(other["job"]["id"])])
+    assert (paths.runs_dir() / other["ref"] / "status.json").exists()  # exactly where it said
+
+    # every problem at once, with the library's wording
+    bad = submit(model="bigram", kwargs={"colour": "red", "d_model": "wide"})
+    assert bad.status_code == 422
+    problems = bad.json()["problems"]
+    assert {p["code"] for p in problems} == {"unknown_keyword", "wrong_type"}
+    assert "'colour' is neither a parameter of Bigram.__init__" in bad.json()["detail"] or any(
+        "neither a parameter" in p["message"] for p in problems)
+    assert submit(model="nope").status_code == 404
+    assert submit(model="bigram", kwargs={"max_steps": 0}).status_code in (202, 422)
+
+    # a learner's model that uses something locked is refused, naming the lesson
+    monkeypatch.setenv("NANOSCOPE_WORKSPACE", str(tmp_path / "ws"))
+    (tmp_path / "ws").mkdir()
+    (tmp_path / "ws" / "mylm.py").write_text(
+        "from nanoscope.blocks.attention import Attention\n"
+        "from nanoscope.blocks.mlp import GELUMLP\nfrom nanoscope.blocks.norm import LayerNorm\n"
+        "from nanoscope.blocks.structure import Block, Decoder\n\n\n"
+        "class MyLM(Decoder):\n    def __init__(self, vocab_size: int):\n"
+        "        super().__init__(vocab_size, 8, d_model=16, n_layers=1, block=Block(\n"
+        "            norm=LayerNorm(), attn=Attention(n_heads=4, n_kv_heads=2), mlp=GELUMLP()))\n")
+    gating.reload()
+    assert submit(model="mylm.py:MyLM").status_code == 202  # open: nothing is locked
+    unlocks.set_policy("guided")
+    refused = submit(model="mylm.py:MyLM", seed=9)
+    assert refused.status_code == 422 and refused.json()["type"] == "locked"
+    assert refused.json()["lesson"] == "foundations/05-block"  # the first locked use
+    assert set(refused.json()["lessons"]) == {
+        "foundations/04-multi-head", "foundations/05-block", "modern-block/04-gqa"}
+    assert "foundations/05-block" in refused.json()["detail"]
+    assert not [j for j in queue.list_jobs() if j["ref"] and j["ref"].endswith("seed-9")]

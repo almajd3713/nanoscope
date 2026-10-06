@@ -6,13 +6,18 @@ import re
 from pathlib import Path
 from typing import Any
 
-from fastapi import APIRouter
+from fastapi import APIRouter, Request
+from fastapi.responses import JSONResponse
 from pydantic import BaseModel
 
-from nanoscope import store
+from nanoscope import queue, store
 from nanoscope.progress import RunState
 from nanoscope.schemas.upgrade import read_json
-from nanoscope.server.models import ConfigDoc, StatusDoc
+from nanoscope.server.errors import problem
+from nanoscope.server.jobs import job_doc
+from nanoscope.server.models import ConfigDoc, JobDoc, StatusDoc
+from nanoscope.server.routes.models import resolve_ref
+from nanoscope.server.routes.validate import model_spec
 
 router = APIRouter(prefix="/api", tags=["runs"])
 
@@ -90,6 +95,74 @@ class CheckpointEntry(BaseModel):
     bytes: int
     archived: bool  # kept for good by checkpoint_steps, never pruned
     latest: bool
+
+
+class RunRequest(BaseModel):
+    """Train one seed of a model on a preset. Every field but `model` has the library's
+    default, so `{"model": "bigram"}` is the level-0 request."""
+
+    model: str
+    preset: str = "tinystories-5min"
+    seed: int = 0
+    kwargs: dict[str, Any] = {}  # model parameters, and preset fields to override
+    compile: bool | str = False
+    push_to_hub: str | None = None
+    wandb: bool | str = False
+
+
+class RunSubmission(BaseModel):
+    ref: str
+    state: str  # "done" (nothing to do), or the job's state
+    run: RunDetail | None = None  # when the run already exists and is done
+    job: JobDoc | None = None  # otherwise: the job that trains it
+
+
+@router.post("/runs", status_code=202)
+def submit_run(body: RunRequest, request: Request) -> Any:
+    """Queue a run on the interactive lane. A run that is already done returns it (200); one
+    already queued or running returns its job (202). The model is read, never imported here:
+    the worker runs it."""
+    from dataclasses import fields as dataclass_fields
+
+    from nanoscope.presets import Preset, get_preset
+    from nanoscope.runref import REQUIRED, run_ref
+    from nanoscope.specs import validate_run_spec
+
+    spec, locked = model_spec(body.model)
+    problems = validate_run_spec(spec, body.preset, body.kwargs, None, locked)
+    if problems:
+        first = problems[0]
+        lock = next((p for p in problems if p.code == "locked"), None)
+        extra: dict[str, Any] = {"problems": [p.to_dict() for p in problems]}
+        if lock is not None:
+            lessons = list(dict.fromkeys((p.hint or "").rpartition(" ")[2]
+                                         for p in problems if p.code == "locked"))
+            extra.update(lesson=lessons[0], lessons=lessons)
+        return problem(422, first.message, request, code="locked" if lock else "about:blank",
+                       title="Locked until you build it" if lock else None, **extra)
+    tunable = {p.name for p in spec.tunable()}
+    preset_names = {f.name for f in dataclass_fields(Preset)}
+    model_kwargs = {k: v for k, v in body.kwargs.items() if k in tunable}
+    overrides = {k: v for k, v in body.kwargs.items() if k not in tunable and k in preset_names}
+    given = get_preset(body.preset)
+    preset = given.override(**overrides)
+    defaults = {p.name: REQUIRED if p.required else p.default for p in spec.params
+                if not p.from_data}
+    ref = run_ref(spec.name, defaults, model_kwargs, given, preset, body.seed)
+    payload: dict[str, Any] = {
+        "model": resolve_ref(body.model), "preset": body.preset, "seed": body.seed,
+        "kwargs": model_kwargs, "compile": body.compile, "wandb": body.wandb}
+    if overrides:
+        payload["overrides"] = overrides
+    if body.push_to_hub:
+        payload["push_to_hub"] = body.push_to_hub
+    job_id = queue.enqueue("run", payload, lane="interactive", ref=ref)
+    if job_id is None:  # the library says this run is already done
+        return JSONResponse(
+            RunSubmission(ref=ref, state="done", run=get_run(ref)).model_dump(mode="json"),
+            status_code=200)
+    job = job_doc(queue.get(job_id))
+    return RunSubmission(ref=ref, state=job.state, job=job)
 
 
 @router.get("/runs/{ref:path}/metrics")

@@ -1,9 +1,8 @@
 from __future__ import annotations
 
-import hashlib
 import inspect
 import json
-from dataclasses import asdict, dataclass, fields
+from dataclasses import asdict, dataclass
 from pathlib import Path
 from typing import Any, cast
 
@@ -16,8 +15,9 @@ from nanoscope.dataset import Data, load_data, tokenizer_id
 from nanoscope.integrations import HubSync, chain, wandb_hook
 from nanoscope.log import info
 from nanoscope.modelref import class_source, model_ref, source_sha256
-from nanoscope.presets import Preset, get_preset, list_presets
+from nanoscope.presets import Preset, get_preset
 from nanoscope.progress import ProgressBar
+from nanoscope.runref import REQUIRED, preset_dir, run_name
 from nanoscope.schemas.upgrade import read_json
 from nanoscope.sizing import count_params, flops_per_token
 from nanoscope.specs import validate_run_request
@@ -234,34 +234,17 @@ def _split_kwargs(
     return model_kwargs, overrides
 
 
-def _hash(obj: Any) -> str:
-    return hashlib.sha256(json.dumps(obj, sort_keys=True, default=str).encode()).hexdigest()[:8]
-
-
 def _preset_dir(preset: Preset) -> str:
-    """A registered preset's name; a custom or modified Preset object gets name-<hash>."""
-    if preset.name in list_presets() and get_preset(preset.name) == preset:
-        return preset.name
-    return f"{preset.name}-{_hash(asdict(preset))}"
+    return preset_dir(preset)
 
 
 def _run_name(
     model_cls: type[nn.Module], model_kwargs: dict[str, Any], given: Preset, preset: Preset,
 ) -> str:
-    """`bigram` for defaults; `bigram-1a2b3c4d` once anything differs, so runs never collide."""
-    defaults = inspect.signature(model_cls).parameters
-    changed_model = {
-        k: v for k, v in model_kwargs.items() if defaults[k].default is inspect.Parameter.empty
-        or v != defaults[k].default
-    }
-    changed_preset = {
-        f.name: getattr(preset, f.name) for f in fields(preset)
-        if getattr(preset, f.name) != getattr(given, f.name)
-    }
-    name = model_cls.__name__.lower()
-    if changed_model or changed_preset:
-        name += "-" + _hash({"model": changed_model, "preset": changed_preset})
-    return name
+    """`bigram` for defaults; `bigram-1a2b3c4d` once anything differs (see nanoscope.runref)."""
+    defaults = {name: REQUIRED if p.default is inspect.Parameter.empty else p.default
+                for name, p in inspect.signature(model_cls).parameters.items()}
+    return run_name(model_cls.__name__, defaults, model_kwargs, given, preset)
 
 
 class ConfigMismatch(ValueError):
