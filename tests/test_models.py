@@ -7,8 +7,10 @@ import torch
 import torch.nn.functional as F
 
 from nanoscope.blocks.attention import Attention as BlockAttention
+from nanoscope.blocks.mlp import SwiGLU as BlockSwiGLU
+from nanoscope.blocks.norm import RMSNorm as BlockRMSNorm
+from nanoscope.blocks.positional import RoPE
 from nanoscope.models import GPT2, Bigram, Modern
-from nanoscope.models.modern import Attention, RMSNorm, SwiGLU, apply_rope, rope_tables
 from nanoscope.reference.functional import (
     gelu,
     layer_norm,
@@ -34,7 +36,8 @@ def test_gpt2_attention_matches_naive_loop():
 @pytest.mark.parametrize("rope", [True, False])
 @pytest.mark.parametrize("qk_norm", [True, False])
 def test_modern_attention_matches_naive_loop(n_kv_heads, rope, qk_norm):
-    attn = Attention(d_model=32, n_heads=4, n_kv_heads=n_kv_heads, rope=rope, qk_norm=qk_norm)
+    attn = BlockAttention(n_heads=4, n_kv_heads=n_kv_heads, pos=RoPE() if rope else None,
+                          qk_norm=qk_norm).build(32, 16)
     x = torch.randn(2, 9, 32)
     q = attn.q(x).view(2, 9, 4, 8).transpose(1, 2)
     k = attn.k(x).view(2, 9, n_kv_heads, 8).transpose(1, 2)
@@ -53,24 +56,24 @@ def test_modern_attention_matches_naive_loop(n_kv_heads, rope, qk_norm):
 
 def test_rope_matches_complex_rotation():
     x = torch.randn(2, 3, 11, 16)
-    cos, sin = rope_tables(16, 11, x.device)
-    torch.testing.assert_close(apply_rope(x, cos, sin), naive_rope(x), atol=ATOL, rtol=0)
+    torch.testing.assert_close(RoPE().build(16, 11).rotate(x), naive_rope(x), atol=ATOL, rtol=0)
 
 
 def test_rope_scores_depend_only_on_relative_position():
     q, k = torch.randn(1, 1, 1, 16), torch.randn(1, 1, 1, 16)
-    cos, sin = rope_tables(16, 20, q.device)
+    rope = RoPE().build(16, 20)
+
+    def at(x, m):  # x rotated as if it sat at position m
+        return rope.rotate(x.expand(1, 1, m + 1, 16))[..., m, :]
 
     def score(m, n):
-        qm = apply_rope(q, cos[m : m + 1], sin[m : m + 1])
-        kn = apply_rope(k, cos[n : n + 1], sin[n : n + 1])
-        return (qm * kn).sum()
+        return (at(q, m) * at(k, n)).sum()
 
     torch.testing.assert_close(score(3, 1), score(15, 13), atol=ATOL, rtol=0)
 
 
 def test_rmsnorm_matches_formula():
-    norm = RMSNorm(16)
+    norm = BlockRMSNorm().build(16, 8)
     norm.weight.data = torch.randn(16)
     x = torch.randn(4, 16)
     torch.testing.assert_close(norm(x), rms_norm(x, norm.weight), atol=ATOL, rtol=0)
@@ -82,14 +85,14 @@ def test_layernorm_gelu_and_swiglu_match_their_formulas():
     ln.weight.data, ln.bias.data = torch.randn(16), torch.randn(16)
     torch.testing.assert_close(ln(x), layer_norm(x, ln.weight, ln.bias), atol=ATOL, rtol=0)
     torch.testing.assert_close(F.gelu(x, approximate="tanh"), gelu(x), atol=ATOL, rtol=0)
-    mlp = SwiGLU(16)
+    mlp = BlockSwiGLU().build(16, 8)
     torch.testing.assert_close(
         mlp(x), swiglu(x, mlp.w1.weight, mlp.w3.weight, mlp.proj.weight), atol=ATOL, rtol=0)
 
 
 def test_swiglu_matches_gelu_mlp_parameter_count():
     d = 96
-    swiglu = sum(p.numel() for p in SwiGLU(d).parameters())
+    swiglu = sum(p.numel() for p in BlockSwiGLU().build(d, 8).parameters())
     assert abs(swiglu - 8 * d * d) / (8 * d * d) < 0.02
 
 
@@ -166,3 +169,34 @@ def test_gpt2_matches_reference():
     for ctx in (8, 16):
         assert model.flops_per_token(ctx) == reference.flops_per_token(ctx)
     assert model.head.weight is model.tok_emb.weight
+
+
+@pytest.mark.parametrize("switches", [
+    {},
+    {"rope": False},
+    {"swiglu": False},
+    {"rmsnorm": False},
+    {"qk_norm": False},
+    {"n_kv_heads": 4},
+    {"n_kv_heads": 1},
+    {"z_loss": 0.0},
+    {"tie_weights": False},
+    {"ffn_hidden": 80},
+    {"rope": False, "swiglu": False, "rmsnorm": False, "qk_norm": False, "z_loss": 0.0,
+     "tie_weights": False},
+])
+def test_modern_matches_reference(switches):
+    from nanoscope.reference.modern_ref import ModernRef
+
+    kwargs = dict(vocab_size=50, context_length=16, d_model=32, n_layers=2, n_heads=4, **switches)
+    reference, model = ModernRef(**kwargs), Modern(**kwargs)
+    model.load_state_dict(reference.state_dict())
+    idx = torch.randint(50, (2, 16))
+    out, expected = model(idx), reference(idx)
+    if isinstance(expected, tuple):
+        torch.testing.assert_close(out[0], expected[0], atol=ATOL, rtol=0)
+        torch.testing.assert_close(out[1], expected[1], atol=ATOL, rtol=0)
+    else:
+        torch.testing.assert_close(out, expected, atol=ATOL, rtol=0)
+    for ctx in (8, 16):
+        assert model.flops_per_token(ctx) == reference.flops_per_token(ctx)

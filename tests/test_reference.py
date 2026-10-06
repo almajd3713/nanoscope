@@ -6,13 +6,11 @@ import pytest
 import torch
 import torch.nn.functional as F
 
-from nanoscope.models import Modern
 from nanoscope.reference.gpt2_ref import GPT2Ref
 from nanoscope.reference.modern_ref import ModernRef
 
 ATOL = 1e-5
 SMALL = dict(vocab_size=50, context_length=16, d_model=32, n_layers=2, n_heads=4)
-PAIRS = [(ModernRef, Modern)]  # GPT2 was rebuilt: see test_gpt2_matches_reference
 
 
 def logits_of(out):
@@ -35,16 +33,6 @@ def test_frozen_models_pass_existing_checks(ref):
     loss = F.cross_entropy(logits.reshape(-1, 512), torch.randint(512, (4 * 32,)))
     assert abs(loss.item() - math.log(512)) < 0.5  # near uniform before training
     assert big.flops_per_token(32) > 0
-
-
-@pytest.mark.parametrize(("ref", "current"), PAIRS)
-def test_frozen_models_equal_the_current_models_today(ref, current):
-    """Until the rebuild changes the models, a reference and its model are the same function."""
-    reference, model = ref(**SMALL), current(**SMALL)
-    model.load_state_dict(reference.state_dict())
-    idx = torch.randint(50, (2, 16))
-    torch.testing.assert_close(logits_of(model(idx)), logits_of(reference(idx)), atol=ATOL, rtol=0)
-    assert model.flops_per_token(16) == reference.flops_per_token(16)
 
 
 def test_reference_modules_are_independent():
