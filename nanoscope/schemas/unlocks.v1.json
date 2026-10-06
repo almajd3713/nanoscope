@@ -1,0 +1,68 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://nanoscope.dev/schemas/unlocks.v1.json",
+  "title": "unlocks.v1",
+  "description": "learn/unlocks.json: the gating policy (guided or open) and, for each block or feature id, how it was unlocked (earned in a lesson, skipped with a reason, or opened for everything) with the check result as evidence. Without the file the policy is open.",
+  "type": "object",
+  "required": [
+    "schema",
+    "nanoscope",
+    "policy",
+    "unlocks"
+  ],
+  "additionalProperties": false,
+  "properties": {
+    "schema": {
+      "const": 1
+    },
+    "nanoscope": {
+      "type": "string"
+    },
+    "policy": {
+      "enum": [
+        "guided",
+        "open"
+      ]
+    },
+    "unlocks": {
+      "type": "object",
+      "propertyNames": {
+        "pattern": "^(block|feature):[A-Za-z_][A-Za-z0-9_]*$"
+      },
+      "additionalProperties": {
+        "type": "object",
+        "required": [
+          "how",
+          "lesson",
+          "at",
+          "evidence"
+        ],
+        "additionalProperties": false,
+        "properties": {
+          "how": {
+            "enum": [
+              "earned",
+              "skipped",
+              "open"
+            ]
+          },
+          "lesson": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "at": {
+            "type": "string"
+          },
+          "evidence": {
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        }
+      }
+    }
+  }
+}
