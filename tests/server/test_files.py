@@ -147,3 +147,100 @@ def test_the_events_route_is_not_shadowed_by_the_file_route(client):
     spec = client.get("/api/openapi.json").json()["paths"]
     assert "/api/files/events" in spec and "/api/files/{path}" in spec
     assert list(spec).index("/api/files/events") < list(spec).index("/api/files/{path}")
+
+
+GRAPH_FILE = '''\
+from nanoscope.blocks import Attention, Block, Decoder, RMSNorm, SwiGLU
+
+
+class MyLM(Decoder):
+    def __init__(self, vocab_size: int):
+        raise RuntimeError("the API must never run this")
+        super().__init__(
+            vocab_size, 64, d_model=32, n_layers=2,  # keep this comment
+            block=Block(norm=RMSNorm(), attn=Attention(n_heads=2), mlp=SwiGLU()),
+        )
+'''
+
+
+def test_graph(client, ws):
+    (ws / "mylm.py").write_text(GRAPH_FILE.replace(
+        '        raise RuntimeError("the API must never run this")\n', ""))
+    graph = client.post("/api/files/mylm.py/graph").json()
+    assert graph["path"] == "mylm.py" and graph["etag"] == client.get("/api/files/mylm.py").json()[
+        "etag"]
+    cls = graph["classes"][0]
+    assert cls["name"] == "MyLM" and cls["args"]["d_model"]["value"] == 32
+    # a file that raises on import is still readable: nothing is imported
+    (ws / "boom.py").write_text("raise RuntimeError('never')\n" + GRAPH_FILE)
+    assert client.post("/api/files/boom.py/graph").status_code == 200
+    assert client.post("/api/files/nope.py/graph").status_code == 404
+
+    # patch by edited graph: one argument changes, the comment survives
+    edited = {**graph}
+    edited["classes"][0]["args"]["d_model"]["value"] = 64
+    etag = graph["etag"]
+    patched = client.post("/api/files/mylm.py/graph/patch", json={"graph": edited},
+                          headers={"If-Match": etag})
+    assert patched.status_code == 200, patched.text
+    text = (ws / "mylm.py").read_text()
+    assert "d_model=64, n_layers=2,  # keep this comment" in text
+    assert patched.json()["classes"][0]["args"]["d_model"]["value"] == 64
+    assert patched.json()["etag"] != etag and patched.headers["etag"] == patched.json()["etag"]
+    # patch by explicit edits
+    swap = {"op": "set_arg", "class": "MyLM", "path": ["block", "attn"], "arg": "n_heads",
+            "value": {"kind": "literal", "value": 4, "span": None}}
+    again = client.post("/api/files/mylm.py/graph/patch", json={"edits": [swap]},
+                        headers={"If-Match": patched.json()["etag"]})
+    assert again.status_code == 200 and "Attention(n_heads=4)" in (ws / "mylm.py").read_text()
+    # the same preconditions as a save
+    assert client.post("/api/files/mylm.py/graph/patch", json={"edits": [swap]}).status_code == 428
+    stale = client.post("/api/files/mylm.py/graph/patch", json={"edits": [swap]},
+                        headers={"If-Match": etag})
+    assert stale.status_code == 409 and stale.json()["current_etag"]
+    both = client.post("/api/files/mylm.py/graph/patch", json={"edits": [], "graph": {}},
+                       headers={"If-Match": again.json()["etag"]})
+    assert both.status_code == 422 and "exactly one of graph" in both.json()["detail"]
+    bad = client.post("/api/files/mylm.py/graph/patch", headers={"If-Match": again.json()["etag"]},
+                      json={"edits": [{"op": "set_arg", "class": "Ghost", "path": [],
+                                       "arg": "x", "value": {"kind": "literal", "value": 1}}]})
+    assert bad.status_code == 422
+    assert "no Decoder or Composite class 'Ghost'" in bad.json()["detail"]
+
+
+def test_graph_patch_refuses_locked_blocks_under_guided(client, ws):
+    from nanoscope.learn import gating, unlocks
+
+    (ws / "mylm.py").write_text(GRAPH_FILE.replace(
+        '        raise RuntimeError("the API must never run this")\n', "").replace(
+        "from nanoscope.blocks import Attention, Block, Decoder, RMSNorm, SwiGLU",
+        "from nanoscope.blocks.attention import Attention\n"
+        "from nanoscope.blocks.mlp import SwiGLU\nfrom nanoscope.blocks.norm import RMSNorm\n"
+        "from nanoscope.blocks.structure import Block, Decoder"))
+    gating.reload()
+    unlocks.set_policy("guided")
+    unlocks.earn("foundations/04-multi-head", ["block:Attention"], "e")
+    unlocks.earn("foundations/05-block", ["block:Block"], "e")
+    unlocks.earn("foundations/06-gpt2", ["block:Decoder"], "e")
+    unlocks.earn("modern-block/01-rmsnorm", ["block:RMSNorm"], "e")
+    unlocks.earn("modern-block/03-swiglu", ["block:SwiGLU"], "e")
+    graph = client.post("/api/files/mylm.py/graph").json()
+    before = (ws / "mylm.py").read_text()
+    rope = {"op": "set_arg", "class": "MyLM", "path": ["block", "attn"], "arg": "pos",
+            "value": {"kind": "block", "block": "RoPE", "args": {}, "span": None}}
+    refused = client.post("/api/files/mylm.py/graph/patch", json={"edits": [rope]},
+                          headers={"If-Match": graph["etag"]})
+    assert refused.status_code == 422 and refused.json()["type"] == "locked"
+    assert refused.json()["lesson"] == "modern-block/02-rope"
+    assert "modern-block/02-rope" in refused.json()["detail"]
+    assert (ws / "mylm.py").read_text() == before  # nothing written
+    gqa = {"op": "set_arg", "class": "MyLM", "path": ["block", "attn"], "arg": "n_kv_heads",
+           "value": {"kind": "literal", "value": 1, "span": None}}
+    refused = client.post("/api/files/mylm.py/graph/patch", json={"edits": [gqa]},
+                          headers={"If-Match": graph["etag"]})
+    assert refused.status_code == 422 and refused.json()["unlock_id"] == "feature:gqa"
+    # once earned, the same patch goes through
+    unlocks.earn("modern-block/04-gqa", ["feature:gqa"], "e")
+    ok = client.post("/api/files/mylm.py/graph/patch", json={"edits": [gqa]},
+                     headers={"If-Match": graph["etag"]})
+    assert ok.status_code == 200 and "n_kv_heads=1" in (ws / "mylm.py").read_text()
