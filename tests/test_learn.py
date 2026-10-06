@@ -189,7 +189,7 @@ def test_lesson_md_sections():
 
 
 def test_schemas_describe_the_files():
-    import tomllib
+    from nanoscope.learn.loader import tomllib  # no stdlib tomllib on Python 3.10
 
     assert_valid("lesson", tomllib.loads(LESSON))
     assert_valid("path", tomllib.loads('title = "F"\nlevel = 0\n[compute.cpu]\npreset = "p"\n'
