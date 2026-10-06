@@ -51,6 +51,11 @@ See the [research guide](docs/research.md). The research program itself is in
 `GPT2` and `Modern` are short compositions of the blocks in `nanoscope.blocks`, and so can your
 own models. See [docs/blocks.md](docs/blocks.md).
 
+## Learn
+
+Guided paths build the models step by step, with checks that say why. See
+[docs/learn.md](docs/learn.md): `nanoscope learn list`, `learn start`, `learn check`.
+
 ## Command line
 
 ```bash
