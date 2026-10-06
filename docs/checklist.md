@@ -13,7 +13,7 @@ item is one line, so scripts and agents can grep and edit it.
 | P6 | Servable library + CI baseline (9-11 d) | 67 / 67 | done |
 | P7 | Queue and workers (5-6 d) | 28 / 28 | done |
 | P8 | Blocks, describe, rebuilt models (10-13 d) | 52 / 52 | done |
-| P9 | Curriculum engine, gating, two paths (14-17 d) | 30 / 61 | in progress |
+| P9 | Curriculum engine, gating, two paths (14-17 d) | 33 / 61 | in progress |
 | P10 | HTTP API (8-10 d) | 0 / 47 | not started |
 | P11 | Release prep: PyPI + GHCR (2-3 d) | 0 / 17 | not started |
 | P12 | docker-compose (3-4 d) | 0 / 20 | not started |
@@ -336,9 +336,9 @@ touch or create (new ones marked `(new)`).
 - [x] P9.31 Write `docs/learn.md`: paths, checks, the CLI, locked components, the escape, how gating works in raw files versus the editor, and its honest limits. · files: docs/learn.md (new), README.md · deps: P9.28 · done: `grep -c 'not security' docs/learn.md` prints at least 1 ✓ 2026-10-06 31c78d0: docs/learn.md (paths, checks, CLI, locked components, escapes, raw files vs editor, honest limits), linked from the README
 
 ### P9 · Templates for building from primitives
-- [ ] P9.32 Attention template: a `Composite` with slots q, k, v, scores, mask, normalize, mix and out; its correct filling matches the reference. · files: nanoscope/blocks/templates/attention.py (new), tests/test_blocks.py · deps: P8.10, P8.11 · done: `uv run pytest tests/test_blocks.py -k attention_template` passes
-- [ ] P9.33 Block template: a `Composite` with norm, attn and mlp slots and residual placement. · files: nanoscope/blocks/templates/block.py (new), tests/test_blocks.py · deps: P9.32 · done: `uv run pytest tests/test_blocks.py -k block_template` passes
-- [ ] P9.34 Make `graph.parse`/`emit` treat filling a template slot as `replace_block` on the slot. · files: nanoscope/blocks/graph.py, tests/test_graph.py · deps: P9.33, P8.34 · done: `uv run pytest tests/test_graph.py -k template_slot` passes
+- [x] P9.32 Attention template: a `Composite` with slots q, k, v, scores, mask, normalize, mix and out; its correct filling matches the reference. · files: nanoscope/blocks/templates/attention.py (new), tests/test_blocks.py · deps: P8.10, P8.11 · done: `uv run pytest tests/test_blocks.py -k attention_template` passes ✓ 2026-10-06 be02e26: blocks/templates/attention.py AttentionTemplate (single head; slots q, k, v, scores, mask, normalize, mix, out) filled with primitives equals naive_causal_attention; tier primitive (never locked)
+- [x] P9.33 Block template: a `Composite` with norm, attn and mlp slots and residual placement. · files: nanoscope/blocks/templates/block.py (new), tests/test_blocks.py · deps: P9.32 · done: `uv run pytest tests/test_blocks.py -k block_template` passes ✓ 2026-10-06 be02e26: blocks/templates/block.py BlockTemplate: slots norm1, attn, norm2, mlp (two norm slots, not one, so the norms don't share weights); residual placement fixed; state_dict and output equal Block
+- [x] P9.34 Make `graph.parse`/`emit` treat filling a template slot as `replace_block` on the slot. · files: nanoscope/blocks/graph.py, tests/test_graph.py · deps: P9.33, P8.34 · done: `uv run pytest tests/test_graph.py -k template_slot` passes ✓ 2026-10-06 be02e26: a template slot is an ordinary replace_block (test_template_slot with fixture template_fill.py): parse shows an empty slot as a None literal, emit changes one line
 
 ### P9 · Content: Foundations (level 0)
 - [ ] P9.35 Write `foundations/path.toml` (title, level 0, estimate). · files: nanoscope/curricula/foundations/path.toml (new) · deps: P9.03 · done: `uv run nanoscope learn list --path foundations` exits 0
