@@ -255,7 +255,11 @@ def test_verdict(make):
                 + "a_kwargs = { d_model = 16 }\nb_kwargs = { d_model = 17 }\n", DUMB)
     assert run(near).passed  # two nearly identical models: the interval includes zero
     twin = make(toml.replace('b = "Dumb"', 'b = "Bigram"').format(expect="within noise"), DUMB)
-    assert "no observed seed variation" in run(twin).reason  # identical: nothing to compare
+    result = run(twin)  # identical on every seed: exactly zero, no spread, still within noise
+    assert result.passed and "identical on every seed" in result.reason
+    assert result.evidence["degenerate"] is True
+    twin_better = make(toml.replace('b = "Dumb"', 'b = "Bigram"').format(expect="better"), DUMB)
+    assert "Are the two models really different?" in run(twin_better).reason
 
     two = make(toml.format(expect="better").replace("seeds = 3", "seeds = 2"), DUMB)
     assert "fewer than 3 seeds" in run(two).reason
@@ -263,3 +267,83 @@ def test_verdict(make):
     assert "class Nope is not defined in starter.py (it defines: Dumb)" in run(unknown).reason
     bad = make(toml.format(expect="much better"), DUMB)
     assert "bug in the lesson" in run(bad).reason
+
+
+def test_predicted(make, capsys):
+    import hashlib
+
+    from nanoscope.cli import main
+    from nanoscope.learn import progress
+    from nanoscope.learn.checks import prediction_path, run_one
+
+    toml = ('\n[[checks]]\nid = "gap"\nkind = "verdict"\na = "A"\nb = "B"\nexpect = "better"\n'
+            '[[checks]]\nid = "foresaw"\nkind = "predicted"\nquantity = "gap"\n')
+    ctx = make(toml, "")
+    lid = ctx.lesson.id
+    gap = {"verdict": "better", "delta": -0.10, "ci95": [-0.14, -0.06]}
+    ctx.shared["evidence"] = {"gap": gap}
+
+    def predict(*flags):
+        try:
+            main(["learn", "predict", lid, *flags])
+        except SystemExit as exc:
+            return exc.code
+        return 0
+
+    assert "no prediction was recorded" in run_one(ctx, ctx.lesson.checks[1]).reason
+    assert predict() == 2 and "say what you expect" in capsys.readouterr().out
+    assert predict("--low", "0.2", "--high", "0.1") == 2
+    assert "low must not be above high" in capsys.readouterr().out
+    assert predict("--verdict", "better", "--low", "-0.2", "--high", "-0.05") == 0
+    assert "recorded your prediction" in capsys.readouterr().out
+    # before the experiment runs: scored against the CI
+    progress.mark(lid, "checking")
+    ok = run_one(ctx, ctx.lesson.checks[1])
+    assert ok.passed, ok.reason
+    assert ok.reason.startswith("your prediction was recorded first and holds: ")
+    assert "the run found -0.100" in ok.reason
+    assert ok.evidence["hit"] is True and ok.evidence["verdict_right"] is True
+
+    # a wrong guess says how
+    prediction_path(ctx.lesson).write_text('verdict = "worse"\nlow = 0.0\nhigh = 0.1\n')
+    progress.record_prediction(lid, prediction_path(ctx.lesson), hashlib.sha256(
+        prediction_path(ctx.lesson).read_bytes()).hexdigest())
+    entry = progress.entry(lid)
+    assert entry["first_checked_at"] is not None
+    late = run_one(ctx, ctx.lesson.checks[1])  # recorded after the first check began
+    assert not late.passed and "after the experiment first ran" in late.reason
+    assert predict("--verdict", "better") == 1  # and the CLI refuses outright
+    assert "too late for this lesson" in capsys.readouterr().out
+
+
+def test_predicted_scores_and_tamper_checks(make):
+    import hashlib
+
+    from nanoscope.learn import progress
+    from nanoscope.learn.checks import prediction_path, run_one
+
+    toml = ('\n[[checks]]\nid = "foresaw"\nkind = "predicted"\nquantity = "gap"\n')
+    ctx = make(toml, "")
+    lid, file = ctx.lesson.id, prediction_path(ctx.lesson)
+    file.parent.mkdir(parents=True, exist_ok=True)
+    file.write_text('verdict = "better"\nlow = -0.5\nhigh = 0.5\n')
+    progress.record_prediction(lid, file, hashlib.sha256(file.read_bytes()).hexdigest())
+    ctx.shared["evidence"] = {"gap": {"verdict": "better", "delta": -0.10,
+                                      "ci95": [-0.14, -0.06]}}
+    progress.mark(lid, "checking")
+    vague = run_one(ctx, ctx.lesson.checks[0])
+    assert not vague.passed and "far wider than the run's own uncertainty" in vague.reason
+    file.write_text('verdict = "better"\nlow = -0.5\nhigh = -0.4\n')  # edited after recording
+    assert "was edited after it was recorded" in run_one(ctx, ctx.lesson.checks[0]).reason
+    ctx.shared["evidence"] = {}
+    file.write_text('verdict = "better"\nlow = -0.5\nhigh = 0.5\n')
+    assert "nothing to score against" in run_one(ctx, ctx.lesson.checks[0]).reason
+    # the scoring function itself
+    miss = score_prediction(0.3, (0.2, 0.4), low=-0.1, high=0.1)
+    assert miss["passed"] is False and miss["hit"] is False
+    assert score_prediction(0.3, (0.2, 0.4), verdict="worse", actual_verdict="worse")["passed"]
+    assert score_prediction(0.3, None, low=0.0, high=1.0)["sharp"] is None
+    assert score_prediction(0.3, None)["passed"] is False
+
+
+from nanoscope.statistics import score_prediction  # noqa: E402

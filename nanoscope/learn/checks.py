@@ -101,6 +101,7 @@ def run_one(ctx: Context, check: Check) -> Result:
         result = Result(check.id, check.kind, False,
                         f"crashed: {type(exc).__name__}: {exc}{where}")
     result.seconds = time.perf_counter() - started
+    ctx.shared.setdefault("evidence", {})[check.id] = result.evidence  # later checks can score it
     return result
 
 
@@ -517,6 +518,19 @@ def check_verdict(ctx: Context, check: Check) -> Result:
     row = comparison.rows[0]
     delta = row["delta"]
     label = f"{check.args['a']} vs {check.args['b']}"
+    if delta is not None and delta["ci95_low"] is None and delta["mean"] == 0 \
+            and "no observed seed variation" in delta.get("status", ""):
+        # identical on every seed: the difference is exactly zero, there is just no spread
+        # to build an interval from. That is "within noise" in the plainest sense.
+        evidence = {"verdict": "within noise", "expected": expect, "metric": metric,
+                    "seeds": seeds, "delta": 0.0, "ci95": [0.0, 0.0], "degenerate": True}
+        said = (f"{label}: identical on every seed (difference exactly 0, so there is no "
+                "seed variation to build an interval from), which counts as within noise")
+        if expect == "within noise":
+            return Result(check.id, check.kind, True, f"{said}, as the lesson expects", evidence)
+        return Result(check.id, check.kind, False,
+                      f"{said}; the lesson expects '{expect}'. Are the two models really "
+                      "different?", evidence)
     if delta is None or delta["ci95_low"] is None:
         why = ("with fewer than 3 seeds there is no confidence interval; the lesson needs 3"
                if seeds < 3 else (delta or {}).get("status", "no interval"))
@@ -530,3 +544,95 @@ def check_verdict(ctx: Context, check: Check) -> Result:
     return Result(check.id, check.kind, False,
                   f"{said}; the lesson expects '{expect}'. Look at what differs between the two "
                   "models, and at the interval: is zero inside it?", evidence)
+
+
+# -- predicted -------------------------------------------------------------------------------
+
+PREDICTION_FILE = "prediction.toml"
+PREDICTION_FIELDS = {"quantity", "verdict", "low", "high", "note"}
+
+
+def prediction_path(lesson: LessonSpec) -> Path:
+    from nanoscope.learn.cli import workspace_lesson_dir
+
+    return workspace_lesson_dir(lesson) / PREDICTION_FILE
+
+
+def read_prediction(file: Path) -> dict[str, Any]:
+    """The learner's prediction.toml, checked for the fields a prediction may have."""
+    from nanoscope.learn.loader import tomllib
+
+    doc = tomllib.loads(file.read_text(encoding="utf-8"))
+    unknown = set(doc) - PREDICTION_FIELDS
+    if unknown:
+        raise ValueError(f"{file.name}: unknown field {', '.join(sorted(unknown))} "
+                         f"(allowed: {', '.join(sorted(PREDICTION_FIELDS))})")
+    low, high = doc.get("low"), doc.get("high")
+    if (low is None) != (high is None):
+        raise ValueError(f"{file.name}: give both low and high, or neither")
+    if low is not None and not low <= high:
+        raise ValueError(f"{file.name}: low must not be above high")
+    if "verdict" in doc and doc["verdict"] not in VERDICTS:
+        raise ValueError(f"{file.name}: verdict must be one of {', '.join(VERDICTS)}")
+    if low is None and "verdict" not in doc:
+        raise ValueError(f"{file.name}: predict a verdict, an interval (low and high), or both")
+    return doc
+
+
+@checker("predicted")
+def check_predicted(ctx: Context, check: Check) -> Result:
+    """The learner committed to a prediction *before* the first check, and it matches what the
+    quantity's check found. `quantity` is the id of an earlier verdict check."""
+    import hashlib
+
+    from nanoscope.statistics import score_prediction
+
+    file = prediction_path(ctx.lesson)
+    recorded = progress.prediction(ctx.lesson.id, ctx.owner)
+    if recorded is None or not file.exists():
+        return Result(check.id, check.kind, False,
+                      "no prediction was recorded: write it with `nanoscope learn predict "
+                      f"{ctx.lesson.id}` before you run the experiment")
+    first = progress.entry(ctx.lesson.id, ctx.owner)["first_checked_at"]
+    if first is not None and recorded["at"] >= first:
+        return Result(check.id, check.kind, False,
+                      f"the prediction was recorded at {recorded['at']}, after the experiment "
+                      f"first ran ({first}): a prediction only counts if it comes first",
+                      {"predicted_at": recorded["at"], "first_checked_at": first})
+    if hashlib.sha256(file.read_bytes()).hexdigest() != recorded["sha256"]:
+        return Result(check.id, check.kind, False,
+                      f"{file.name} was edited after it was recorded at {recorded['at']}: "
+                      "record it again with `nanoscope learn predict` (only before the "
+                      "experiment runs)")
+    quantity = check.args["quantity"]
+    evidence = ctx.shared.get("evidence", {}).get(quantity)
+    if not evidence or "delta" not in evidence:
+        return Result(check.id, check.kind, False,
+                      f"there is nothing to score against: the {quantity!r} check must run and "
+                      "produce a difference first")
+    try:
+        prediction = read_prediction(file)
+    except ValueError as exc:
+        return Result(check.id, check.kind, False, str(exc))
+    score = score_prediction(
+        evidence["delta"], tuple(evidence["ci95"]), low=prediction.get("low"),
+        high=prediction.get("high"), verdict=prediction.get("verdict"),
+        actual_verdict=evidence.get("verdict"))
+    found = (f"the run found {evidence['delta']:+.3f} "
+             f"[{evidence['ci95'][0]:+.3f}, {evidence['ci95'][1]:+.3f}], verdict "
+             f"'{evidence.get('verdict')}'")
+    if score["passed"]:
+        return Result(check.id, check.kind, True,
+                      f"your prediction was recorded first and holds: {found}", score)
+    misses = []
+    if score.get("hit") is False:
+        misses.append(f"the observed difference is outside your interval "
+                      f"[{prediction['low']:+g}, {prediction['high']:+g}]")
+    if score.get("sharp") is False:
+        misses.append("your interval is far wider than the run's own uncertainty, so it "
+                      "predicts too little")
+    if score.get("verdict_right") is False:
+        misses.append(f"you predicted '{prediction['verdict']}'")
+    return Result(check.id, check.kind, False,
+                  f"{found}; {'; '.join(misses)}. Being wrong is information: say why before "
+                  "you try again", score)

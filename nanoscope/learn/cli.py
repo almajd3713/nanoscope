@@ -25,6 +25,14 @@ def add_parsers(sub: argparse._SubParsersAction) -> None:  # type: ignore[type-a
     check.add_argument("--variant", choices=["cpu", "gpu"], default="cpu",
                        help="which compute variant to run (default cpu)")
 
+    predict = commands.add_parser(
+        "predict", help="Commit to a prediction before you run the experiment")
+    predict.add_argument("lesson")
+    predict.add_argument("--verdict", choices=["better", "worse", "within noise"])
+    predict.add_argument("--low", type=float, help="low end of the difference you expect")
+    predict.add_argument("--high", type=float, help="high end of the difference you expect")
+    predict.add_argument("--note", help="why you expect it")
+
     start = commands.add_parser("start", help="Copy a lesson's starter files to your workspace")
     start.add_argument("lesson", help="e.g. foundations/01-bigram")
 
@@ -102,6 +110,41 @@ def start_lesson(lesson: LessonSpec, owner: str = "local") -> tuple[Path, list[P
     return folder, copied, kept
 
 
+def _predict(args: argparse.Namespace) -> int:
+    import hashlib
+
+    import tomli_w
+
+    from nanoscope.learn.checks import prediction_path, read_prediction
+
+    lesson = loader.load_lesson(args.lesson)
+    first = progress.entry(lesson.id)["first_checked_at"]
+    if first is not None:
+        print(f"{lesson.id} was first checked at {first}: a prediction only counts if it is "
+              "recorded before the experiment runs, so it is too late for this lesson")
+        return 1
+    file = prediction_path(lesson)
+    given = {k: v for k, v in {"verdict": args.verdict, "low": args.low, "high": args.high,
+                               "note": args.note}.items() if v is not None}
+    if given:
+        file.parent.mkdir(parents=True, exist_ok=True)
+        file.write_text(tomli_w.dumps(given), encoding="utf-8")
+    elif not file.exists():
+        print("say what you expect, e.g. --verdict better --low -0.2 --high -0.05")
+        print(f"(or write {file} yourself)")
+        return 2
+    try:
+        read_prediction(file)
+    except ValueError as exc:
+        print(exc)
+        return 2
+    stamp = progress.record_prediction(lesson.id, file, hashlib.sha256(
+        file.read_bytes()).hexdigest())
+    print(f"recorded your prediction for {lesson.id} at {stamp}: {file}")
+    print(f"  it can't be changed now. Next: nanoscope learn check {lesson.id}")
+    return 0
+
+
 def run(args: argparse.Namespace) -> int:
     try:
         return _run(args)
@@ -115,7 +158,7 @@ def run(args: argparse.Namespace) -> int:
 def _run(args: argparse.Namespace) -> int:
     command = args.learn_command
     if command is None:
-        print("usage: nanoscope learn list | start <lesson> | check <lesson>")
+        print("usage: nanoscope learn list | start | predict | check <lesson>")
         return 0
     if command == "list":
         print(format_paths(load_paths(args.path)))
@@ -136,6 +179,8 @@ def _run(args: argparse.Namespace) -> int:
             print(f"  note: this lesson builds on {', '.join(needs)}, not passed yet")
         print(f"  next: edit the file, then run: nanoscope learn check {lesson.id}")
         return 0
+    if command == "predict":
+        return _predict(args)
     if command == "check":
         from nanoscope.learn.checks import run_lesson_checks
 

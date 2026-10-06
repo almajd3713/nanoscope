@@ -67,6 +67,34 @@
               "string",
               "null"
             ]
+          },
+          "first_checked_at": {
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        }
+      }
+    },
+    "predictions": {
+      "type": "object",
+      "additionalProperties": {
+        "type": "object",
+        "required": [
+          "at",
+          "file",
+          "sha256"
+        ],
+        "properties": {
+          "at": {
+            "type": "string"
+          },
+          "file": {
+            "type": "string"
+          },
+          "sha256": {
+            "type": "string"
           }
         }
       }

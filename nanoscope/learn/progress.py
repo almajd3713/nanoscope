@@ -23,7 +23,7 @@ FILE = "progress.json"
 
 
 def now() -> str:
-    return datetime.now(timezone.utc).isoformat(timespec="seconds")
+    return datetime.now(timezone.utc).isoformat(timespec="microseconds")
 
 
 def progress_path(owner: str = "local") -> Path:
@@ -41,8 +41,9 @@ def read(owner: str = "local") -> dict[str, Any]:
 def entry(lesson_id: str, owner: str = "local") -> dict[str, Any]:
     """A lesson's record: state, attempts, last_check and timestamps."""
     found = read(owner)["lessons"].get(lesson_id)
-    return dict(found) if found else {"state": "not-started", "attempts": 0, "last_check": None,
-                                      "started_at": None, "updated_at": None, "passed_at": None}
+    return dict(found) if found else {
+        "state": "not-started", "attempts": 0, "last_check": None, "started_at": None,
+        "first_checked_at": None, "updated_at": None, "passed_at": None}
 
 
 def state(lesson_id: str, owner: str = "local") -> str:
@@ -61,6 +62,7 @@ def mark(lesson_id: str, new_state: str, *, check_id: str | None = None,
     stamp = now()
     if new_state == "checking":
         current["attempts"] += 1
+        current["first_checked_at"] = current.get("first_checked_at") or stamp
     if new_state in ("started", "checking") and current["started_at"] is None:
         current["started_at"] = stamp
     if new_state == "passed":
@@ -76,3 +78,19 @@ def mark(lesson_id: str, new_state: str, *, check_id: str | None = None,
     doc["nanoscope"] = __version__
     write_json_atomic(progress_path(owner), doc)
     return current
+
+
+def record_prediction(lesson_id: str, file: Path, sha256: str, owner: str = "local") -> str:
+    """Remember that `file` was committed to as a prediction now, and what it contained."""
+    doc = read(owner)
+    stamp = now()
+    doc.setdefault("predictions", {})[lesson_id] = {"at": stamp, "file": str(file),
+                                                     "sha256": sha256}
+    doc["nanoscope"] = __version__
+    write_json_atomic(progress_path(owner), doc)
+    return stamp
+
+
+def prediction(lesson_id: str, owner: str = "local") -> dict[str, Any] | None:
+    found = read(owner).get("predictions", {}).get(lesson_id)
+    return dict(found) if found else None
