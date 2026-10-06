@@ -124,3 +124,22 @@ def test_classes_that_are_not_models_are_ignored(tmp_path):
     path = tmp_path / "plain.py"
     path.write_text("import torch.nn as nn\nclass A(nn.Module):\n    pass\n")
     assert parse(path)["classes"] == []
+
+
+@pytest.mark.parametrize("name", sorted(p.stem for p in FIXTURES.glob("*.py")))
+def test_schema_accepts_every_parsed_fixture(name):
+    from helpers import assert_valid
+    assert_valid("graph", graph_of(name))
+
+
+def test_schema_rejects_a_malformed_graph():
+    from helpers import assert_valid
+
+    good = graph_of("modern_like")
+    assert_valid("graph", good)
+    bad = {**good, "classes": [{**good["classes"][0], "args": {"d_model": {"kind": "magic"}}}]}
+    with pytest.raises(AssertionError, match="graph.v1 violated"):
+        assert_valid("graph", bad)
+    code_only = graph_of("code_only")["classes"][1]
+    with pytest.raises(AssertionError, match="graph.v1 violated"):  # a code-only class has no args
+        assert_valid("graph", {**good, "classes": [{**code_only, "args": {}}]})
