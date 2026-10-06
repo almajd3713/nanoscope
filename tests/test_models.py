@@ -6,8 +6,8 @@ import pytest
 import torch
 import torch.nn.functional as F
 
+from nanoscope.blocks.attention import Attention as BlockAttention
 from nanoscope.models import GPT2, Bigram, Modern
-from nanoscope.models.gpt2 import CausalSelfAttention
 from nanoscope.models.modern import Attention, RMSNorm, SwiGLU, apply_rope, rope_tables
 from nanoscope.reference.functional import (
     gelu,
@@ -23,10 +23,9 @@ ATOL = 1e-5
 
 
 def test_gpt2_attention_matches_naive_loop():
-    attn = CausalSelfAttention(d_model=32, n_heads=4)
+    attn = BlockAttention(n_heads=4, bias=True).build(32, 16)
     x = torch.randn(2, 9, 32)
-    q, k, v = attn.qkv(x).split(32, dim=2)
-    q, k, v = (t.view(2, 9, 4, 8).transpose(1, 2) for t in (q, k, v))
+    q, k, v = (f(x).view(2, 9, 4, 8).transpose(1, 2) for f in (attn.q, attn.k, attn.v))
     expected = attn.proj(naive_causal_attention(q, k, v).transpose(1, 2).reshape(2, 9, 32))
     torch.testing.assert_close(attn(x), expected, atol=ATOL, rtol=0)
 
@@ -139,3 +138,31 @@ def test_untrained_loss_is_near_uniform(cls):
     logits = out if isinstance(out, torch.Tensor) else out[0]
     loss = F.cross_entropy(logits.reshape(-1, 512), torch.randint(512, (4 * 32,)))
     assert abs(loss.item() - math.log(512)) < 0.5
+
+
+def gpt2_ref_keys(state):
+    """GPT2Ref's state_dict under the rebuilt GPT2's names: ln1/ln2/ln_f are norm1/norm2/norm
+    and the fused qkv is three separate projections."""
+    out = {}
+    for key, value in state.items():
+        key = key.replace(".ln1.", ".norm1.").replace(".ln2.", ".norm2.")
+        key = key.replace("ln_f.", "norm.")
+        if ".attn.qkv." in key:
+            for name, part in zip("qkv", value.chunk(3, dim=0), strict=True):
+                out[key.replace(".qkv.", f".{name}.")] = part
+        else:
+            out[key] = value
+    return out
+
+
+def test_gpt2_matches_reference():
+    from nanoscope.reference.gpt2_ref import GPT2Ref
+
+    kwargs = dict(vocab_size=50, context_length=16, d_model=32, n_layers=2, n_heads=4)
+    reference, model = GPT2Ref(**kwargs), GPT2(**kwargs)
+    model.load_state_dict(gpt2_ref_keys(reference.state_dict()))
+    idx = torch.randint(50, (2, 16))
+    torch.testing.assert_close(model(idx), reference(idx), atol=ATOL, rtol=0)
+    for ctx in (8, 16):
+        assert model.flops_per_token(ctx) == reference.flops_per_token(ctx)
+    assert model.head.weight is model.tok_emb.weight

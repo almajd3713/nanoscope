@@ -26,7 +26,7 @@ class GELUMLP(BlockModule):
         return self.proj(F.gelu(self.fc(x), approximate="tanh"))
 
     def flops_per_token(self, context_length: int) -> int:
-        return 6 * (self.fc.weight.numel() + self.proj.weight.numel())
+        return 6 * sum(p.numel() for p in self.parameters())
 
 
 @block("mlp", "composite", reference="swiglu", features=("swiglu",))

@@ -25,7 +25,8 @@ class Attention(BlockModule):
 
     def __init__(self, d_model: int, context_length: int, n_heads: int,
                  n_kv_heads: int | None = None, pos: BlockSpec | nn.Module | None = None,
-                 qk_norm: bool = False, window: int | None = None) -> None:
+                 qk_norm: bool = False, window: int | None = None,
+                 bias: bool = False) -> None:
         super().__init__()
         n_kv_heads = n_kv_heads or n_heads
         if d_model % n_heads or n_heads % n_kv_heads:
@@ -36,10 +37,10 @@ class Attention(BlockModule):
         self.d_model, self.n_heads, self.n_kv_heads = d_model, n_heads, n_kv_heads
         self.head_dim = d_model // n_heads
         self.window = window
-        self.q = nn.Linear(d_model, n_heads * self.head_dim, bias=False)
-        self.k = nn.Linear(d_model, n_kv_heads * self.head_dim, bias=False)
-        self.v = nn.Linear(d_model, n_kv_heads * self.head_dim, bias=False)
-        self.proj = nn.Linear(n_heads * self.head_dim, d_model, bias=False)
+        self.q = nn.Linear(d_model, n_heads * self.head_dim, bias=bias)
+        self.k = nn.Linear(d_model, n_kv_heads * self.head_dim, bias=bias)
+        self.v = nn.Linear(d_model, n_kv_heads * self.head_dim, bias=bias)
+        self.proj = nn.Linear(n_heads * self.head_dim, d_model, bias=bias)
         self.q_norm = RMSNorm().build(self.head_dim, context_length) if qk_norm else nn.Identity()
         self.k_norm = RMSNorm().build(self.head_dim, context_length) if qk_norm else nn.Identity()
         self.pos: nn.Module = (NoPE().build(self.head_dim, context_length) if pos is None
@@ -69,7 +70,8 @@ class Attention(BlockModule):
 
     def flops_per_token(self, context_length: int) -> int:
         span = context_length if self.window is None else min(self.window, context_length)
-        weights = sum(m.weight.numel() for m in (self.q, self.k, self.v, self.proj))
+        weights = sum(p.numel() for m in (self.q, self.k, self.v, self.proj)
+                      for p in m.parameters())
         total = 6 * weights + 2 * 6 * self.d_model * span
         for part in (self.q_norm, self.k_norm, self.pos):
             if isinstance(part, BlockModule):

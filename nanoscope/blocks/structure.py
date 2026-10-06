@@ -57,7 +57,7 @@ class Decoder(nn.Module):
     `pos_emb` (e.g. LearnedPosition()) is added after the token embedding; leave it out when
     attention carries the positions (RoPE). Like every model it returns logits, or
     `(logits, aux_loss)` when `z_loss` is set: the z-loss keeps the softmax normaliser near 1.
-    Matrices start at N(0, 0.02), and each layer's output projections at
+    Biases start at zero and matrices at N(0, 0.02), and each layer's output projections at
     0.02 / sqrt(2 * n_layers) so the residual stream does not grow with depth.
     """
 
@@ -82,7 +82,9 @@ class Decoder(nn.Module):
         if tie_weights:
             self.head.weight = self.tok_emb.weight
         for name, p in self.named_parameters():
-            if p.ndim == 2:
+            if name.endswith("bias"):
+                nn.init.zeros_(p)
+            elif p.ndim == 2:
                 std = 0.02 / math.sqrt(2 * n_layers) if name.endswith("proj.weight") else 0.02
                 nn.init.normal_(p, mean=0.0, std=std)
 

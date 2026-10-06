@@ -6,13 +6,13 @@ import pytest
 import torch
 import torch.nn.functional as F
 
-from nanoscope.models import GPT2, Modern
+from nanoscope.models import Modern
 from nanoscope.reference.gpt2_ref import GPT2Ref
 from nanoscope.reference.modern_ref import ModernRef
 
 ATOL = 1e-5
 SMALL = dict(vocab_size=50, context_length=16, d_model=32, n_layers=2, n_heads=4)
-PAIRS = [(GPT2Ref, GPT2), (ModernRef, Modern)]
+PAIRS = [(ModernRef, Modern)]  # GPT2 was rebuilt: see test_gpt2_matches_reference
 
 
 def logits_of(out):
