@@ -1,0 +1,29 @@
+# CUDA image: docker build -f docker/Dockerfile.cuda -t nanoscope:cuda .
+# Run it with the NVIDIA container toolkit (`--gpus all`, or the compose gpu profile).
+FROM python:3.12-slim AS build
+RUN pip install --no-cache-dir uv
+WORKDIR /src
+COPY pyproject.toml LICENSE README.md Makefile ./
+COPY nanoscope ./nanoscope
+RUN uv build --wheel --out-dir /dist
+
+# pinned: torch and the CUDA runtime come with the base image, so the wheel's `torch>=2.2` is satisfied
+FROM pytorch/pytorch:2.8.0-cuda12.6-cudnn9-runtime
+COPY --from=build /dist/*.whl /tmp/
+RUN pip install --no-cache-dir "$(ls /tmp/nanoscope_lab-*.whl)[server]" && rm /tmp/*.whl
+
+# git: the workspace is a git repository (preregistration commits); safe.directory because a bind
+# mount is owned by whoever made it. The directories exist so named volumes start owned by uid 1000.
+RUN apt-get update && apt-get install -y --no-install-recommends git \
+    && rm -rf /var/lib/apt/lists/* \
+    && git config --system --add safe.directory /nanoscope/workspace
+RUN useradd --uid 1000 --create-home nanoscope \
+    && mkdir -p /nanoscope/workspace /data /hf-cache /compile-cache \
+    && chown -R 1000:1000 /nanoscope /data /hf-cache /compile-cache
+USER 1000
+ENV NANOSCOPE_HOME=/nanoscope
+VOLUME /nanoscope
+EXPOSE 8000
+HEALTHCHECK --interval=30s --timeout=5s --start-period=20s \
+  CMD python -c "import urllib.request as u; u.urlopen('http://127.0.0.1:8000/api/health', timeout=4)"
+CMD ["nanoscope", "serve", "--host", "0.0.0.0"]
