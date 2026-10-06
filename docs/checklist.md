@@ -4,7 +4,7 @@ The build list for [`plan-tool.md`](plan-tool.md), sections 4-10, with the decis
 2026-10-05 (plan section 11) applied. Phase numbers follow the plan's section 10. Every
 item is one line, so scripts and agents can grep and edit it.
 
-**Current focus:** P12 docker-compose. Next item: P12.01.
+**Current focus:** P12 docker-compose. Next item: P12.11.
 
 ## Progress
 
@@ -16,7 +16,7 @@ item is one line, so scripts and agents can grep and edit it.
 | P9 | Curriculum engine, gating, two paths (14-17 d) | 61 / 61 | done |
 | P10 | HTTP API (8-10 d) | 47 / 47 | done |
 | P11 | Release prep: PyPI + GHCR (2-3 d) | 17 / 17 | done |
-| P12 | docker-compose (3-4 d) | 7 / 20 | in progress |
+| P12 | docker-compose (3-4 d) | 9 / 20 | in progress |
 | P13 | GUI MVP 1: shell, Learn/Tinker screens (12-15 d) | 0 / 37 | not started |
 | P14 | GUI MVP 2: model page, drag-and-drop (14-17 d) | 0 / 34 | not started |
 | P15 | GUI Research (10-13 d) | 0 / 30 | not started |
@@ -470,8 +470,8 @@ touch or create (new ones marked `(new)`).
 - [x] P12.06 (2026-10-07, e7f3632) Support `NANOSCOPE_JOBS_OFFLINE=1` in `run-job`: jobs that need the network are refused with a message once data is cached. · files: nanoscope/jobs/execute.py, tests/test_jobs.py · deps: P11.99 · done: `uv run pytest tests/test_jobs.py -k offline` asserts the message
 - [x] P12.07 (2026-10-07, 771c0e4) Set `TORCHINDUCTOR_CACHE_DIR` and `HF_HOME` to the cache volumes in all services. · files: compose.yaml · deps: P12.02 · done: `docker compose config | grep -c TORCHINDUCTOR_CACHE_DIR` is at least 2
 - [ ] P12.08 Add `git config --system safe.directory /nanoscope/workspace` to the images, and document PUID/PGID for bind-mount ownership. · files: docker/Dockerfile.cpu, docker/Dockerfile.cuda, docs/deploy.md · deps: P12.01 · done: `docker run --rm nanoscope:cpu git config --system --get safe.directory` prints /nanoscope/workspace
-- [ ] P12.09 Add the `notebook` service (decision 11.7): marimo editing `workspace/notebooks`, the same `NANOSCOPE_HOME`, a loopback port and a token. · files: compose.yaml, pyproject.toml (`notebook` extra with marimo), docker/Dockerfile.cpu · deps: P12.02 · done: `docker compose --profile notebook config -q` exits 0
-- [ ] P12.10 Write marimo versions of notebooks 01-04 under `notebooks/marimo/`. The user allows breaking away from the `.ipynb` files (2026-10-05): once the marimo versions work, retire the `.ipynb` notebooks (keep a Colab/Kaggle path only if it is cheap) and repoint the first-notebook guard test at the marimo version. · files: notebooks/marimo/01_first_model.py ... 04_ablations.py (new) · deps: P12.09 · done: `uv run --extra notebook marimo check notebooks/marimo/` exits 0
+- [x] P12.09 (2026-10-07, d223f6d; marimo service up, token gate checked) Add the `notebook` service (decision 11.7): marimo editing `workspace/notebooks`, the same `NANOSCOPE_HOME`, a loopback port and a token. · files: compose.yaml, pyproject.toml (`notebook` extra with marimo), docker/Dockerfile.cpu · deps: P12.02 · done: `docker compose --profile notebook config -q` exits 0
+- [x] P12.10 (2026-10-07, 3c6be82; notebook 01 trains in 93 s on CPU) Write marimo versions of notebooks 01-04 under `notebooks/marimo/`. The user allows breaking away from the `.ipynb` files (2026-10-05): once the marimo versions work, retire the `.ipynb` notebooks (keep a Colab/Kaggle path only if it is cheap) and repoint the first-notebook guard test at the marimo version. · files: notebooks/marimo/01_first_model.py ... 04_ablations.py (new) · deps: P12.09 · done: `uv run --extra notebook marimo check notebooks/marimo/` exits 0
 - [ ] P12.11 Let lessons ship an optional marimo `notebook.py`; the loader checks that it defines a marimo app, and `learn start` copies it. · files: nanoscope/learn/loader.py, tests/test_learn.py · deps: P12.10 · done: `uv run pytest tests/test_learn.py -k marimo_notebook` passes
 - [ ] P12.12 Add a pytest `compose` marker and `tests/compose/test_compose.py`: compose up, submit a bigram over the API, reach `done` in under 2 min with cached data, and find the run folder on the home volume. · files: pyproject.toml, tests/compose/test_compose.py (new) · deps: P12.04 · done: `uv run pytest -m compose tests/compose -k bigram_under_2min` passes locally
 - [ ] P12.13 Add a CI job `compose` that seeds `nanoscope-data` from the actions cache and runs the compose tests. · files: .github/workflows/ci.yml · deps: P12.12 · done: the job is green on the PR
