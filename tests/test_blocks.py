@@ -105,8 +105,8 @@ def test_library_imports_submodules():
 
     root = Path(nanoscope.__file__).parent
     for file in root.rglob("*.py"):
-        if file == root / "blocks" / "__init__.py":
-            continue
+        if file == root / "blocks" / "__init__.py" or "curricula" in file.parts:
+            continue  # lesson starters are learner code: they import the gated root on purpose
         for node in ast.walk(ast.parse(file.read_text(encoding="utf-8"))):
             if isinstance(node, ast.ImportFrom) and node.module == "nanoscope.blocks":
                 raise AssertionError(f"{file.relative_to(root)} imports the blocks package root")

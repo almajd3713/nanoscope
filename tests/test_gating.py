@@ -494,6 +494,8 @@ def test_lock_table_consistent():
         assert name in (blocks if kind == "block" else features), f"{unlock_id} is not registered"
     # every composite-tier block is lockable; primitives never are
     for info in blocks.values():
+        if not info.module.startswith("nanoscope."):
+            continue  # blocks other tests define for themselves
         locked = f"block:{info.name}" in unlockers
         assert locked == (info.tier == "composite" and not info.user), (
             f"{info.name} is tier {info.tier} but "
