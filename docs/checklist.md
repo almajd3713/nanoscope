@@ -4,7 +4,7 @@ The build list for [`plan-tool.md`](plan-tool.md), sections 4-10, with the decis
 2026-10-05 (plan section 11) applied. Phase numbers follow the plan's section 10. Every
 item is one line, so scripts and agents can grep and edit it.
 
-**Current focus:** P11 release prep. Next: P11.13 (USER ACTION), then P11.14 (v0.3.0). Verify the TestPyPI install after merge.
+**Current focus:** P12 docker-compose. Next item: P12.01.
 
 ## Progress
 
@@ -15,7 +15,7 @@ item is one line, so scripts and agents can grep and edit it.
 | P8 | Blocks, describe, rebuilt models (10-13 d) | 52 / 52 | done |
 | P9 | Curriculum engine, gating, two paths (14-17 d) | 61 / 61 | done |
 | P10 | HTTP API (8-10 d) | 47 / 47 | done |
-| P11 | Release prep: PyPI + GHCR (2-3 d) | 12 / 17 | in progress |
+| P11 | Release prep: PyPI + GHCR (2-3 d) | 17 / 17 | done |
 | P12 | docker-compose (3-4 d) | 0 / 20 | not started |
 | P13 | GUI MVP 1: shell, Learn/Tinker screens (12-15 d) | 0 / 37 | not started |
 | P14 | GUI MVP 2: model page, drag-and-drop (14-17 d) | 0 / 34 | not started |
@@ -452,11 +452,11 @@ touch or create (new ones marked `(new)`).
 - [x] P11.10 (2026-10-06, b71c981; built and smoke-tested locally, CI run pending) Write `docker/Dockerfile.cpu`: python:3.12-slim, CPU torch from the PyTorch CPU index, the wheel with `[server]` installed, non-root uid 1000, `NANOSCOPE_HOME=/nanoscope`, and a HEALTHCHECK on `/api/health`; add `.dockerignore`. · files: docker/Dockerfile.cpu (new), .dockerignore (new) · deps: P11.03 · done: `docker build -f docker/Dockerfile.cpu -t nanoscope:cpu .` succeeds in CI
 - [x] P11.11 (2026-10-06, a060298; green-on-PR pending) Add an image smoke test in CI: `docker run --rm nanoscope:cpu nanoscope presets`, then `id -u` prints 1000, and the image size is printed. · files: .github/workflows/image.yml (new) · deps: P11.10 · done: the image job is green on the PR
 - [x] P11.12 (2026-10-06, bba6f88) Make `image.yml` push `ghcr.io/almajd3713/nanoscope:cpu` and `:cpu-<version>` with OCI labels on a tag, and only build on PRs. · files: .github/workflows/image.yml · deps: P11.11 · done: `uvx actionlint .github/workflows/image.yml` exits 0
-- [ ] P11.13 **USER ACTION** Allow Actions to write packages to GHCR, and make the package public after the first push. · files: — · deps: P11.12 · done: `docker pull ghcr.io/almajd3713/nanoscope:cpu` works anonymously after P11.14
-- [ ] P11.14 **USER ACTION** Set the version to `0.3.0` (the agent prepares the commit), push the tag `v0.3.0`, and verify `pip install nanoscope-lab` and `docker pull ghcr.io/almajd3713/nanoscope:cpu`. · files: nanoscope/__init__.py · deps: P11.09, P11.13, P11.05 · done: `pip index versions nanoscope-lab` lists 0.3.0
-- [ ] P11.15 Add an "Install" section to the README (`pip install nanoscope-lab`, `[server]`, the image), keeping the dev install. · files: README.md · deps: P11.14 · done: `grep -n 'pip install nanoscope-lab' README.md` matches
-- [ ] P11.16 Make `pip install nanoscope-lab` the default install in `kaggle.ipynb`, keeping the git clone as an option for branches, with at most 4 code cells. · files: notebooks/kaggle.ipynb · deps: P11.14 · done: `uv run pytest -k kaggle_notebook` passes
-- [ ] P11.99 PHASE GATE P11. Exit criteria: plan section 10 phase 11. · files: — · deps: P11.* · done: `make check` passes; `uv run pytest tests/test_packaging.py` passes; the image job is green; `pip index versions nanoscope-lab` lists the release; **USER ACTION** merge the PR
+- [x] P11.13 (2026-10-06, user) **USER ACTION** Allow Actions to write packages to GHCR, and make the package public after the first push. · files: — · deps: P11.12 · done: `docker pull ghcr.io/almajd3713/nanoscope:cpu` works anonymously after P11.14
+- [x] P11.14 (2026-10-06, c9f002b; tag v0.3.0 on 70c4c58, release+image runs green) **USER ACTION** Set the version to `0.3.0` (the agent prepares the commit), push the tag `v0.3.0`, and verify `pip install nanoscope-lab` and `docker pull ghcr.io/almajd3713/nanoscope:cpu`. · files: nanoscope/__init__.py · deps: P11.09, P11.13, P11.05 · done: `pip index versions nanoscope-lab` lists 0.3.0
+- [x] P11.15 (2026-10-06, a221c28) Add an "Install" section to the README (`pip install nanoscope-lab`, `[server]`, the image), keeping the dev install. · files: README.md · deps: P11.14 · done: `grep -n 'pip install nanoscope-lab' README.md` matches
+- [x] P11.16 (2026-10-06, a221c28) Make `pip install nanoscope-lab` the default install in `kaggle.ipynb`, keeping the git clone as an option for branches, with at most 4 code cells. · files: notebooks/kaggle.ipynb · deps: P11.14 · done: `uv run pytest -k kaggle_notebook` passes
+- [x] P11.99 (2026-10-06; CI on PR #11 and main green, packaging tests pass, pip lists 0.3.0, PR #11 merged by the user) PHASE GATE P11. Exit criteria: plan section 10 phase 11. · files: — · deps: P11.* · done: `make check` passes; `uv run pytest tests/test_packaging.py` passes; the image job is green; `pip index versions nanoscope-lab` lists the release; **USER ACTION** merge the PR
 
 ---
 
@@ -742,3 +742,4 @@ right phase, then tick it here as `[x] → P<n>.<id>`.
 - 2026-10-06 P11.07: actionlint is not on PyPI; run it as `uvx --from actionlint-py actionlint <file>` (P11.12 too).
 - 2026-10-06 P11.10: the image smoke test found `jsonschema` imported by queue.py but only in the dev extra; moved to core dependencies. Image is 2.29 GB (CPU torch).
 - 2026-10-06 P11.09: user ticked it without finishing the clean-venv install; `uv pip install` against TestPyPI found 0.3.0rc1 but failed building scipy from source (mixed indexes). Re-check after merge.
+- 2026-10-06 P11.14: first v0.3.0 tag was pushed before the version commit; both runs were cancelled before publishing, the tag was deleted and recreated on the merge commit. The version commit must precede the tag.
