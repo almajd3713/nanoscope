@@ -30,7 +30,7 @@ CHECK_KINDS = {  # kind -> (required args, optional args)
     "trains": ({"metric", "threshold"}, {"seeds", "class", "kwargs"}),
     "verdict": ({"a", "b", "expect"}, {"seeds", "metric", "a_kwargs", "b_kwargs"}),
     "predicted": ({"quantity"}, set()),
-    "reproduces": ({"baseline"}, {"metric"}),
+    "reproduces": ({"baseline"}, {"metric", "class", "kwargs"}),
 }
 EXPERIMENT_KINDS = ("run", "study", "check")
 MAX_CPU_MINUTES = 15

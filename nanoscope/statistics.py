@@ -85,3 +85,18 @@ def score_prediction(
               and v is not None]
     return {"passed": bool(checks) and all(checks), "actual_mean": actual_mean,
             "ci95": None if ci95 is None else list(ci95), **parts}
+
+
+def reproduction_interval(baseline: list[float], n_new: int = 1) -> tuple[float, float] | None:
+    """Where a new result should land if it reproduces a baseline of several seeds: the
+    baseline mean +- t * sd * sqrt(1/n_new + 1/n). A single new run is compared with a
+    prediction interval, not the (much narrower) interval of the baseline's mean. None when
+    the baseline has fewer than three seeds."""
+    n = len(baseline)
+    if n < 3:
+        return None
+    average, sd = mean(baseline), stdev(baseline)
+    from scipy.stats import t
+
+    margin = float(t.ppf(0.975, n - 1)) * sd * math.sqrt(1 / n_new + 1 / n)
+    return average - margin, average + margin

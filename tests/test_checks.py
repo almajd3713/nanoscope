@@ -156,7 +156,8 @@ def test_forbid(make):
         "torch.nn.functional.scaled_dot_product_attention")
     assert [u["line"] for u in result.evidence["uses"]] == [4, 9, 12]
     clean = run(make(toml, "import torch\nx = torch.zeros(1)\n", extra=forbid))
-    assert clean.passed and "avoids torch.nn.MultiheadAttention" in clean.reason
+    assert clean.passed
+    assert "avoids the shortcuts this lesson forbids (torch.nn.Multihead" in clean.reason
     bare = run(make(toml, "import torch.nn.functional as F\nF.scaled_dot_product_attention\n",
                     extra='forbid = ["scaled_dot_product_attention"]'))
     assert not bare.passed and "line 2" in bare.reason
@@ -347,3 +348,114 @@ def test_predicted_scores_and_tamper_checks(make):
 
 
 from nanoscope.statistics import score_prediction  # noqa: E402
+
+
+@pytest.mark.usefixtures("fake_data")
+def test_reproduces(make, tmp_path, monkeypatch):
+    from fakes import tiny
+
+    from nanoscope.models import Bigram
+    from nanoscope.presets import register_preset
+    from nanoscope.run import run as train
+    from nanoscope.statistics import reproduction_interval
+
+    preset = tiny(name="tinystories-5min")
+    register_preset(preset)
+    import sys
+
+    compare = sys.modules["nanoscope.compare"]  # nanoscope.compare the name is the function
+    baselines = tmp_path / "baselines"
+    monkeypatch.setattr(compare, "BASELINES_DIR", baselines)
+    group = train(Bigram, preset, seeds=3, device="cpu", progress=False)
+    compare.export_baseline(group, baselines / "tinystories-5min" / "bigram")
+    values = [r.val_bpb[-1][1] for r in group.results]
+    low, high = reproduction_interval(values)
+    assert low < sum(values) / 3 < high and reproduction_interval(values[:2]) is None
+
+    toml = ('\n[[checks]]\nid = "same"\nkind = "reproduces"\nbaseline = "bigram"\n'
+            'class = "MyBigram"\nkwargs = {kwargs}\n')
+    # the learner's bigram has the shipped Bigram's layers (d_model 32 by default) in other names
+    mine = BIGRAM.replace("d_model=16", "d_model=32")
+    result = run(make(toml.format(kwargs="{}"), mine))
+    assert result.passed, result.reason
+    assert "is inside the range" in result.reason and "you reproduced it" in result.reason
+
+    broken = run(make(toml.format(kwargs="{}"), mine.replace("self.head(self.emb(idx))",
+                                                             "self.head(self.emb(idx)) * 0")))
+    assert not broken.passed and "worse than the bigram baseline's seeds" in broken.reason
+    assert broken.evidence["interval"] == pytest.approx([low, high])
+
+    missing = run(make(toml.replace('"bigram"', '"nope"').format(kwargs="{}"), mine))
+    assert "no runs named 'nope'" in missing.reason
+
+
+@pytest.mark.usefixtures("fake_data")
+def test_visible_reasons(make, tmp_path, monkeypatch):
+    """Every kind of check says, in words, why it passed and why it failed."""
+    import hashlib
+    import sys
+
+    from fakes import tiny
+
+    from nanoscope.learn import progress
+    from nanoscope.learn.checks import prediction_path
+    from nanoscope.models import Bigram
+    from nanoscope.presets import register_preset
+    from nanoscope.run import run as train
+
+    preset = tiny(name="tinystories-5min", max_steps=30)
+    register_preset(preset)
+    compare = sys.modules["nanoscope.compare"]
+    monkeypatch.setattr(compare, "BASELINES_DIR", tmp_path / "baselines")
+    compare.export_baseline(train(Bigram, preset, seeds=3, device="cpu", progress=False),
+                            tmp_path / "baselines" / "tinystories-5min" / "bigram")
+    mine = BIGRAM.replace("d_model=16", "d_model=32")
+    cases = {  # kind -> (check toml, good code, bad code)
+        "defines": (DEFINES, RMS_OK, "class Other: pass\n"),
+        "equivalent": (DEFINES + EQUIV, RMS_OK, RMS_OK.replace(".mean(-1", ".sum(-1")),
+        "forbid": ('\n[[checks]]\nid = "own"\nkind = "forbid"\n', "x = 1\n",
+                   "import torch.nn.functional as F\nF.softmax\n"),
+        "trains": ('\n[[checks]]\nid = "t"\nkind = "trains"\nclass = "MyBigram"\n'
+                   'metric = "val_bpb"\nthreshold = {t}\n', mine, mine),
+        "verdict": ('\n[[checks]]\nid = "v"\nkind = "verdict"\na = "Bigram"\nb = "Dumb"\n'
+                    'expect = "{e}"\n', DUMB, DUMB),
+        "reproduces": ('\n[[checks]]\nid = "r"\nkind = "reproduces"\nbaseline = "bigram"\n'
+                       'class = "MyBigram"\n', mine, mine.replace("self.head(self.emb(idx))",
+                                                                  "self.head(self.emb(idx)) * 0")),
+    }
+    forbid_extra = 'forbid = ["F.softmax"]'
+    reasons = {}
+    for kind, (toml, good, bad) in cases.items():
+        extra = forbid_extra if kind == "forbid" else ""
+        thresholds = {"t": ("10", "0.01"), "e": ("better", "worse")}
+        for outcome, code in (("pass", good), ("fail", bad)):
+            body = toml
+            if "{t}" in body:
+                body = body.format(t=thresholds["t"][outcome == "fail"])
+            if "{e}" in body:
+                body = body.format(e=thresholds["e"][outcome == "fail"])
+            ctx = make(body, code, extra=extra)
+            result = run(ctx, len(ctx.lesson.checks) - 1)
+            assert result.passed == (outcome == "pass"), (kind, outcome, result.reason)
+            reasons[(kind, outcome)] = result.reason
+
+    toml = ('\n[[checks]]\nid = "gap"\nkind = "verdict"\na = "A"\nb = "B"\nexpect = "better"\n'
+            '[[checks]]\nid = "foresaw"\nkind = "predicted"\nquantity = "gap"\n')
+    ctx = make(toml, "")
+    ctx.shared["evidence"] = {"gap": {"verdict": "better", "delta": -0.1, "ci95": [-0.14, -0.06]}}
+    reasons[("predicted", "fail")] = run(ctx, 1).reason  # nothing recorded yet
+    file = prediction_path(ctx.lesson)
+    file.parent.mkdir(parents=True, exist_ok=True)
+    file.write_text('verdict = "better"\nlow = -0.2\nhigh = -0.05\n')
+    progress.record_prediction(ctx.lesson.id, file, hashlib.sha256(file.read_bytes()).hexdigest())
+    progress.mark(ctx.lesson.id, "checking")
+    reasons[("predicted", "pass")] = run(ctx, 1).reason
+
+    assert {k for k, _ in reasons} == set(cases) | {"predicted"}
+    for (kind, outcome), reason in reasons.items():
+        assert len(reason.split()) >= 4, (kind, outcome, reason)  # words, not a code
+        assert "Traceback" not in reason and "<" not in reason.split()[0], (kind, reason)
+        if outcome == "fail":  # a failure says what is wrong or what to do about it
+            assert any(word in reason for word in (
+                "not", "differs", "above", "outside", "no ", "uses", "expects", "worse",
+                "failed")), (kind, reason)

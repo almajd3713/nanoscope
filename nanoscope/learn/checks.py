@@ -415,7 +415,8 @@ def check_forbid(ctx: Context, check: Check) -> Result:
                       f"{file.name} uses what this lesson asks you to build yourself: {listing}",
                       {"uses": [{"line": line, "name": name} for line, name in found]})
     return Result(check.id, check.kind, True,
-                  f"{file.name} avoids {', '.join(names) or 'nothing in particular'}",
+                  f"{file.name} avoids the shortcuts this lesson forbids "
+                  f"({', '.join(names) or 'none listed'})",
                   {"forbidden": names})
 
 
@@ -636,3 +637,53 @@ def check_predicted(ctx: Context, check: Check) -> Result:
     return Result(check.id, check.kind, False,
                   f"{found}; {'; '.join(misses)}. Being wrong is information: say why before "
                   "you try again", score)
+
+
+# -- reproduces ------------------------------------------------------------------------------
+
+@checker("reproduces")
+def check_reproduces(ctx: Context, check: Check) -> Result:
+    """The learner's model trained on the lesson's preset lands where a shipped baseline's
+    seeds do: inside the 95% interval for a new result, built from the baseline's seed
+    spread (a single run is not expected to hit the baseline mean exactly)."""
+    from nanoscope.compare import _resolve
+    from nanoscope.run import RunResult, run
+    from nanoscope.statistics import reproduction_interval
+
+    metric = check.args.get("metric", "val_bpb")
+    try:
+        cls = user_class(ctx, check) if check.args.get("class") or ctx.shared.get(
+            "class_name") else find_model(ctx, check.args["baseline"])
+        preset = lesson_preset(ctx)
+        base = _resolve(check.args["baseline"], preset)
+    except (AttributeError, FileNotFoundError, ValueError) as exc:
+        return Result(check.id, check.kind, False, str(exc))
+    if base.config["preset"]["name"] != preset:
+        return Result(check.id, check.kind, False,
+                      f"the baseline {check.args['baseline']!r} was trained on "
+                      f"{base.config['preset']['name']!r}, not {preset!r}: this is a bug in the "
+                      "lesson")
+    values = [r.final(metric) for r in base.runs]
+    interval = reproduction_interval(values)
+    if interval is None:
+        return Result(check.id, check.kind, False,
+                      f"the baseline has only {len(values)} seeds, too few for an interval: "
+                      "this is a bug in the lesson")
+    result = run(cls, preset, seed=0, device="cpu" if ctx.variant == "cpu" else None,
+                 output_dir=ctx.runs_dir / "seed-0", progress=False,
+                 **check.args.get("kwargs", {}))
+    assert isinstance(result, RunResult)
+    got = result.val_losses[-1][1] if metric == "val_loss" else result.val_bpb[-1][1]
+    low, high = interval
+    evidence = {"metric": metric, "value": got, "baseline": check.args["baseline"],
+                "interval": [low, high], "baseline_values": values}
+    if low <= got <= high:
+        return Result(check.id, check.kind, True,
+                      f"{metric} {got:.3f} is inside the range {low:.3f} to {high:.3f} that "
+                      f"the {check.args['baseline']} baseline's {len(values)} seeds give: "
+                      "you reproduced it", evidence)
+    side = "better than" if got < low else "worse than"
+    return Result(check.id, check.kind, False,
+                  f"{metric} {got:.3f} is outside {low:.3f} to {high:.3f}, {side} the "
+                  f"{check.args['baseline']} baseline's seeds: check the model and the settings "
+                  "against the lesson", evidence)
