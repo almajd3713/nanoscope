@@ -428,3 +428,40 @@ def test_cli_and_study(home, lock_curricula, tmp_path, capsys):
     # an open policy lets the same study through the gate
     unlocks.set_policy("open")
     study._refuse_locked()
+
+
+def test_owner_path(home, lock_curricula, monkeypatch):
+    """All learner state goes through learn_dir(owner), so a hosted deployment can give each
+    user their own folder."""
+    import ast
+    from pathlib import Path
+
+    import nanoscope.learn as learn_package
+    from nanoscope.learn import checks, gating, progress
+    from nanoscope.learn.checks import Result, run_lesson_checks
+    from nanoscope.learn.loader import load_lesson
+
+    ada = paths.learn_dir("ada")
+    assert ada == paths.learn_dir().parent / "users" / "ada" / "learn" != paths.learn_dir()
+    unlocks.set_policy("guided", owner="ada")
+    progress.mark("foundations/04-attention", "started", owner="ada")
+    assert not unlocks.exists() and (ada / "unlocks.json").exists()
+    assert progress.state("foundations/04-attention") == "not-started"
+    assert [x.id for x in gating.check(["block:Attention"], owner="ada")] == ["block:Attention"]
+    assert gating.check(["block:Attention"]) == []  # the local user is still open
+
+    monkeypatch.setattr(checks, "CHECKERS", {"forbid": lambda c, k: Result(k.id, k.kind, True,
+                                                                          "all fine here")})
+    toml = lock_curricula / "foundations" / "04-attention" / "lesson.toml"
+    toml.write_text(toml.read_text() + '\n[[checks]]\nid = "a"\nkind = "forbid"\n')
+    run_lesson_checks(load_lesson("foundations/04-attention"), owner="ada")
+    assert list((ada / "checks").glob("*.json")) and not (paths.learn_dir() / "checks").exists()
+    assert unlocks.read("ada")["unlocks"]["block:Attention"]["how"] == "earned"
+    assert progress.state("foundations/04-attention", owner="ada") == "passed"
+    assert gating.check(["block:Attention"], owner="ada") == []
+
+    # no module in the learn package builds a learner path without an owner
+    for file in Path(learn_package.__file__).parent.glob("*.py"):
+        for node in ast.walk(ast.parse(file.read_text())):
+            if isinstance(node, ast.Call) and getattr(node.func, "attr", "") == "learn_dir":
+                assert node.args or node.keywords, f"{file.name}:{node.lineno} learn_dir() "
