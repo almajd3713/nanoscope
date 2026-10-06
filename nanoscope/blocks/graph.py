@@ -27,8 +27,8 @@ import inspect
 from pathlib import Path
 from typing import Any
 
+import nanoscope.blocks.registry as registry
 from nanoscope import __version__
-from nanoscope.blocks import registry
 
 BLOCKS_MODULE = "nanoscope.blocks"
 BASES = {"Decoder": "decoder", "Composite": "composite"}

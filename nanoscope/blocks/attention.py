@@ -6,6 +6,8 @@ Weight names follow the shipped Modern model: `q`, `k`, `v`, `proj`, `q_norm`, `
 
 from __future__ import annotations
 
+import math
+
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
@@ -53,20 +55,35 @@ class Attention(BlockModule):
             band = (t[:, None] >= t[None, :]) & (t[:, None] - t[None, :] < window)
             self.register_buffer("mask", band, persistent=False)
 
-    def forward(self, x: torch.Tensor) -> torch.Tensor:
+    def _qkv(self, x: torch.Tensor) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
+        """Queries, keys and values as (B, n_heads, T, head_dim), after QK-norm and positions,
+        with each key/value head repeated for the query heads that share it."""
         B, T, _ = x.shape
         q = self.q(x).view(B, T, self.n_heads, self.head_dim).transpose(1, 2)
         k = self.k(x).view(B, T, self.n_kv_heads, self.head_dim).transpose(1, 2)
         v = self.v(x).view(B, T, self.n_kv_heads, self.head_dim).transpose(1, 2)
         q, k = self.pos(self.q_norm(q), self.k_norm(k))
-        # Each key/value head serves n_heads / n_kv_heads query heads.
         groups = self.n_heads // self.n_kv_heads
-        k, v = k.repeat_interleave(groups, dim=1), v.repeat_interleave(groups, dim=1)
+        return q, k.repeat_interleave(groups, dim=1), v.repeat_interleave(groups, dim=1)
+
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
+        B, T, _ = x.shape
+        q, k, v = self._qkv(x)
         if self.mask is None:
             y = F.scaled_dot_product_attention(q, k, v, is_causal=True)
         else:
             y = F.scaled_dot_product_attention(q, k, v, attn_mask=self.mask[:T, :T])
         return self.proj(y.transpose(1, 2).reshape(B, T, -1))
+
+    def attention_weights(self, x: torch.Tensor) -> torch.Tensor:
+        """The softmax weights (B, n_heads, T, T) that `forward` applies to the values, written
+        out explicitly. `forward` uses a fused kernel that never shows them."""
+        q, k, _ = self._qkv(x)
+        T = x.size(1)
+        scores = q @ k.transpose(-2, -1) / math.sqrt(self.head_dim)
+        mask = torch.ones(T, T, dtype=torch.bool, device=x.device).tril() \
+            if self.mask is None else self.mask[:T, :T]
+        return scores.masked_fill(~mask, float("-inf")).softmax(-1)
 
     def flops_per_token(self, context_length: int) -> int:
         span = context_length if self.window is None else min(self.window, context_length)

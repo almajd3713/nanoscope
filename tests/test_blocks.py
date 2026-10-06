@@ -515,3 +515,22 @@ def test_decoder_layer_pattern_repeats():
                 pattern=[global_])
     with pytest.raises(TypeError, match="exactly one"):
         Decoder(vocab_size=50, context_length=16, d_model=16, n_layers=2, pattern=[])
+
+
+@pytest.mark.parametrize("window", [None, 3])
+def test_attention_weights_are_the_softmax_forward_applies(window):
+    from nanoscope.blocks.attention import Attention
+    from nanoscope.blocks.positional import RoPE
+
+    attn = Attention(n_heads=4, n_kv_heads=2, pos=RoPE(), qk_norm=True,
+                     window=window).build(16, 8)
+    x = torch.randn(2, 6, 16)
+    weights = attn.attention_weights(x)
+    assert weights.shape == (2, 4, 6, 6)
+    torch.testing.assert_close(weights.sum(-1), torch.ones(2, 4, 6), atol=ATOL, rtol=0)
+    assert torch.all(weights.triu(1) == 0)  # causal
+    if window:
+        assert torch.all(weights.tril(-window) == 0)  # nothing further back than the window
+    _, _, v = attn._qkv(x)
+    expected = attn.proj((weights @ v).transpose(1, 2).reshape(2, 6, 16))
+    torch.testing.assert_close(attn(x), expected, atol=ATOL, rtol=0)
