@@ -8,6 +8,7 @@ Every function reads the environment when called, never at import time.
 from __future__ import annotations
 
 import os
+import re
 from pathlib import Path
 
 _USER_HOME = Path.home() / ".nanoscope"
@@ -38,10 +39,15 @@ def data_dir() -> Path:
     return base / "data" if base else _USER_HOME / "data"
 
 
-def learn_dir() -> Path:
-    """Lesson progress and unlocks."""
-    base = home()
-    return base / "learn" if base else _USER_HOME / "learn"
+def learn_dir(owner: str = "local") -> Path:
+    """Lesson progress and unlocks. The local single user keeps them in `learn/`; a hosted
+    deployment passes each user's name and gets `users/<name>/learn/`."""
+    base = home() or _USER_HOME
+    if owner == "local":
+        return base / "learn"
+    if not re.fullmatch(r"[A-Za-z0-9_][A-Za-z0-9_.-]{0,63}", owner):
+        raise ValueError(f"owner {owner!r} must be letters, digits, '_', '-' or '.'")
+    return base / "users" / owner / "learn"
 
 
 def hardware_dir() -> Path:

@@ -198,3 +198,44 @@ def test_schemas_describe_the_files():
         assert_valid("lesson", tomllib.loads(LESSON.replace("level = 0", "level = 9")))
     with pytest.raises(AssertionError):  # a variant needs a preset or a budget
         assert_valid("lesson", tomllib.loads(LESSON.replace('preset = "tinystories-5min"\n', "")))
+
+
+def test_progress_store(home):
+    import json
+
+    from nanoscope import paths
+    from nanoscope.learn import progress
+
+    lid = "foundations/01-bigram"
+    assert progress.state(lid) == "not-started" and progress.read()["lessons"] == {}
+    progress.mark(lid, "started")
+    doc = json.loads((paths.learn_dir() / "progress.json").read_text())
+    assert_valid("progress", doc)
+    assert doc["lessons"][lid]["state"] == "started" and doc["lessons"][lid]["attempts"] == 0
+    assert doc["lessons"][lid]["started_at"] is not None
+    progress.mark(lid, "checking", check_id="c1")
+    progress.mark(lid, "failed", check_id="c1")
+    again = progress.mark(lid, "checking", check_id="c2")
+    assert (again["attempts"], again["last_check"], again["state"]) == (2, "c2", "checking")
+    done = progress.mark(lid, "passed", check_id="c2")
+    assert done["passed_at"] is not None and progress.state(lid) == "passed"
+    # what was earned stays earned
+    assert progress.mark(lid, "failed")["state"] == "passed"
+    assert progress.mark(lid, "checking")["state"] == "passed"
+    assert progress.state("foundations/02-mlp") == "not-started"
+    assert not list(paths.learn_dir().glob("*.tmp"))  # atomic: no leftovers
+    with pytest.raises(ValueError, match="state must be one of"):
+        progress.mark(lid, "done")
+
+
+def test_progress_is_kept_per_owner(home):
+    from nanoscope import paths
+    from nanoscope.learn import progress
+
+    progress.mark("a/01-x", "started")
+    progress.mark("a/01-x", "passed", owner="ada")
+    assert progress.state("a/01-x") == "started"
+    assert progress.state("a/01-x", owner="ada") == "passed"
+    assert paths.learn_dir("ada") == paths.learn_dir().parent / "users" / "ada" / "learn"
+    with pytest.raises(ValueError, match="owner"):
+        paths.learn_dir("../etc")

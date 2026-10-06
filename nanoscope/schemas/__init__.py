@@ -15,7 +15,7 @@ from typing import Any
 CURRENT = {
     "config": 1, "status": 1, "plan": 1, "study": 1, "results": 1, "problem": 1, "studyspec": 1,
     "prepare": 1, "bench": 1, "comparison": 1, "job": 1, "worker": 1, "graph": 1,
-    "describe": 1, "blockstats": 1, "blocks": 1, "path": 1, "lesson": 1,
+    "describe": 1, "blockstats": 1, "blocks": 1, "path": 1, "lesson": 1, "progress": 1,
 }
 
 
