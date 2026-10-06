@@ -311,3 +311,13 @@ def test_m07_assemble_offline():
         unlocks.earn(pre, load_lesson(pre).unlocks, "e")
     done = attempt(offline(lesson), solution("modern-block/07-assemble"))
     assert done["passed"], reasons(done)
+
+
+@pytest.mark.network
+def test_m07_assemble_real_data(home):
+    """The point of the whole path: the assembled model beats GPT-2 by more than the noise."""
+    lesson = load_lesson("modern-block/07-assemble")
+    doc = attempt(lesson, solution("modern-block/07-assemble"))
+    assert doc["passed"], reasons(doc)
+    verdict = doc["checks"][2]["evidence"]
+    assert verdict["verdict"] == "better" and verdict["ci95"][1] < 0

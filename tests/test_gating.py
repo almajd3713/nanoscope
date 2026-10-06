@@ -465,3 +465,60 @@ def test_owner_path(home, lock_curricula, monkeypatch):
         for node in ast.walk(ast.parse(file.read_text())):
             if isinstance(node, ast.Call) and getattr(node.func, "attr", "") == "learn_dir":
                 assert node.args or node.keywords, f"{file.name}:{node.lineno} learn_dir() "
+
+
+def test_lock_table_consistent():
+    """The lock list comes from the curricula, so it must agree with the block registry."""
+    import importlib
+
+    from nanoscope.blocks import registry
+    from nanoscope.learn import gating, loader
+
+    gating.reload()
+    importlib.import_module("nanoscope.blocks").load_all()
+    unlockers: dict[str, list[str]] = {}
+    for path_id in loader.list_path_ids():
+        for lesson in loader.load_path(path_id).lessons:
+            for unlock_id in lesson.unlocks:
+                unlockers.setdefault(unlock_id, []).append(lesson.id)
+    assert unlockers, "no lesson unlocks anything"
+    # every lockable id has exactly one unlocking lesson
+    assert {i: ls for i, ls in unlockers.items() if len(ls) != 1} == {}
+    assert gating.lock_table() == {i: ls[0] for i, ls in unlockers.items()}
+    # every unlock id names a registered block or feature
+    blocks = {info.name: info for info in registry.all_blocks()}
+    features = {f for info in blocks.values() for f in info.features}
+    for unlock_id in unlockers:
+        kind, _, name = unlock_id.partition(":")
+        assert kind in ("block", "feature"), unlock_id
+        assert name in (blocks if kind == "block" else features), f"{unlock_id} is not registered"
+    # every composite-tier block is lockable; primitives never are
+    for info in blocks.values():
+        locked = f"block:{info.name}" in unlockers
+        assert locked == (info.tier == "composite" and not info.user), (
+            f"{info.name} is tier {info.tier} but "
+            f"{'is' if locked else 'is not'} unlocked by a lesson")
+
+
+@pytest.mark.usefixtures("fake_data")
+def test_level0_untouched(home):
+    """A learner who never starts a lesson sees no gating at all."""
+    import importlib
+
+    from fakes import tiny
+
+    from nanoscope import run
+    from nanoscope.learn import gating
+    from nanoscope.models import GPT2, Bigram
+
+    blocks = importlib.import_module("nanoscope.blocks")
+    for name in ("Attention", "Block", "Decoder", "RMSNorm", "RoPE", "SwiGLU"):
+        assert getattr(blocks, name).__name__ == name  # every locked name imports freely
+    assert gating.check(["block:Attention", "feature:gqa"]) == []
+    assert gating.scan(__file__) == []
+    result = run(GPT2, tiny(), device="cpu", progress=False, n_layers=1, d_model=16, n_heads=2)
+    assert result.final_step == 20
+    assert run(Bigram, tiny(), device="cpu", progress=False).final_step == 20
+    # and nothing about it was recorded
+    assert not paths.learn_dir().exists() and not unlocks.exists()
+    assert unlocks.policy() == "open"
