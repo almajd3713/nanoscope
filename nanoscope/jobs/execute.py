@@ -121,12 +121,30 @@ HANDLERS: dict[str, Callable[[Any, dict[str, Any]], dict[str, Any]]] = {
 }
 
 
+def offline_refusal(kind: str, payload: dict[str, Any]) -> str | None:
+    """Why a job cannot run under NANOSCOPE_JOBS_OFFLINE=1, or None if it can."""
+    if kind == "sync-hub":
+        return "it pulls a run from the Hugging Face Hub"
+    if kind == "run" and payload.get("push_to_hub"):
+        return f"it pushes to the Hub repo {payload['push_to_hub']}"
+    if kind == "run" and payload.get("wandb"):
+        return "it logs to Weights & Biases"
+    return None
+
+
 def execute(job_id: int) -> int:
     """Run one job; returns the process exit code (0 unless the job raised)."""
     os.environ["NANOSCOPE_JOB_ID"] = str(job_id)
     job = queue.get(job_id)
     payload = json.loads(job["payload"])
     try:
+        if os.environ.get("NANOSCOPE_JOBS_OFFLINE") == "1":
+            why = offline_refusal(job["kind"], payload)
+            if why:
+                raise RuntimeError(f"NANOSCOPE_JOBS_OFFLINE=1: this {job['kind']} job needs the "
+                                   f"network ({why}). Unset it to allow the job.")
+            # cached data and tokenizers still load; anything that would download fails fast
+            os.environ.update(HF_HUB_OFFLINE="1", HF_DATASETS_OFFLINE="1", WANDB_MODE="offline")
         configure_device(job["device"], int(os.environ.get("NANOSCOPE_WORKER_SLOTS", "1")))
         result = HANDLERS[job["kind"]](job, payload)
     except BaseException as exc:  # a KeyboardInterrupt too: the queue must learn why

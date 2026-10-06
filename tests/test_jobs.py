@@ -111,6 +111,31 @@ def test_run_job_trains_in_a_fresh_process_and_records_the_result(home, monkeypa
     assert status["job_id"] == str(job_id)
 
 
+def test_offline_refuses_jobs_that_need_the_network(home, monkeypatch):
+    monkeypatch.setenv("NANOSCOPE_JOBS_OFFLINE", "1")
+    pushing = add("run", run_payload(push_to_hub="me/runs"), ref="jobs-test/off")
+    syncing = add("sync-hub", {"ref": "x/y", "repo": "me/runs"})
+    for job_id in (pushing, syncing):
+        queue.claim("w", "cpu")
+        with pytest.raises(SystemExit) as stopped:
+            main(["run-job", str(job_id)])
+        assert stopped.value.code == 1
+        assert "NANOSCOPE_JOBS_OFFLINE=1" in queue.get(job_id)["error"]
+    assert "me/runs" in queue.get(pushing)["error"]
+    assert "Hugging Face Hub" in queue.get(syncing)["error"]
+
+
+@pytest.mark.usefixtures("fake_data")
+def test_offline_still_trains_on_cached_data(home, monkeypatch):
+    load_data(tiny(max_steps=6))   # the cache is filled while the network is allowed
+    monkeypatch.setenv("NANOSCOPE_JOBS_OFFLINE", "1")
+    job_id = add("run", run_payload(), ref="jobs-test/offline-ok")
+    queue.claim("w", "cpu")
+    with pytest.raises(SystemExit) as stopped:
+        main(["run-job", str(job_id)])
+    assert stopped.value.code == 0
+
+
 def test_run_job_records_an_error_and_exits_nonzero(home, capsys):
     job_id = add("run", {"model": "no_such_module:Nope", "preset": "tinystories-5min"})
     queue.claim("w", "cpu")
