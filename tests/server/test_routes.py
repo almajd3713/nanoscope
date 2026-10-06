@@ -1,4 +1,5 @@
 import pytest
+from fakes import tiny
 from fastapi.testclient import TestClient
 
 from nanoscope.presets import get_preset, list_presets
@@ -212,3 +213,33 @@ def test_validate(client, tmp_path, monkeypatch):
     assert client.post("/api/validate/study", json={}).json()["problems"][0]["message"] == (
         "send exactly one of toml or spec")
     assert study('name = "s"\n')["problems"][0]["field"] == "variants"
+
+
+@pytest.mark.usefixtures("fake_data")
+def test_compare_equals_library(client):
+    import nanoscope
+    from nanoscope.models import Bigram
+    from nanoscope.run import run
+
+    a = run(Bigram, tiny(), device="cpu", seeds=3, progress=False)
+    b = run(Bigram, tiny(), device="cpu", seeds=3, progress=False, d_model=8)
+    expected = nanoscope.compare(a.ref, b.ref).to_dict()  # the same inputs: the refs
+    response = client.post("/api/compare", json={"sets": [a.ref, b.ref]})
+    assert response.status_code == 200
+    body = response.json()
+    assert body == expected  # the same document, key for key
+    assert [r["verdict"] for r in body["rows"]][-1] == "baseline"
+    assert len(body["curves"]) == 2 and body["precision_plan"]["n_seeds"] == 3
+    # an explicit baseline, and the other metric
+    with_baseline = client.post("/api/compare", json={
+        "sets": [a.ref, b.ref], "baseline": a.ref, "metric": "val_loss"}).json()
+    assert with_baseline == nanoscope.compare(
+        a.ref, b.ref, baseline=a.ref, metric="val_loss").to_dict()
+    assert with_baseline["baseline"] == body["rows"][0]["label"]
+    # the library's words for a bad request, as a 422
+    bad = client.post("/api/compare", json={"sets": [a.ref, b.ref], "metric": "accuracy"})
+    assert bad.status_code == 422 and bad.json()["detail"] == (
+        "metric must be one of val_bpb, val_loss")
+    one = client.post("/api/compare", json={"sets": [a.ref]})
+    assert one.status_code == 422 and "needs at least two sets" in one.json()["detail"]
+    assert client.post("/api/compare", json={"sets": [a.ref, "nope/x"]}).status_code in (404, 422)
