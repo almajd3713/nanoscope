@@ -4,7 +4,7 @@ The build list for [`plan-tool.md`](plan-tool.md), sections 4-10, with the decis
 2026-10-05 (plan section 11) applied. Phase numbers follow the plan's section 10. Every
 item is one line, so scripts and agents can grep and edit it.
 
-**Current focus:** P10 HTTP API. Next item: P10.10.
+**Current focus:** P10 HTTP API. Next item: P10.40.
 
 ## Progress
 
@@ -14,7 +14,7 @@ item is one line, so scripts and agents can grep and edit it.
 | P7 | Queue and workers (5-6 d) | 28 / 28 | done |
 | P8 | Blocks, describe, rebuilt models (10-13 d) | 52 / 52 | done |
 | P9 | Curriculum engine, gating, two paths (14-17 d) | 61 / 61 | done |
-| P10 | HTTP API (8-10 d) | 37 / 47 | in progress |
+| P10 | HTTP API (8-10 d) | 39 / 47 | in progress |
 | P11 | Release prep: PyPI + GHCR (2-3 d) | 0 / 17 | not started |
 | P12 | docker-compose (3-4 d) | 0 / 20 | not started |
 | P13 | GUI MVP 1: shell, Learn/Tinker screens (12-15 d) | 0 / 37 | not started |
@@ -391,8 +391,8 @@ touch or create (new ones marked `(new)`).
 - [x] P10.07 Return errors as RFC 9457 `application/problem+json`. Library `ValueError`/`TypeError` messages pass through word for word as 422, and `LockedBlockError` becomes a 422 naming the lesson. · files: nanoscope/server/errors.py (new), tests/server/test_app.py · deps: P10.04 · done: `uv run pytest tests/server/test_app.py -k problem_json` asserts the exact library text ✓ 2026-10-06 48cf07a: server/errors.py: RFC 9457 problem+json; ValueError/TypeError text passes through word for word as a 422 (CurriculumError adds problems[]), LockedBlockError is a 422 with lesson and unlock_id, FileNotFoundError 404, request-body errors 422 with fields, HTTP errors, auth 401
 - [x] P10.08 Write Pydantic response models aligned with the JSON schemas, and a test that the OpenAPI component schemas agree with the schema files' required fields. · files: nanoscope/server/models.py (new), tests/server/test_models.py (new) · deps: P10.04 · done: `uv run pytest tests/server/test_models.py` passes ✓ 2026-10-06 48cf07a: server/models.py: Pydantic Doc models (extra allowed, alias 'schema') whose required fields equal their schema files (status, config, comparison, describe, graph, blocks, check, progress, unlocks, bench, prepare, worker, problem), Health, Version, ProblemDetails; test_models.py
 - [x] P10.09 Import guard test: `nanoscope/server` imports only public library names (`nanoscope.__all__` and the documented submodules). · files: tests/server/test_import_guard.py (new) · deps: P10.04 · done: `uv run pytest tests/server/test_import_guard.py -k public_only` passes ✓ 2026-10-06 48cf07a: tests/server/test_import_guard.py: every nanoscope import under server/ is a name in nanoscope.__all__ or an allowed public module; inspect, modelref, run, train_loop, blockstats, bench and jobs execute/runner/worker are forbidden
-- [ ] P10.10 Test that the API process never imports workspace modules: a sentinel module writes a file on import, every endpoint is exercised, and the file and `sys.modules` entry must be absent. · files: tests/server/test_import_guard.py · deps: P10.20, P10.31, P10.32 · done: `uv run pytest tests/server/test_import_guard.py -k never_imports_workspace` passes
-- [ ] P10.11 Test that no response body contains the values of `HF_TOKEN`, `WANDB_API_KEY` or `NANOSCOPE_TOKEN`. · files: tests/server/test_auth.py · deps: P10.35 · done: `uv run pytest tests/server/test_auth.py -k no_secrets` passes
+- [x] P10.10 Test that the API process never imports workspace modules: a sentinel module writes a file on import, every endpoint is exercised, and the file and `sys.modules` entry must be absent. · files: tests/server/test_import_guard.py · deps: P10.20, P10.31, P10.32 · done: `uv run pytest tests/server/test_import_guard.py -k never_imports_workspace` passes ✓ 2026-10-06 d2849a6: test_never_imports_workspace: a sentinel workspace file that writes a marker on import (verified to do so under load_class) while ~40 endpoints touching models, files, graph, validate, runs, studies, bench, learn and compare are exercised: no marker, no sys.modules entry, no module from the workspace
+- [x] P10.11 Test that no response body contains the values of `HF_TOKEN`, `WANDB_API_KEY` or `NANOSCOPE_TOKEN`. · files: tests/server/test_auth.py · deps: P10.35 · done: `uv run pytest tests/server/test_auth.py -k no_secrets` passes ✓ 2026-10-06 d2849a6: test_no_secrets: HF_TOKEN, HUGGING_FACE_HUB_TOKEN, WANDB_API_KEY and NANOSCOPE_TOKEN set; every GET endpoint plus jobs that move secrets (push_to_hub, wandb, sync, prepare) leak none in bodies or headers; the token appears only as the login cookie
 - [x] P10.12 Add `nanoscope serve --worker cpu`, which starts a local worker subprocess for native (non-compose) use. · files: nanoscope/cli.py, nanoscope/server/app.py · deps: P10.04, P7.99 · done: `uv run pytest tests/server/test_app.py -k serve_with_worker` passes ✓ 2026-10-06 b875d2e: serve --worker DEVICE: server/worker.py starts a plain 'nanoscope worker' subprocess in the app lifespan (log in server/worker.log) and stops it (terminate, then kill) with the server; none unless asked
 
 ### P10 · Resources
