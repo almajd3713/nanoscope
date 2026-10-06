@@ -153,3 +153,65 @@ def test_submit(client, monkeypatch, tmp_path):
         "foundations/04-multi-head", "foundations/05-block", "modern-block/04-gqa"}
     assert "foundations/05-block" in refused.json()["detail"]
     assert not [j for j in queue.list_jobs() if j["ref"] and j["ref"].endswith("seed-9")]
+
+
+def test_stop_resume(client, monkeypatch):
+    import json
+
+    from learn_helpers import set_preset
+
+    from nanoscope import paths, queue
+    from nanoscope.cli import main
+    from nanoscope.status import STOP_FILE
+
+    set_preset(monkeypatch, tiny(max_steps=40, eval_interval=10, checkpoint_interval=10))
+
+    def submit(**body):
+        return client.post("/api/runs", json={"preset": "test-tiny", "model": "bigram", **body})
+
+    # a queued job that has not started is cancelled by stop
+    queued = submit().json()
+    stopped = client.post(f"/api/runs/{queued['ref']}/stop")
+    assert stopped.status_code == 200
+    assert stopped.json() == {"ref": queued["ref"], "stopping": [],
+                              "cancelled_jobs": [queued["job"]["id"]]}
+    assert queue.get(queued["job"]["id"])["state"] == "cancelled"
+
+    # a run that stops half-way (a STOP file at step 20) can be resumed to the end
+    ref = "test-tiny/bigram/seed-1"
+    job = submit(seed=1).json()["job"]
+    queue.cancel(job["id"])  # (the run is trained by hand below, as if started elsewhere)
+    run_dir = paths.runs_dir() / ref
+    run_dir.mkdir(parents=True, exist_ok=True)
+    seen = []
+
+    def stop_at_20(step, row):
+        if step == 20 and not seen:
+            seen.append(step)
+            (run_dir / STOP_FILE).write_text("")
+    from nanoscope import run as train
+    from nanoscope.models import Bigram
+
+    train(Bigram, tiny(max_steps=40, eval_interval=10, checkpoint_interval=10), seed=1,
+          device="cpu", progress=False, output_dir=run_dir, on_step=stop_at_20)
+    status = json.loads((run_dir / "status.json").read_text())
+    assert status["state"] == "cancelled" and status["step"] == 20
+    resumed = client.post(f"/api/runs/{ref}/resume")
+    assert resumed.status_code == 202
+    new_job = resumed.json()["job"]
+    assert new_job["kind"] == "run" and new_job["ref"] == ref and new_job["state"] == "queued"
+    assert new_job["payload"]["seed"] == 1 and new_job["payload"]["model"] == (
+        "nanoscope.models.bigram:Bigram")
+    assert new_job["payload"]["custom_preset"]["max_steps"] == 40
+    again = client.post(f"/api/runs/{ref}/resume").json()["job"]
+    assert again["id"] == new_job["id"]  # one job per run
+    queue.claim("w", "cpu")
+    with pytest.raises(SystemExit) as stopped_job:
+        main(["run-job", str(new_job["id"])])
+    assert stopped_job.value.code == 0
+    detail = client.get(f"/api/runs/{ref}").json()
+    assert detail["status"]["state"] == "done" and detail["summary"]["final_step"] == 40
+    finished = client.post(f"/api/runs/{ref}/resume")
+    assert finished.status_code == 409 and "nothing to resume" in finished.json()["detail"]
+    assert client.post("/api/runs/nope/seed-0/stop").status_code == 404
+    assert client.post("/api/runs/nope/seed-0/resume").status_code == 404

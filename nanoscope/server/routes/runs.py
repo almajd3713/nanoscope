@@ -10,7 +10,7 @@ from fastapi import APIRouter, Request
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel
 
-from nanoscope import queue, store
+from nanoscope import paths, queue, store
 from nanoscope.progress import RunState
 from nanoscope.schemas.upgrade import read_json
 from nanoscope.server.errors import problem
@@ -163,6 +163,53 @@ def submit_run(body: RunRequest, request: Request) -> Any:
             status_code=200)
     job = job_doc(queue.get(job_id))
     return RunSubmission(ref=ref, state=job.state, job=job)
+
+
+class StopResult(BaseModel):
+    ref: str
+    stopping: list[str]  # runs that were asked to stop (they save a checkpoint and can resume)
+    cancelled_jobs: list[int]
+
+
+@router.post("/runs/{ref:path}/stop")
+def stop_run(ref: str) -> StopResult:
+    """Ask a run to stop at its next step (it saves a checkpoint, and `resume` continues it);
+    a job that has not started is cancelled. Works for runs started outside the API too."""
+    run_dir = store.resolve(ref, must_exist=False)
+    cancelled = queue.cancel_prefix(ref) if paths.queue_db().exists() else []
+    stopping = store.request_stop(ref) if run_dir.exists() else []
+    if not cancelled and not run_dir.exists():
+        raise FileNotFoundError(f"no run or queued job at ref {ref!r}")
+    return StopResult(ref=store.ref_of(run_dir), stopping=stopping, cancelled_jobs=cancelled)
+
+
+@router.post("/runs/{ref:path}/resume", status_code=202)
+def resume_run(ref: str, request: Request) -> Any:
+    """Continue a stopped or interrupted run from its last checkpoint, with exactly the
+    configuration it started with. A finished run has nothing to resume (409)."""
+    from nanoscope.specs import FROM_DATA
+
+    run_dir = store.resolve(ref)
+    config_path = run_dir / "config.json"
+    if not config_path.exists():
+        raise FileNotFoundError(f"{ref} has no config.json: it never started, submit it instead")
+    config = read_json(config_path, "config")
+    status = run_dir / "status.json"
+    state = read_json(status, "status")["state"] if status.exists() else None
+    if state == "done":
+        return problem(409, f"{ref} is finished: there is nothing to resume", request)
+    model = config["model"]
+    if not model.get("rebuildable", True) or "ref" not in model:
+        return problem(409, f"{ref} was trained from a class a worker cannot import again; "
+                       "its source is saved next to the run", request)
+    payload: dict[str, Any] = {
+        "model": model["ref"], "preset": config["preset"]["name"],
+        "custom_preset": config["preset"], "seed": config["seed"],
+        "kwargs": {k: v for k, v in model.get("kwargs", {}).items() if k not in FROM_DATA}}
+    job_id = queue.enqueue("run", payload, lane="interactive", ref=store.ref_of(run_dir))
+    assert job_id is not None
+    job = job_doc(queue.get(job_id))
+    return RunSubmission(ref=store.ref_of(run_dir), state=job.state, job=job)
 
 
 @router.get("/runs/{ref:path}/metrics")
