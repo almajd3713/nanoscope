@@ -7,11 +7,17 @@ It has two levels that share one core. Learners call `run()`. Researchers write 
 with seeds, budgets, parameter matching and preregistration. The level changes what you
 see, never which code runs.
 
-## Learn
+## Install
 
 ```bash
-pip install git+https://github.com/almajd3713/nanoscope
+pip install nanoscope-lab             # the library
+pip install "nanoscope-lab[server]"   # plus the HTTP API (`nanoscope serve`)
+docker run -p 8000:8000 -v nanoscope:/nanoscope ghcr.io/almajd3713/nanoscope:cpu   # the API in a CPU image
 ```
+
+From a clone, for development: `uv sync --all-extras`.
+
+## Learn
 
 ```python
 import torch.nn as nn
