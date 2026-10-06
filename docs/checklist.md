@@ -4,7 +4,7 @@ The build list for [`plan-tool.md`](plan-tool.md), sections 4-10, with the decis
 2026-10-05 (plan section 11) applied. Phase numbers follow the plan's section 10. Every
 item is one line, so scripts and agents can grep and edit it.
 
-**Current focus:** P9 curriculum engine, lesson gating. Next item: P9.99 (the gate): local checks pass (2026-10-06), waiting on the PR and the user's merge.
+**Current focus:** P10 HTTP API. Next item: P10.01.
 
 ## Progress
 
@@ -13,7 +13,7 @@ item is one line, so scripts and agents can grep and edit it.
 | P6 | Servable library + CI baseline (9-11 d) | 67 / 67 | done |
 | P7 | Queue and workers (5-6 d) | 28 / 28 | done |
 | P8 | Blocks, describe, rebuilt models (10-13 d) | 52 / 52 | done |
-| P9 | Curriculum engine, gating, two paths (14-17 d) | 60 / 61 | in progress |
+| P9 | Curriculum engine, gating, two paths (14-17 d) | 61 / 61 | done |
 | P10 | HTTP API (8-10 d) | 0 / 47 | not started |
 | P11 | Release prep: PyPI + GHCR (2-3 d) | 0 / 17 | not started |
 | P12 | docker-compose (3-4 d) | 0 / 20 | not started |
@@ -373,7 +373,7 @@ touch or create (new ones marked `(new)`).
 - [x] P9.60 Test that a gated learner who never starts a lesson sees no change: with no `unlocks.json`, the first-notebook cells and `run(GPT2)` behave exactly as before. · files: tests/test_gating.py · deps: P9.22 · done: `uv run pytest tests/test_gating.py -k level0_untouched` passes ✓ 2026-10-06 b3cc219: test_level0_untouched: with no unlocks.json every locked name imports, check/scan return nothing, run(GPT2) and run(Bigram) work, and no learn files are written
 
 ### P9 · Gate
-- [ ] P9.99 PHASE GATE P9. Exit criteria: plan section 10 phase 9. · files: — · deps: P9.* · done: `make check` passes; `make test-curricula` passes; `uv run pytest tests/test_curricula.py -k f01 tests/test_first_model_notebook.py` passes (F01 and the notebook each under 2 min CPU); `uv run pytest tests/test_gating.py` passes; CI green; **USER ACTION** merge the PR
+- [x] P9.99 PHASE GATE P9. Exit criteria: plan section 10 phase 9. · files: — · deps: P9.* · done: `make check` passes; `make test-curricula` passes; `uv run pytest tests/test_curricula.py -k f01 tests/test_first_model_notebook.py` passes (F01 and the notebook each under 2 min CPU); `uv run pytest tests/test_gating.py` passes; CI green; **USER ACTION** merge the PR ✓ 2026-10-06 4355abb: PR #9 merged by the user; all four CI jobs green (check 3.10 and 3.12, curricula, first-notebook) after a 3.10 tomllib test fix
 
 ---
 
