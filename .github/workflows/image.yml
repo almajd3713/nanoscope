@@ -1,0 +1,27 @@
+name: image
+
+on:
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  cpu:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: docker build -f docker/Dockerfile.cpu -t nanoscope:cpu .
+      - name: Smoke test
+        run: |
+          docker run --rm nanoscope:cpu nanoscope presets
+          test "$(docker run --rm nanoscope:cpu id -u)" = 1000
+          docker image ls nanoscope:cpu --format 'image size: {{.Size}}'
+      - name: Health check
+        run: |
+          docker run -d --name ns nanoscope:cpu
+          for i in $(seq 1 30); do
+            s=$(docker inspect -f '{{.State.Health.Status}}' ns)
+            [ "$s" = healthy ] && exit 0
+            sleep 2
+          done
+          docker logs ns
+          exit 1
