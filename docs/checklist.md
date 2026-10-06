@@ -4,7 +4,7 @@ The build list for [`plan-tool.md`](plan-tool.md), sections 4-10, with the decis
 2026-10-05 (plan section 11) applied. Phase numbers follow the plan's section 10. Every
 item is one line, so scripts and agents can grep and edit it.
 
-**Current focus:** P8 blocks library, describe, rebuilt models. Next item: P8.21.
+**Current focus:** P8 blocks library, describe, rebuilt models. Next item: P8.22.
 
 ## Progress
 
@@ -12,7 +12,7 @@ item is one line, so scripts and agents can grep and edit it.
 |---|---|---|---|
 | P6 | Servable library + CI baseline (9-11 d) | 67 / 67 | done |
 | P7 | Queue and workers (5-6 d) | 28 / 28 | done |
-| P8 | Blocks, describe, rebuilt models (10-13 d) | 20 / 52 | in progress |
+| P8 | Blocks, describe, rebuilt models (10-13 d) | 21 / 52 | in progress |
 | P9 | Curriculum engine, gating, two paths (14-17 d) | 0 / 61 | not started |
 | P10 | HTTP API (8-10 d) | 0 / 47 | not started |
 | P11 | Release prep: PyPI + GHCR (2-3 d) | 0 / 17 | not started |
@@ -249,7 +249,7 @@ touch or create (new ones marked `(new)`).
 - [x] P8.18 `Block(norm, attn, mlp, pre/post)`, checked against a reference composition. · files: nanoscope/blocks/structure.py (new), tests/test_blocks.py · deps: P8.16, P8.17, P8.11 · done: `uv run pytest tests/test_blocks.py -k block_reference` passes ✓ 2026-10-06 e9d38f5: blocks/structure.py: Block(norm, attn, mlp, order) with norm1/attn/norm2/mlp; norm spec built twice
 - [x] P8.19 `Decoder(vocab_size, context_length, d_model, n_layers, block, final_norm, tie_weights, z_loss)` with the `(logits, aux)` convention and Modern's init scheme, tested for causality and a near-uniform untrained loss. · files: nanoscope/blocks/structure.py, tests/test_blocks.py · deps: P8.18, P8.13 · done: `uv run pytest tests/test_blocks.py -k decoder` passes ✓ 2026-10-06 b3c958b: blocks/structure.py: Decoder(vocab_size, context_length, d_model, n_layers, block, final_norm, pos_emb, tie_weights, z_loss); names tok_emb/pos_emb/blocks/norm/head, Modern's init loop, logits or (logits, aux)
 - [x] P8.20 `Decoder.flops_per_token`: the sum of the analytic block formulas, equal to the PaLM formula `Modern` uses today. · files: nanoscope/blocks/structure.py, tests/test_blocks.py · deps: P8.19 · done: `uv run pytest tests/test_blocks.py -k decoder_flops` passes ✓ 2026-10-06 6017be8: Decoder.flops_per_token sums block formulas; equals ModernRef's PaLM formula (tied/untied, rope/learned)
-- [ ] P8.21 Layer patterns: `Decoder(pattern=[spec_a, spec_b])` repeats a list of block specs (e.g. sliding:global). · files: nanoscope/blocks/structure.py, tests/test_blocks.py · deps: P8.19 · done: `uv run pytest tests/test_blocks.py -k pattern` passes
+- [x] P8.21 Layer patterns: `Decoder(pattern=[spec_a, spec_b])` repeats a list of block specs (e.g. sliding:global). · files: nanoscope/blocks/structure.py, tests/test_blocks.py · deps: P8.19 · done: `uv run pytest tests/test_blocks.py -k pattern` passes ✓ 2026-10-06 fd933c8: Decoder(pattern=[...]) cycles specs through the layers; exactly one of block/pattern
 
 ### P8 · Rebuild GPT2 and Modern (decision 11.4)
 - [ ] P8.22 Rebuild `models/gpt2.py` as a `Decoder` composition with the same class name, signature, defaults, `flops_per_token` and, where possible, `state_dict` keys. · files: nanoscope/models/gpt2.py, tests/test_models.py · deps: P8.19, P8.02, P8.08 · done: `uv run pytest tests/test_models.py -k gpt2_matches_reference` passes (logits within 1e-5 of `GPT2Ref` after `load_state_dict`)
