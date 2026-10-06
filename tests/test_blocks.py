@@ -421,3 +421,51 @@ def test_block_reference_composition(order):
     assert spec.to_dict()["args"]["order"] == order
     with pytest.raises(ValueError, match="order"):
         Block(norm=RMSNorm(), attn=Attention(n_heads=2), mlp=SwiGLU(), order="mid").build(16, 8)
+
+
+def _decoder(**kw):
+    from nanoscope.blocks.attention import Attention
+    from nanoscope.blocks.mlp import SwiGLU
+    from nanoscope.blocks.norm import RMSNorm
+    from nanoscope.blocks.positional import RoPE
+    from nanoscope.blocks.structure import Block, Decoder
+
+    layer = Block(norm=RMSNorm(), attn=Attention(n_heads=2, n_kv_heads=1, pos=RoPE()),
+                  mlp=SwiGLU())
+    args = dict(vocab_size=50, context_length=16, d_model=16, n_layers=2, block=layer,
+                final_norm=RMSNorm())
+    return Decoder(**{**args, **kw})
+
+
+def test_decoder_is_causal_with_near_uniform_untrained_loss():
+    import math
+
+    torch.manual_seed(0)
+    model = _decoder()
+    idx = torch.randint(0, 50, (4, 12))
+    changed = idx.clone()
+    changed[:, 8:] = (changed[:, 8:] + 1) % 50
+    a, b = model(idx), model(changed)
+    torch.testing.assert_close(a[:, :8], b[:, :8], atol=ATOL, rtol=0)
+    assert not torch.allclose(a[:, 8:], b[:, 8:])
+    loss = nn.functional.cross_entropy(a.reshape(-1, 50), torch.randint(0, 50, (48,)))
+    assert abs(loss.item() - math.log(50)) < 0.1
+
+
+def test_decoder_options_init_and_aux_loss():
+    model = _decoder(z_loss=1e-4)
+    logits, aux = model(torch.randint(0, 50, (2, 5)))
+    assert logits.shape == (2, 5, 50) and aux.ndim == 0 and aux > 0
+    assert model.head.weight is model.tok_emb.weight and model.pos_emb is None
+    assert model.blocks[0] is not model.blocks[1]
+    assert model.blocks[0].attn.q.weight is not model.blocks[1].attn.q.weight
+    assert abs(model.blocks[0].attn.q.weight.std().item() - 0.02) < 0.006
+    assert abs(model.blocks[0].mlp.proj.weight.std().item() - 0.01) < 0.004  # 0.02/sqrt(4)
+    untied = _decoder(tie_weights=False)
+    assert untied.head.weight is not untied.tok_emb.weight
+    assert untied(torch.zeros(1, 3).long()).ndim == 3
+    from nanoscope.blocks.embedding import LearnedPosition
+    learned = _decoder(pos_emb=LearnedPosition())
+    assert learned.pos_emb.weight.shape == (16, 16)
+    with pytest.raises(AssertionError, match="context_length"):
+        model(torch.zeros(1, 17).long())

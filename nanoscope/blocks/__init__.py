@@ -28,6 +28,7 @@ _EXPORTS: dict[str, str] = {
     "NoPE": "nanoscope.blocks.positional",
     "Attention": "nanoscope.blocks.attention",
     "Block": "nanoscope.blocks.structure",
+    "Decoder": "nanoscope.blocks.structure",
     "GELUMLP": "nanoscope.blocks.mlp",
     "SwiGLU": "nanoscope.blocks.mlp",
     **{name: "nanoscope.blocks.primitives" for name in (
