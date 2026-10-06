@@ -52,6 +52,8 @@ class Block(BlockModule):
 class Decoder(nn.Module):
     """Token embedding, `n_layers` copies of `block`, a final norm and the output head.
 
+    `pattern=[a, b]` instead of `block` repeats a list of block specs through the layers
+    (a, b, a, b, ...), e.g. sliding-window and global attention layers.
     `pos_emb` (e.g. LearnedPosition()) is added after the token embedding; leave it out when
     attention carries the positions (RoPE). Like every model it returns logits, or
     `(logits, aux_loss)` when `z_loss` is set: the z-loss keeps the softmax normaliser near 1.
@@ -60,15 +62,20 @@ class Decoder(nn.Module):
     """
 
     def __init__(self, vocab_size: int, context_length: int, d_model: int, n_layers: int,
-                 block: BlockSpec, final_norm: BlockSpec | None = None,
+                 block: BlockSpec | None = None, final_norm: BlockSpec | None = None,
                  pos_emb: BlockSpec | None = None, tie_weights: bool = True,
-                 z_loss: float = 0.0) -> None:
+                 z_loss: float = 0.0, pattern: list[BlockSpec] | None = None) -> None:
         super().__init__()
+        if (block is None) == (pattern is None) or pattern == []:
+            raise TypeError("Decoder needs exactly one of block (every layer the same) or "
+                            "pattern (a non-empty list of blocks repeated through the layers)")
+        layers = [block] if pattern is None else list(pattern)
         self.context_length, self.d_model, self.z_loss = context_length, d_model, z_loss
         self.tok_emb = TokenEmbedding(vocab_size=vocab_size).build(d_model, context_length)
         self.pos_emb = build_option(pos_emb, d_model, context_length)
         self.blocks = nn.ModuleList(
-            build_option(block, d_model, context_length) for _ in range(n_layers))
+            build_option(layers[i % len(layers)], d_model, context_length)
+            for i in range(n_layers))
         self.norm = (nn.Identity() if final_norm is None
                      else build_option(final_norm, d_model, context_length))
         self.head = Head(vocab_size=vocab_size).build(d_model, context_length)

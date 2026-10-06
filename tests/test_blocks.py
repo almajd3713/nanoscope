@@ -490,3 +490,28 @@ def test_decoder_flops_equal_the_palm_formula(tie, learned_pos):
                     n_kv_heads=2, rope=not learned_pos, tie_weights=tie)
     for ctx in (8, 32):
         assert model.flops_per_token(ctx) == ref.flops_per_token(ctx)
+
+
+def test_decoder_layer_pattern_repeats():
+    from nanoscope.blocks.attention import Attention
+    from nanoscope.blocks.mlp import SwiGLU
+    from nanoscope.blocks.norm import RMSNorm
+    from nanoscope.blocks.structure import Block, Decoder
+
+    def layer(window):
+        return Block(norm=RMSNorm(), attn=Attention(n_heads=2, window=window), mlp=SwiGLU())
+    sliding, global_ = layer(4), layer(None)
+    model = Decoder(vocab_size=50, context_length=16, d_model=16, n_layers=5,
+                    pattern=[sliding, sliding, global_])
+    assert [b.attn.window for b in model.blocks] == [4, 4, None, 4, 4]
+    assert model.blocks[0].attn.q.weight is not model.blocks[1].attn.q.weight
+    assert model(torch.zeros(1, 6).long()).shape == (1, 6, 50)
+    # sliding layers do less attention work than global ones
+    assert model.blocks[0].flops_per_token(16) < model.blocks[2].flops_per_token(16)
+    with pytest.raises(TypeError, match="exactly one"):
+        Decoder(vocab_size=50, context_length=16, d_model=16, n_layers=2)
+    with pytest.raises(TypeError, match="exactly one"):
+        Decoder(vocab_size=50, context_length=16, d_model=16, n_layers=2, block=sliding,
+                pattern=[global_])
+    with pytest.raises(TypeError, match="exactly one"):
+        Decoder(vocab_size=50, context_length=16, d_model=16, n_layers=2, pattern=[])
