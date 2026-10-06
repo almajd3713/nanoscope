@@ -4,7 +4,7 @@ The build list for [`plan-tool.md`](plan-tool.md), sections 4-10, with the decis
 2026-10-05 (plan section 11) applied. Phase numbers follow the plan's section 10. Every
 item is one line, so scripts and agents can grep and edit it.
 
-**Current focus:** P9 curriculum engine, lesson gating. Next item: P9.15.
+**Current focus:** P9 curriculum engine, lesson gating. Next item: P9.16.
 
 ## Progress
 
@@ -13,7 +13,7 @@ item is one line, so scripts and agents can grep and edit it.
 | P6 | Servable library + CI baseline (9-11 d) | 67 / 67 | done |
 | P7 | Queue and workers (5-6 d) | 28 / 28 | done |
 | P8 | Blocks, describe, rebuilt models (10-13 d) | 52 / 52 | done |
-| P9 | Curriculum engine, gating, two paths (14-17 d) | 14 / 61 | in progress |
+| P9 | Curriculum engine, gating, two paths (14-17 d) | 15 / 61 | in progress |
 | P10 | HTTP API (8-10 d) | 0 / 47 | not started |
 | P11 | Release prep: PyPI + GHCR (2-3 d) | 0 / 17 | not started |
 | P12 | docker-compose (3-4 d) | 0 / 20 | not started |
@@ -315,7 +315,7 @@ touch or create (new ones marked `(new)`).
 - [x] P9.12 Check `equivalent`: build the user's module with a fixed seed, copy weights through the lesson's declared mapping into the naive reference from `nanoscope/reference`, and compare on random inputs within the tolerance, reporting the max abs diff and the failing input shape. · files: nanoscope/learn/checks.py, tests/test_checks.py · deps: P9.11, P8.04 · done: `uv run pytest tests/test_checks.py -k equivalent` passes for a right and a wrong module ✓ 2026-10-06 e116577: equivalent: module vs nanoscope.reference.functional fn; lesson 'call' list maps input:N / param:name / constants; several shapes and trials; reports max abs diff and failing input shape (loader keys: reference, call, inputs, class, args, tolerance, trials)
 - [x] P9.13 Check `forbid`: an AST lint that refuses the listed names (e.g. `torch.nn.MultiheadAttention`, `F.scaled_dot_product_attention`) and locked `nanoscope.blocks` imports, with line numbers. · files: nanoscope/learn/checks.py, tests/test_checks.py · deps: P9.11 · done: `uv run pytest tests/test_checks.py -k forbid` asserts the line numbers ✓ 2026-10-06 e116577: forbid: AST lint of the learner's file with imports resolved (F. and nn. aliases), line numbers; locked nanoscope.blocks imports are added when gating.scan exists (P9.24)
 - [x] P9.14 Check `trains`: `run()` of the user's model on the lesson's CPU-variant preset reaches the metric threshold. · files: nanoscope/learn/checks.py, tests/test_checks.py · deps: P9.11 · done: `uv run pytest tests/test_checks.py -k trains` passes with `fake_data` ✓ 2026-10-06 89fbfb5: trains: run() of the learner's class on the lesson's cpu/gpu variant preset in a fresh folder per check (runs/lessons/<path>/<slug>/<check id>/seed-N), mean of seeds at or below the threshold for val_bpb/val_loss
-- [ ] P9.15 Check `verdict`: `compare()` of A against B with n seeds gives the required verdict word. · files: nanoscope/learn/checks.py, tests/test_checks.py · deps: P9.14, P6.61 · done: `uv run pytest tests/test_checks.py -k verdict` passes
+- [x] P9.15 Check `verdict`: `compare()` of A against B with n seeds gives the required verdict word. · files: nanoscope/learn/checks.py, tests/test_checks.py · deps: P9.14, P6.61 · done: `uv run pytest tests/test_checks.py -k verdict` passes ✓ 2026-10-06 b8bcdc0: verdict: trains A and B (the learner's classes or shipped models) with n seeds in fresh folders, compare(), requires the lesson's verdict word; degenerate/too few seeds explained
 - [ ] P9.16 Predictions: `nanoscope learn predict` records `prediction.toml` with a timestamp in `progress.json`. The `predicted` check refuses a prediction made after the run started and scores it against the CI with `statistics.score_prediction`. · files: nanoscope/learn/checks.py, nanoscope/statistics.py, nanoscope/learn/cli.py, tests/test_checks.py · deps: P9.15 · done: `uv run pytest tests/test_checks.py -k predicted` passes, including the late-prediction refusal
 - [ ] P9.17 Check `reproduces`: the result falls inside the CI of a shipped baseline. · files: nanoscope/learn/checks.py, tests/test_checks.py · deps: P9.15 · done: `uv run pytest tests/test_checks.py -k reproduces` passes
 - [ ] P9.18 Test that every check kind prints a readable reason on both pass and fail. · files: tests/test_checks.py · deps: P9.17, P9.16, P9.13 · done: `uv run pytest tests/test_checks.py -k visible_reasons` passes
