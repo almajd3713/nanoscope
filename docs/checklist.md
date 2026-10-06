@@ -4,7 +4,7 @@ The build list for [`plan-tool.md`](plan-tool.md), sections 4-10, with the decis
 2026-10-05 (plan section 11) applied. Phase numbers follow the plan's section 10. Every
 item is one line, so scripts and agents can grep and edit it.
 
-**Current focus:** P11 release prep. Next item: P11.07.
+**Current focus:** P11 release prep. Next item: P11.08 (USER ACTION); agent can do P11.10.
 
 ## Progress
 
@@ -15,7 +15,7 @@ item is one line, so scripts and agents can grep and edit it.
 | P8 | Blocks, describe, rebuilt models (10-13 d) | 52 / 52 | done |
 | P9 | Curriculum engine, gating, two paths (14-17 d) | 61 / 61 | done |
 | P10 | HTTP API (8-10 d) | 47 / 47 | done |
-| P11 | Release prep: PyPI + GHCR (2-3 d) | 6 / 17 | in progress |
+| P11 | Release prep: PyPI + GHCR (2-3 d) | 7 / 17 | in progress |
 | P12 | docker-compose (3-4 d) | 0 / 20 | not started |
 | P13 | GUI MVP 1: shell, Learn/Tinker screens (12-15 d) | 0 / 37 | not started |
 | P14 | GUI MVP 2: model page, drag-and-drop (14-17 d) | 0 / 34 | not started |
@@ -446,7 +446,7 @@ touch or create (new ones marked `(new)`).
 - [x] P11.04 (2026-10-06, 00b10e1) Exclude `data/`, `runs/`, `.kaggle-outputs` and experiment artifacts from the sdist. · files: pyproject.toml, tests/test_packaging.py · deps: P11.02 · done: `uv run pytest tests/test_packaging.py -k sdist_excludes` passes
 - [x] P11.05 (2026-10-06, 6fbaf12) Write `CHANGELOG.md` with the 0.3.0 entry (phases 6-10). · files: CHANGELOG.md (new) · deps: P11.02 · done: `grep -n '0.3.0' CHANGELOG.md` matches
 - [x] P11.06 (2026-10-06, 898b5f1) Set the version to `0.3.0rc1` for the TestPyPI dry run. · files: nanoscope/__init__.py · deps: P11.02 · done: `uv run python -c "import nanoscope; assert nanoscope.__version__=='0.3.0rc1'"`
-- [ ] P11.07 Add a release workflow: on a `v*` tag, build the sdist and wheel, test the installed wheel, and publish with `pypa/gh-action-pypi-publish` via trusted publishing (rc tags go to TestPyPI). · files: .github/workflows/release.yml (new) · deps: P11.03 · done: `uvx actionlint .github/workflows/release.yml` exits 0 (or the workflow passes a manual `workflow_dispatch` dry run)
+- [x] P11.07 (2026-10-06, e8c7512) Add a release workflow: on a `v*` tag, build the sdist and wheel, test the installed wheel, and publish with `pypa/gh-action-pypi-publish` via trusted publishing (rc tags go to TestPyPI). · files: .github/workflows/release.yml (new) · deps: P11.03 · done: `uvx actionlint .github/workflows/release.yml` exits 0 (or the workflow passes a manual `workflow_dispatch` dry run)
 - [ ] P11.08 **USER ACTION** Check that `nanoscope-lab` is free on PyPI and TestPyPI, and register the trusted publishers for `almajd3713/nanoscope` and `release.yml`. · files: — · deps: P11.07 · done: the user confirms both publishers exist
 - [ ] P11.09 **USER ACTION** Push the tag `v0.3.0rc1` to publish to TestPyPI, then check `pip install -i https://test.pypi.org/simple --extra-index-url https://pypi.org/simple nanoscope-lab==0.3.0rc1` in a clean venv. · files: — · deps: P11.08, P11.06 · done: `nanoscope presets` works from that venv (the user reports it)
 - [ ] P11.10 Write `docker/Dockerfile.cpu`: python:3.12-slim, CPU torch from the PyTorch CPU index, the wheel with `[server]` installed, non-root uid 1000, `NANOSCOPE_HOME=/nanoscope`, and a HEALTHCHECK on `/api/health`; add `.dockerignore`. · files: docker/Dockerfile.cpu (new), .dockerignore (new) · deps: P11.03 · done: `docker build -f docker/Dockerfile.cpu -t nanoscope:cpu .` succeeds in CI
@@ -739,3 +739,4 @@ right phase, then tick it here as `[x] → P<n>.<id>`.
   `reproduces` already trains once. (7) Check timestamps use microseconds so "before the first check" is a
   strict ordering. (8) Pyright and ruff skip `nanoscope/curricula` (starter files with TODOs).
 
+- 2026-10-06 P11.07: actionlint is not on PyPI; run it as `uvx --from actionlint-py actionlint <file>` (P11.12 too).
