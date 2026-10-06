@@ -143,3 +143,30 @@ def test_verdict_of_follows_the_confidence_interval():
     assert verdict_of(ci) == "better"
     assert verdict_of({"ci95_low": 0.1, "ci95_high": 0.3}) == "worse"
     assert verdict_of({"ci95_low": -0.1, "ci95_high": 0.3}) == "within noise"
+
+
+def test_to_dict_curves(fake_data):
+    """The comparison as data carries every seed's curve and the precision plan, so a client
+    can draw the figure and say how precise it is without calling anything else."""
+    import json
+
+    from fakes import tiny
+    from helpers import assert_valid
+
+    from nanoscope import compare, run
+    from nanoscope.models import Bigram
+
+    a = run(Bigram, tiny(), device="cpu", seeds=3, progress=False)
+    b = run(Bigram, tiny(), device="cpu", seeds=3, progress=False, d_model=8)
+    doc = compare(a, b).to_dict()
+    assert_valid("comparison", doc)
+    json.dumps(doc)
+    assert [c["label"] for c in doc["curves"]] == [r["label"] for r in doc["rows"]]
+    first = doc["curves"][0]
+    assert [s["seed"] for s in first["seeds"]] == [0, 1, 2]
+    points = first["seeds"][0]["points"]
+    assert points[0][0] == 4 * 32 * 10  # tokens at the first eval step (batch 4 x context 32)
+    assert [x for x, _ in points] == sorted(x for x, _ in points) and len(points) == 2
+    plan = doc["precision_plan"]
+    assert (plan["metric"], plan["preset"], plan["n_seeds"]) == ("val_bpb", "test-tiny", 3)
+    assert plan["half_width"] is None and "no shipped baselines" in plan["note"]

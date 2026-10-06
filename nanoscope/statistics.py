@@ -100,3 +100,41 @@ def reproduction_interval(baseline: list[float], n_new: int = 1) -> tuple[float,
 
     margin = float(t.ppf(0.975, n - 1)) * sd * math.sqrt(1 / n_new + 1 / n)
     return average - margin, average + margin
+
+
+def precision_plan(metric: str, preset: str, n_seeds: int) -> dict[str, Any]:
+    """How precisely `n_seeds` seeds would pin down a mean on this preset: the expected half-width
+    of a 95% interval, t * s / sqrt(n), where s is the seed-to-seed spread of the shipped
+    baselines (pooled over the models that have 3 or more seeds). Before spending compute, this
+    says whether a difference you hope to see is even detectable.
+
+    Without baselines for the preset there is no spread to borrow: `half_width` is None."""
+    import sys
+
+    from scipy.stats import t
+
+    import nanoscope.compare  # noqa: F401  (loads the module; `nanoscope.compare` the name is a function)
+
+    compare = sys.modules["nanoscope.compare"]
+    plan: dict[str, Any] = {"metric": metric, "preset": preset, "n_seeds": n_seeds, "sd": None,
+                            "half_width": None, "source": None, "models": []}
+    if n_seeds < 3:
+        plan["note"] = "a confidence interval needs at least 3 seeds"
+        return plan
+    root = compare.BASELINES_DIR / preset
+    variances, models = [], []
+    for folder in sorted(p for p in root.glob("*") if p.is_dir()) if root.exists() else []:
+        try:
+            values = [r.final(metric) for r in compare.load_runs(folder)]
+        except (OSError, KeyError, ValueError):
+            continue
+        if len(values) >= 3:
+            variances.append(stdev(values) ** 2)
+            models.append(folder.name)
+    if not variances:
+        plan["note"] = f"no shipped baselines with 3 or more seeds for preset {preset!r}"
+        return plan
+    sd = math.sqrt(sum(variances) / len(variances))
+    plan.update(sd=sd, source=f"baselines/{preset}", models=models)
+    plan["half_width"] = float(t.ppf(0.975, n_seeds - 1)) * sd / math.sqrt(n_seeds)
+    return plan

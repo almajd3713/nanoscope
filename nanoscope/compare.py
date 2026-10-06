@@ -228,8 +228,21 @@ class Comparison:
 
     def to_dict(self) -> dict[str, Any]:
         """The comparison as plain data (the comparison.v1 schema)."""
-        return {"schema": 1, "nanoscope": __version__, "metric": self.metric,
-                "baseline": self.baseline, "rows": self.rows, "notes": self.notes}
+        out: dict[str, Any] = {
+            "schema": 1, "nanoscope": __version__, "metric": self.metric,
+            "baseline": self.baseline, "rows": self.rows, "notes": self.notes}
+        if self.sets:
+            from nanoscope.statistics import precision_plan
+
+            out["curves"] = [
+                {"label": s.label, "source": s.source,
+                 "seeds": [{"seed": r.seed, "points": [[x, y] for x, y in r.curve(self.metric)]}
+                           for r in s.runs]}
+                for s in self.sets]
+            first = self.sets[0]
+            out["precision_plan"] = precision_plan(
+                self.metric, first.config["preset"]["name"], min(len(s.runs) for s in self.sets))
+        return out
 
     def plot(self, save: str | Path | None = None) -> Any:
         import matplotlib.pyplot as plt
