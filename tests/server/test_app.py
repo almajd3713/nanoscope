@@ -4,6 +4,7 @@ from fastapi.testclient import TestClient
 from nanoscope import __version__
 from nanoscope.schemas import CURRENT
 from nanoscope.server.app import create_app
+from nanoscope.server.settings import Settings
 
 
 @pytest.fixture
@@ -123,3 +124,59 @@ def _expected_split_error():
         _split_kwargs(Bigram, get_preset("tinystories-5min"), {"colour": "red"})
     except TypeError as exc:
         return exc
+
+
+def test_serve_with_worker(home, monkeypatch):
+    """`--worker cpu` starts a worker process with the server and stops it with the server."""
+    import subprocess
+    import sys
+
+    from nanoscope.cli import main
+    from nanoscope.server import worker as server_worker
+
+    commands, events = [], []
+
+    class FakeProc:
+        def __init__(self, cmd, **kw):
+            commands.append(cmd)
+            self.alive = True
+
+        def poll(self):
+            return None if self.alive else 0
+
+        def terminate(self):
+            events.append("terminate")
+            self.alive = False
+
+        def wait(self, timeout=None):
+            events.append("wait")
+
+        def kill(self):
+            events.append("kill")
+
+    monkeypatch.setattr(subprocess, "Popen", FakeProc)
+    app = create_app(Settings(worker="cpu"))
+    with TestClient(app) as client:
+        assert client.get("/api/health").status_code == 200
+        assert commands == [[sys.executable, "-m", "nanoscope.cli", "worker", "--device", "cpu"]]
+        assert events == []  # running while the server runs
+    assert events == ["terminate", "wait"]  # and stopped with it
+    assert server_worker.log_path().parent.exists()
+
+    import uvicorn
+
+    started = {}
+    monkeypatch.setattr(uvicorn, "run", lambda app, **kw: started.update(app=app))
+    main(["serve", "--worker", "cpu"])
+    assert started["app"].state.settings.worker == "cpu"
+    started.clear()
+    main(["serve"])
+    assert started["app"].state.settings.worker is None
+
+
+def test_no_worker_unless_asked(home, monkeypatch):
+    import subprocess
+
+    monkeypatch.setattr(subprocess, "Popen", lambda *a, **k: pytest.fail("no worker wanted"))
+    with TestClient(create_app()) as client:
+        assert client.get("/api/health").status_code == 200

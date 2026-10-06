@@ -2,14 +2,31 @@
 
 from __future__ import annotations
 
+from collections.abc import AsyncIterator
+from contextlib import asynccontextmanager
+
 from fastapi import APIRouter, FastAPI
 
 from nanoscope import __version__
 from nanoscope.schemas import CURRENT
+from nanoscope.server import worker
 from nanoscope.server.auth import install as install_auth
 from nanoscope.server.errors import install as install_errors
 from nanoscope.server.models import Health, Version
 from nanoscope.server.settings import Settings, check
+
+
+@asynccontextmanager
+async def lifespan(app: FastAPI) -> AsyncIterator[None]:
+    """Start the local worker (if asked) with the server and stop it with the server."""
+    settings: Settings = app.state.settings
+    proc = worker.start(settings.worker) if settings.worker else None
+    app.state.worker = proc
+    try:
+        yield
+    finally:
+        if proc is not None:
+            worker.stop(proc)
 
 
 def create_app(settings: Settings | None = None) -> FastAPI:
@@ -17,7 +34,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     check(settings)
     app = FastAPI(
         title="nanoscope", version=__version__, docs_url="/api/docs",
-        openapi_url="/api/openapi.json", redoc_url=None)
+        openapi_url="/api/openapi.json", redoc_url=None, lifespan=lifespan)
     app.state.settings = settings
 
     api = APIRouter(prefix="/api")
