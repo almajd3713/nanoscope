@@ -56,6 +56,11 @@ def install(app: FastAPI) -> None:
     async def missing(request: Request, exc: FileNotFoundError) -> JSONResponse:
         return problem(404, str(exc), request)
 
+    @app.exception_handler(KeyError)
+    async def unknown(request: Request, exc: KeyError) -> JSONResponse:
+        # the library's KeyErrors name what is unknown ("unknown preset 'x'; available: ...")
+        return problem(404, str(exc.args[0]) if exc.args else "not found", request)
+
     @app.exception_handler(RequestValidationError)
     async def bad_body(request: Request, exc: RequestValidationError) -> JSONResponse:
         errors = [{"field": ".".join(str(p) for p in e["loc"]), "message": e["msg"]}

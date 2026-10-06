@@ -13,7 +13,10 @@ from nanoscope.server import worker
 from nanoscope.server.auth import install as install_auth
 from nanoscope.server.errors import install as install_errors
 from nanoscope.server.models import Health, Version
+from nanoscope.server.routes import presets
 from nanoscope.server.settings import Settings, check
+
+ROUTES = [presets]  # every resource module adds its `router` here
 
 
 @asynccontextmanager
@@ -49,5 +52,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
 
     install_errors(app)
     app.include_router(api)
+    for module in ROUTES:
+        app.include_router(module.router)
     install_auth(app, settings)
     return app

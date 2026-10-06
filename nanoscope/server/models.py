@@ -181,6 +181,40 @@ class ProblemDetails(BaseModel):
     problems: list[ProblemItem] | None = None
 
 
+class FieldSpecDoc(BaseModel):
+    name: str
+    type: str
+    default: Any
+    required: bool
+    help: str
+
+
+class PresetSpecDoc(BaseModel):
+    """A preset and every field that can be overridden (`nanoscope.specs.PresetSpec`)."""
+
+    name: str
+    fields: list[FieldSpecDoc]
+
+
+class ParamSpecDoc(BaseModel):
+    name: str
+    annotation: str | None
+    default: Any
+    required: bool
+    from_data: bool
+
+
+class ModelSpecDoc(BaseModel):
+    """A model class and its constructor parameters (`nanoscope.specs.ModelSpec`)."""
+
+    name: str
+    ref: str
+    doc: str
+    params: list[ParamSpecDoc]
+    shipped: bool = False
+    source: str | None = None  # the workspace file a model was found in, if any
+
+
 # model -> the JSON Schema file it must agree with
 SCHEMA_OF = {
     StatusDoc: "status", ConfigDoc: "config", ComparisonDoc: "comparison",
