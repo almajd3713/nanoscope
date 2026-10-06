@@ -4,7 +4,7 @@ The build list for [`plan-tool.md`](plan-tool.md), sections 4-10, with the decis
 2026-10-05 (plan section 11) applied. Phase numbers follow the plan's section 10. Every
 item is one line, so scripts and agents can grep and edit it.
 
-**Current focus:** P10 HTTP API. Next item: P10.01.
+**Current focus:** P10 HTTP API. Next item: P10.03.
 
 ## Progress
 
@@ -14,7 +14,7 @@ item is one line, so scripts and agents can grep and edit it.
 | P7 | Queue and workers (5-6 d) | 28 / 28 | done |
 | P8 | Blocks, describe, rebuilt models (10-13 d) | 52 / 52 | done |
 | P9 | Curriculum engine, gating, two paths (14-17 d) | 61 / 61 | done |
-| P10 | HTTP API (8-10 d) | 0 / 47 | not started |
+| P10 | HTTP API (8-10 d) | 2 / 47 | in progress |
 | P11 | Release prep: PyPI + GHCR (2-3 d) | 0 / 17 | not started |
 | P12 | docker-compose (3-4 d) | 0 / 20 | not started |
 | P13 | GUI MVP 1: shell, Learn/Tinker screens (12-15 d) | 0 / 37 | not started |
@@ -380,8 +380,8 @@ touch or create (new ones marked `(new)`).
 ## P10 HTTP API
 
 ### P10 · Library prerequisites
-- [ ] P10.01 Add `statistics.precision_plan(metric, preset, n_seeds)`, the expected CI half-width t·s/√n with s taken from the shipped baselines' seed spread. · files: nanoscope/statistics.py, tests/test_statistics.py (new) · deps: P9.99 · done: `uv run pytest tests/test_statistics.py -k precision_plan` passes
-- [ ] P10.02 Make `Comparison.to_dict()` include the curves per set and the precision plan. · files: nanoscope/compare.py, tests/test_compare.py · deps: P10.01, P6.60 · done: `uv run pytest tests/test_compare.py -k to_dict_curves` passes
+- [x] P10.01 Add `statistics.precision_plan(metric, preset, n_seeds)`, the expected CI half-width t·s/√n with s taken from the shipped baselines' seed spread. · files: nanoscope/statistics.py, tests/test_statistics.py (new) · deps: P9.99 · done: `uv run pytest tests/test_statistics.py -k precision_plan` passes ✓ 2026-10-06 f2a2b63: statistics.precision_plan(metric, preset, n_seeds): t*s/sqrt(n) half-width with s pooled over the shipped baselines' seed spread; None plus a note without 3 seeds or baselines
+- [x] P10.02 Make `Comparison.to_dict()` include the curves per set and the precision plan. · files: nanoscope/compare.py, tests/test_compare.py · deps: P10.01, P6.60 · done: `uv run pytest tests/test_compare.py -k to_dict_curves` passes ✓ 2026-10-06 f2a2b63: Comparison.to_dict() gains curves (per set, per seed, [tokens, value] points) and precision_plan; comparison.v1 schema extended
 
 ### P10 · Server skeleton and security
 - [ ] P10.03 Add the `server` extra (fastapi, uvicorn[standard], watchfiles, libcst, ruff) and httpx in dev. · files: pyproject.toml, uv.lock · deps: P9.99 · done: `uv sync --extra server && uv run python -c "import fastapi, watchfiles"` exits 0
