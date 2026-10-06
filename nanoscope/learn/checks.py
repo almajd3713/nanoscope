@@ -294,6 +294,12 @@ def check_equivalent(ctx: Context, check: Check) -> Result:
         module = cls(**constructor_args(cls, check.args.get("args"))).eval()
     except (AttributeError, FileNotFoundError, ValueError, TypeError) as exc:
         return Result(check.id, check.kind, False, str(exc))
+    if check.args.get("randomize"):  # norm scales start at 1: make every weight matter
+        scrambler = torch.Generator().manual_seed(99)
+        with torch.no_grad():
+            for p in module.parameters():
+                noise = torch.randn(p.shape, generator=scrambler) * 0.5
+                p.copy_(noise + (1 if p.ndim == 1 else 0))
     params = dict(module.named_parameters()) | dict(module.named_buffers())
     tolerance = float(check.args.get("tolerance", 1e-5))
     generator = torch.Generator().manual_seed(1234)

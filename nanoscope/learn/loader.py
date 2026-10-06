@@ -25,7 +25,8 @@ else:  # pragma: no cover
 LEVELS = (0, 1, 2, 3)
 CHECK_KINDS = {  # kind -> (required args, optional args)
     "defines": ({"class"}, {"args"}),
-    "equivalent": ({"reference", "call", "inputs"}, {"class", "args", "tolerance", "trials"}),
+    "equivalent": ({"reference", "call", "inputs"},
+                   {"class", "args", "tolerance", "trials", "randomize"}),
     "forbid": (set(), set()),
     "trains": ({"metric", "threshold"}, {"seeds", "class", "kwargs"}),
     "verdict": ({"a", "b", "expect"}, {"seeds", "metric", "a_kwargs", "b_kwargs"}),
