@@ -4,7 +4,7 @@ The build list for [`plan-tool.md`](plan-tool.md), sections 4-10, with the decis
 2026-10-05 (plan section 11) applied. Phase numbers follow the plan's section 10. Every
 item is one line, so scripts and agents can grep and edit it.
 
-**Current focus:** P8 blocks library, describe, rebuilt models. Next item: P8.47.
+**Current focus:** P8 blocks library, describe, rebuilt models. Next item: P8.99 (the gate).
 
 ## Progress
 
@@ -12,7 +12,7 @@ item is one line, so scripts and agents can grep and edit it.
 |---|---|---|---|
 | P6 | Servable library + CI baseline (9-11 d) | 67 / 67 | done |
 | P7 | Queue and workers (5-6 d) | 28 / 28 | done |
-| P8 | Blocks, describe, rebuilt models (10-13 d) | 48 / 52 | in progress |
+| P8 | Blocks, describe, rebuilt models (10-13 d) | 51 / 52 | in progress |
 | P9 | Curriculum engine, gating, two paths (14-17 d) | 0 / 61 | not started |
 | P10 | HTTP API (8-10 d) | 0 / 47 | not started |
 | P11 | Release prep: PyPI + GHCR (2-3 d) | 0 / 17 | not started |
@@ -285,11 +285,11 @@ touch or create (new ones marked `(new)`).
 - [x] P8.44 Add the public `@register_block(reference=fn, family=...)` for users' `nn.Module`s. · files: nanoscope/blocks/registry.py, tests/test_blocks.py · deps: P8.05 · done: `uv run pytest tests/test_blocks.py -k register_block` passes ✓ 2026-10-06 4c4d677: blocks.register_block(reference=fn, family=...) (bare or called): wraps a plain nn.Module as a BlockModule so it composes (spec on options-only call), needs d_model/context_length in __init__; BlockInfo.user; registry.reference_for(name)
 - [x] P8.45 Discover `@register_block` and `Decoder`/`Composite` subclasses in a workspace by AST alone, without importing it. · files: nanoscope/blocks/discover.py (new), tests/test_blocks.py · deps: P8.44, P8.31 · done: `uv run pytest tests/test_blocks.py -k discover_without_import` passes against a module that raises on import ✓ 2026-10-06 af6dee1: blocks/discover.py discover(root) -> blocks (name, family, reference, options, doc), models (via graph.parse), errors; skips hidden/venv dirs; test file raises on import
 - [x] P8.46 Add `nanoscope blocks [--json]`, which prints the palette catalog (name, family, tier, args with types and defaults, docstring, reference, certified) in a `blocks.v1` schema. · files: nanoscope/cli.py, nanoscope/schemas/blocks.v1.json (new), tests/test_blocks.py · deps: P8.44 · done: `uv run nanoscope blocks --json | uv run python -c "import json,sys; assert len(json.load(sys.stdin)['blocks'])>=15"` exits 0 ✓ 2026-10-06 41fbdb5: blocks/catalog.py catalog(workspace) + `nanoscope blocks [--json] [--workspace DIR]`; schemas/blocks.v1.json; 21 shipped blocks with args, doc, reference, certified (shipped block with a reference)
-- [ ] P8.47 Plan done-when: a composed `MyLM` fixture trains through `run()` unchanged, and `config.json` records its workspace `model.ref`. · files: tests/test_blocks.py, tests/fixtures/graphs/mylm.py · deps: P8.21, P6.38 · done: `uv run pytest tests/test_blocks.py -k composed_trains` passes
-- [ ] P8.48 Write `docs/blocks.md`: the composition style, the representable subset, every block with its reference, `Composite` templates, and how to register a block. Link it from the README. · files: docs/blocks.md (new), README.md · deps: P8.46 · done: `grep -c '^## ' docs/blocks.md` prints at least 4 and `grep -n blocks.md README.md` matches
+- [x] P8.47 Plan done-when: a composed `MyLM` fixture trains through `run()` unchanged, and `config.json` records its workspace `model.ref`. · files: tests/test_blocks.py, tests/fixtures/graphs/mylm.py · deps: P8.21, P6.38 · done: `uv run pytest tests/test_blocks.py -k composed_trains` passes ✓ 2026-10-06 8eff7ae: test_composed_trains: tests/fixtures/graphs/mylm.py trains via run(), config.json has model.ref = <file>:MyLM (rebuildable), load_run rebuilds it
+- [x] P8.48 Write `docs/blocks.md`: the composition style, the representable subset, every block with its reference, `Composite` templates, and how to register a block. Link it from the README. · files: docs/blocks.md (new), README.md · deps: P8.46 · done: `grep -c '^## ' docs/blocks.md` prints at least 4 and `grep -n blocks.md README.md` matches ✓ 2026-10-06 c4b8de2: docs/blocks.md (6 sections: compose, representable subset, blocks+references, templates, register, inspect), linked from the README, which also lists the new commands
 - [x] P8.49 Make `describe` and the catalog report each block's `tier`, ready for gating. · files: nanoscope/inspect.py, nanoscope/blocks/registry.py · deps: P8.46, P8.38 · done: `uv run nanoscope blocks --json | grep -c '"tier"'` is greater than 0 ✓ 2026-10-06 41fbdb5: describe rows already carry family and tier, and the catalog lists every block's tier: `nanoscope blocks --json | grep -c '"tier"'` > 0
 - [x] P8.50 Delete the inline `Attention`, `RMSNorm`, `SwiGLU`, `GELUMLP` and `Block` classes left in `models/` and import from `blocks` submodules instead. · files: nanoscope/models/*.py · deps: P8.27 · done: `grep -n "^class " nanoscope/models/modern.py` lists only `Modern` ✓ 2026-10-06 b38887d: already true after P8.22/P8.23: `grep '^class ' models/modern.py` lists only Modern (gpt2.py only GPT2)
-- [ ] P8.51 Add a `test-blocks` Makefile target that runs `test_blocks`, `test_reference`, `test_graph` and `test_describe`. · files: Makefile · deps: P8.41 · done: `make test-blocks` exits 0
+- [x] P8.51 Add a `test-blocks` Makefile target that runs `test_blocks`, `test_reference`, `test_graph` and `test_describe`. · files: Makefile · deps: P8.41 · done: `make test-blocks` exits 0 ✓ 2026-10-06 c4b8de2: `make test-blocks` runs test_blocks, test_reference, test_graph, test_describe, test_blockstats: 117 pass
 
 ### P8 · Gate
 - [ ] P8.99 PHASE GATE P8. Exit criteria: plan section 10 phase 8. · files: — · deps: P8.* · done: `make check` passes; `make test-blocks` passes; `uv run pytest tests/test_first_model_notebook.py` passes; P8.22, P8.23, P8.24/P8.25, P8.35, P8.36, P8.39 and P8.47 are ticked; CI green; **USER ACTION** merge the PR
