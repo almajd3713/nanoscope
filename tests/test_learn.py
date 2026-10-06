@@ -371,3 +371,33 @@ def test_failed_defines_skips_the_rest_and_crashes_are_reported(curricula, home,
         main(["learn", "check", "foundations/02-mlp", "--variant", "gpu"])
     assert caught.value.code == 2
     assert "has no gpu variant; it has: cpu" in capsys.readouterr().out
+
+
+def test_check_job(curricula, home, capsys, monkeypatch):
+    import json
+
+    from nanoscope import queue
+    from nanoscope.cli import main
+    from nanoscope.learn import checks, progress
+    from nanoscope.learn.checks import Result
+
+    monkeypatch.setitem(checks.CHECKERS, "defines",
+                        lambda ctx, c: Result(c.id, c.kind, True, "builds"))
+    monkeypatch.setitem(checks.CHECKERS, "trains",
+                        lambda ctx, c: Result(c.id, c.kind, True, "reaches 2.1"))
+    main(["learn", "check", "foundations/01-bigram", "--queue"])
+    out = capsys.readouterr().out
+    assert "queued check job #1 for foundations/01-bigram" in out
+    row = queue.get(1)
+    assert (row["kind"], row["lane"]) == ("check", "interactive")
+    assert json.loads(row["payload"]) == {"lesson": "foundations/01-bigram", "variant": "cpu"}
+    queue.claim("w", "cpu")
+    with pytest.raises(SystemExit) as stopped:
+        main(["run-job", "1"])
+    assert stopped.value.code == 0
+    result = json.loads(queue.get(1)["result"])
+    assert result["passed"] is True and result["lesson"] == "foundations/01-bigram"
+    assert [c["reason"] for c in result["checks"]] == ["builds", "reaches 2.1"]
+    assert progress.state("foundations/01-bigram") == "passed"
+    with pytest.raises(queue.InvalidJob, match="variant"):
+        queue.enqueue("check", {"lesson": "x", "variant": "tpu"})

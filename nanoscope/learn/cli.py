@@ -20,6 +20,8 @@ def add_parsers(sub: argparse._SubParsersAction) -> None:  # type: ignore[type-a
 
     check = commands.add_parser("check", help="Run a lesson's checks on your file")
     check.add_argument("lesson", help="e.g. foundations/01-bigram")
+    check.add_argument("--queue", action="store_true",
+                       help="run it as a worker job (interactive lane) instead of here")
     check.add_argument("--variant", choices=["cpu", "gpu"], default="cpu",
                        help="which compute variant to run (default cpu)")
 
@@ -142,6 +144,14 @@ def _run(args: argparse.Namespace) -> int:
             print(f"{lesson.id} has no {args.variant} variant; it has: "
                   f"{', '.join(lesson.compute)}")
             return 2
+        if args.queue:
+            from nanoscope import queue
+
+            job = queue.enqueue("check", {"lesson": lesson.id, "variant": args.variant},
+                                lane="interactive")
+            print(f"queued check job #{job} for {lesson.id}")
+            print("  watch it: nanoscope jobs    (needs a worker: nanoscope worker)")
+            return 0
         doc = run_lesson_checks(lesson, variant=args.variant)
         return 0 if doc["passed"] else 1
     return 2

@@ -141,6 +141,36 @@
           "additionalProperties": false
         }
       }
+    },
+    {
+      "properties": {
+        "kind": {
+          "const": "check"
+        },
+        "payload": {
+          "type": "object",
+          "properties": {
+            "lesson": {
+              "type": "string",
+              "minLength": 1
+            },
+            "variant": {
+              "enum": [
+                "cpu",
+                "gpu"
+              ]
+            },
+            "timeout": {
+              "type": "number",
+              "exclusiveMinimum": 0
+            }
+          },
+          "required": [
+            "lesson"
+          ],
+          "additionalProperties": false
+        }
+      }
     }
   ]
 }
