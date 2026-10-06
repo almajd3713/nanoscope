@@ -9,7 +9,7 @@ from nanoscope.blocks.registry import block
 from nanoscope.blocks.spec import BlockModule
 
 
-@block("norm", "composite", reference="layer_norm")
+@block("norm", "primitive", reference="layer_norm")
 class LayerNorm(BlockModule, nn.LayerNorm):
     """Subtract the mean, divide by the standard deviation, scale (and shift with a bias)."""
 

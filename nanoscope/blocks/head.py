@@ -8,7 +8,7 @@ from nanoscope.blocks.registry import block
 from nanoscope.blocks.spec import BlockModule
 
 
-@block("embedding", "composite", reference="tied_head", features=("tie_weights",))
+@block("embedding", "primitive", reference="tied_head", features=("tie_weights",))
 class Head(BlockModule, nn.Linear):
     """x @ W.T with W of shape (vocab_size, d_model). The Decoder shares W with the token
     embedding when tie_weights is on (`head.weight is tok_emb.weight`)."""
