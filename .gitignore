@@ -14,3 +14,4 @@ experiments/**/artifacts/
 .kaggle/
 .vscode/
 graphify-out/
+workspace/

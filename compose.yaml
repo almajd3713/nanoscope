@@ -1,0 +1,89 @@
+# docker compose up                      the API and one CPU worker
+# docker compose --profile gpu up        plus a GPU worker (NVIDIA container toolkit)
+# Settings come from the environment or a .env file: see .env.example.
+name: nanoscope
+
+# Images come from GHCR. To build them here instead (a branch, or before a release ships the
+# latest Dockerfile): `docker compose build api && docker compose up --pull never`.
+# Only `api` builds; the worker uses the same image, so the two never build it twice.
+x-image: &cpu-image
+  image: ghcr.io/almajd3713/nanoscope:cpu
+
+x-env: &env
+  NANOSCOPE_HOME: /nanoscope
+  NANOSCOPE_DATA_DIR: /data
+  NANOSCOPE_WORKSPACE: /nanoscope/workspace
+  HF_HOME: /hf-cache
+  TORCHINDUCTOR_CACHE_DIR: /compile-cache
+  XDG_CACHE_HOME: /tmp/xdg          # the root filesystem is read-only; scratch space is /tmp
+  MPLCONFIGDIR: /tmp/mpl
+  HF_TOKEN: ${HF_TOKEN:-}
+  WANDB_API_KEY: ${WANDB_API_KEY:-}
+  NANOSCOPE_JOBS_OFFLINE: ${NANOSCOPE_JOBS_OFFLINE:-}
+
+x-volumes: &volumes
+  - nanoscope-home:/nanoscope
+  - nanoscope-data:/data
+  - hf-cache:/hf-cache
+  - compile-cache:/compile-cache
+  - ${NANOSCOPE_WORKSPACE:-./workspace}:/nanoscope/workspace
+
+# Jobs run user code, so the services that run it get no privileges, no Docker socket,
+# a read-only root and resource limits.
+x-hardened: &hardened
+  user: "1000:1000"
+  cap_drop: [ALL]
+  security_opt: ["no-new-privileges:true"]
+  read_only: true
+  tmpfs: ["/tmp"]
+  mem_limit: ${NANOSCOPE_MEM_LIMIT:-8g}
+  cpus: ${NANOSCOPE_CPUS:-4}
+  pids_limit: ${NANOSCOPE_PIDS_LIMIT:-512}
+
+services:
+  api:
+    <<: [*cpu-image, *hardened]
+    build: { context: ., dockerfile: docker/Dockerfile.cpu }
+    # the API never runs user code; workers do
+    ports:
+      - "127.0.0.1:${NANOSCOPE_PORT:-8765}:8000"
+    environment:
+      <<: *env
+      NANOSCOPE_TOKEN: ${NANOSCOPE_TOKEN:-}          # empty: one is made in the home volume
+      NANOSCOPE_PUBLIC_PORT: ${NANOSCOPE_PORT:-8765}  # so the logged login URL is the one that works
+    volumes: *volumes
+    restart: unless-stopped
+
+  worker:
+    <<: [*cpu-image, *hardened]
+    command: ["nanoscope", "worker", "--device", "cpu", "--slots", "${NANOSCOPE_SLOTS:-1}"]
+    environment: *env
+    volumes: *volumes
+    healthcheck: { disable: true }
+    depends_on: [api]
+    restart: unless-stopped
+
+  worker-gpu:
+    <<: *hardened
+    image: ghcr.io/almajd3713/nanoscope:cuda
+    build: { context: ., dockerfile: docker/Dockerfile.cuda }
+    profiles: [gpu]
+    command: ["nanoscope", "worker", "--device", "cuda:0", "--slots", "${NANOSCOPE_SLOTS:-1}"]
+    environment:
+      <<: *env
+      NVIDIA_VISIBLE_DEVICES: ${NVIDIA_VISIBLE_DEVICES:-all}
+    volumes: *volumes
+    healthcheck: { disable: true }
+    depends_on: [api]
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - { driver: nvidia, count: all, capabilities: [gpu] }
+    restart: unless-stopped
+
+volumes:
+  nanoscope-home:
+  nanoscope-data:
+  hf-cache:
+  compile-cache:

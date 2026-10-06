@@ -12,7 +12,14 @@ RUN pip install --no-cache-dir torch --index-url https://download.pytorch.org/wh
 COPY --from=build /dist/*.whl /tmp/
 RUN pip install --no-cache-dir "$(ls /tmp/nanoscope_lab-*.whl)[server]" && rm /tmp/*.whl
 
-RUN useradd --uid 1000 --create-home nanoscope && mkdir /nanoscope && chown 1000:1000 /nanoscope
+# git: the workspace is a git repository (preregistration commits); safe.directory because a bind
+# mount is owned by whoever made it. The directories exist so named volumes start owned by uid 1000.
+RUN apt-get update && apt-get install -y --no-install-recommends git \
+    && rm -rf /var/lib/apt/lists/* \
+    && git config --system --add safe.directory /nanoscope/workspace
+RUN useradd --uid 1000 --create-home nanoscope \
+    && mkdir -p /nanoscope/workspace /data /hf-cache /compile-cache \
+    && chown -R 1000:1000 /nanoscope /data /hf-cache /compile-cache
 USER 1000
 ENV NANOSCOPE_HOME=/nanoscope
 VOLUME /nanoscope
