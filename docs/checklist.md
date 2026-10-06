@@ -4,7 +4,7 @@ The build list for [`plan-tool.md`](plan-tool.md), sections 4-10, with the decis
 2026-10-05 (plan section 11) applied. Phase numbers follow the plan's section 10. Every
 item is one line, so scripts and agents can grep and edit it.
 
-**Current focus:** P8 blocks library, describe, rebuilt models. Next item: P8.31.
+**Current focus:** P8 blocks library, describe, rebuilt models. Next item: P8.34.
 
 ## Progress
 
@@ -12,7 +12,7 @@ item is one line, so scripts and agents can grep and edit it.
 |---|---|---|---|
 | P6 | Servable library + CI baseline (9-11 d) | 67 / 67 | done |
 | P7 | Queue and workers (5-6 d) | 28 / 28 | done |
-| P8 | Blocks, describe, rebuilt models (10-13 d) | 31 / 52 | in progress |
+| P8 | Blocks, describe, rebuilt models (10-13 d) | 34 / 52 | in progress |
 | P9 | Curriculum engine, gating, two paths (14-17 d) | 0 / 61 | not started |
 | P10 | HTTP API (8-10 d) | 0 / 47 | not started |
 | P11 | Release prep: PyPI + GHCR (2-3 d) | 0 / 17 | not started |
@@ -263,9 +263,9 @@ touch or create (new ones marked `(new)`).
 
 ### P8 · Graph parse and emit
 - [x] P8.30 Add `libcst` to a new `graph` extra (later included by `server`); it stays out of the core dependencies. · files: pyproject.toml, uv.lock · deps: P6.99 · done: `uv sync --extra graph && uv run python -c "import libcst"` exits 0 ✓ 2026-10-06 b38887d: `graph = [libcst]` extra, also in dev so CI (`--all-extras`) runs the graph tests; hypothesis added to dev here too (P8.36 still needs its test)
-- [ ] P8.31 Create `nanoscope/blocks/graph.py` with `parse(path)`. It uses `ast` only and turns each `Decoder`/`Composite` subclass into nodes, args and source spans, unknown calls into opaque nodes, and other statements into code-only classes with the reason and line. · files: nanoscope/blocks/graph.py (new), tests/test_graph.py (new) · deps: P8.21, P8.11 · done: `uv run pytest tests/test_graph.py -k parse` passes
-- [ ] P8.32 Add the `graph.v1` schema and validate `parse` output against it. · files: nanoscope/schemas/graph.v1.json (new), tests/test_graph.py · deps: P8.31 · done: `uv run pytest tests/test_graph.py -k schema` passes
-- [ ] P8.33 Add graph fixtures: GPT-2-like, Modern-like, a layer pattern, an opaque custom block, a code-only class, comments with odd formatting, and a `Composite` template. · files: tests/fixtures/graphs/*.py (new) · deps: P8.31 · done: `ls tests/fixtures/graphs/*.py | wc -l` prints at least 7
+- [x] P8.31 Create `nanoscope/blocks/graph.py` with `parse(path)`. It uses `ast` only and turns each `Decoder`/`Composite` subclass into nodes, args and source spans, unknown calls into opaque nodes, and other statements into code-only classes with the reason and line. · files: nanoscope/blocks/graph.py (new), tests/test_graph.py (new) · deps: P8.21, P8.11 · done: `uv run pytest tests/test_graph.py -k parse` passes ✓ 2026-10-06 6a7402d: blocks/graph.py: parse(path) via ast only; literal/param/block/list/opaque/expr nodes with spans; code-only classes with reason and line; imports resolved, local Composites usable as blocks
+- [x] P8.32 Add the `graph.v1` schema and validate `parse` output against it. · files: nanoscope/schemas/graph.v1.json (new), tests/test_graph.py · deps: P8.31 · done: `uv run pytest tests/test_graph.py -k schema` passes ✓ 2026-10-06 7f2b231: schemas/graph.v1.json, validated against every fixture and a malformed graph
+- [x] P8.33 Add graph fixtures: GPT-2-like, Modern-like, a layer pattern, an opaque custom block, a code-only class, comments with odd formatting, and a `Composite` template. · files: tests/fixtures/graphs/*.py (new) · deps: P8.31 · done: `ls tests/fixtures/graphs/*.py | wc -l` prints at least 7 ✓ 2026-10-06 6a7402d: 8 fixtures in tests/fixtures/graphs (gpt2_like, modern_like, layer_pattern, opaque_block, code_only, odd_formatting, composite_template, mylm); excluded from ruff
 - [ ] P8.34 Write `emit(graph, source)` with libcst for the `set_arg` and `replace_block` edits, changing only the edited arguments. · files: nanoscope/blocks/graph.py, tests/test_graph.py · deps: P8.30, P8.33 · done: `uv run pytest tests/test_graph.py -k minimal_diff` passes (each edit changes one line in the fixture)
 - [ ] P8.35 Test that an unedited round trip is byte-identical on every fixture. · files: tests/test_graph.py · deps: P8.34 · done: `uv run pytest tests/test_graph.py -k byte_identical` passes
 - [ ] P8.36 Add `hypothesis` to dev and a property test: random palette graphs, emitted then parsed, come back equal. · files: pyproject.toml, uv.lock, tests/test_graph.py · deps: P8.34 · done: `uv run pytest tests/test_graph.py -k property` passes
