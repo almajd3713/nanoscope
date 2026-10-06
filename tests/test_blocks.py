@@ -393,3 +393,31 @@ def test_mlp_matches_formulas_and_parameter_parity():
     assert SwiGLU().build(16, 8).flops_per_token(8) == 6 * 3 * 16 * 48
     assert GELUMLP().build(16, 8).flops_per_token(8) == 6 * 2 * 16 * 64
     assert SwiGLU(hidden=10).build(16, 8).w1.out_features == 10
+
+
+@pytest.mark.parametrize("order", ["pre", "post"])
+def test_block_reference_composition(order):
+    from nanoscope.blocks.attention import Attention
+    from nanoscope.blocks.mlp import SwiGLU
+    from nanoscope.blocks.norm import RMSNorm
+    from nanoscope.blocks.structure import Block
+
+    torch.manual_seed(0)
+    spec = Block(norm=RMSNorm(), attn=Attention(n_heads=2), mlp=SwiGLU(), order=order)
+    blk = spec.build(16, 8)
+    assert blk.norm1 is not blk.norm2 and blk.norm1.weight is not blk.norm2.weight
+    blk.norm1.weight.data, blk.norm2.weight.data = torch.randn(16), torch.randn(16)
+    x = torch.randn(2, 6, 16)
+    if order == "pre":
+        h = x + blk.attn(R.rms_norm(x, blk.norm1.weight))
+        expected = h + blk.mlp(R.rms_norm(h, blk.norm2.weight))
+    else:
+        h = R.rms_norm(x + blk.attn(x), blk.norm1.weight)
+        expected = R.rms_norm(h + blk.mlp(h), blk.norm2.weight)
+    torch.testing.assert_close(blk(x), expected, atol=ATOL, rtol=0)
+    assert blk.flops_per_token(8) == sum(
+        m.flops_per_token(8) for m in (blk.norm1, blk.attn, blk.norm2, blk.mlp))
+    assert list(blk.state_dict())[:2] == ["norm1.weight", "attn.q.weight"]
+    assert spec.to_dict()["args"]["order"] == order
+    with pytest.raises(ValueError, match="order"):
+        Block(norm=RMSNorm(), attn=Attention(n_heads=2), mlp=SwiGLU(), order="mid").build(16, 8)
