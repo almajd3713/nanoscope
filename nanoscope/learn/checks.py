@@ -22,7 +22,7 @@ from typing import Any
 
 from nanoscope import __version__, paths
 from nanoscope.fsutil import write_json_atomic
-from nanoscope.learn import progress
+from nanoscope.learn import progress, unlocks
 from nanoscope.learn.loader import Check, LessonSpec
 from nanoscope.log import info
 
@@ -133,7 +133,14 @@ def run_lesson_checks(lesson: LessonSpec, owner: str = "local",
         "checks": [r.to_dict() for r in results],
     }
     write_json_atomic(checks_dir(owner) / f"{cid}.json", doc)
+    earned: list[str] = []
+    if passed and lesson.unlocks and unlocks.exists(owner):
+        # only a pass earns, and the evidence is this very result file
+        unlocks.earn(lesson.id, lesson.unlocks, f"learn/checks/{cid}.json", owner)
+        earned = lesson.unlocks
     progress.mark(lesson.id, "passed" if passed else "failed", check_id=cid, owner=owner)
+    if earned:
+        info(f"unlocked: {', '.join(earned)}")
     done = sum(r.passed for r in results)
     info(f"result: {done} of {len(results)} checks passed"
          + ("" if passed else ": read the reasons above, edit your file, and check again"))

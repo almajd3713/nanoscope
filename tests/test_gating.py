@@ -251,3 +251,61 @@ def gating_reload():
     from nanoscope.learn import gating
 
     gating.reload()
+
+
+def test_earn(home, lock_curricula, capsys, monkeypatch):
+    import json
+
+    from nanoscope.learn import checks, gating, progress
+    from nanoscope.learn.checks import Result, run_lesson_checks
+    from nanoscope.learn.loader import load_lesson
+
+    lesson = load_lesson("modern/01-rope")  # unlocks block:RoPE and feature:gqa
+    verdict = {"ok": False}
+    monkeypatch.setattr(checks, "CHECKERS", dict(checks.CHECKERS))
+    checks.CHECKERS["defines"] = lambda ctx, c: Result(c.id, c.kind, True, "builds")
+    checks.CHECKERS["trains"] = lambda ctx, c: Result(
+        c.id, c.kind, verdict["ok"], "learns" if verdict["ok"] else "does not learn yet")
+    lesson_toml = lock_curricula / "modern" / "01-rope" / "lesson.toml"
+    lesson_toml.write_text(lesson_toml.read_text() + (
+        '\n[[checks]]\nid = "a"\nkind = "defines"\nclass = "X"\n'
+        '[[checks]]\nid = "b"\nkind = "trains"\nmetric = "val_bpb"\nthreshold = 1\n'))
+    lesson = load_lesson("modern/01-rope")
+    unlocks.set_policy("guided")
+
+    run_lesson_checks(lesson)  # a failing check earns nothing
+    assert unlocks.read()["unlocks"] == {} and progress.state(lesson.id) == "failed"
+    assert [x.id for x in gating.check(["block:RoPE", "feature:gqa"])] == [
+        "block:RoPE", "feature:gqa"]
+
+    verdict["ok"] = True
+    doc = run_lesson_checks(lesson)
+    assert doc["passed"] and progress.state(lesson.id) == "passed"
+    stored = unlocks.read()["unlocks"]
+    assert set(stored) == {"block:RoPE", "feature:gqa"}
+    for entry in stored.values():
+        assert entry["how"] == "earned" and entry["lesson"] == "modern/01-rope"
+        assert entry["evidence"] == f"learn/checks/{doc['id']}.json"
+    evidence = json.loads((paths.learn_dir() / "checks" / f"{doc['id']}.json").read_text())
+    assert evidence["passed"] is True  # the evidence file exists and says so
+    assert gating.check(["block:RoPE", "feature:gqa"]) == []
+    assert "unlocked: block:RoPE, feature:gqa" in capsys.readouterr().out
+    # a later failure takes nothing back
+    verdict["ok"] = False
+    run_lesson_checks(lesson)
+    assert set(unlocks.read()["unlocks"]) == {"block:RoPE", "feature:gqa"}
+    assert progress.state(lesson.id) == "passed"
+
+
+def test_passing_without_a_guided_start_records_no_unlocks(home, lock_curricula, monkeypatch):
+    from nanoscope.learn import checks
+    from nanoscope.learn.checks import Result, run_lesson_checks
+    from nanoscope.learn.loader import load_lesson
+
+    lesson_toml = lock_curricula / "modern" / "01-rope" / "lesson.toml"
+    lesson_toml.write_text(lesson_toml.read_text()
+                           + '\n[[checks]]\nid = "a"\nkind = "forbid"\n')
+    ok = {"forbid": lambda c, k: Result(k.id, k.kind, True, "ok")}
+    monkeypatch.setattr(checks, "CHECKERS", ok)
+    run_lesson_checks(load_lesson("modern/01-rope"))
+    assert not unlocks.exists()  # still open: nothing to earn, nothing was locked
