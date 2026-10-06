@@ -9,8 +9,9 @@ import hmac
 from typing import Any
 
 from fastapi import FastAPI, Request
-from fastapi.responses import JSONResponse, RedirectResponse, Response
+from fastapi.responses import RedirectResponse, Response
 
+from nanoscope.server.errors import problem
 from nanoscope.server.settings import Settings
 
 COOKIE = "nanoscope_token"
@@ -29,7 +30,7 @@ def install(app: FastAPI, settings: Settings) -> None:
     @app.get("/login", include_in_schema=False)
     def login(token: str = "") -> Response:  # noqa: B008
         if not _same(token, settings.token or ""):
-            return JSONResponse({"detail": "wrong token"}, status_code=401)
+            return problem(401, "wrong token", code="unauthorized")
         response = RedirectResponse("/", status_code=303)
         response.set_cookie(COOKIE, token, httponly=True, samesite="lax", max_age=30 * 86400)
         return response
@@ -42,5 +43,5 @@ def install(app: FastAPI, settings: Settings) -> None:
         bearer = header[7:] if header.lower().startswith("bearer ") else None
         if _same(bearer, token) or _same(request.cookies.get(COOKIE), token):
             return await call_next(request)
-        return JSONResponse({"detail": "sign in with the token (see `nanoscope serve`)"},
-                            status_code=401, headers={"WWW-Authenticate": "Bearer"})
+        return problem(401, "sign in with the token (see `nanoscope serve`)", request,
+                       headers={"WWW-Authenticate": "Bearer"})
