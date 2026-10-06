@@ -318,3 +318,58 @@ def test_nope_changes_nothing():
     q, k = torch.randn(1, 2, 4, 8), torch.randn(1, 2, 4, 8)
     assert nope(q, k)[0] is q and nope(q, k)[1] is k
     assert nope.flops_per_token(16) == 0
+
+
+@pytest.mark.parametrize("n_kv", [1, 2, 4])
+@pytest.mark.parametrize("use_rope", [False, True])
+@pytest.mark.parametrize("qk_norm", [False, True])
+@pytest.mark.parametrize("window", [None, 3])
+def test_attention_matches_loop_reference(n_kv, use_rope, qk_norm, window):
+    from nanoscope.blocks.attention import Attention
+    from nanoscope.blocks.positional import RoPE
+
+    torch.manual_seed(0)
+    d, heads, T = 16, 4, 7
+    attn = Attention(n_heads=heads, n_kv_heads=n_kv, qk_norm=qk_norm, window=window,
+                     pos=RoPE() if use_rope else None).build(d, 8)
+    if qk_norm:
+        attn.q_norm.weight.data, attn.k_norm.weight.data = torch.randn(4), torch.randn(4)
+    x = torch.randn(2, T, d)
+    hd = d // heads
+
+    def split(y, n):
+        return y.view(2, T, n, hd).transpose(1, 2)
+    q, k, v = split(attn.q(x), heads), split(attn.k(x), n_kv), split(attn.v(x), n_kv)
+    if qk_norm:
+        q, k = R.qk_norm(q, attn.q_norm.weight), R.qk_norm(k, attn.k_norm.weight)
+    if use_rope:
+        q, k = R.naive_rope(q), R.naive_rope(k)
+    k = torch.stack([R.repeat_kv_heads(k[b], heads) for b in range(2)])
+    v = torch.stack([R.repeat_kv_heads(v[b], heads) for b in range(2)])
+    y = R.naive_causal_attention(q, k, v, window=window)
+    expected = attn.proj(y.transpose(1, 2).reshape(2, T, d))
+    torch.testing.assert_close(attn(x), expected, atol=ATOL, rtol=0)
+
+
+def test_attention_options_flops_and_errors():
+    from nanoscope.blocks.attention import Attention
+    from nanoscope.blocks.positional import RoPE
+
+    plain = Attention(n_heads=4).build(16, 8)
+    assert plain.n_kv_heads == 4 and list(plain.state_dict()) == [
+        "q.weight", "k.weight", "v.weight", "proj.weight"]
+    assert plain.flops_per_token(8) == 6 * 4 * 256 + 12 * 16 * 8
+    windowed = Attention(n_heads=4, window=2).build(16, 8)
+    assert windowed.flops_per_token(8) == 6 * 4 * 256 + 12 * 16 * 2
+    gqa = Attention(n_heads=4, n_kv_heads=1, pos=RoPE(base=500.0), qk_norm=True)
+    assert gqa.to_dict() == {"block": "Attention", "args": {
+        "n_heads": 4, "n_kv_heads": 1, "pos": {"block": "RoPE", "args": {"base": 500.0}},
+        "qk_norm": True}}
+    built = gqa.build(16, 8)
+    assert built.k.out_features == 4 and built.q_norm.weight.shape == (4,)
+    with pytest.raises(ValueError, match="n_kv_heads"):
+        Attention(n_heads=4, n_kv_heads=3).build(16, 8)
+    with pytest.raises(ValueError, match="window"):
+        Attention(n_heads=4, window=0).build(16, 8)
+    x = torch.randn(1, 3, 16)  # shorter than the context
+    assert Attention(n_heads=4, window=2).build(16, 8)(x).shape == x.shape

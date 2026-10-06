@@ -17,6 +17,9 @@ class RoPE(BlockModule):
     """Rotate each (x[i], x[i + D/2]) pair by position * theta_i, so a query-key dot product
     depends only on how far apart the two positions are."""
 
+    cos: torch.Tensor
+    sin: torch.Tensor
+
     def __init__(self, d_model: int, context_length: int, base: float = 10000.0) -> None:
         super().__init__()
         if d_model % 2:

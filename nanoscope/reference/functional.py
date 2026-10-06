@@ -8,14 +8,17 @@ import torch
 import torch.nn as nn
 
 
-def naive_causal_attention(q, k, v):
-    """Loop over heads and query positions; softmax over keys at or before the query."""
+def naive_causal_attention(q, k, v, window=None):
+    """Loop over heads and query positions; softmax over keys at or before the query (and,
+    with a window, no more than `window` positions back, the query itself included)."""
     B, H, T, D = q.shape
     out = torch.zeros_like(q)
     for h in range(H):
         for t in range(T):
-            scores = torch.einsum("bd,bsd->bs", q[:, h, t], k[:, h, : t + 1]) / math.sqrt(D)
-            out[:, h, t] = torch.einsum("bs,bsd->bd", scores.softmax(-1), v[:, h, : t + 1])
+            start = 0 if window is None else max(0, t - window + 1)
+            keys = k[:, h, start : t + 1]
+            scores = torch.einsum("bd,bsd->bs", q[:, h, t], keys) / math.sqrt(D)
+            out[:, h, t] = torch.einsum("bs,bsd->bd", scores.softmax(-1), v[:, h, start : t + 1])
     return out
 
 

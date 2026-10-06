@@ -26,6 +26,7 @@ _EXPORTS: dict[str, str] = {
     "RMSNorm": "nanoscope.blocks.norm",
     "RoPE": "nanoscope.blocks.positional",
     "NoPE": "nanoscope.blocks.positional",
+    "Attention": "nanoscope.blocks.attention",
     **{name: "nanoscope.blocks.primitives" for name in (
         "Linear", "Activation", "CausalMask", "ScaledDotScores", "Softmax", "WeightedSum",
         "SplitHeads", "MergeHeads")},
