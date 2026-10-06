@@ -4,7 +4,7 @@ The build list for [`plan-tool.md`](plan-tool.md), sections 4-10, with the decis
 2026-10-05 (plan section 11) applied. Phase numbers follow the plan's section 10. Every
 item is one line, so scripts and agents can grep and edit it.
 
-**Current focus:** P8 blocks library, describe, rebuilt models. Next item: P8.26.
+**Current focus:** P8 blocks library, describe, rebuilt models. Next item: P8.28.
 
 ## Progress
 
@@ -12,7 +12,7 @@ item is one line, so scripts and agents can grep and edit it.
 |---|---|---|---|
 | P6 | Servable library + CI baseline (9-11 d) | 67 / 67 | done |
 | P7 | Queue and workers (5-6 d) | 28 / 28 | done |
-| P8 | Blocks, describe, rebuilt models (10-13 d) | 25 / 52 | in progress |
+| P8 | Blocks, describe, rebuilt models (10-13 d) | 27 / 52 | in progress |
 | P9 | Curriculum engine, gating, two paths (14-17 d) | 0 / 61 | not started |
 | P10 | HTTP API (8-10 d) | 0 / 47 | not started |
 | P11 | Release prep: PyPI + GHCR (2-3 d) | 0 / 17 | not started |
@@ -256,8 +256,8 @@ touch or create (new ones marked `(new)`).
 - [x] P8.23 Rebuild `models/modern.py` the same way, covering every switch (rope, swiglu, rmsnorm, qk_norm, n_kv_heads, z_loss, tie_weights, ffn_hidden). · files: nanoscope/models/modern.py, tests/test_models.py · deps: P8.19, P8.02, P8.08 · done: `uv run pytest tests/test_models.py -k modern_matches_reference` passes, parametrized over the switches ✓ 2026-10-06 d484771: Modern(Decoder), state_dict keys identical to ModernRef; test_modern_matches_reference over 11 switch sets; tests migrated off modern.py internals; obsolete 'equal today' test removed
 - [x] P8.24 Test that the rebuilt models produce the same initial weights as the references for seeds 0-2. If that can't be achieved, record the decision in the Decisions log and do P8.25. · files: tests/test_models.py · deps: P8.22, P8.23 · done: `uv run pytest tests/test_models.py -k same_init` passes, or the Decisions log has the entry ✓ 2026-10-06 bd745bd: same-seed init is bit-identical to ModernRef and (key-mapped) GPT2Ref for seeds 0-2, so P8.25 is not needed
 - [x] P8.25 Breaking old checkpoints is allowed (user, 2026-10-05): if P8.24 or the key check fails, do NOT add a key map. Instead bump `config` to schema v2, drop support for pre-rebuild checkpoints, and re-export the shipped baselines with `export_baseline` (9 short CPU runs). · files: nanoscope/store.py, nanoscope/schemas/, nanoscope/baselines/ · deps: P8.24 · done: `uv run pytest tests/test_schemas.py -k baselines tests/test_compare.py` passes; mark ✗ not needed if P8.24 passed ✗ dropped 2026-10-06: P8.24 passed (init is identical) and baselines hold metrics only, no weights, so the only thing the GPT2 key rename breaks is a pre-rebuild GPT2 checkpoint, which needs no schema bump
-- [ ] P8.26 Test that `run(GPT2)` and `run(Modern)` give the same run dir names and `config.json` model kwargs as before the rebuild. · files: tests/test_models.py · deps: P8.22, P8.23 · done: `uv run pytest tests/test_models.py -k run_identity_unchanged` passes
-- [ ] P8.27 Migrate `tests/test_models.py` onto the blocks and the rebuilt models, keeping every existing test. · files: tests/test_models.py · deps: P8.26 · done: `uv run pytest tests/test_models.py --collect-only -q | tail -1` shows at least the original count, and all pass
+- [x] P8.26 Test that `run(GPT2)` and `run(Modern)` give the same run dir names and `config.json` model kwargs as before the rebuild. · files: tests/test_models.py · deps: P8.22, P8.23 · done: `uv run pytest tests/test_models.py -k run_identity_unchanged` passes ✓ 2026-10-06 : test_run_identity_unchanged: same signature as the frozen refs, same run-dir names (with and without overrides), same config.json model class and kwargs
+- [x] P8.27 Migrate `tests/test_models.py` onto the blocks and the rebuilt models, keeping every existing test. · files: tests/test_models.py · deps: P8.26 · done: `uv run pytest tests/test_models.py --collect-only -q | tail -1` shows at least the original count, and all pass ✓ 2026-10-06 : every old test_models test kept (12 functions; 27 -> 44 collected), migrated onto blocks (RoPE, RMSNorm, SwiGLU, Attention) with the rebuilt models
 - [ ] P8.28 Repoint text in notebooks 02-03 and the README that refers to the internals of `gpt2.py`/`modern.py` at the blocks or reference files. · files: notebooks/02-gpt2.ipynb, notebooks/03-modern-block.ipynb, README.md · deps: P8.27 · done: `grep -rn "modern.py\|gpt2.py" notebooks README.md` shows only valid paths
 - [ ] P8.29 Test that `studies/m1_ablation.py` gives the same `jobs()` (sizes and steps) before and after the rebuild. · files: tests/test_study.py · deps: P8.23 · done: `uv run pytest tests/test_study.py -k m1_jobs_stable` passes
 
