@@ -69,6 +69,11 @@ nanoscope = "nanoscope.cli:main"
 [tool.hatch.version]
 path = "nanoscope/__init__.py"
 
+[tool.hatch.build.targets.sdist]
+include = ["/nanoscope", "/tests", "/docs", "/README.md", "/LICENSE", "/Makefile"]
+exclude = ["/docs/archive", "/data", "/runs", "/studies", "/experiments", "/.kaggle-outputs",
+           "*.pyc", "__pycache__"]
+
 [tool.hatch.build.targets.wheel]
 packages = ["nanoscope"]
 
