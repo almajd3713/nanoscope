@@ -430,7 +430,7 @@ touch or create (new ones marked `(new)`).
 - [ ] P10.42 Plan done-when: a CLI-started run appears in `/api/events`. · files: tests/server/test_e2e.py · deps: P10.29 · done: `uv run pytest tests/server/test_e2e.py -k cli_run_in_events` passes
 - [ ] P10.43 Plan done-when: under `guided`, a patch or run that uses a locked block gets a 422 naming the unlock lesson. · files: tests/server/test_e2e.py · deps: P10.20, P10.25 · done: `uv run pytest tests/server/test_e2e.py -k locked_422` passes
 - [ ] P10.44 Add a `server` CI job that installs the extra and runs `tests/server`. · files: .github/workflows/ci.yml · deps: P10.40 · done: the job is green on the PR
-- [ ] P10.45 Write `docs/server.md`: running the server, the token and login URL, an endpoint overview, the SSE event types, and the CLI equivalent of each resource. · files: docs/server.md (new) · deps: P10.39 · done: `grep -c '^## ' docs/server.md` prints at least 4
+- [ ] P10.45 Write `docs/server.md`: running the server, the token and login URL (state plainly that the token is a remote login for running code, and that the server speaks plain HTTP: loopback, SSH tunnel or an HTTPS proxy), an endpoint overview, the SSE event types, and the CLI equivalent of each resource. · files: docs/server.md (new) · deps: P10.39 · done: `grep -c '^## ' docs/server.md` prints at least 4
 - [ ] P10.46 Test that every POST endpoint body has the same defaults as the library function it calls, so an empty body gives level-0 behaviour. · files: tests/server/test_models.py · deps: P10.31, P10.25 · done: `uv run pytest tests/server/test_models.py -k level0_defaults` passes
 
 ### P10 · Gate

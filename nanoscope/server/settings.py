@@ -71,3 +71,10 @@ def check(settings: Settings) -> None:
             f"refusing to listen on {settings.host} without a token: anyone who can reach "
             "this port could run training jobs on your machine. Use --host 127.0.0.1, or "
             "start with a token (nanoscope serve creates one for you).")
+
+
+REMOTE_WARNING = (
+    "WARNING: listening beyond this machine. Whoever has the token can save Python files in your "
+    "workspace and run them as your user, and this server speaks plain HTTP: on a shared network "
+    "the token and the login cookie can be read by others. Use it only on a network you trust, "
+    "through an SSH tunnel, or behind an HTTPS proxy. 127.0.0.1 (the default) needs none of this.")

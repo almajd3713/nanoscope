@@ -57,8 +57,11 @@ def test_serve_beyond_loopback_prints_the_login_url(home, monkeypatch, capsys):
     token = token_path().read_text().strip()
     assert f"sign in at http://localhost:9100/login?token={token}" in out
     assert started["host"] == "0.0.0.0"
-    main(["serve"])  # loopback: no token printed
-    assert "login" not in capsys.readouterr().out
+    assert "WARNING: listening beyond this machine" in out
+    assert "plain HTTP" in out and "run them as your user" in out and "SSH tunnel" in out
+    main(["serve"])  # loopback: no token printed, no warning
+    quiet = capsys.readouterr().out
+    assert "login" not in quiet and "WARNING" not in quiet
 
 
 def test_no_auth_on_loopback(home):
