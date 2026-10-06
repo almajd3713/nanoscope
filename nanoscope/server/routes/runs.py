@@ -1,6 +1,8 @@
 from __future__ import annotations
 
+import contextlib
 import json
+import re
 from pathlib import Path
 from typing import Any
 
@@ -70,6 +72,82 @@ def summary_of(run_dir: Path) -> dict[str, Any]:
 def list_runs(prefix: str = "", state: str | None = None) -> list[RunEntry]:
     """Every run under a ref prefix (all when empty), optionally only those in one state."""
     return [entry(r) for r in store.list_runs(prefix, state)]
+
+
+class MetricsPage(BaseModel):
+    rows: list[dict[str, Any]]
+    last_step: int  # ask again with since_step=last_step for what came after
+
+
+class Sample(BaseModel):
+    step: int
+    text: str
+
+
+class CheckpointEntry(BaseModel):
+    name: str
+    step: int | None
+    bytes: int
+    archived: bool  # kept for good by checkpoint_steps, never pruned
+    latest: bool
+
+
+@router.get("/runs/{ref:path}/metrics")
+def run_metrics(ref: str, since_step: int = 0) -> MetricsPage:
+    """The rows of metrics.jsonl after `since_step` (all of them by default)."""
+    rows = read_metrics(store.resolve(ref), since_step)
+    return MetricsPage(rows=rows, last_step=rows[-1]["step"] if rows else since_step)
+
+
+@router.get("/runs/{ref:path}/samples")
+def run_samples(ref: str) -> list[Sample]:
+    """The generated samples, one per `sample_interval`, oldest first."""
+    path = store.resolve(ref) / "samples.txt"
+    if not path.exists():
+        return []
+    out = []
+    parts = re.split(r"^--- step (\d+) ---\n", path.read_text(encoding="utf-8", errors="replace"),
+                     flags=re.M)
+    for step, text in zip(parts[1::2], parts[2::2], strict=True):
+        out.append(Sample(step=int(step), text=text.rstrip("\n")))
+    return out
+
+
+@router.get("/runs/{ref:path}/blockstats")
+def run_blockstats(ref: str) -> list[dict[str, Any]]:
+    """Per-block statistics recorded at each eval step (runs started with block_stats=True)."""
+    path = store.resolve(ref) / "blockstats.jsonl"
+    if not path.exists():
+        return []
+    rows = []
+    for line in path.read_text(encoding="utf-8").splitlines():
+        if line.strip():
+            try:
+                rows.append(json.loads(line))
+            except ValueError:
+                continue
+    return rows
+
+
+@router.get("/runs/{ref:path}/checkpoints")
+def run_checkpoints(ref: str) -> list[CheckpointEntry]:
+    """The checkpoint files of a run (the weights are not served)."""
+    folder = store.resolve(ref) / "checkpoints"
+    if not folder.exists():
+        return []
+    latest = None
+    latest_file = store.resolve(ref) / "latest.json"
+    if latest_file.exists():
+        with contextlib.suppress(ValueError):
+            latest = json.loads(latest_file.read_text(encoding="utf-8")).get("checkpoint")
+    out = []
+    for path in sorted(folder.rglob("*.pt")):
+        match = re.search(r"step_(\d+)", path.name)
+        out.append(CheckpointEntry(
+            name=path.relative_to(folder).as_posix(), step=int(match.group(1)) if match else None,
+            bytes=path.stat().st_size, archived="archive" in path.parts,
+            latest=path.name == latest))
+    return out
 
 
 @router.get("/runs/{ref:path}", response_model=RunDetail)
