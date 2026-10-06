@@ -241,6 +241,30 @@
           "additionalProperties": false
         }
       }
+    },
+    {
+      "properties": {
+        "kind": {
+          "const": "study"
+        },
+        "payload": {
+          "type": "object",
+          "properties": {
+            "spec": {
+              "type": "string",
+              "minLength": 1
+            },
+            "timeout": {
+              "type": "number",
+              "exclusiveMinimum": 0
+            }
+          },
+          "required": [
+            "spec"
+          ],
+          "additionalProperties": false
+        }
+      }
     }
   ]
 }

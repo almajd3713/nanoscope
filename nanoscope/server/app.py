@@ -22,12 +22,13 @@ from nanoscope.server.routes import (
     models,
     presets,
     runs,
+    studies,
     validate,
 )
 from nanoscope.server.settings import Settings, check
 
 # every resource module adds its `router` here
-ROUTES = [presets, models, blocks, files, graph, validate, events, runs, compare]
+ROUTES = [presets, models, blocks, files, graph, validate, events, runs, compare, studies]
 
 
 @asynccontextmanager

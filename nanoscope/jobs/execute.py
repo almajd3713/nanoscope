@@ -82,9 +82,30 @@ def _describe(job: Any, payload: dict[str, Any]) -> dict[str, Any]:
                     **payload.get("kwargs", {}))
 
 
+def _study(job: Any, payload: dict[str, Any]) -> dict[str, Any]:
+    """Load a study spec (this imports its models: it runs in a worker, not the API) and put
+    every unfinished run on the batch lane."""
+    from pathlib import Path
+
+    from nanoscope import paths
+    from nanoscope.study import Study
+    from nanoscope.studyspec import StudySpec
+
+    spec = StudySpec.load(payload["spec"])
+    for variant in spec.variants:  # a relative file ref is relative to the workspace
+        file, sep, name = variant.model.rpartition(":")
+        if sep and file.endswith(".py") and not Path(file).is_absolute():
+            candidate = paths.workspace_dir() / file
+            if candidate.exists():
+                variant.model = f"{candidate.resolve()}:{name}"
+    study = Study.from_spec(spec, source=Path(payload["spec"]))
+    ids = study.enqueue(lane="batch")
+    return {"study": spec.name, "runs": len(study.jobs()), "jobs": ids}
+
+
 HANDLERS: dict[str, Callable[[Any, dict[str, Any]], dict[str, Any]]] = {
     "run": _run, "prepare-data": _prepare_data, "bench": _bench, "check": _check,
-    "describe": _describe,
+    "describe": _describe, "study": _study,
 }
 
 
