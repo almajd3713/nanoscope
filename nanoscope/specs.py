@@ -164,6 +164,17 @@ def validate_run_request(
     model: type, preset: str | Preset, kwargs: dict[str, Any], seeds: Any = None,
 ) -> list[Problem]:
     """Every problem with a run request at once (the first one is what `run()` raises)."""
+    return validate_run_spec(ModelSpec.from_class(model), preset, kwargs, seeds,
+                             locked=_locked_problems(model))
+
+
+def validate_run_spec(
+    spec: ModelSpec, preset: str | Preset, kwargs: dict[str, Any], seeds: Any = None,
+    locked: list[Problem] | None = None,
+) -> list[Problem]:
+    """The same checks from a model's *spec* (its constructor parameters), so a service can
+    validate a request for a model it has only read, not imported. `locked` are problems the
+    caller found by scanning the model's file."""
     problems: list[Problem] = []
     if not isinstance(preset, Preset):
         try:
@@ -173,14 +184,14 @@ def validate_run_request(
                 "unknown_preset", "preset", f"unknown preset {preset!r}",
                 f"available: {', '.join(list_presets()) or 'none'}"))
 
-    params = {p.name: p for p in ModelSpec.from_class(model).tunable()}
+    params = {p.name: p for p in spec.tunable()}
     preset_fields = {f.name: f for f in fields(Preset)}
     for key, value in kwargs.items():
         if key in params:
             note = _type_problem(value, params[key].annotation)
             if note:
                 problems.append(Problem("wrong_type", key, f"{key} {note}",
-                                        f"a parameter of {model.__name__}.__init__"))
+                                        f"a parameter of {spec.name}.__init__"))
         elif key in preset_fields:
             note = _type_problem(value, str(preset_fields[key].type))
             if note:
@@ -188,11 +199,11 @@ def validate_run_request(
         else:
             problems.append(Problem(
                 "unknown_keyword", key,
-                f"{key!r} is neither a parameter of {model.__name__}.__init__ "
+                f"{key!r} is neither a parameter of {spec.name}.__init__ "
                 f"nor a preset field (see nanoscope.Preset)",
                 f"model parameters: {', '.join(params) or 'none'}"))
 
-    problems += _locked_problems(model)
+    problems += locked or []
     if seeds is not None:
         bad = (isinstance(seeds, bool)
                or (isinstance(seeds, int) and seeds < 1)

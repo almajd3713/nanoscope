@@ -76,6 +76,100 @@
       "items": {
         "type": "string"
       }
+    },
+    "curves": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": [
+          "label",
+          "source",
+          "seeds"
+        ],
+        "properties": {
+          "label": {
+            "type": "string"
+          },
+          "source": {
+            "type": "string"
+          },
+          "seeds": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "required": [
+                "seed",
+                "points"
+              ],
+              "properties": {
+                "seed": {
+                  "type": "integer"
+                },
+                "points": {
+                  "type": "array",
+                  "items": {
+                    "type": "array",
+                    "items": {
+                      "type": "number"
+                    },
+                    "minItems": 2,
+                    "maxItems": 2
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "precision_plan": {
+      "type": "object",
+      "required": [
+        "metric",
+        "preset",
+        "n_seeds",
+        "sd",
+        "half_width",
+        "source"
+      ],
+      "properties": {
+        "metric": {
+          "type": "string"
+        },
+        "preset": {
+          "type": "string"
+        },
+        "n_seeds": {
+          "type": "integer"
+        },
+        "sd": {
+          "type": [
+            "number",
+            "null"
+          ]
+        },
+        "half_width": {
+          "type": [
+            "number",
+            "null"
+          ]
+        },
+        "source": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "models": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "note": {
+          "type": "string"
+        }
+      }
     }
   },
   "required": [

@@ -151,6 +151,14 @@ def build_parser() -> argparse.ArgumentParser:
     blocks_parser.add_argument("--workspace", default=None,
                                help="also list register_block blocks found under this folder")
 
+    serve_parser = sub.add_parser(
+        "serve", help="Start the HTTP API (needs the server extra)")
+    serve_parser.add_argument("--host", default="127.0.0.1",
+                              help="127.0.0.1 (this machine only) or 0.0.0.0 (needs a token)")
+    serve_parser.add_argument("--port", type=int, default=8000)
+    serve_parser.add_argument("--worker", metavar="DEVICE", default=None,
+                              help="also start a local worker on this device (cpu, cuda:0)")
+
     describe_parser = sub.add_parser(
         "describe", help="Shapes, parameters, FLOPs and memory of a model, traced without data")
     describe_parser.add_argument("model", help="path/to/model.py:ClassName (it is imported)")
@@ -297,6 +305,35 @@ def _main(argv: list[str] | None = None) -> None:
         if cls:
             graph["classes"] = [c for c in graph["classes"] if c["name"] == cls]
         print(json_.dumps(graph, indent=2) if args.json else format_graph(graph))
+        return
+
+    if args.command == "serve":
+        try:
+            import uvicorn
+
+            from nanoscope.server.app import create_app
+            from nanoscope.server.settings import Settings
+        except ImportError as exc:
+            raise SystemExit(
+                'the server needs its extra: pip install "nanoscope-lab[server]"') from exc
+        from nanoscope.server.settings import (
+            REMOTE_WARNING,
+            ensure_token,
+            is_loopback,
+            login_url,
+        )
+
+        token = None if is_loopback(args.host) else ensure_token()
+        settings = Settings(host=args.host, port=args.port, token=token, worker=args.worker)
+        print(f"nanoscope API on http://{settings.host}:{settings.port}/api (docs: /api/docs)")
+        if settings.worker:
+            print(f"starting a local worker on {settings.worker} with the server")
+        if token:
+            print(f"listening beyond this machine: sign in at {login_url(settings)}")
+            print("  (the token is saved in the server folder, readable only by you)")
+            print(REMOTE_WARNING)
+        uvicorn.run(create_app(settings), host=settings.host, port=settings.port,
+                    log_level="info")
         return
 
     if args.command == "blocks":

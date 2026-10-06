@@ -25,6 +25,7 @@ from typing import Any
 from nanoscope import __version__, paths, queue, store
 from nanoscope.fsutil import write_json_atomic
 from nanoscope.hardware import HEADROOM, free_memory, probe_memory
+from nanoscope.jobs.inference import InferencePool, InferenceRunner
 from nanoscope.jobs.runner import JobRunner, SubprocessRunner, job_env
 from nanoscope.log import info
 from nanoscope.schemas.upgrade import read_json
@@ -86,6 +87,7 @@ class Worker:
         self.stop_grace, self.exit_when_idle = stop_grace, exit_when_idle
         self._free_memory, self._probe = free_memory, probe
         self.active: dict[int, _Active] = {}
+        self._pool: InferencePool | None = None
         self.shutting_down = False
         self._started_at = self._now()
 
@@ -108,6 +110,8 @@ class Worker:
         finally:
             for sig, handler in old.items():
                 signal.signal(sig, handler)
+            if self._pool is not None:
+                self._pool.close()
             self.worker_file().unlink(missing_ok=True)
 
     def tick(self) -> bool:
@@ -154,7 +158,11 @@ class Worker:
 
     def _start(self, job: sqlite3.Row) -> None:
         payload = json.loads(job["payload"])
-        runner = self.runner_factory()
+        if job["kind"] == "generate":  # served from a long-lived process that keeps models loaded
+            self._pool = self._pool or InferencePool()
+            runner: JobRunner = InferenceRunner(self._pool)
+        else:
+            runner = self.runner_factory()
         env = job_env(job["kind"], payload)
         env["NANOSCOPE_WORKER_SLOTS"] = str(self.slots)
         log = paths.job_logs_dir() / f"{job['id']}.log"
