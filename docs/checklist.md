@@ -4,7 +4,7 @@ The build list for [`plan-tool.md`](plan-tool.md), sections 4-10, with the decis
 2026-10-05 (plan section 11) applied. Phase numbers follow the plan's section 10. Every
 item is one line, so scripts and agents can grep and edit it.
 
-**Current focus:** P12 docker-compose. Next item: P12.99 (gate; P12.13 job written, green on the PR pending).
+**Current focus:** P13 GUI MVP 1 (shell, Learn and Tinker screens). Next item: P13.01. P12 is merged (PR #13).
 
 ## Progress
 
@@ -16,7 +16,7 @@ item is one line, so scripts and agents can grep and edit it.
 | P9 | Curriculum engine, gating, two paths (14-17 d) | 61 / 61 | done |
 | P10 | HTTP API (8-10 d) | 47 / 47 | done |
 | P11 | Release prep: PyPI + GHCR (2-3 d) | 17 / 17 | done |
-| P12 | docker-compose (3-4 d) | 18 / 20 | in progress |
+| P12 | docker-compose (3-4 d) | 20 / 20 | done |
 | P13 | GUI MVP 1: shell, Learn/Tinker screens (12-15 d) | 0 / 37 | not started |
 | P14 | GUI MVP 2: model page, drag-and-drop (14-17 d) | 0 / 34 | not started |
 | P15 | GUI Research (10-13 d) | 0 / 30 | not started |
@@ -474,14 +474,14 @@ touch or create (new ones marked `(new)`).
 - [x] P12.10 (2026-10-07, 3c6be82; notebook 01 trains in 93 s on CPU) Write marimo versions of notebooks 01-04 under `notebooks/marimo/`. The user allows breaking away from the `.ipynb` files (2026-10-05): once the marimo versions work, retire the `.ipynb` notebooks (keep a Colab/Kaggle path only if it is cheap) and repoint the first-notebook guard test at the marimo version. · files: notebooks/marimo/01_first_model.py ... 04_ablations.py (new) · deps: P12.09 · done: `uv run --extra notebook marimo check notebooks/marimo/` exits 0
 - [x] P12.11 (2026-10-07, 2d7c38c) Let lessons ship an optional marimo `notebook.py`; the loader checks that it defines a marimo app, and `learn start` copies it. · files: nanoscope/learn/loader.py, tests/test_learn.py · deps: P12.10 · done: `uv run pytest tests/test_learn.py -k marimo_notebook` passes
 - [x] P12.12 (2026-10-07, 9e86a63) Add a pytest `compose` marker and `tests/compose/test_compose.py`: compose up, submit a bigram over the API, reach `done` in under 2 min with cached data, and find the run folder on the home volume. · files: pyproject.toml, tests/compose/test_compose.py (new) · deps: P12.04 · done: `uv run pytest -m compose tests/compose -k bigram_under_2min` passes locally
-- [ ] P12.13 (job written, 2026-10-07; green on the PR still to verify) Add a CI job `compose` that seeds `nanoscope-data` from the actions cache and runs the compose tests. · files: .github/workflows/ci.yml · deps: P12.12 · done: the job is green on the PR
+- [x] P12.13 (2026-10-07, f602fdd; green on PR #13) Add a CI job `compose` that seeds `nanoscope-data` from the actions cache and runs the compose tests. · files: .github/workflows/ci.yml · deps: P12.12 · done: the job is green on the PR
 - [x] P12.14 (2026-10-07, 84fbed5) Test that `down`/`up` keeps runs and resumes a run that was mid-training. · files: tests/compose/test_compose.py · deps: P12.12 · done: `uv run pytest -m compose tests/compose -k restart_resumes` passes
 - [x] P12.15 (2026-10-07, 3bd2cb2) Test that workers run as uid 1000 with CapDrop ALL and the limits set. · files: tests/compose/test_compose.py · deps: P12.12, P12.03 · done: `uv run pytest -m compose tests/compose -k hardened` passes
 - [x] P12.16 (2026-10-07, run by the user on an RTX 4070 Laptop under WSL2: bench job 2 ran on `cuda:0`, torch 2.8.0+cu126, 3.9 ms/step, 519k tokens/s; CPU worker did 8.6k tokens/s; paste into the PR) **USER ACTION** Run `docker compose --profile gpu up` on a GPU machine and check that `POST /api/bench` reports `cuda`; record it in the PR. · files: PR description · deps: P12.05 · done: the PR shows the bench output with cuda
 - [x] P12.17 (2026-10-07, 6486d15) Write `docs/deploy.md`: compose usage, profiles, token login, SSH tunnel or Tailscale, backing up `nanoscope-home` (with `queue.db`), WSL2/Docker Desktop, native `nanoscope serve` for MPS/ROCm, and Kaggle sync. · files: docs/deploy.md (new) · deps: P12.14 · done: `grep -c '^## ' docs/deploy.md` prints at least 6
 - [x] P12.18 (2026-10-07, f90eedf) Update the README for four levels, `nanoscope serve`, `docker compose up` and `nanoscope learn` (plan 13). · files: README.md · deps: P12.17 · done: `grep -cE 'docker compose up|nanoscope learn|nanoscope serve' README.md` prints at least 3
 - [x] P12.19 (2026-10-07, 771c0e4) Add `NANOSCOPE_TOKEN`, `NANOSCOPE_WORKSPACE`, `NANOSCOPE_SLOTS` and `NANOSCOPE_JOBS_OFFLINE` to `.env.example`. · files: .env.example · deps: P12.02 · done: `grep -c NANOSCOPE_ .env.example` prints at least 4
-- [ ] P12.99 PHASE GATE P12. Exit criteria: plan section 10 phase 12. · files: — · deps: P12.* · done: `make check` passes; `uv run pytest tests/test_first_model_notebook.py` passes; the compose CI job is green (bigram under 2 min, restart resumes, hardened); P12.16 recorded; **USER ACTION** merge the PR
+- [x] P12.99 (2026-10-07, 4ff07f2; PR #13 merged) PHASE GATE P12. Exit criteria: plan section 10 phase 12. · files: — · deps: P12.* · done: `make check` passes; `uv run pytest tests/test_first_model_notebook.py` passes; the compose CI job is green (bigram under 2 min, restart resumes, hardened); P12.16 recorded; **USER ACTION** merge the PR
 
 ---
 
