@@ -4,7 +4,7 @@ The build list for [`plan-tool.md`](plan-tool.md), sections 4-10, with the decis
 2026-10-05 (plan section 11) applied. Phase numbers follow the plan's section 10. Every
 item is one line, so scripts and agents can grep and edit it.
 
-**Current focus:** P12 docker-compose. Next item: P12.12.
+**Current focus:** P12 docker-compose. Next item: P12.13.
 
 ## Progress
 
@@ -16,7 +16,7 @@ item is one line, so scripts and agents can grep and edit it.
 | P9 | Curriculum engine, gating, two paths (14-17 d) | 61 / 61 | done |
 | P10 | HTTP API (8-10 d) | 47 / 47 | done |
 | P11 | Release prep: PyPI + GHCR (2-3 d) | 17 / 17 | done |
-| P12 | docker-compose (3-4 d) | 12 / 20 | in progress |
+| P12 | docker-compose (3-4 d) | 13 / 20 | in progress |
 | P13 | GUI MVP 1: shell, Learn/Tinker screens (12-15 d) | 0 / 37 | not started |
 | P14 | GUI MVP 2: model page, drag-and-drop (14-17 d) | 0 / 34 | not started |
 | P15 | GUI Research (10-13 d) | 0 / 30 | not started |
@@ -473,7 +473,7 @@ touch or create (new ones marked `(new)`).
 - [x] P12.09 (2026-10-07, d223f6d; marimo service up, token gate checked) Add the `notebook` service (decision 11.7): marimo editing `workspace/notebooks`, the same `NANOSCOPE_HOME`, a loopback port and a token. · files: compose.yaml, pyproject.toml (`notebook` extra with marimo), docker/Dockerfile.cpu · deps: P12.02 · done: `docker compose --profile notebook config -q` exits 0
 - [x] P12.10 (2026-10-07, 3c6be82; notebook 01 trains in 93 s on CPU) Write marimo versions of notebooks 01-04 under `notebooks/marimo/`. The user allows breaking away from the `.ipynb` files (2026-10-05): once the marimo versions work, retire the `.ipynb` notebooks (keep a Colab/Kaggle path only if it is cheap) and repoint the first-notebook guard test at the marimo version. · files: notebooks/marimo/01_first_model.py ... 04_ablations.py (new) · deps: P12.09 · done: `uv run --extra notebook marimo check notebooks/marimo/` exits 0
 - [x] P12.11 (2026-10-07, 2d7c38c) Let lessons ship an optional marimo `notebook.py`; the loader checks that it defines a marimo app, and `learn start` copies it. · files: nanoscope/learn/loader.py, tests/test_learn.py · deps: P12.10 · done: `uv run pytest tests/test_learn.py -k marimo_notebook` passes
-- [ ] P12.12 Add a pytest `compose` marker and `tests/compose/test_compose.py`: compose up, submit a bigram over the API, reach `done` in under 2 min with cached data, and find the run folder on the home volume. · files: pyproject.toml, tests/compose/test_compose.py (new) · deps: P12.04 · done: `uv run pytest -m compose tests/compose -k bigram_under_2min` passes locally
+- [x] P12.12 (2026-10-07, 9e86a63) Add a pytest `compose` marker and `tests/compose/test_compose.py`: compose up, submit a bigram over the API, reach `done` in under 2 min with cached data, and find the run folder on the home volume. · files: pyproject.toml, tests/compose/test_compose.py (new) · deps: P12.04 · done: `uv run pytest -m compose tests/compose -k bigram_under_2min` passes locally
 - [ ] P12.13 Add a CI job `compose` that seeds `nanoscope-data` from the actions cache and runs the compose tests. · files: .github/workflows/ci.yml · deps: P12.12 · done: the job is green on the PR
 - [ ] P12.14 Test that `down`/`up` keeps runs and resumes a run that was mid-training. · files: tests/compose/test_compose.py · deps: P12.12 · done: `uv run pytest -m compose tests/compose -k restart_resumes` passes
 - [ ] P12.15 Test that workers run as uid 1000 with CapDrop ALL and the limits set. · files: tests/compose/test_compose.py · deps: P12.12, P12.03 · done: `uv run pytest -m compose tests/compose -k hardened` passes
