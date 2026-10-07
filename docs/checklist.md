@@ -17,8 +17,8 @@ item is one line, so scripts and agents can grep and edit it.
 | P10 | HTTP API (8-10 d) | 47 / 47 | done |
 | P11 | Release prep: PyPI + GHCR (2-3 d) | 17 / 17 | done |
 | P12 | docker-compose (3-4 d) | 20 / 20 | done |
-| P13 | GUI MVP 1: shell, Learn/Tinker screens (12-15 d) | 0 / 46 | not started |
-| P14 | GUI MVP 2: model page, drag-and-drop (14-17 d) | 0 / 34 | not started |
+| P13 | GUI MVP 1: shell, Learn/Tinker screens (12-15 d) | 0 / 48 | not started |
+| P14 | GUI MVP 2: model page, drag-and-drop (14-17 d) | 0 / 35 | not started |
 | P15 | GUI Research (10-13 d) | 0 / 30 | not started |
 | P16 | Extend + depth (8-10 d) | 0 / 16 | not started |
 | P17 | Remaining curriculum paths (18-26 d) | 0 / 34 | not started |
@@ -517,21 +517,25 @@ Order: P13.01 and P13.02 first (these items live in `web/` and run in its CI job
 - [ ] P13.13 Lesson page: `lesson.md` with Surface, Deep and Reading tabs (sanitized markdown), the estimates of both compute variants, and "Passing unlocks: …". · files: web/src/pages/Lesson.tsx (new) · deps: P13.12 · done: `pnpm -C web test -- Lesson` passes
 - [ ] P13.14 Lesson page actions: Start (`POST start`, then shows the starter file read-only with a link to the model page once P14 lands) and Train (runs the lesson's experiment and opens the run page). · files: web/src/pages/Lesson.tsx · deps: P13.13 · done: `pnpm -C web test -- Lesson.actions` passes
 - [ ] P13.15 Lesson Check: enqueues the check job, shows live progress, then each check's verdict with its reasons, and refreshes progress and unlocks. · files: web/src/pages/Lesson.tsx, web/src/components/CheckResult.tsx (new) · deps: P13.14, P13.05 · done: `pnpm -C web test -- CheckResult` passes
-- [ ] P13.16 Predict box on the lesson page and the run form: it records a prediction before the run, and the result view scores it. · files: web/src/components/Predict.tsx (new) · deps: P13.15, P9.16 · done: `pnpm -C web test -- Predict` passes
-- [ ] P13.17 Run page header: state, ETA, device and step from SSE; a failed run shows its error and traceback tail from `status.json`. · files: web/src/pages/Run.tsx (new) · deps: P13.05, P10.29, P13.37 · done: `pnpm -C web test -- Run.header` passes
+- [ ] P13.16 Predict box on the lesson page, for lessons with a `predicted` check: it records the prediction (`POST`, as `nanoscope learn predict` does) before the experiment runs, and the check result shows the library's score. Run-form and compare predictions are dropped (Decisions log, 2026-10-07); research predictions live in study specs (P15). · files: web/src/components/Predict.tsx (new) · deps: P13.15, P9.16 · done: `pnpm -C web test -- Predict` passes
+- [ ] P13.17 Run page header: state, ETA, device and step from SSE; a failed run shows its error and traceback tail from `status.json`. · files: web/src/pages/Run.tsx (new) · deps: P13.05, P10.29, P13.37, P13.46 · done: `pnpm -C web test -- Run.header` passes
 - [ ] P13.18 Live loss/bpb curve with uPlot, with the baseline band from the shipped seeds and the eval points. · files: web/src/components/Curve.tsx (new) · deps: P13.17 · done: `pnpm -C web test -- Curve` passes
 - [ ] P13.19 Samples timeline on the run page. · files: web/src/components/Samples.tsx (new) · deps: P13.17 · done: `pnpm -C web test -- Samples` passes
 - [ ] P13.20 Run actions: stop, resume, generate (a prompt box) and duplicate. · files: web/src/pages/Run.tsx · deps: P13.17, P10.26, P10.27 · done: `pnpm -C web test -- Run.actions` passes
 - [ ] P13.21 Run form generated from ModelSpec/PresetSpec (Tinker): fields with help text, live `/api/validate/run` problems inline, seeds. · files: web/src/pages/RunForm.tsx (new) · deps: P13.09, P10.22, P13.37 · done: `pnpm -C web test -- RunForm` passes
 - [ ] P13.22 "Duplicate and change one thing" flow (Tinker), which pre-fills the form from a run's config. · files: web/src/pages/RunForm.tsx · deps: P13.21 · done: `pnpm -C web test -- RunForm.duplicate` passes
 - [ ] P13.23 Runs list with prefix and state filters and live state. · files: web/src/pages/Runs.tsx (new) · deps: P13.05, P10.23, P13.37 · done: `pnpm -C web test -- Runs` passes
-- [ ] P13.24 Compare page: the verdict table rendered from the API rows verbatim, notes as warnings, per-seed curves. · files: web/src/pages/Compare.tsx (new) · deps: P13.18, P10.30, P13.37 · done: `pnpm -C web test -- Compare` asserts the verdict text equals the fixture's
+- [ ] P13.24 Compare page: the verdict table rendered from the API rows verbatim, notes as warnings, per-seed curves. · files: web/src/pages/Compare.tsx (new) · deps: P13.18, P10.30, P13.37, P13.47 · done: `pnpm -C web test -- Compare` asserts the verdict text equals the fixture's
 - [ ] P13.25 Forest plot in plain SVG of the deltas with CIs, using API values only. · files: web/src/components/ForestPlot.tsx (new) · deps: P13.24 · done: `pnpm -C web test -- ForestPlot` passes
 - [ ] P13.26 Precision plan line ("with 5 seeds the CI would be about ±0.008") from the API. · files: web/src/pages/Compare.tsx · deps: P13.24 · done: `pnpm -C web test -- Compare.precision` passes
 - [ ] P13.27 Components page: the lock state of every block and feature, how each was unlocked, an evidence link, Unlock all (with a confirm step) and unlock-one with a reason. · files: web/src/pages/Components.tsx (new) · deps: P13.08, P10.33, P13.37 · done: `pnpm -C web test -- Components` passes
 - [ ] P13.28 Queue mini panel in the shell footer: current jobs with cancel. · files: web/src/components/QueuePanel.tsx (new) · deps: P13.08, P10.35, P13.37 · done: `pnpm -C web test -- QueuePanel` passes
 - [ ] P13.29 Accessibility basics: every control reachable by keyboard, and verdicts never shown by colour alone. · files: web/src/** · deps: P13.24 · done: `pnpm -C web test -- a11y` (axe on the main pages) passes
 - [ ] P13.30 Guard against statistics in the frontend: an ESLint rule that forbids statistics libraries, and a test that the compare page shows `rows[].verdict` unchanged. · files: web/eslint.config.js, web/src/pages/Compare.test.tsx · deps: P13.24 · done: `pnpm -C web lint` passes with the rule on
+
+### P13 · Library and API gaps found by the mockups (https://claude.ai/artifact/VDJ45sFJB44bqg82gZcrGR)
+- [ ] P13.46 The run detail (`GET /api/runs/{ref}`) carries a `baseline` block when shipped baselines exist for the run's preset and model name: the baselines' ref, their final values, `statistics.reproduction_interval` for one new run, and whether this run's final value is inside it. The run page shows it as "inside the shipped range" (or outside), never computing it in the browser. · files: nanoscope/server/routes/runs.py, nanoscope/store.py, tests/server/test_runs.py · deps: P12.99 · done: `uv run pytest tests/server/test_runs.py -k baseline_range` passes, including a run with no shipped baseline
+- [ ] P13.47 Compare's parameter column says which count it is: rows carry `params_kind` (`non-embedding`, or `total` when a run's stats lack `n_non_embedding_params`, as the shipped v0 baselines do), and the CLI table header follows it instead of always printing "non-emb params". · files: nanoscope/compare.py, tests/test_compare.py · deps: P12.99 · done: `uv run pytest tests/test_compare.py -k params_kind` passes and `nanoscope compare` on the shipped baselines prints a truthful header
 
 ### P13 · End-to-end tests and docs
 - [ ] P13.31 Set up Playwright in `web/e2e` against compose, with a CI job `e2e`. · files: web/e2e/ (new), web/playwright.config.ts (new), .github/workflows/ci.yml · deps: P13.02, P12.13, P13.38-P13.45 · done: `pnpm -C web exec playwright test --list` exits 0 and the e2e job is green
@@ -575,6 +579,7 @@ Order: P13.01 and P13.02 first (these items live in `web/` and run in its CI job
 - [ ] P14.22 Colour graph nodes live from `blockstats` SSE events when a run of this file is open. · files: web/src/graph/GraphView.tsx · deps: P14.12, P10.29 · done: `pnpm -C web test -- GraphView.blockstats` passes
 - [ ] P14.23 Model page: editor and graph side by side on one file; Lesson → Start opens the starter here. · files: web/src/pages/Model.tsx (new), web/src/pages/Lesson.tsx · deps: P14.12, P14.06 · done: `pnpm -C web test -- Model` passes
 - [ ] P14.24 Refresh the palette without a restart when `/api/learn/events` or the workspace's blocks change. · files: web/src/graph/Palette.tsx · deps: P14.17, P10.33 · done: `pnpm -C web test -- Palette.live` passes
+- [ ] P14.34 Models page and nav item: the workspace's model classes (read by AST through `/api/files` and graph parse, never imported) with params and FLOPs from the last trace, the trace state, and the user's blocks with their certification; each opens the model page. · files: web/src/pages/Models.tsx (new), web/src/app/Shell.tsx · deps: P14.12, P14.04 · done: `pnpm -C web test -- Models` passes
 
 ### P14 · End-to-end tests and docs
 - [ ] P14.25 Plan done-when: in the modern-block lesson, swapping LayerNorm→RMSNorm in the inspector changes exactly one line (`git diff --numstat` shows 1/1). · files: web/e2e/swap.spec.ts (new) · deps: P14.16, P14.23, P13.31 · done: `pnpm -C web exec playwright test swap` passes
@@ -582,7 +587,7 @@ Order: P13.01 and P13.02 first (these items live in `web/` and run in its CI job
 - [ ] P14.27 Plan done-when: an external edit to the file updates the open graph. · files: web/e2e/external-edit.spec.ts (new) · deps: P14.23, P14.08 · done: `pnpm -C web exec playwright test external-edit` passes
 - [ ] P14.28 Plan done-when: a locked block shows its unlock lesson and can't be dropped; after the lesson's check passes (using the solution file), it can be dragged without a restart. · files: web/e2e/locked.spec.ts (new) · deps: P14.24, P14.18 · done: `pnpm -C web exec playwright test locked` passes
 - [ ] P14.29 Plan done-when: a certified user block passes its check job and appears in the palette without a restart. · files: web/e2e/user-block.spec.ts (new) · deps: P14.24, P14.04 · done: `pnpm -C web exec playwright test user-block` passes
-- [ ] P14.30 Complete lesson F04 through the template canvas and check that its `equivalent` check passes. · files: web/e2e/template.spec.ts (new) · deps: P14.20 · done: `pnpm -C web exec playwright test template` passes
+- [ ] P14.30 Complete lesson F03 (one causal attention head; `AttentionTemplate` is single-head) through the template canvas and check that its `equivalent` check passes. · files: web/e2e/template.spec.ts (new) · deps: P14.20 · done: `pnpm -C web exec playwright test template` passes
 - [ ] P14.31 Add the model page, palette, drag-and-drop and locks to `docs/gui.md`. · files: docs/gui.md · deps: P14.28 · done: `grep -c 'drag' docs/gui.md` prints at least 1
 - [ ] P14.32 Fold the agreed parts of the plan into `docs/architecture.md`, keeping `plan-tool.md` as the decision record (plan 13). · files: docs/architecture.md (new), docs/plan-tool.md · deps: P14.31 · done: `grep -c '^## ' docs/architecture.md` prints at least 6
 - [ ] P14.33 **USER ACTION** Release the MVP as v0.4.0 to PyPI and GHCR (the agent prepares the version bump and CHANGELOG). · files: nanoscope/__init__.py, CHANGELOG.md · deps: P14.32 · done: `pip index versions nanoscope-lab` lists 0.4.0
@@ -714,6 +719,10 @@ Order: P13.01 and P13.02 first (these items live in `web/` and run in its CI job
 
 Append one line per decision: `- YYYY-MM-DD <item id or plan section>: <decision> (<who>)`.
 
+- 2026-10-07 P13.37: the agent designed the mockups (user asked; the user is not a designer): https://claude.ai/artifact/VDJ45sFJB44bqg82gZcrGR (27 screens, built only from the design system, every value and message taken from the library or the shipped baselines). Approval is still the user's.
+- 2026-10-07 P13.16: predictions stay where the library has them: lesson pages (`learn predict`, scored by the `predicted` check) and study specs (P15). The run form and compare page get no prediction box; a third prediction path is not built (user).
+- 2026-10-07 P14.34: a Models page and nav item (Learn, Models, Runs, Compare, Studies, Hardware, Components), so the model page has a way in other than lessons and runs (user).
+- 2026-10-07 P14.30: the template canvas lesson is F03, not F04: `AttentionTemplate` is one head (agent, from the code).
 - 2026-10-07 plan 9.5/P13.37-P13.45: the GUI follows the design system at https://claude.ai/artifact/D7a6hvoZR3zsH4zWiXYQQL (Claude Design, private). Direction "lab instrument"; light and dark following the OS; Radix primitives + own CSS tokens and CSS Modules (no Tailwind, shadcn, Mantine); IBM Plex Sans + Mono bundled; cobalt accent for interactive and selected things only; desktop-first with the run page, runs list, queue and lesson reading usable on a phone; text-first icons from a 29-icon Phosphor allowlist; reticle mark + lowercase wordmark; one density. Banned patterns were researched (9 sources, in the design system) rather than taken from memory. The design system is the source; `web/src/styles/` and `docs/design-system.md` mirror it (user decided; agent built it; user approved with no objections).
 - 2026-10-06 plan 14.1: pre-LLM ML is deferred until after P17. Pre-transformer language models (MLP LM, RNN, LSTM, seq2seq attention) are a candidate curriculum path; general classical ML/vision waits for real usage and must not shape earlier phases (user asked, agent recommended, user agreed).
 - 2026-10-05 plan 11: the user answered Q1-Q11 and added lesson gating; the roadmap was renumbered to P6-P17 and the MVP is P6-P14 (user).
@@ -732,6 +741,7 @@ Append one line per decision: `- YYYY-MM-DD <item id or plan section>: <decision
 Things found while building that aren't items yet. Turn each into an item under the
 right phase, then tick it here as `[x] → P<n>.<id>`.
 
+- [ ] The template-canvas mockup writes a filled template as `class OneHead(AttentionTemplate)` with slots passed to `super().__init__` and `None` for an empty slot. Check that `graph.parse` represents that shape (the fixture `template_fill.py` nests the template inside a Decoder) before building P14.20.
 - [ ] Not Linux: job children only die with their worker through PR_SET_PDEATHSIG (Linux). On macOS/Windows a killed worker leaves its child; add a pid check before requeue if those platforms matter.
 - [ ] The repo has no CI workflow yet. → covered by P6.04-P6.06.
 - [ ] `docs/plan-tool-landscape.md` still uses the old phase numbers ("Export (phase 13)") and calls questions "open". Fix it when folding into `docs/architecture.md` (P14.32).
