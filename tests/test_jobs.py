@@ -136,6 +136,28 @@ def test_offline_still_trains_on_cached_data(home, monkeypatch):
     assert stopped.value.code == 0
 
 
+def test_container_cpu_quota_caps_the_thread_count(tmp_path, monkeypatch):
+    v2 = tmp_path / "v2"
+    v2.mkdir()
+    (v2 / "cpu.max").write_text("400000 100000\n")
+    assert hardware.cgroup_cpu_limit(v2) == 4.0
+    (v2 / "cpu.max").write_text("max 100000\n")
+    assert hardware.cgroup_cpu_limit(v2) is None
+    v1 = tmp_path / "v1"
+    (v1 / "cpu").mkdir(parents=True)
+    (v1 / "cpu" / "cpu.cfs_quota_us").write_text("150000\n")
+    (v1 / "cpu" / "cpu.cfs_period_us").write_text("100000\n")
+    assert hardware.cgroup_cpu_limit(v1) == 1.5
+    assert hardware.cgroup_cpu_limit(tmp_path / "none") is None
+    monkeypatch.setattr(os, "sched_getaffinity", lambda _: set(range(16)), raising=False)
+    monkeypatch.setattr(hardware, "cgroup_cpu_limit", lambda: 4.0)
+    assert hardware.available_cpus() == 4 and hardware.cpu_threads(2) == 2
+    monkeypatch.setattr(hardware, "cgroup_cpu_limit", lambda: 0.5)
+    assert hardware.available_cpus() == 1
+    monkeypatch.setattr(hardware, "cgroup_cpu_limit", lambda: None)
+    assert hardware.available_cpus() == 16
+
+
 def test_run_job_records_an_error_and_exits_nonzero(home, capsys):
     job_id = add("run", {"model": "no_such_module:Nope", "preset": "tinystories-5min"})
     queue.claim("w", "cpu")

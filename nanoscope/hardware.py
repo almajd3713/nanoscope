@@ -2,8 +2,10 @@
 
 from __future__ import annotations
 
+import math
 import os
 from collections.abc import Callable
+from pathlib import Path
 
 import torch
 import torch.nn.functional as F
@@ -34,9 +36,38 @@ def probe_memory(build_model: Callable[[], torch.nn.Module], preset: Preset,
     return context + peak
 
 
+def cgroup_cpu_limit(root: Path = Path("/sys/fs/cgroup")) -> float | None:
+    """The CPUs a container may use (`docker run --cpus 4` is 4.0), or None when unlimited."""
+    try:  # cgroup v2: "<quota> <period>" or "max <period>"
+        quota, period = (root / "cpu.max").read_text().split()[:2]
+        return None if quota == "max" else int(quota) / int(period)
+    except (OSError, ValueError):
+        pass
+    try:  # cgroup v1
+        quota = int((root / "cpu" / "cpu.cfs_quota_us").read_text())
+        period = int((root / "cpu" / "cpu.cfs_period_us").read_text())
+        return None if quota <= 0 else quota / period
+    except (OSError, ValueError, ZeroDivisionError):
+        return None
+
+
+def available_cpus() -> int:
+    """The cores this process may really use: the CPU affinity, capped by a container's quota.
+    `os.cpu_count()` is the host's core count, so a 4-CPU container on a 16-core machine would
+    start 16 threads and be throttled."""
+    try:
+        cpus = len(os.sched_getaffinity(0))
+    except AttributeError:  # macOS, Windows
+        cpus = os.cpu_count() or 1
+    limit = cgroup_cpu_limit()
+    if limit is not None:
+        cpus = min(cpus, max(1, math.floor(limit)))
+    return max(1, cpus)
+
+
 def cpu_threads(workers_on_cpu: int) -> int:
     """Threads per worker so that CPU workers share the cores instead of fighting over them."""
-    return max(1, (os.cpu_count() or 1) // max(workers_on_cpu, 1))
+    return max(1, available_cpus() // max(workers_on_cpu, 1))
 
 
 def free_memory(device: str) -> int:

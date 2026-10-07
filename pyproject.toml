@@ -86,6 +86,7 @@ markers = [
   "gpu: requires a CUDA GPU",
   "network: requires network access",
   "cloud: requires HF and W&B credentials",
+  "compose: needs docker; builds images and starts the compose stack (run with -m compose)",
 ]
 
 [tool.ruff]
