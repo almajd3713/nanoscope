@@ -1,5 +1,32 @@
 # Changelog
 
+## 0.4.0 (2026-10-07)
+
+Phase 12 of the build plan: a docker-compose stack.
+
+### Added
+- `docker compose up`: the API and a CPU worker on `127.0.0.1:8765`; profiles add marimo
+  notebooks (`--profile notebook`) and an NVIDIA GPU worker (`--profile gpu`). The services run
+  as uid 1000 with no capabilities, a read-only root filesystem and resource limits
+  (`NANOSCOPE_MEM_LIMIT`, `NANOSCOPE_CPUS`, `NANOSCOPE_PIDS_LIMIT`), and cannot reach the Docker
+  socket. See `docs/deploy.md`.
+- Images: `ghcr.io/almajd3713/nanoscope:cpu` and `:cuda`, each also tagged with its version.
+  A release candidate publishes only its versioned tag.
+- `NANOSCOPE_JOBS_OFFLINE=1`: jobs that need the network (Hub sync, `push_to_hub`, W&B) are refused.
+- The `notebook` extra, and marimo notebooks `01_first_model` to `04_ablations` in
+  `notebooks/marimo/`. A lesson may ship a `notebook.py`.
+- Compose tests (`pytest -m compose`) and a `compose` CI job: a bigram trains over the API,
+  the services are hardened, and a run that was training when the stack went down resumes
+  after `up`.
+
+### Changed
+- A run stopped because its worker shut down reads `queued` in `status.json`, not `cancelled`: its
+  job is back in the queue and resumes from its last checkpoint.
+- Torch thread counts respect the container's CPU limit (a 4-CPU container used to start one
+  thread per host core).
+- The `.ipynb` notebooks are replaced by the marimo ones (`notebooks/kaggle.ipynb` stays).
+- The README describes four levels, `nanoscope serve` and compose.
+
 ## 0.3.0 (2026-10-06)
 
 Phases 6-10 of the build plan: the library becomes servable, and gains blocks, a
