@@ -55,7 +55,7 @@ def test_restart_resumes(stack):
             "model": "bigram", "preset": "tinystories-5min", "seed": 1,
             "kwargs": {"max_steps": 600, "checkpoint_interval": 100}})
         assert sent.status_code == 202, sent.text
-        ref = sent.json()["ref"]
+        ref, job_id = sent.json()["ref"], sent.json()["job"]["id"]
     # past the first checkpoint, well before the end
     deadline = time.monotonic() + 180
     step = 0
@@ -80,7 +80,8 @@ def test_restart_resumes(stack):
     assert detail["status"]["state"] == "done", detail
     assert detail["status"]["step"] >= 600 - 1
     # the job's log lives on the home volume, so it covers both containers' work
-    log = stack.compose("exec", "-T", "api", "cat", "/nanoscope/jobs/1.log", check=False).stdout
+    log = stack.compose("exec", "-T", "api", "cat", f"/nanoscope/jobs/{job_id}.log",
+                        check=False).stdout
     assert "resuming from step" in log, log[-1500:]
     ckpts = stack.volume_ls(f"/nanoscope/runs/{ref}")
     assert "ckpt" in ckpts or "checkpoint" in ckpts, ckpts
