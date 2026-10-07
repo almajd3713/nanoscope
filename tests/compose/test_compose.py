@@ -45,3 +45,41 @@ def test_hardened(stack, service):
     assert not any("docker.sock" in m["Source"] for m in info["Mounts"])
     ids = stack.compose("exec", "-T", service, "id", "-u").stdout.strip()
     assert ids == "1000"
+
+
+def test_restart_resumes(stack):
+    """`down` then `up` keeps the home volume, and a run that was mid-training carries on from
+    its last checkpoint instead of starting again."""
+    with stack.client() as client:
+        sent = client.post("/api/runs", json={
+            "model": "bigram", "preset": "tinystories-5min", "seed": 1,
+            "kwargs": {"max_steps": 600, "checkpoint_interval": 100}})
+        assert sent.status_code == 202, sent.text
+        ref = sent.json()["ref"]
+    # past the first checkpoint, well before the end
+    deadline = time.monotonic() + 180
+    step = 0
+    while step < 150 and time.monotonic() < deadline:
+        with stack.client() as client:
+            r = client.get(f"/api/runs/{ref}")
+        step = (r.json().get("status") or {}).get("step", 0) if r.status_code == 200 else 0
+        time.sleep(1)
+    assert 150 <= step < 600, f"never got mid-training (step {step})"
+
+    stack.compose("down", "--remove-orphans")  # no -v: the volumes stay
+    stack.compose("up", "-d", "--pull", "never", "api", "worker")
+    stack.wait_healthy()
+
+    assert "status.json" in stack.volume_ls(f"/nanoscope/runs/{ref}")
+    with stack.client() as client:
+        assert client.get(f"/api/runs/{ref}").json()["status"]["step"] >= 100
+    # the stopped run still reads `cancelled` until its requeued job starts again
+    wait_for_state(stack, ref, {"running", "done", "failed"}, seconds=120)
+    detail = wait_for_state(stack, ref, {"done", "failed", "cancelled"}, seconds=300)
+    assert detail["status"]["state"] == "done", detail
+    assert detail["status"]["step"] >= 600 - 1
+    # the job's log lives on the home volume, so it covers both containers' work
+    log = stack.compose("exec", "-T", "api", "cat", "/nanoscope/jobs/1.log", check=False).stdout
+    assert "resuming from step" in log, log[-1500:]
+    ckpts = stack.volume_ls(f"/nanoscope/runs/{ref}")
+    assert "ckpt" in ckpts or "checkpoint" in ckpts, ckpts
