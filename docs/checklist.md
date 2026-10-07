@@ -4,7 +4,7 @@ The build list for [`plan-tool.md`](plan-tool.md), sections 4-10, with the decis
 2026-10-05 (plan section 11) applied. Phase numbers follow the plan's section 10. Every
 item is one line, so scripts and agents can grep and edit it.
 
-**Current focus:** P12 docker-compose. Next item: P12.18 (P12.13 job written, green on the PR pending).
+**Current focus:** P12 docker-compose. Next item: P12.99 (gate; P12.16 is a user action; P12.13 job written, green on the PR pending).
 
 ## Progress
 
@@ -16,7 +16,7 @@ item is one line, so scripts and agents can grep and edit it.
 | P9 | Curriculum engine, gating, two paths (14-17 d) | 61 / 61 | done |
 | P10 | HTTP API (8-10 d) | 47 / 47 | done |
 | P11 | Release prep: PyPI + GHCR (2-3 d) | 17 / 17 | done |
-| P12 | docker-compose (3-4 d) | 16 / 20 | in progress |
+| P12 | docker-compose (3-4 d) | 17 / 20 | in progress |
 | P13 | GUI MVP 1: shell, Learn/Tinker screens (12-15 d) | 0 / 37 | not started |
 | P14 | GUI MVP 2: model page, drag-and-drop (14-17 d) | 0 / 34 | not started |
 | P15 | GUI Research (10-13 d) | 0 / 30 | not started |
@@ -479,7 +479,7 @@ touch or create (new ones marked `(new)`).
 - [x] P12.15 (2026-10-07, 3bd2cb2) Test that workers run as uid 1000 with CapDrop ALL and the limits set. · files: tests/compose/test_compose.py · deps: P12.12, P12.03 · done: `uv run pytest -m compose tests/compose -k hardened` passes
 - [ ] P12.16 **USER ACTION** Run `docker compose --profile gpu up` on a GPU machine and check that `POST /api/bench` reports `cuda`; record it in the PR. · files: PR description · deps: P12.05 · done: the PR shows the bench output with cuda
 - [x] P12.17 (2026-10-07, 6486d15) Write `docs/deploy.md`: compose usage, profiles, token login, SSH tunnel or Tailscale, backing up `nanoscope-home` (with `queue.db`), WSL2/Docker Desktop, native `nanoscope serve` for MPS/ROCm, and Kaggle sync. · files: docs/deploy.md (new) · deps: P12.14 · done: `grep -c '^## ' docs/deploy.md` prints at least 6
-- [ ] P12.18 Update the README for four levels, `nanoscope serve`, `docker compose up` and `nanoscope learn` (plan 13). · files: README.md · deps: P12.17 · done: `grep -cE 'docker compose up|nanoscope learn|nanoscope serve' README.md` prints at least 3
+- [x] P12.18 (2026-10-07, f90eedf) Update the README for four levels, `nanoscope serve`, `docker compose up` and `nanoscope learn` (plan 13). · files: README.md · deps: P12.17 · done: `grep -cE 'docker compose up|nanoscope learn|nanoscope serve' README.md` prints at least 3
 - [x] P12.19 (2026-10-07, 771c0e4) Add `NANOSCOPE_TOKEN`, `NANOSCOPE_WORKSPACE`, `NANOSCOPE_SLOTS` and `NANOSCOPE_JOBS_OFFLINE` to `.env.example`. · files: .env.example · deps: P12.02 · done: `grep -c NANOSCOPE_ .env.example` prints at least 4
 - [ ] P12.99 PHASE GATE P12. Exit criteria: plan section 10 phase 12. · files: — · deps: P12.* · done: `make check` passes; `uv run pytest tests/test_first_model_notebook.py` passes; the compose CI job is green (bigram under 2 min, restart resumes, hardened); P12.16 recorded; **USER ACTION** merge the PR
 
