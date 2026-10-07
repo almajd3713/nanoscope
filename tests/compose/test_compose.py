@@ -72,9 +72,10 @@ def test_restart_resumes(stack):
 
     assert "status.json" in stack.volume_ls(f"/nanoscope/runs/{ref}")
     with stack.client() as client:
-        assert client.get(f"/api/runs/{ref}").json()["status"]["step"] >= 100
-    # the stopped run still reads `cancelled` until its requeued job starts again
-    wait_for_state(stack, ref, {"running", "done", "failed"}, seconds=120)
+        status = client.get(f"/api/runs/{ref}").json()["status"]
+    # stopped for the restart, not cancelled: its job is back in the queue
+    assert status["state"] in ("queued", "preparing", "running"), status
+    assert status["step"] >= 100
     detail = wait_for_state(stack, ref, {"done", "failed", "cancelled"}, seconds=300)
     assert detail["status"]["state"] == "done", detail
     assert detail["status"]["step"] >= 600 - 1

@@ -5,6 +5,7 @@ import subprocess
 import sys
 import textwrap
 import time
+from pathlib import Path
 
 import pytest
 import torch
@@ -223,6 +224,35 @@ def test_worker_sigterm_hands_the_job_back(home, tmp_path):
     row = queue.get(job_id)
     assert (row["state"], row["worker_id"], row["attempts"]) == ("queued", None, 0)
     assert not list(paths.workers_dir().glob("*.json"))
+
+
+class StoppableRun(FakeRunner):
+    """A training child: on a STOP file it writes `cancelled` into its status.json and exits."""
+
+    folder: Path
+
+    def poll(self):
+        if (self.folder / "STOP").exists():
+            doc = json.loads((self.folder / "status.json").read_text())
+            (self.folder / "status.json").write_text(json.dumps({**doc, "state": "cancelled"}))
+            self.code = 0
+        return self.code
+
+
+def test_a_run_stopped_by_worker_shutdown_reads_queued_not_cancelled(home):
+    folder = paths.runs_dir() / "jobs-test" / "r"
+    folder.mkdir(parents=True)
+    (folder / "status.json").write_text(json.dumps({"schema": 1, "state": "running", "step": 120}))
+    StoppableRun.folder = folder
+    job_id = add("run", run_payload(), ref="jobs-test/r")
+    worker = Worker("cpu", 1, runner_factory=StoppableRun, poll_seconds=0.05, stop_grace=2)
+    worker.tick()
+    assert queue.get(job_id)["state"] == "running"
+    worker.shutdown()
+    worker._wind_down()
+    assert queue.get(job_id)["state"] == "queued"
+    status = json.loads((folder / "status.json").read_text())
+    assert (status["state"], status["step"]) == ("queued", 120)
 
 
 def test_status_workers_lists_each_worker(home, capsys):
