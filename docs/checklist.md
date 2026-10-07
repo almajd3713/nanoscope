@@ -17,7 +17,7 @@ item is one line, so scripts and agents can grep and edit it.
 | P10 | HTTP API (8-10 d) | 47 / 47 | done |
 | P11 | Release prep: PyPI + GHCR (2-3 d) | 17 / 17 | done |
 | P12 | docker-compose (3-4 d) | 20 / 20 | done |
-| P13 | GUI MVP 1: shell, Learn/Tinker screens (12-15 d) | 0 / 48 | not started |
+| P13 | GUI MVP 1: shell, Learn/Tinker screens (12-15 d) | 0 / 50 | not started |
 | P14 | GUI MVP 2: model page, drag-and-drop (14-17 d) | 0 / 35 | not started |
 | P15 | GUI Research (10-13 d) | 0 / 30 | not started |
 | P16 | Extend + depth (8-10 d) | 0 / 16 | not started |
@@ -509,7 +509,7 @@ Order: P13.01 and P13.02 first (these items live in `web/` and run in its CI job
 - [ ] P13.07 Build the SPA into `nanoscope/server/static/` for the wheel (release workflow) and the image (a multi-stage Dockerfile). · files: Makefile (`make web`), docker/Dockerfile.cpu, .github/workflows/release.yml · deps: P13.01, P10.38, P13.38-P13.45 · done: `make web && uv build && unzip -l dist/*.whl | grep -c server/static/index.html` prints 1
 - [ ] P13.08 Build the app shell: nav (Learn, Runs, Compare, Studies, Hardware, Components) and a level switch whose choice is kept in localStorage inside try/catch. · files: web/src/app/Shell.tsx (new), web/src/app/level.ts (new) · deps: P13.04, P13.37, P13.38, P13.39, P13.40, P13.43 · done: `pnpm -C web test -- Shell` passes, including when localStorage throws
 - [ ] P13.09 Write `web/src/levels.ts`, the single table of which controls each level shows; hidden fields keep their level-0 defaults and are never sent changed. · files: web/src/levels.ts (new), web/src/levels.test.ts (new) · deps: P13.08 · done: `pnpm -C web test -- levels` passes
-- [ ] P13.10 Add an `EquivalentCommand` component that every screen uses to show its CLI/Python equivalent. · files: web/src/components/EquivalentCommand.tsx (new) · deps: P13.08 · done: `grep -rL EquivalentCommand web/src/pages/*.tsx` lists only Login.tsx
+- [ ] P13.10 Add an `EquivalentCommand` component that every screen uses to show its CLI/Python equivalent. It renders only when the browser setting "Show command-line equivalents" is on (off by default; kept in localStorage inside try/catch) and takes no space when off. · files: web/src/components/EquivalentCommand.tsx (new) · deps: P13.08 · done: `grep -rL EquivalentCommand web/src/pages/*.tsx` lists only Login.tsx, and `pnpm -C web test -- EquivalentCommand` covers on, off and a throwing localStorage
 - [ ] P13.11 First-run onboarding: "I'm learning" (guided) or "I know this" (open) calls `POST /api/learn/policy`. · files: web/src/pages/Onboarding.tsx (new) · deps: P13.08, P10.33, P13.37 · done: `pnpm -C web test -- Onboarding` passes
 
 ### P13 · Screens
@@ -536,6 +536,8 @@ Order: P13.01 and P13.02 first (these items live in `web/` and run in its CI job
 ### P13 · Library and API gaps found by the mockups (https://claude.ai/artifact/VDJ45sFJB44bqg82gZcrGR)
 - [ ] P13.46 The run detail (`GET /api/runs/{ref}`) carries a `baseline` block when shipped baselines exist for the run's preset and model name: the baselines' ref, their final values, `statistics.reproduction_interval` for one new run, and whether this run's final value is inside it. The run page shows it as "inside the shipped range" (or outside), never computing it in the browser. · files: nanoscope/server/routes/runs.py, nanoscope/store.py, tests/server/test_runs.py · deps: P12.99 · done: `uv run pytest tests/server/test_runs.py -k baseline_range` passes, including a run with no shipped baseline
 - [ ] P13.47 Compare's parameter column says which count it is: rows carry `params_kind` (`non-embedding`, or `total` when a run's stats lack `n_non_embedding_params`, as the shipped v0 baselines do), and the CLI table header follows it instead of always printing "non-emb params". · files: nanoscope/compare.py, tests/test_compare.py · deps: P12.99 · done: `uv run pytest tests/test_compare.py -k params_kind` passes and `nanoscope compare` on the shipped baselines prints a truthful header
+- [ ] P13.48 Add `GET /api/settings`: read-only facts about this server (version, home, workspace and data folders, the address it listens on, `NANOSCOPE_JOBS_OFFLINE`, and whether the workers have `HF_TOKEN` and `WANDB_API_KEY`, as booleans from their heartbeat, never the values). · files: nanoscope/server/routes/settings.py (new), nanoscope/server/app.py, nanoscope/jobs/worker.py, tests/server/test_settings.py (new) · deps: P12.99 · done: `uv run pytest tests/server/test_settings.py` passes and asserts no secret value appears in the response
+- [ ] P13.49 Settings page and top-bar link: this browser (theme, level, show command-line equivalents), learning (gating policy through `POST /api/learn/policy`), data (each preset's state from `GET /api/data`, Prepare as a job), and this server (read-only, from P13.48, with where to change each value). · files: web/src/pages/Settings.tsx (new), web/src/app/Shell.tsx · deps: P13.08, P13.10, P13.11, P13.48 · done: `pnpm -C web test -- Settings` passes
 
 ### P13 · End-to-end tests and docs
 - [ ] P13.31 Set up Playwright in `web/e2e` against compose, with a CI job `e2e`. · files: web/e2e/ (new), web/playwright.config.ts (new), .github/workflows/ci.yml · deps: P13.02, P12.13, P13.38-P13.45 · done: `pnpm -C web exec playwright test --list` exits 0 and the e2e job is green
@@ -719,6 +721,7 @@ Order: P13.01 and P13.02 first (these items live in `web/` and run in its CI job
 
 Append one line per decision: `- YYYY-MM-DD <item id or plan section>: <decision> (<who>)`.
 
+- 2026-10-07 P13.10/P13.49: a Settings page, and command-line equivalents are hidden unless turned on in Settings (off by default: most users never use the CLI). Every screen still has its equivalent, so the no-GUI-only-feature rule holds (user asked; agent kept the component on every page).
 - 2026-10-07 P13.37: the agent designed the mockups (user asked; the user is not a designer): https://claude.ai/artifact/VDJ45sFJB44bqg82gZcrGR (27 screens, built only from the design system, every value and message taken from the library or the shipped baselines). Approval is still the user's.
 - 2026-10-07 P13.16: predictions stay where the library has them: lesson pages (`learn predict`, scored by the `predicted` check) and study specs (P15). The run form and compare page get no prediction box; a third prediction path is not built (user).
 - 2026-10-07 P14.34: a Models page and nav item (Learn, Models, Runs, Compare, Studies, Hardware, Components), so the model page has a way in other than lessons and runs (user).
