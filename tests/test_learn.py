@@ -274,6 +274,33 @@ def test_learn_list(curricula, home, capsys):
     assert "passed" in out.splitlines()[1] and "locked" not in out and "modern" not in out
 
 
+MARIMO_NOTEBOOK = (
+    'import marimo\n\napp = marimo.App()\n\n\n@app.cell\ndef _():\n    return\n')
+
+
+def test_lesson_marimo_notebook_must_define_an_app(tmp_path):
+    lesson = make(tmp_path)
+    (lesson / "notebook.py").write_text(MARIMO_NOTEBOOK)
+    assert load_lesson("foundations/01-bigram", root=tmp_path).has_notebook
+    (lesson / "notebook.py").write_text("print('not a notebook')\n")
+    found = problems_of(lambda: load_lesson("foundations/01-bigram", root=tmp_path))
+    assert "does not define a marimo app" in found["foundations/01-bigram/notebook.py"]
+    (lesson / "notebook.py").write_text("def broken(:\n")
+    found = problems_of(lambda: load_lesson("foundations/01-bigram", root=tmp_path))
+    assert "not valid Python" in found["foundations/01-bigram/notebook.py"]
+
+
+def test_learn_start_copies_the_marimo_notebook(curricula, home, capsys, monkeypatch, tmp_path):
+    from nanoscope import paths
+    from nanoscope.cli import main
+
+    (curricula / "foundations" / "01-bigram" / "notebook.py").write_text(MARIMO_NOTEBOOK)
+    monkeypatch.setenv("NANOSCOPE_WORKSPACE", str(tmp_path / "ws"))
+    main(["learn", "start", "foundations/01-bigram"])
+    target = paths.workspace_dir() / "lessons" / "foundations" / "01-bigram" / "notebook.py"
+    assert target.read_text() == MARIMO_NOTEBOOK and f"copied {target}" in capsys.readouterr().out
+
+
 def test_learn_start(curricula, home, capsys, monkeypatch, tmp_path):
     from nanoscope import paths
     from nanoscope.cli import main

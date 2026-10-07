@@ -45,6 +45,11 @@ def test_token_is_made_once_readable_only_by_you(home):
     assert login_url(remote(port=9000)) == f"http://localhost:9000/login?token={TOKEN}"
 
 
+def test_login_url_uses_the_public_port_when_set():
+    url = login_url(remote(port=8000), {"NANOSCOPE_PUBLIC_PORT": "8765"})
+    assert url == f"http://localhost:8765/login?token={TOKEN}"
+
+
 def test_serve_beyond_loopback_prints_the_login_url(home, monkeypatch, capsys):
     import uvicorn
 

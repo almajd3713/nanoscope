@@ -218,12 +218,31 @@ class Worker:
         else:
             active.runner.terminate()
 
+    def _mark_requeued(self, active: _Active) -> None:
+        """A run stopped for our shutdown is not cancelled: its job is back in the queue and will
+        resume. Say so in its status.json, so nothing reading the run folder sees `cancelled`."""
+        ref = active.job["ref"]
+        folder = store.resolve(ref, must_exist=False) if ref else None
+        if active.job["kind"] != "run" or folder is None:
+            return
+        path = folder / "status.json"
+        try:
+            doc = json.loads(path.read_text(encoding="utf-8"))
+        except (OSError, ValueError):
+            return
+        if doc.get("state") in ("running", "preparing", "stopped", "cancelled"):
+            doc["state"] = "queued"
+            doc["updated_at"] = self._now()
+            write_json_atomic(path, doc)
+
     def _finished(self, active: _Active, code: int) -> None:
         job_id = active.job["id"]
         if active.timed_out:
             state = queue.finish(job_id, f"timeout after {active.limit:g}s")
         elif self.shutting_down:
             state = queue.release(job_id, self.worker_id) or "released"
+            if state == "queued":
+                self._mark_requeued(active)
         else:
             row = queue.get(job_id)
             if code != 0:
@@ -251,7 +270,8 @@ class Worker:
             time.sleep(min(self.poll_seconds, 0.1))
         for job_id, active in list(self.active.items()):
             active.runner.terminate(kill=True)
-            queue.release(job_id, self.worker_id)
+            if queue.release(job_id, self.worker_id) == "queued":
+                self._mark_requeued(active)
             del self.active[job_id]
         self._write_file()
 

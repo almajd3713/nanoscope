@@ -1,4 +1,5 @@
-# CPU image: docker build -f docker/Dockerfile.cpu -t nanoscope:cpu .
+# CUDA image: docker build -f docker/Dockerfile.cuda -t nanoscope:cuda .
+# Run it with the NVIDIA container toolkit (`--gpus all`, or the compose gpu profile).
 FROM python:3.12-slim AS build
 RUN pip install --no-cache-dir uv
 WORKDIR /src
@@ -14,10 +15,8 @@ PY
 COPY nanoscope ./nanoscope
 RUN uv build --wheel --out-dir /dist
 
-FROM python:3.12-slim
-# CPU-only torch first, so the wheel's `torch>=2.2` is already satisfied (no CUDA download)
-RUN --mount=from=build,source=/usr/local/bin/uv,target=/usr/local/bin/uv \
-    uv pip install --system --no-cache torch --index-url https://download.pytorch.org/whl/cpu
+# pinned: torch and the CUDA runtime come with the base image, so the wheel's `torch>=2.2` is satisfied
+FROM pytorch/pytorch:2.8.0-cuda12.6-cudnn9-runtime
 COPY --from=build /requirements.txt /tmp/requirements.txt
 # uv (mounted from the build stage, so it is not in the final image) installs the rest; the cache
 # mount keeps downloads between builds (a flaky network resumes instead of restarting)

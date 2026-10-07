@@ -5,6 +5,7 @@ import subprocess
 import sys
 import textwrap
 import time
+from pathlib import Path
 
 import pytest
 import torch
@@ -111,6 +112,53 @@ def test_run_job_trains_in_a_fresh_process_and_records_the_result(home, monkeypa
     assert status["job_id"] == str(job_id)
 
 
+def test_offline_refuses_jobs_that_need_the_network(home, monkeypatch):
+    monkeypatch.setenv("NANOSCOPE_JOBS_OFFLINE", "1")
+    pushing = add("run", run_payload(push_to_hub="me/runs"), ref="jobs-test/off")
+    syncing = add("sync-hub", {"ref": "x/y", "repo": "me/runs"})
+    for job_id in (pushing, syncing):
+        queue.claim("w", "cpu")
+        with pytest.raises(SystemExit) as stopped:
+            main(["run-job", str(job_id)])
+        assert stopped.value.code == 1
+        assert "NANOSCOPE_JOBS_OFFLINE=1" in queue.get(job_id)["error"]
+    assert "me/runs" in queue.get(pushing)["error"]
+    assert "Hugging Face Hub" in queue.get(syncing)["error"]
+
+
+@pytest.mark.usefixtures("fake_data")
+def test_offline_still_trains_on_cached_data(home, monkeypatch):
+    load_data(tiny(max_steps=6))   # the cache is filled while the network is allowed
+    monkeypatch.setenv("NANOSCOPE_JOBS_OFFLINE", "1")
+    job_id = add("run", run_payload(), ref="jobs-test/offline-ok")
+    queue.claim("w", "cpu")
+    with pytest.raises(SystemExit) as stopped:
+        main(["run-job", str(job_id)])
+    assert stopped.value.code == 0
+
+
+def test_container_cpu_quota_caps_the_thread_count(tmp_path, monkeypatch):
+    v2 = tmp_path / "v2"
+    v2.mkdir()
+    (v2 / "cpu.max").write_text("400000 100000\n")
+    assert hardware.cgroup_cpu_limit(v2) == 4.0
+    (v2 / "cpu.max").write_text("max 100000\n")
+    assert hardware.cgroup_cpu_limit(v2) is None
+    v1 = tmp_path / "v1"
+    (v1 / "cpu").mkdir(parents=True)
+    (v1 / "cpu" / "cpu.cfs_quota_us").write_text("150000\n")
+    (v1 / "cpu" / "cpu.cfs_period_us").write_text("100000\n")
+    assert hardware.cgroup_cpu_limit(v1) == 1.5
+    assert hardware.cgroup_cpu_limit(tmp_path / "none") is None
+    monkeypatch.setattr(os, "sched_getaffinity", lambda _: set(range(16)), raising=False)
+    monkeypatch.setattr(hardware, "cgroup_cpu_limit", lambda: 4.0)
+    assert hardware.available_cpus() == 4 and hardware.cpu_threads(2) == 2
+    monkeypatch.setattr(hardware, "cgroup_cpu_limit", lambda: 0.5)
+    assert hardware.available_cpus() == 1
+    monkeypatch.setattr(hardware, "cgroup_cpu_limit", lambda: None)
+    assert hardware.available_cpus() == 16
+
+
 def test_run_job_records_an_error_and_exits_nonzero(home, capsys):
     job_id = add("run", {"model": "no_such_module:Nope", "preset": "tinystories-5min"})
     queue.claim("w", "cpu")
@@ -176,6 +224,35 @@ def test_worker_sigterm_hands_the_job_back(home, tmp_path):
     row = queue.get(job_id)
     assert (row["state"], row["worker_id"], row["attempts"]) == ("queued", None, 0)
     assert not list(paths.workers_dir().glob("*.json"))
+
+
+class StoppableRun(FakeRunner):
+    """A training child: on a STOP file it writes `cancelled` into its status.json and exits."""
+
+    folder: Path
+
+    def poll(self):
+        if (self.folder / "STOP").exists():
+            doc = json.loads((self.folder / "status.json").read_text())
+            (self.folder / "status.json").write_text(json.dumps({**doc, "state": "cancelled"}))
+            self.code = 0
+        return self.code
+
+
+def test_a_run_stopped_by_worker_shutdown_reads_queued_not_cancelled(home):
+    folder = paths.runs_dir() / "jobs-test" / "r"
+    folder.mkdir(parents=True)
+    (folder / "status.json").write_text(json.dumps({"schema": 1, "state": "running", "step": 120}))
+    StoppableRun.folder = folder
+    job_id = add("run", run_payload(), ref="jobs-test/r")
+    worker = Worker("cpu", 1, runner_factory=StoppableRun, poll_seconds=0.05, stop_grace=2)
+    worker.tick()
+    assert queue.get(job_id)["state"] == "running"
+    worker.shutdown()
+    worker._wind_down()
+    assert queue.get(job_id)["state"] == "queued"
+    status = json.loads((folder / "status.json").read_text())
+    assert (status["state"], status["step"]) == ("queued", 120)
 
 
 def test_status_workers_lists_each_worker(home, capsys):
