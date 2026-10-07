@@ -4,7 +4,7 @@ The build list for [`plan-tool.md`](plan-tool.md), sections 4-10, with the decis
 2026-10-05 (plan section 11) applied. Phase numbers follow the plan's section 10. Every
 item is one line, so scripts and agents can grep and edit it.
 
-**Current focus:** P12 docker-compose. Next item: P12.13.
+**Current focus:** P12 docker-compose. Next item: P12.14 (P12.13 job written, green on the PR pending).
 
 ## Progress
 
@@ -16,7 +16,7 @@ item is one line, so scripts and agents can grep and edit it.
 | P9 | Curriculum engine, gating, two paths (14-17 d) | 61 / 61 | done |
 | P10 | HTTP API (8-10 d) | 47 / 47 | done |
 | P11 | Release prep: PyPI + GHCR (2-3 d) | 17 / 17 | done |
-| P12 | docker-compose (3-4 d) | 13 / 20 | in progress |
+| P12 | docker-compose (3-4 d) | 14 / 20 | in progress |
 | P13 | GUI MVP 1: shell, Learn/Tinker screens (12-15 d) | 0 / 37 | not started |
 | P14 | GUI MVP 2: model page, drag-and-drop (14-17 d) | 0 / 34 | not started |
 | P15 | GUI Research (10-13 d) | 0 / 30 | not started |
@@ -476,7 +476,7 @@ touch or create (new ones marked `(new)`).
 - [x] P12.12 (2026-10-07, 9e86a63) Add a pytest `compose` marker and `tests/compose/test_compose.py`: compose up, submit a bigram over the API, reach `done` in under 2 min with cached data, and find the run folder on the home volume. · files: pyproject.toml, tests/compose/test_compose.py (new) · deps: P12.04 · done: `uv run pytest -m compose tests/compose -k bigram_under_2min` passes locally
 - [ ] P12.13 (job written, 2026-10-07; green on the PR still to verify) Add a CI job `compose` that seeds `nanoscope-data` from the actions cache and runs the compose tests. · files: .github/workflows/ci.yml · deps: P12.12 · done: the job is green on the PR
 - [ ] P12.14 Test that `down`/`up` keeps runs and resumes a run that was mid-training. · files: tests/compose/test_compose.py · deps: P12.12 · done: `uv run pytest -m compose tests/compose -k restart_resumes` passes
-- [ ] P12.15 Test that workers run as uid 1000 with CapDrop ALL and the limits set. · files: tests/compose/test_compose.py · deps: P12.12, P12.03 · done: `uv run pytest -m compose tests/compose -k hardened` passes
+- [x] P12.15 (2026-10-07, 3bd2cb2) Test that workers run as uid 1000 with CapDrop ALL and the limits set. · files: tests/compose/test_compose.py · deps: P12.12, P12.03 · done: `uv run pytest -m compose tests/compose -k hardened` passes
 - [ ] P12.16 **USER ACTION** Run `docker compose --profile gpu up` on a GPU machine and check that `POST /api/bench` reports `cuda`; record it in the PR. · files: PR description · deps: P12.05 · done: the PR shows the bench output with cuda
 - [ ] P12.17 Write `docs/deploy.md`: compose usage, profiles, token login, SSH tunnel or Tailscale, backing up `nanoscope-home` (with `queue.db`), WSL2/Docker Desktop, native `nanoscope serve` for MPS/ROCm, and Kaggle sync. · files: docs/deploy.md (new) · deps: P12.14 · done: `grep -c '^## ' docs/deploy.md` prints at least 6
 - [ ] P12.18 Update the README for four levels, `nanoscope serve`, `docker compose up` and `nanoscope learn` (plan 13). · files: README.md · deps: P12.17 · done: `grep -cE 'docker compose up|nanoscope learn|nanoscope serve' README.md` prints at least 3
