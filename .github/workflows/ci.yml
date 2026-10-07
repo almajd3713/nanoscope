@@ -65,3 +65,22 @@ jobs:
       - run: uv run pytest tests/test_first_model_notebook.py -v
       # lesson F01 trains the solution on real data too, and must stay under 2 minutes
       - run: uv run pytest tests/test_curricula.py -k f01 -v
+
+  compose:
+    # The docker compose stack end to end: build the image, bring up the API and a worker,
+    # run a bigram over the API. The token cache seeds the data volume; a miss is filled by the
+    # worker's own prepare-data (the network is allowed there, not in the timed part).
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v5
+        with:
+          python-version: "3.12"
+          enable-cache: true
+      - run: uv sync --extra server --extra dev
+      - uses: actions/cache@v4
+        with:
+          path: ~/.nanoscope/data
+          key: tokens-tinystories-5min-bpe4096-v1
+      - run: uv run pytest -m compose tests/compose -v
