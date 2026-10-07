@@ -46,7 +46,15 @@ docker compose --profile gpu up
 ```
 
 This adds `worker-gpu`, which reserves every NVIDIA GPU (`count: all`). It needs the NVIDIA
-container toolkit on the host. Set `NANOSCOPE_SLOTS` for the jobs that share a GPU at once.
+container toolkit on the host.
+
+If `up` fails with `could not select device driver "nvidia" with capabilities: [[gpu]]`, the
+toolkit is missing or not registered with Docker. Install `nvidia-container-toolkit` (NVIDIA's apt
+repository), then `sudo nvidia-ctk runtime configure --runtime=docker`, restart Docker, and check
+`docker run --rm --gpus all ubuntu nvidia-smi`. If `apt-get update` fails on an unrelated
+repository, `&&` will skip the install: run `apt-get install` on its own. Check the worker with
+`POST /api/bench` and look for `cuda:0` in the job's result (stop the CPU `worker` first, or the
+job may run there). Set `NANOSCOPE_SLOTS` for the jobs that share a GPU at once.
 
 For one worker per GPU, copy the `worker-gpu` service once per card and give each its own
 device: `NVIDIA_VISIBLE_DEVICES=0` for the first, `1` for the second, and so on (and replace
