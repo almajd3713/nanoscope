@@ -3,17 +3,25 @@
 See what your language model learns. You write an `nn.Module`; nanoscope handles the
 data, the training loop, evaluation, checkpoints and comparison against baselines.
 
-It has two levels that share one core. Learners call `run()`. Researchers write a `Study`
-with seeds, budgets, parameter matching and preregistration. The level changes what you
-see, never which code runs.
+It has four levels that share one core. The level changes what you see, never which code runs.
+
+0. **Learn**: `run(Model)` with defaults.
+1. **Tinker**: change a setting, or train several `seeds=`, and compare.
+2. **Research**: a `Study` with seeds, budgets, parameter matching and preregistration.
+3. **Extend**: hooks, presets, optimizers and your own blocks.
+
+You can use it as a library, from the command line, through an HTTP API (`nanoscope serve`), or
+as a docker-compose stack with lessons and notebooks.
 
 ## Install
 
 ```bash
 pip install nanoscope-lab             # the library
 pip install "nanoscope-lab[server]"   # plus the HTTP API (`nanoscope serve`)
-docker run -p 8000:8000 -v nanoscope:/nanoscope ghcr.io/almajd3713/nanoscope:cpu   # the API in a CPU image
 ```
+
+To run it as a service (API, a worker, and optional notebooks and GPU worker), see
+[Run it as a service](#run-it-as-a-service).
 
 From a clone, for development: `uv sync --all-extras`.
 
@@ -58,10 +66,24 @@ See the [research guide](docs/research.md). The research program itself is in
 `GPT2` and `Modern` are short compositions of the blocks in `nanoscope.blocks`, and so can your
 own models. See [docs/blocks.md](docs/blocks.md).
 
-## Learn
+## Guided lessons
 
 Guided paths build the models step by step, with checks that say why. See
 [docs/learn.md](docs/learn.md): `nanoscope learn list`, `learn start`, `learn check`.
+
+## Run it as a service
+
+```bash
+nanoscope serve --worker cpu      # the HTTP API on 127.0.0.1:8000 and one local worker
+docker compose up                 # the same in containers: API on 127.0.0.1:8765, one CPU worker
+docker compose --profile gpu up   # plus an NVIDIA GPU worker
+docker compose --profile notebook up   # plus marimo notebooks on 127.0.0.1:8766
+```
+
+Anything that runs your code is a job for a worker; the API never runs it. See
+[docs/server.md](docs/server.md) for the API and [docs/deploy.md](docs/deploy.md) for compose,
+remote sign-in, backups and GPUs. The token is a remote login: keep it on loopback or behind an
+SSH tunnel or an HTTPS proxy.
 
 ## Command line
 
