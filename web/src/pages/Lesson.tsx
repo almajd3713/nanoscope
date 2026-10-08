@@ -2,7 +2,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import { api } from "../api/client";
 import { unwrap } from "../api/problem";
-import { Button } from "../components/Button";
+import { Button, ButtonLink } from "../components/Button";
 import { CheckResult } from "../components/CheckResult";
 import { EquivalentCommand } from "../components/EquivalentCommand";
 import { LessonState } from "../components/LessonState";
@@ -46,6 +46,8 @@ export function Lesson() {
     onSuccess: async () => {
       await queryClient.invalidateQueries({ queryKey: ["curricula"] });
       await queryClient.invalidateQueries({ queryKey: ["learn"] });
+      // the starter file opens on the model page, with the graph and the palette
+      if (hasStarter && starterPath) navigate(`/model/${starterPath}`);
     },
   });
 
@@ -183,7 +185,9 @@ export function Lesson() {
               <h2 className="heading">Your file</h2>
               <span className={`value ${styles.muted}`}>starter.py</span>
               <span className={styles.spacer} />
-              <span className={`caption ${styles.muted}`}>read only here; edit it in your own editor</span>
+              <ButtonLink size="sm" to={`/model/${starterPath}`}>
+                Open in the model page
+              </ButtonLink>
             </header>
             {file.error ? (
               <ProblemFromError error={file.error} />

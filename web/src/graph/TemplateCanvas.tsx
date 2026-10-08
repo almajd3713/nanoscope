@@ -86,6 +86,11 @@ function TemplateCard({ cls, template, blocks, onEdit, setNote }: { cls: GClass;
   );
 }
 
+// Whether the class has a template to fill (a lesson's starter does).
+export function hasTemplate(cls: GClass): boolean {
+  return Object.entries(cls.args ?? {}).some(([k, v]) => templatesIn(v, [k]).length > 0);
+}
+
 // The lesson template as slots to fill: each slot is a drop target for a primitive from the
 // palette, and an empty slot says so. Every drop is a fill_slot patch.
 export function TemplateCanvas({ cls, blocks, onEdit }: Props) {
