@@ -539,3 +539,63 @@ def test_structural_edits_fill_slot():
                                "slot": "norm", "node": {"kind": "block", "block": "LayerNorm",
                                                         "args": {}, "span": None}}])
     assert "norm=LayerNorm()" in out
+
+
+def test_property_all_ops():
+    """Random sequences of every edit keep the file parseable, and the graph and file agree."""
+    from hypothesis import HealthCheck, given, settings
+    from hypothesis import strategies as st
+
+    from nanoscope.blocks.graph import strip_spans
+
+    def block(name, **args):
+        return {"kind": "block", "block": name, "args": args, "span": None}
+
+    layer = block("Block", norm=block("RMSNorm"), attn=block("Attention", n_heads=lit(2)),
+                  mlp=block("SwiGLU"))
+    bases = {name: (FIXTURES / f"{name}.py").read_text()
+             for name in ("modern_like", "layer_pattern", "odd_formatting")}
+    op = st.one_of(
+        st.tuples(st.just("layers"), st.sampled_from(["add_layer", "remove_layer"])),
+        st.tuples(st.just("item"), st.sampled_from(["add_layer", "remove_layer"]),
+                  st.integers(0, 3)),
+        st.tuples(st.just("pattern"), st.integers(1, 3)),
+        st.tuples(st.just("set"), st.sampled_from(["d_model", "z_loss"]), st.integers(1, 9)))
+
+    @given(st.sampled_from(sorted(bases)), st.lists(op, max_size=8))
+    @settings(max_examples=60, deadline=None, suppress_health_check=list(HealthCheck))
+    def check(name, ops):
+        source = bases[name]
+        cls = parse_text(source)["classes"][0]["name"]
+        for step in ops:
+            args = parse_text(source)["classes"][0]["args"]
+            if step[0] == "layers":
+                n = args["n_layers"]["value"]
+                if step[1] == "remove_layer" and n == 1:
+                    continue
+                edit = {"op": step[1], "class": cls}
+            elif step[0] == "item":
+                if "pattern" not in args:
+                    continue
+                n = len(args["pattern"]["items"])
+                if step[1] == "remove_layer":
+                    if n == 1:
+                        continue
+                    edit = {"op": step[1], "class": cls, "path": ["pattern"],
+                            "index": step[2] % n}
+                else:
+                    edit = {"op": step[1], "class": cls, "path": ["pattern"],
+                            "node": layer, "index": step[2] % (n + 1)}
+            elif step[0] == "pattern":
+                edit = {"op": "set_pattern", "class": cls, "items": [layer] * step[1]}
+            else:
+                edit = {"op": "set_arg", "class": cls, "path": [], "arg": step[1],
+                        "value": lit(step[2])}
+            source = apply_edits(source, [edit])
+            again = parse_text(source)
+            assert again["classes"][0]["representable"], source
+            graph = parse_text(source)
+            assert strip_spans(parse_text(emit(graph, source))) == strip_spans(graph)
+            assert emit(graph, source) == source  # and emitting what was parsed changes nothing
+
+    check()
