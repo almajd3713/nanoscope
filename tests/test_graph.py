@@ -519,6 +519,18 @@ def test_structural_edits_set_pattern_replaces_block():
     assert len(parse_text(new)["classes"][0]["args"]["pattern"]["items"]) == 1
 
 
+def test_structural_edits_set_pattern_writes_one_block_per_line_in_a_multi_line_call():
+    source = (FIXTURES / "modern_like.py").read_text()
+    layer = parse_text(source)["classes"][0]["args"]["block"]
+    patched = apply_edits(source, [{"op": "set_pattern", "class": "MyModern",
+                                    "items": [layer, layer, layer]}])
+    lines = patched.splitlines()
+    start = next(i for i, line in enumerate(lines) if "pattern=[" in line)
+    assert lines[start + 1].startswith(" " * 16 + "Block(") and lines[start + 3].endswith("),")
+    assert lines[start + 4] == " " * 12 + "],"  # the bracket closes at the call's own indent
+    assert len(parse_text(patched)["classes"][0]["args"]["pattern"]["items"]) == 3
+
+
 def test_structural_edits_fill_slot():
     path = FIXTURES / "template_fill.py"
     source = path.read_text()

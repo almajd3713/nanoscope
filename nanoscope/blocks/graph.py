@@ -733,7 +733,13 @@ def _set_pattern(cst: Any, call: Any, edit: dict[str, Any], prefix: str,
     if _arg_index(call, "block", positional) is not None:
         call = _change_arg(cst, call, {"op": "remove_arg", "class": edit["class"],
                                        "arg": "block", "path": []}, prefix, positional)
-    node = {"kind": "list", "items": items, "span": None}
+    node: dict[str, Any] = {"kind": "list", "items": items, "span": None}
+    before: Any = call.whitespace_before_args
+    if isinstance(before, cst.ParenthesizedWhitespace) and len(items) > 1:
+        # a call written over several lines gets one block per line, indented like its arguments
+        indent = before.last_line.value
+        lines = "".join(f"{indent}    {render(item, prefix)},\n" for item in items)
+        node = {"kind": "expr", "source": f"[\n{lines}{indent}]", "span": None}
     return _change_arg(cst, call, {"op": "set_arg", "class": edit["class"], "path": [],
                                    "arg": "pattern", "value": node}, prefix, positional)
 
