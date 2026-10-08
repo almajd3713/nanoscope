@@ -1,6 +1,6 @@
 import type { CatalogBlock } from "../editor/completions";
 import type { Edit } from "./api";
-import type { Box } from "./flow";
+import type { Box, Path } from "./flow";
 import { DRAG_TYPE } from "./Palette";
 
 export { DRAG_TYPE };
@@ -28,4 +28,19 @@ export function planDrop(className: string, box: Box, name: string, blocks: Cata
 // True for a drag that carries a block from the palette.
 export function carriesBlock(e: { dataTransfer: DataTransfer | null }): boolean {
   return Array.from(e.dataTransfer?.types ?? []).includes(DRAG_TYPE);
+}
+
+// Dropping a primitive into an empty or filled template slot is one fill_slot at the template.
+export function planFill(className: string, templatePath: Path, slot: string, name: string, blocks: CatalogBlock[]): DropPlan {
+  const dropped = blocks.find((b) => b.name === name);
+  if (!dropped) return { ok: false, message: `${name} is not in the palette` };
+  if (dropped.lock?.locked) {
+    return { ok: false, message: `${name} is locked until you build it yourself in the lesson ${dropped.lock.lesson ?? "that unlocks it"}` };
+  }
+  return { ok: true, edit: { op: "fill_slot", class: className, path: templatePath, slot, node: { kind: "block", block: name, args: {}, span: null } } };
+}
+
+// The slot made empty again (a literal None in the file).
+export function emptySlot(className: string, templatePath: Path, slot: string): Edit {
+  return { op: "fill_slot", class: className, path: templatePath, slot, node: null };
 }
