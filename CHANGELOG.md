@@ -1,5 +1,36 @@
 # Changelog
 
+## 0.5.0 (2026-10-08)
+
+Phases 13 and 14: the web app, with the model page.
+
+### Added
+- The web app (`web/`, built into the wheel and the images): lessons, the run form and the live run
+  page, runs, compare, components, settings, the queue. Everything it does has a command-line
+  equivalent, shown in Settings on request. See `docs/gui.md`.
+- The model page (`/model/<file>`): a block palette, the model's graph, an inspector, the lesson
+  template as slots to fill and, from Tinker up, a Monaco editor on the same file. Dragging a block
+  onto a slot, editing an argument, adding or removing a layer and writing a layer pattern
+  (`sliding:global 3:1`) each change only the lines of the file they touch. Undo and redo re-send an
+  earlier version of the file. A depth dial shows more per box: shapes and parameters from the last
+  trace, where each call sits in the file, equivalence to its reference, and the layers' gradient
+  norms from a run's block statistics.
+- The Models page: your model classes with their last trace, and your own blocks with their
+  certification (`register_block(reference=...)`; a worker checks the block against its reference,
+  and the badge is stale once the file changes).
+- Graph edits in `nanoscope.blocks.graph`: `add_layer`, `remove_layer`, `set_pattern`, `fill_slot`,
+  and a class kind `filled` for `class OneHead(AttentionTemplate)`.
+- Job kind `certify`, `POST /api/blocks/{name}/certify`, and a `certification` field on your blocks in
+  `/api/blocks`.
+
+### Changed
+- Starting a lesson opens its starter file on the model page, with Train and Run the check.
+- The `equivalent` check accepts `q.weight` for a template slot filled with the `Linear` block
+  (`q.linear.weight`), so the template route of lesson 3 passes its check.
+
+### Fixed
+- Reloading a page whose path ends in `.py` (`/model/models/my_lm.py`) returned a 404.
+
 ## 0.4.0 (2026-10-07)
 
 Phase 12 of the build plan: a docker-compose stack.
