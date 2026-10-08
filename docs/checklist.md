@@ -4,7 +4,7 @@ The build list for [`plan-tool.md`](plan-tool.md), sections 4-10, with the decis
 2026-10-05 (plan section 11) applied. Phase numbers follow the plan's section 10. Every
 item is one line, so scripts and agents can grep and edit it.
 
-**Current focus:** P14 GUI MVP 2 (the model page). P13 is merged (PR #15). P14.01-P14.02 done. Next: P14.03.
+**Current focus:** P14 GUI MVP 2 (the model page). P13 is merged (PR #15). P14.01-P14.03 done. Next: P14.04.
 
 ## Progress
 
@@ -18,7 +18,7 @@ item is one line, so scripts and agents can grep and edit it.
 | P11 | Release prep: PyPI + GHCR (2-3 d) | 17 / 17 | done |
 | P12 | docker-compose (3-4 d) | 20 / 20 | done |
 | P13 | GUI MVP 1: shell, Learn/Tinker screens (12-15 d) | 50 / 50 | done |
-| P14 | GUI MVP 2: model page, drag-and-drop (14-17 d) | 2 / 36 | in progress |
+| P14 | GUI MVP 2: model page, drag-and-drop (14-17 d) | 3 / 36 | in progress |
 | P15 | GUI Research (10-13 d) | 0 / 31 | not started |
 | P16 | Extend + depth (8-10 d) | 0 / 17 | not started |
 | P17 | Remaining curriculum paths (18-26 d) | 0 / 34 | not started |
@@ -555,7 +555,7 @@ Order: P13.01 and P13.02 first (these items live in `web/` and run in its CI job
 ### P14 · Library
 - [x] P14.01 Add the `emit` edits `add_layer`, `remove_layer` (on `n_layers` or the pattern list), `set_pattern` and `fill_slot`, each producing a minimal diff. · files: nanoscope/blocks/graph.py, tests/test_graph.py · deps: P13.99, P9.34 · done: `uv run pytest tests/test_graph.py -k structural_edits` passes · done 2026-10-08 (10cd761)
 - [x] P14.02 Extend the property test to cover every edit operation in random sequences, with `parse(emit(g)) == g`. · files: tests/test_graph.py · deps: P14.01 · done: `uv run pytest tests/test_graph.py -k property_all_ops` passes · done 2026-10-08 (568d7a7)
-- [ ] P14.03 Certification: a `certify` job kind runs the equivalence check of a registered user block against its reference and stores `home()/certs/<source_sha256>.json`; the badge is invalid once the source hash changes. · files: nanoscope/blocks/certify.py (new), nanoscope/jobs/execute.py, nanoscope/schemas/cert.v1.json (new), tests/test_blocks.py · deps: P13.99, P9.12 · done: `uv run pytest tests/test_blocks.py -k certify` passes, including the invalidation
+- [x] P14.03 Certification: a `certify` job kind runs the equivalence check of a registered user block against its reference and stores `home()/certs/<source_sha256>.json`; the badge is invalid once the source hash changes. · files: nanoscope/blocks/certify.py (new), nanoscope/jobs/execute.py, nanoscope/schemas/cert.v1.json (new), tests/test_blocks.py · deps: P13.99, P9.12 · done: `uv run pytest tests/test_blocks.py -k certify` passes, including the invalidation · done 2026-10-08 (8236098)
 - [ ] P14.04 Make `/api/blocks` list workspace user blocks (AST discovery) with their certification state, and add `POST /api/blocks/{name}/certify` (job). · files: nanoscope/server/routes/blocks.py, tests/server/test_routes.py · deps: P14.03 · done: `uv run pytest tests/server/test_routes.py -k certify` passes
 - [ ] P14.05 Make `/api/files/{path}/graph/patch` accept every edit operation and refuse locked blocks under `guided`. · files: nanoscope/server/routes/graph.py, tests/server/test_files.py · deps: P14.01 · done: `uv run pytest tests/server/test_files.py -k patch_all_ops` passes
 
