@@ -6,7 +6,8 @@ import { Editor } from "../components/Editor";
 import { EmptyState } from "../components/EmptyState";
 import { ProblemFromError, ProblemView } from "../components/ProblemView";
 import type { CatalogBlock } from "../editor/completions";
-import { useDescribeMarkers } from "../editor/diagnostics";
+import { fromChecks, useDescribeMarkers } from "../editor/diagnostics";
+import { useFileDoc } from "../editor/useFileBuffer";
 import { type Edit, useBlocks, useGraph, usePatchGraph } from "../graph/api";
 import { planDrop } from "../graph/dnd";
 import type { Box } from "../graph/flow";
@@ -16,6 +17,7 @@ import { Inspector } from "../graph/Inspector";
 import { Palette } from "../graph/Palette";
 import { hasTemplate, TemplateCanvas } from "../graph/TemplateCanvas";
 import { shows } from "../levels";
+import { LessonBar, useLessonOfFile } from "./LessonBar";
 import styles from "./Model.module.css";
 
 // A model file: the palette, its graph, the inspector for the selected box and (from Tinker up)
@@ -34,7 +36,12 @@ export function Model() {
 
   const classes = graph.data?.classes ?? [];
   const cls = classes.find((c) => c.name === search.get("class")) ?? classes[0];
-  const markers = useDescribeMarkers(path, graph.data?.etag ?? null, cls ? `${path}:${cls.name}` : null);
+  const described = useDescribeMarkers(path, graph.data?.etag ?? null, cls ? `${path}:${cls.name}` : null);
+  const lesson = useLessonOfFile(path);
+  const source = useFileDoc(path).data?.content ?? "";
+  // a failed equivalence check goes on its class, as the lesson names it
+  const checked = lesson.check.result && lesson.detail ? fromChecks(lesson.check.result.checks, lesson.detail.checks, source) : [];
+  const markers = [...described, ...checked];
 
   const apply = (edits: Edit[]) => {
     setNote(null);
@@ -85,6 +92,7 @@ export function Model() {
           Redo
         </Button>
       </header>
+      {lesson.ids && <LessonBar file={path} lesson={lesson} />}
       <div className={`${styles.body} ${editor ? "" : styles.bodyNoEditor}`}>
         <aside className={styles.side} aria-label="Palette">
           {shows("palette", level) && <Palette blocks={catalog} />}

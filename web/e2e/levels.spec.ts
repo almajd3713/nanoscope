@@ -21,7 +21,7 @@ test("Learn and Tinker send the same run request when nothing was touched", asyn
   await page.reload();
   const start = page.getByRole("button", { name: "Start lesson" });
   if (await start.isVisible()) await start.click();
-  await expect(page.getByText(/^Your file:/)).toBeVisible();
+  await expect(page.getByRole("button", { name: "Train" })).toBeVisible(); // the model page, or the lesson page of a started lesson
   await page.getByRole("button", { name: "Train" }).click();
   await page.waitForURL(/\/runs\//);
 

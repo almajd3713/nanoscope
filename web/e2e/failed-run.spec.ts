@@ -6,7 +6,7 @@ test("a failed run shows its error from status.json", async ({ page }) => {
   await page.goto("/learn/foundations/02-mlp");
   const start = page.getByRole("button", { name: "Start lesson" });
   if (await start.isVisible()) await start.click();
-  await expect(page.getByText(/^Your file:/)).toBeVisible();
+  await expect(page.getByRole("button", { name: "Train" })).toBeVisible(); // the model page, or the lesson page of a started lesson
   await page.getByRole("button", { name: "Train" }).click();
   await page.waitForURL(/\/runs\//);
   const error = page.getByRole("alert");

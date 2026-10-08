@@ -1,6 +1,6 @@
 .page {
   display: grid;
-  grid-template-rows: auto 1fr;
+  grid-template-rows: auto auto 1fr;
   gap: var(--space-3);
   height: calc(100vh - var(--topbar) - var(--space-6));
   min-height: 560px;
