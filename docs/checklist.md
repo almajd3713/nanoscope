@@ -4,7 +4,7 @@ The build list for [`plan-tool.md`](plan-tool.md), sections 4-10, with the decis
 2026-10-05 (plan section 11) applied. Phase numbers follow the plan's section 10. Every
 item is one line, so scripts and agents can grep and edit it.
 
-**Current focus:** P14 GUI MVP 2: everything is built. Left: P14.33 (release v0.5.0: the version commit is prepared on this branch; the merge, tag and publish are the user's) and the gate P14.99.
+**Current focus:** P14 is merged (PR #16, ab10de6). Left from it: P14.33, the user tags `v0.5.0` on ab10de6 and publishes. Next: P15 library items P15.01-P15.13 (P15.12 is the user's), then the P15.30 mockups from their real output.
 
 ## Progress
 
@@ -18,7 +18,7 @@ item is one line, so scripts and agents can grep and edit it.
 | P11 | Release prep: PyPI + GHCR (2-3 d) | 17 / 17 | done |
 | P12 | docker-compose (3-4 d) | 20 / 20 | done |
 | P13 | GUI MVP 1: shell, Learn/Tinker screens (12-15 d) | 50 / 50 | done |
-| P14 | GUI MVP 2: model page, drag-and-drop (14-17 d) | 34 / 36 | in progress |
+| P14 | GUI MVP 2: model page, drag-and-drop (14-17 d) | 35 / 36 | merged; P14.33 (tag v0.5.0) is the user's |
 | P15 | GUI Research (10-13 d) | 0 / 31 | not started |
 | P16 | Extend + depth (8-10 d) | 0 / 17 | not started |
 | P17 | Remaining curriculum paths (18-26 d) | 0 / 34 | not started |
@@ -596,7 +596,7 @@ Order: P13.01 and P13.02 first (these items live in `web/` and run in its CI job
 - [x] P14.31 Add the model page, palette, drag-and-drop and locks to `docs/gui.md`. · files: docs/gui.md · deps: P14.28 · done: `grep -c 'drag' docs/gui.md` prints at least 1 · done 2026-10-08 (ae5bde0)
 - [x] P14.32 Fold the agreed parts of the plan into `docs/architecture.md`, keeping `plan-tool.md` as the decision record (plan 13). · files: docs/architecture.md (new), docs/plan-tool.md · deps: P14.31 · done: `grep -c '^## ' docs/architecture.md` prints at least 6 · done 2026-10-08 (ae5bde0)
 - [ ] P14.33 (prepared 2026-10-08: version 0.5.0, CHANGELOG and openapi are on the branch; merge, tag and publish are the user's) **USER ACTION** Release the MVP as v0.4.0 to PyPI and GHCR (the agent prepares the version bump and CHANGELOG). · files: nanoscope/__init__.py, CHANGELOG.md · deps: P14.32 · done: `pip index versions nanoscope-lab` lists 0.4.0
-- [ ] P14.99 PHASE GATE P14 (MVP complete). Exit criteria: plan section 10 phase 14. · files: — · deps: P14.* (P14.33 may follow the merge) · done: `make check` passes; `uv run pytest tests/test_graph.py -k property_all_ops` passes; the e2e job is green (P14.25-P14.30); `uv run pytest tests/test_first_model_notebook.py` passes; **USER ACTION** merge the PR
+- [x] P14.99 PHASE GATE P14 (MVP complete). Exit criteria: plan section 10 phase 14. · files: — · deps: P14.* (P14.33 may follow the merge) · done: `make check` passes; `uv run pytest tests/test_graph.py -k property_all_ops` passes; the e2e job is green (P14.25-P14.30); `uv run pytest tests/test_first_model_notebook.py` passes; **USER ACTION** merge the PR · merged 2026-10-08 (PR #16, ab10de6)
 
 ---
 
