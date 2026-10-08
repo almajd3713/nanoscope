@@ -4,7 +4,7 @@ The build list for [`plan-tool.md`](plan-tool.md), sections 4-10, with the decis
 2026-10-05 (plan section 11) applied. Phase numbers follow the plan's section 10. Every
 item is one line, so scripts and agents can grep and edit it.
 
-**Current focus:** P14 GUI MVP 2 (the model page). P13 is merged (PR #15). P14.01-P14.05 done. Next: P14.13 is blocked by the P14.35 mockup approval; start P14.16, P14.17.
+**Current focus:** P14 GUI MVP 2 (the model page). P14.01-P14.12, P14.16-P14.18, P14.20-P14.32 and P14.34 are done. Blocked on the **P14.35 mockup approval (USER ACTION)**: P14.13 (depth dial), P14.14 (opaque nodes), P14.15 (badges), P14.19 (stack edits, pattern editor), P14.22 (live blockstats). Then P14.33 (release, user) and the gate P14.99.
 
 ## Progress
 
@@ -18,7 +18,7 @@ item is one line, so scripts and agents can grep and edit it.
 | P11 | Release prep: PyPI + GHCR (2-3 d) | 17 / 17 | done |
 | P12 | docker-compose (3-4 d) | 20 / 20 | done |
 | P13 | GUI MVP 1: shell, Learn/Tinker screens (12-15 d) | 50 / 50 | done |
-| P14 | GUI MVP 2: model page, drag-and-drop (14-17 d) | 22 / 36 | in progress |
+| P14 | GUI MVP 2: model page, drag-and-drop (14-17 d) | 28 / 36 | in progress |
 | P15 | GUI Research (10-13 d) | 0 / 31 | not started |
 | P16 | Extend + depth (8-10 d) | 0 / 17 | not started |
 | P17 | Remaining curriculum paths (18-26 d) | 0 / 34 | not started |
@@ -589,12 +589,12 @@ Order: P13.01 and P13.02 first (these items live in `web/` and run in its CI job
 ### P14 · End-to-end tests and docs
 - [x] P14.25 Plan done-when: in the modern-block lesson, swapping LayerNorm→RMSNorm in the inspector changes exactly one line (`git diff --numstat` shows 1/1). · files: web/e2e/swap.spec.ts (new) · deps: P14.16, P14.23, P13.31 · done: `pnpm -C web exec playwright test swap` passes · done 2026-10-08 (04b9f0a)
 - [x] P14.26 Plan done-when: the same swap made by drag-and-drop gives an identical diff. · files: web/e2e/swap.spec.ts · deps: P14.25, P14.18 · done: `pnpm -C web exec playwright test swap` passes · done 2026-10-08 (04b9f0a)
-- [ ] P14.27 Plan done-when: an external edit to the file updates the open graph. · files: web/e2e/external-edit.spec.ts (new) · deps: P14.23, P14.08 · done: `pnpm -C web exec playwright test external-edit` passes
-- [ ] P14.28 Plan done-when: a locked block shows its unlock lesson and can't be dropped; after the lesson's check passes (using the solution file), it can be dragged without a restart. · files: web/e2e/locked.spec.ts (new) · deps: P14.24, P14.18 · done: `pnpm -C web exec playwright test locked` passes
-- [ ] P14.29 Plan done-when: a certified user block passes its check job and appears in the palette without a restart. · files: web/e2e/user-block.spec.ts (new) · deps: P14.24, P14.04 · done: `pnpm -C web exec playwright test user-block` passes
-- [ ] P14.30 Complete lesson F03 (one causal attention head; `AttentionTemplate` is single-head) through the template canvas and check that its `equivalent` check passes. · files: web/e2e/template.spec.ts (new) · deps: P14.20 · done: `pnpm -C web exec playwright test template` passes
-- [ ] P14.31 Add the model page, palette, drag-and-drop and locks to `docs/gui.md`. · files: docs/gui.md · deps: P14.28 · done: `grep -c 'drag' docs/gui.md` prints at least 1
-- [ ] P14.32 Fold the agreed parts of the plan into `docs/architecture.md`, keeping `plan-tool.md` as the decision record (plan 13). · files: docs/architecture.md (new), docs/plan-tool.md · deps: P14.31 · done: `grep -c '^## ' docs/architecture.md` prints at least 6
+- [x] P14.27 Plan done-when: an external edit to the file updates the open graph. · files: web/e2e/external-edit.spec.ts (new) · deps: P14.23, P14.08 · done: `pnpm -C web exec playwright test external-edit` passes · done 2026-10-08 (ae5bde0)
+- [x] P14.28 Plan done-when: a locked block shows its unlock lesson and can't be dropped; after the lesson's check passes (using the solution file), it can be dragged without a restart. · files: web/e2e/locked.spec.ts (new) · deps: P14.24, P14.18 · done: `pnpm -C web exec playwright test locked` passes · done 2026-10-08 (ae5bde0)
+- [x] P14.29 Plan done-when: a certified user block passes its check job and appears in the palette without a restart. · files: web/e2e/user-block.spec.ts (new) · deps: P14.24, P14.04 · done: `pnpm -C web exec playwright test user-block` passes · done 2026-10-08 (ae5bde0)
+- [x] P14.30 Complete lesson F03 (one causal attention head; `AttentionTemplate` is single-head) through the template canvas and check that its `equivalent` check passes. · files: web/e2e/template.spec.ts (new) · deps: P14.20 · done: `pnpm -C web exec playwright test template` passes · done 2026-10-08 (ae5bde0)
+- [x] P14.31 Add the model page, palette, drag-and-drop and locks to `docs/gui.md`. · files: docs/gui.md · deps: P14.28 · done: `grep -c 'drag' docs/gui.md` prints at least 1 · done 2026-10-08 (ae5bde0)
+- [x] P14.32 Fold the agreed parts of the plan into `docs/architecture.md`, keeping `plan-tool.md` as the decision record (plan 13). · files: docs/architecture.md (new), docs/plan-tool.md · deps: P14.31 · done: `grep -c '^## ' docs/architecture.md` prints at least 6 · done 2026-10-08 (ae5bde0)
 - [ ] P14.33 **USER ACTION** Release the MVP as v0.4.0 to PyPI and GHCR (the agent prepares the version bump and CHANGELOG). · files: nanoscope/__init__.py, CHANGELOG.md · deps: P14.32 · done: `pip index versions nanoscope-lab` lists 0.4.0
 - [ ] P14.99 PHASE GATE P14 (MVP complete). Exit criteria: plan section 10 phase 14. · files: — · deps: P14.* (P14.33 may follow the merge) · done: `make check` passes; `uv run pytest tests/test_graph.py -k property_all_ops` passes; the e2e job is green (P14.25-P14.30); `uv run pytest tests/test_first_model_notebook.py` passes; **USER ACTION** merge the PR
 
@@ -781,3 +781,12 @@ right phase, then tick it here as `[x] → P<n>.<id>`.
 - 2026-10-07 P12.08: the published `ghcr.io/almajd3713/nanoscope:cpu` is the 0.3.0 image: it lacks the volume directories and git, so a hardened worker on a fresh volume cannot write. A new image must be published (release tag or version bump) before compose works from GHCR. This is a USER ACTION.
 - 2026-10-08 P13.05: the server resumes a run stream from `?since_step=N` and does not read `Last-Event-ID` (docs/server.md), so `useEvents` closes the browser's own retry and reconnects itself with the resume parameter from the last row id. If a stream without a resume parameter is added, either add one or make the server read `Last-Event-ID`.
 - 2026-10-08 P13.08: routing is react-router-dom (BrowserRouter); the server's SPA fallback already serves index.html for extensionless paths. `/login` stays a server path.
+- 2026-10-08 P14.01: the structural edits are `add_layer`/`remove_layer` (an `n_layers` literal, or one item of a list at `path` with `index`), `set_pattern` (sets `pattern=[...]` and drops `block=`) and `fill_slot` (a `set_arg` on a template's call, checked against its slots). `emit` makes `add_layer`/`remove_layer` out of a list that differs by one item. Removing a last argument or item keeps a trailing comment on the one before it.
+- 2026-10-08 P14.03: certification is split in two modules: `blocks/certs.py` reads certs and never runs user code (the API imports it), `blocks/certify.py` imports the user's file (only a worker, via the `certify` job). A cert is keyed by the sha256 of the file's source and holds one result per block; the reference is called as `fn(x, <params and buffers by name>, <options by attribute>)`, on random weights.
+- 2026-10-08 P14.11: describe jobs and checks are followed by polling `/api/jobs/{id}` (there is no job event stream), as `useLessonCheck` already does.
+- 2026-10-08 P14.21: undo and redo are versions of the file this page has seen, re-sent with PUT and the current ETag; the list is only a memory, the server's file is the state.
+- 2026-10-08 P14.23: starting a lesson now opens its starter on the model page, which has Train and Run the check for a file in a lesson's folder (lesson 1 stays within its click budget). The model page and its graph engine and editor load lazily.
+- 2026-10-08 P14.25: the e2e found that the server answered a reload of `/model/<file>.py` with a 404 (the SPA fallback treated any path with a dot as a missing asset). Only `assets/` and known asset suffixes are 404 now. The same run found that Monaco's theme refused `#fff`/`#rrggbbaa` token values (`hex6`).
+- 2026-10-08 P14.27: the graph query follows `/api/files/events`, so an edit made elsewhere redraws the open graph (the editor already reloaded).
+- 2026-10-08 P14.30 (discovered work, as AGENTS.md asked): `class OneHead(AttentionTemplate)` with its slots in `super().__init__(d_model, context_length, q=..., ...)` is a new graph class kind, `filled`: its slots are its arguments, edited with `fill_slot` at path `[]`. The `equivalent` check resolves `q.weight` to `q.linear.weight` when that is the only match, so a template filled with the `Linear` block passes lesson F03's check like the code route (solution in `tests/solutions/templates/`).
+- 2026-10-08 e2e: specs that need an untouched unlock state (`locked.spec.ts`) skip with a message when RoPE was already earned: run `e2e/stack.sh reset`. Drags need the source item on screen; the template spec uses a tall viewport.
