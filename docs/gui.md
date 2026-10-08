@@ -34,14 +34,45 @@ commands below are what it shows.
 | Duplicate | `/runs/new?from=<ref>` | Starts from a run's config; change one thing, train the same seeds | the same `nanoscope run`, with the one change in `--set` |
 | Runs | `/runs` | Every run with a ref prefix and state filter, live | `nanoscope status runs/<prefix>` |
 | Compare | `/compare?runs=a,b[&preset=]` | The library's verdict per model with its 95% interval, a forest plot, every seed's curve, the precision plan | `nanoscope compare a b --preset <preset>` |
+| Models | `/models` | Your model classes read from the workspace (never imported), each with the params and FLOPs per token of its last trace, a Trace button, and (Extend) your own blocks with their certification and a Certify button | `nanoscope graph <file>`, `nanoscope describe <file>:<Class>`, `nanoscope blocks --workspace <dir>` |
+| Model | `/model/<file>[?class=]` | One model file: the block palette, the graph, the inspector for the selected box, the lesson template as slots to fill, and (Tinker and up) the code beside them | `nanoscope graph <file>`, `nanoscope describe <file>:<Class>` |
 | Components | `/components` | The lock state of every gated block and feature, how each was unlocked, Unlock all and unlock-one | `nanoscope learn status`, `nanoscope learn unlock <id> --reason "..."`, `nanoscope learn unlock --all` |
 | Settings | `/settings` | Theme, level and the command toggle (this browser only); the gating policy; each preset's data and Prepare; read-only facts about the server | `nanoscope learn status`, `nanoscope prepare-data <preset>` |
 
 The footer on every screen is the queue: running and queued jobs with cancel, and the workers.
 Cancelling a run saves a checkpoint first, so the run can resume.
 
-Studies, Hardware and the model page (code editor with a graph and a drag-and-drop block palette)
-arrive in later phases; their nav entries are placeholders until then.
+Studies and Hardware arrive in a later phase; their nav entries are placeholders until then.
+
+### The model page
+
+The page is one file seen four ways, and every edit in any of them is an edit to that file:
+
+- **Palette** (left): every block by family, your own last. A locked block is greyed with a lock and
+  names the lesson that unlocks it ("Pass modern-block/02-rope to use it"); it cannot be dragged. The
+  palette follows unlocks, file saves and finished certifications without a reload.
+- **Graph** (centre): the file parsed with `ast` (it is never run), laid out afresh on every parse;
+  nothing about the layout is saved. Click a box to select it. You can **drag** a block from the
+  palette onto a box to swap it. Dropping a block of another family, a locked block, or a call the
+  graph cannot edit is refused with the reason; a refusal from the server is shown word for word.
+- **Inspector**: the selected block's options (each edit is one `set_arg`, which changes one line of the
+  file) and a swap menu for its family. Locked options are listed but disabled, with their lesson.
+  Every drag has this click path.
+- **Template canvas**: a lesson template (`AttentionTemplate`, `BlockTemplate`, or a class that fills
+  one) as its slots. Drop a primitive on a slot to fill it, or empty a filled slot.
+- **Code** (Tinker and up): Monaco on the same file, bundled with the app (no CDN). Ctrl-S saves with the
+  ETag it read; a save the server refuses because the file changed shows the server's diff with **Keep
+  mine** or **Take theirs**. A file changed on disk by anything else reloads a clean buffer and asks
+  before touching one with unsaved edits. ruff's findings and nanoscope's own (a locked use, a shape
+  error from a describe job, a failed equivalence check) sit on their source lines.
+
+**Undo** and **Redo** re-send an earlier version of the file with the ETag it has now, so the file on
+the server is always the model. For a file in a lesson's folder the page also has **Train** and **Run
+the check**, and a lesson's **Start** opens its starter here.
+
+Each edit the graph sends is an operation of `POST /api/files/<file>/graph/patch`
+(`set_arg`, `replace_block`, `remove_arg`, `add_layer`, `remove_layer`, `set_pattern`, `fill_slot`);
+[blocks.md](blocks.md) and [server.md](server.md) describe them.
 
 ## Levels
 
@@ -54,7 +85,7 @@ changed.
 | Learn | lessons, training from a lesson, the live run page, the baseline range, samples |
 | Tinker | the run form, seeds, duplicate and change one thing, compare, predictions |
 | Research | the queue's per-device workers, the forest plot, studies and record mode as they arrive |
-| Extend | the workspace tree, your own blocks and their certification, as they arrive |
+| Extend | the workspace tree, your own blocks and their certification (Models page), as they arrive |
 
 The single table is `web/src/levels.ts`. A test checks that a level only ever adds controls.
 

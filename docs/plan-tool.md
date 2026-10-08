@@ -1,7 +1,9 @@
 # nanoscope as a tool: library, HTTP API, GUI, composable models and curricula
 
-Status: proposal, 2026-10-05. Written against `feat/phase-5-speed` (PR #5). Nothing here is
-implemented. Phases continue the redesign numbering (phases 1-5 are done). The survey of
+**Status 2026-10-08: this is the decision record.** Phases 6-13 are built and the model page
+(phase 14) is in; what the code does now is described in [`architecture.md`](architecture.md), and
+this document is not edited to match it. What follows is the original proposal, 2026-10-05, written
+against `feat/phase-5-speed` (PR #5). Phases continue the redesign numbering (phases 1-5 are done). The survey of
 similar projects and the evidence behind section 3's ideas are in
 [`plan-tool-landscape.md`](plan-tool-landscape.md).
 
