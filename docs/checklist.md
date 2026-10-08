@@ -4,7 +4,7 @@ The build list for [`plan-tool.md`](plan-tool.md), sections 4-10, with the decis
 2026-10-05 (plan section 11) applied. Phase numbers follow the plan's section 10. Every
 item is one line, so scripts and agents can grep and edit it.
 
-**Current focus:** P14 GUI MVP 2 (the model page). P13 is merged (PR #15). P14.01-P14.04 done. Next: P14.05.
+**Current focus:** P14 GUI MVP 2 (the model page). P13 is merged (PR #15). P14.01-P14.05 done. Next: P14.06 (web).
 
 ## Progress
 
@@ -18,7 +18,7 @@ item is one line, so scripts and agents can grep and edit it.
 | P11 | Release prep: PyPI + GHCR (2-3 d) | 17 / 17 | done |
 | P12 | docker-compose (3-4 d) | 20 / 20 | done |
 | P13 | GUI MVP 1: shell, Learn/Tinker screens (12-15 d) | 50 / 50 | done |
-| P14 | GUI MVP 2: model page, drag-and-drop (14-17 d) | 4 / 36 | in progress |
+| P14 | GUI MVP 2: model page, drag-and-drop (14-17 d) | 5 / 36 | in progress |
 | P15 | GUI Research (10-13 d) | 0 / 31 | not started |
 | P16 | Extend + depth (8-10 d) | 0 / 17 | not started |
 | P17 | Remaining curriculum paths (18-26 d) | 0 / 34 | not started |
@@ -557,7 +557,7 @@ Order: P13.01 and P13.02 first (these items live in `web/` and run in its CI job
 - [x] P14.02 Extend the property test to cover every edit operation in random sequences, with `parse(emit(g)) == g`. · files: tests/test_graph.py · deps: P14.01 · done: `uv run pytest tests/test_graph.py -k property_all_ops` passes · done 2026-10-08 (568d7a7)
 - [x] P14.03 Certification: a `certify` job kind runs the equivalence check of a registered user block against its reference and stores `home()/certs/<source_sha256>.json`; the badge is invalid once the source hash changes. · files: nanoscope/blocks/certify.py (new), nanoscope/jobs/execute.py, nanoscope/schemas/cert.v1.json (new), tests/test_blocks.py · deps: P13.99, P9.12 · done: `uv run pytest tests/test_blocks.py -k certify` passes, including the invalidation · done 2026-10-08 (8236098)
 - [x] P14.04 Make `/api/blocks` list workspace user blocks (AST discovery) with their certification state, and add `POST /api/blocks/{name}/certify` (job). · files: nanoscope/server/routes/blocks.py, tests/server/test_routes.py · deps: P14.03 · done: `uv run pytest tests/server/test_routes.py -k certify` passes · done 2026-10-08 (1afd1b0)
-- [ ] P14.05 Make `/api/files/{path}/graph/patch` accept every edit operation and refuse locked blocks under `guided`. · files: nanoscope/server/routes/graph.py, tests/server/test_files.py · deps: P14.01 · done: `uv run pytest tests/server/test_files.py -k patch_all_ops` passes
+- [x] P14.05 Make `/api/files/{path}/graph/patch` accept every edit operation and refuse locked blocks under `guided`. · files: nanoscope/server/routes/graph.py, tests/server/test_files.py · deps: P14.01 · done: `uv run pytest tests/server/test_files.py -k patch_all_ops` passes · done 2026-10-08 (71f1977)
 
 ### P14 · Mockup addendum (https://claude.ai/artifact/VDJ45sFJB44bqg82gZcrGR)
 - [ ] P14.35 **USER ACTION** Mockup addendum: a new row on the mockups canvas for the P14 screens the approved boards leave out: the Research depth (code spans and equivalence status per node), opaque nodes and code-only classes with "edit in code", lock and certification badges on graph nodes, stack edits (add a layer, drag one out) and the pattern editor (`sliding:global 3:1`), nodes coloured from live `blockstats`; plus the smaller states: locked options disabled in the inspector's swap list, the server's 422 after a locked drop, a ruff problem in the editor, and Certify for a user block on the Models page. Same rules as P13.37 (design system only, real values from the library). The user approves before the items that depend on it start; P14.09, P14.16, P14.18 and P14.34 may start earlier and follow these boards for the states named here. · files: — · deps: P13.99 · done: the user approves; the approval is recorded in the Decisions log
