@@ -1,0 +1,254 @@
+{
+  "schema": 1,
+  "nanoscope": "0.4.0",
+  "path": "tests/fixtures/graphs/template_fill.py",
+  "classes": [
+    {
+      "name": "FromPrimitives",
+      "kind": "decoder",
+      "line": 5,
+      "end_line": 19,
+      "span": {
+        "line": 5,
+        "col": 0,
+        "end_line": 19,
+        "end_col": 9
+      },
+      "bases": [
+        "Decoder"
+      ],
+      "params": [
+        {
+          "name": "vocab_size",
+          "annotation": "int",
+          "has_default": false
+        }
+      ],
+      "args": {
+        "vocab_size": {
+          "kind": "param",
+          "name": "vocab_size",
+          "span": {
+            "line": 8,
+            "col": 12,
+            "end_line": 8,
+            "end_col": 22
+          }
+        },
+        "context_length": {
+          "kind": "literal",
+          "value": 16,
+          "span": {
+            "line": 8,
+            "col": 24,
+            "end_line": 8,
+            "end_col": 26
+          }
+        },
+        "d_model": {
+          "kind": "literal",
+          "value": 32,
+          "span": {
+            "line": 8,
+            "col": 36,
+            "end_line": 8,
+            "end_col": 38
+          }
+        },
+        "n_layers": {
+          "kind": "literal",
+          "value": 2,
+          "span": {
+            "line": 8,
+            "col": 49,
+            "end_line": 8,
+            "end_col": 50
+          }
+        },
+        "block": {
+          "kind": "block",
+          "block": "BlockTemplate",
+          "span": {
+            "line": 9,
+            "col": 18,
+            "end_line": 18,
+            "end_col": 13
+          },
+          "args": {
+            "norm1": {
+              "kind": "block",
+              "block": "RMSNorm",
+              "span": {
+                "line": 10,
+                "col": 22,
+                "end_line": 10,
+                "end_col": 31
+              },
+              "args": {},
+              "family": "norm",
+              "tier": "composite"
+            },
+            "attn": {
+              "kind": "block",
+              "block": "AttentionTemplate",
+              "span": {
+                "line": 11,
+                "col": 21,
+                "end_line": 15,
+                "end_col": 17
+              },
+              "args": {
+                "q": {
+                  "kind": "block",
+                  "block": "Linear",
+                  "span": {
+                    "line": 12,
+                    "col": 22,
+                    "end_line": 12,
+                    "end_col": 30
+                  },
+                  "args": {},
+                  "family": "primitive",
+                  "tier": "primitive"
+                },
+                "k": {
+                  "kind": "block",
+                  "block": "Linear",
+                  "span": {
+                    "line": 12,
+                    "col": 34,
+                    "end_line": 12,
+                    "end_col": 42
+                  },
+                  "args": {},
+                  "family": "primitive",
+                  "tier": "primitive"
+                },
+                "v": {
+                  "kind": "block",
+                  "block": "Linear",
+                  "span": {
+                    "line": 12,
+                    "col": 46,
+                    "end_line": 12,
+                    "end_col": 54
+                  },
+                  "args": {},
+                  "family": "primitive",
+                  "tier": "primitive"
+                },
+                "scores": {
+                  "kind": "block",
+                  "block": "ScaledDotScores",
+                  "span": {
+                    "line": 13,
+                    "col": 27,
+                    "end_line": 13,
+                    "end_col": 44
+                  },
+                  "args": {},
+                  "family": "primitive",
+                  "tier": "primitive"
+                },
+                "mask": {
+                  "kind": "literal",
+                  "value": null,
+                  "span": {
+                    "line": 13,
+                    "col": 51,
+                    "end_line": 13,
+                    "end_col": 55
+                  }
+                },
+                "normalize": {
+                  "kind": "block",
+                  "block": "Softmax",
+                  "span": {
+                    "line": 13,
+                    "col": 67,
+                    "end_line": 13,
+                    "end_col": 76
+                  },
+                  "args": {},
+                  "family": "primitive",
+                  "tier": "primitive"
+                },
+                "mix": {
+                  "kind": "block",
+                  "block": "WeightedSum",
+                  "span": {
+                    "line": 14,
+                    "col": 24,
+                    "end_line": 14,
+                    "end_col": 37
+                  },
+                  "args": {},
+                  "family": "primitive",
+                  "tier": "primitive"
+                },
+                "out": {
+                  "kind": "block",
+                  "block": "Linear",
+                  "span": {
+                    "line": 14,
+                    "col": 43,
+                    "end_line": 14,
+                    "end_col": 51
+                  },
+                  "args": {},
+                  "family": "primitive",
+                  "tier": "primitive"
+                }
+              },
+              "family": "template",
+              "tier": "primitive"
+            },
+            "norm2": {
+              "kind": "block",
+              "block": "RMSNorm",
+              "span": {
+                "line": 16,
+                "col": 22,
+                "end_line": 16,
+                "end_col": 31
+              },
+              "args": {},
+              "family": "norm",
+              "tier": "composite"
+            },
+            "mlp": {
+              "kind": "block",
+              "block": "SwiGLU",
+              "span": {
+                "line": 17,
+                "col": 20,
+                "end_line": 17,
+                "end_col": 28
+              },
+              "args": {},
+              "family": "mlp",
+              "tier": "composite"
+            }
+          },
+          "family": "template",
+          "tier": "primitive"
+        }
+      },
+      "init_span": {
+        "line": 6,
+        "col": 4,
+        "end_line": 19,
+        "end_col": 9
+      },
+      "call_span": {
+        "line": 7,
+        "col": 8,
+        "end_line": 19,
+        "end_col": 9
+      },
+      "representable": true,
+      "reason": null,
+      "reason_line": null
+    }
+  ]
+}

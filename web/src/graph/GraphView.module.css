@@ -1,0 +1,12 @@
+.view {
+  position: relative;
+  height: 100%;
+  min-height: 320px;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-2);
+}
+
+.note {
+  padding: var(--space-4);
+}

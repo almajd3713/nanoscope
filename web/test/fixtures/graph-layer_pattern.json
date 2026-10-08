@@ -1,0 +1,286 @@
+{
+  "schema": 1,
+  "nanoscope": "0.4.0",
+  "path": "tests/fixtures/graphs/layer_pattern.py",
+  "classes": [
+    {
+      "name": "SlidingGlobal",
+      "kind": "decoder",
+      "line": 8,
+      "end_line": 19,
+      "span": {
+        "line": 8,
+        "col": 0,
+        "end_line": 19,
+        "end_col": 9
+      },
+      "bases": [
+        "nb.Decoder"
+      ],
+      "params": [
+        {
+          "name": "vocab_size",
+          "annotation": "int",
+          "has_default": false
+        },
+        {
+          "name": "context_length",
+          "annotation": "int",
+          "has_default": true,
+          "default": 512
+        },
+        {
+          "name": "window",
+          "annotation": "int",
+          "has_default": true,
+          "default": 64
+        }
+      ],
+      "args": {
+        "vocab_size": {
+          "kind": "param",
+          "name": "vocab_size",
+          "span": {
+            "line": 11,
+            "col": 23,
+            "end_line": 11,
+            "end_col": 33
+          }
+        },
+        "context_length": {
+          "kind": "param",
+          "name": "context_length",
+          "span": {
+            "line": 11,
+            "col": 50,
+            "end_line": 11,
+            "end_col": 64
+          }
+        },
+        "d_model": {
+          "kind": "literal",
+          "value": 256,
+          "span": {
+            "line": 11,
+            "col": 74,
+            "end_line": 11,
+            "end_col": 77
+          }
+        },
+        "n_layers": {
+          "kind": "literal",
+          "value": 6,
+          "span": {
+            "line": 11,
+            "col": 88,
+            "end_line": 11,
+            "end_col": 89
+          }
+        },
+        "pattern": {
+          "kind": "list",
+          "items": [
+            {
+              "kind": "block",
+              "block": "Block",
+              "span": {
+                "line": 13,
+                "col": 16,
+                "end_line": 14,
+                "end_col": 94
+              },
+              "args": {
+                "norm": {
+                  "kind": "block",
+                  "block": "RMSNorm",
+                  "span": {
+                    "line": 13,
+                    "col": 30,
+                    "end_line": 13,
+                    "end_col": 42
+                  },
+                  "args": {},
+                  "family": "norm",
+                  "tier": "composite"
+                },
+                "attn": {
+                  "kind": "block",
+                  "block": "Attention",
+                  "span": {
+                    "line": 13,
+                    "col": 49,
+                    "end_line": 14,
+                    "end_col": 76
+                  },
+                  "args": {
+                    "n_heads": {
+                      "kind": "literal",
+                      "value": 4,
+                      "span": {
+                        "line": 13,
+                        "col": 70,
+                        "end_line": 13,
+                        "end_col": 71
+                      }
+                    },
+                    "window": {
+                      "kind": "param",
+                      "name": "window",
+                      "span": {
+                        "line": 13,
+                        "col": 80,
+                        "end_line": 13,
+                        "end_col": 86
+                      }
+                    },
+                    "pos": {
+                      "kind": "block",
+                      "block": "RoPE",
+                      "span": {
+                        "line": 14,
+                        "col": 66,
+                        "end_line": 14,
+                        "end_col": 75
+                      },
+                      "args": {},
+                      "family": "positional",
+                      "tier": "composite"
+                    }
+                  },
+                  "family": "attention",
+                  "tier": "composite"
+                },
+                "mlp": {
+                  "kind": "block",
+                  "block": "SwiGLU",
+                  "span": {
+                    "line": 14,
+                    "col": 82,
+                    "end_line": 14,
+                    "end_col": 93
+                  },
+                  "args": {},
+                  "family": "mlp",
+                  "tier": "composite"
+                }
+              },
+              "family": "structure",
+              "tier": "composite"
+            },
+            {
+              "kind": "block",
+              "block": "Block",
+              "span": {
+                "line": 15,
+                "col": 16,
+                "end_line": 16,
+                "end_col": 41
+              },
+              "args": {
+                "norm": {
+                  "kind": "block",
+                  "block": "RMSNorm",
+                  "span": {
+                    "line": 15,
+                    "col": 30,
+                    "end_line": 15,
+                    "end_col": 42
+                  },
+                  "args": {},
+                  "family": "norm",
+                  "tier": "composite"
+                },
+                "attn": {
+                  "kind": "block",
+                  "block": "Attention",
+                  "span": {
+                    "line": 15,
+                    "col": 49,
+                    "end_line": 15,
+                    "end_col": 87
+                  },
+                  "args": {
+                    "n_heads": {
+                      "kind": "literal",
+                      "value": 4,
+                      "span": {
+                        "line": 15,
+                        "col": 70,
+                        "end_line": 15,
+                        "end_col": 71
+                      }
+                    },
+                    "pos": {
+                      "kind": "block",
+                      "block": "RoPE",
+                      "span": {
+                        "line": 15,
+                        "col": 77,
+                        "end_line": 15,
+                        "end_col": 86
+                      },
+                      "args": {},
+                      "family": "positional",
+                      "tier": "composite"
+                    }
+                  },
+                  "family": "attention",
+                  "tier": "composite"
+                },
+                "mlp": {
+                  "kind": "block",
+                  "block": "SwiGLU",
+                  "span": {
+                    "line": 16,
+                    "col": 29,
+                    "end_line": 16,
+                    "end_col": 40
+                  },
+                  "args": {},
+                  "family": "mlp",
+                  "tier": "composite"
+                }
+              },
+              "family": "structure",
+              "tier": "composite"
+            }
+          ],
+          "span": {
+            "line": 12,
+            "col": 20,
+            "end_line": 17,
+            "end_col": 13
+          }
+        },
+        "final_norm": {
+          "kind": "block",
+          "block": "RMSNorm",
+          "span": {
+            "line": 18,
+            "col": 23,
+            "end_line": 18,
+            "end_col": 35
+          },
+          "args": {},
+          "family": "norm",
+          "tier": "composite"
+        }
+      },
+      "init_span": {
+        "line": 9,
+        "col": 4,
+        "end_line": 19,
+        "end_col": 9
+      },
+      "call_span": {
+        "line": 10,
+        "col": 8,
+        "end_line": 19,
+        "end_col": 9
+      },
+      "representable": true,
+      "reason": null,
+      "reason_line": null
+    }
+  ]
+}

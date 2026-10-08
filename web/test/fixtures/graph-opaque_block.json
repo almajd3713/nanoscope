@@ -1,0 +1,164 @@
+{
+  "schema": 1,
+  "nanoscope": "0.4.0",
+  "path": "tests/fixtures/graphs/opaque_block.py",
+  "classes": [
+    {
+      "name": "WithCustom",
+      "kind": "decoder",
+      "line": 7,
+      "end_line": 14,
+      "span": {
+        "line": 7,
+        "col": 0,
+        "end_line": 14,
+        "end_col": 9
+      },
+      "bases": [
+        "Decoder"
+      ],
+      "params": [
+        {
+          "name": "vocab_size",
+          "annotation": "int",
+          "has_default": false
+        },
+        {
+          "name": "context_length",
+          "annotation": "int",
+          "has_default": true,
+          "default": 128
+        }
+      ],
+      "args": {
+        "vocab_size": {
+          "kind": "param",
+          "name": "vocab_size",
+          "span": {
+            "line": 10,
+            "col": 12,
+            "end_line": 10,
+            "end_col": 22
+          }
+        },
+        "context_length": {
+          "kind": "param",
+          "name": "context_length",
+          "span": {
+            "line": 10,
+            "col": 24,
+            "end_line": 10,
+            "end_col": 38
+          }
+        },
+        "d_model": {
+          "kind": "literal",
+          "value": 64,
+          "span": {
+            "line": 10,
+            "col": 48,
+            "end_line": 10,
+            "end_col": 50
+          }
+        },
+        "n_layers": {
+          "kind": "literal",
+          "value": 2,
+          "span": {
+            "line": 10,
+            "col": 61,
+            "end_line": 10,
+            "end_col": 62
+          }
+        },
+        "block": {
+          "kind": "block",
+          "block": "Block",
+          "span": {
+            "line": 11,
+            "col": 18,
+            "end_line": 11,
+            "end_col": 94
+          },
+          "args": {
+            "norm": {
+              "kind": "block",
+              "block": "RMSNorm",
+              "span": {
+                "line": 11,
+                "col": 29,
+                "end_line": 11,
+                "end_col": 38
+              },
+              "args": {},
+              "family": "norm",
+              "tier": "composite"
+            },
+            "attn": {
+              "kind": "opaque",
+              "call": "Gated",
+              "source": "Gated(n_heads=2)",
+              "span": {
+                "line": 11,
+                "col": 45,
+                "end_line": 11,
+                "end_col": 61
+              }
+            },
+            "mlp": {
+              "kind": "opaque",
+              "call": "mylib.FancyMLP",
+              "source": "mylib.FancyMLP(hidden=256)",
+              "span": {
+                "line": 11,
+                "col": 67,
+                "end_line": 11,
+                "end_col": 93
+              }
+            }
+          },
+          "family": "structure",
+          "tier": "composite"
+        },
+        "final_norm": {
+          "kind": "block",
+          "block": "RMSNorm",
+          "span": {
+            "line": 12,
+            "col": 23,
+            "end_line": 12,
+            "end_col": 32
+          },
+          "args": {},
+          "family": "norm",
+          "tier": "composite"
+        },
+        "z_loss": {
+          "kind": "expr",
+          "source": "2 * 1e-4 + 0",
+          "span": {
+            "line": 13,
+            "col": 19,
+            "end_line": 13,
+            "end_col": 31
+          }
+        }
+      },
+      "init_span": {
+        "line": 8,
+        "col": 4,
+        "end_line": 14,
+        "end_col": 9
+      },
+      "call_span": {
+        "line": 9,
+        "col": 8,
+        "end_line": 14,
+        "end_col": 9
+      },
+      "representable": true,
+      "reason": null,
+      "reason_line": null
+    }
+  ]
+}

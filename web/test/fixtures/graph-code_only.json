@@ -1,0 +1,186 @@
+{
+  "schema": 1,
+  "nanoscope": "0.4.0",
+  "path": "tests/fixtures/graphs/code_only.py",
+  "classes": [
+    {
+      "name": "Fine",
+      "kind": "decoder",
+      "line": 4,
+      "end_line": 7,
+      "span": {
+        "line": 4,
+        "col": 0,
+        "end_line": 7,
+        "end_col": 94
+      },
+      "bases": [
+        "Decoder"
+      ],
+      "params": [
+        {
+          "name": "vocab_size",
+          "annotation": "int",
+          "has_default": false
+        }
+      ],
+      "args": {
+        "vocab_size": {
+          "kind": "param",
+          "name": "vocab_size",
+          "span": {
+            "line": 6,
+            "col": 25,
+            "end_line": 6,
+            "end_col": 35
+          }
+        },
+        "context_length": {
+          "kind": "literal",
+          "value": 64,
+          "span": {
+            "line": 6,
+            "col": 37,
+            "end_line": 6,
+            "end_col": 39
+          }
+        },
+        "d_model": {
+          "kind": "literal",
+          "value": 32,
+          "span": {
+            "line": 6,
+            "col": 49,
+            "end_line": 6,
+            "end_col": 51
+          }
+        },
+        "n_layers": {
+          "kind": "literal",
+          "value": 1,
+          "span": {
+            "line": 6,
+            "col": 62,
+            "end_line": 6,
+            "end_col": 63
+          }
+        },
+        "block": {
+          "kind": "block",
+          "block": "Block",
+          "span": {
+            "line": 7,
+            "col": 31,
+            "end_line": 7,
+            "end_col": 93
+          },
+          "args": {
+            "norm": {
+              "kind": "block",
+              "block": "RMSNorm",
+              "span": {
+                "line": 7,
+                "col": 42,
+                "end_line": 7,
+                "end_col": 51
+              },
+              "args": {},
+              "family": "norm",
+              "tier": "composite"
+            },
+            "attn": {
+              "kind": "block",
+              "block": "Attention",
+              "span": {
+                "line": 7,
+                "col": 58,
+                "end_line": 7,
+                "end_col": 78
+              },
+              "args": {
+                "n_heads": {
+                  "kind": "literal",
+                  "value": 2,
+                  "span": {
+                    "line": 7,
+                    "col": 76,
+                    "end_line": 7,
+                    "end_col": 77
+                  }
+                }
+              },
+              "family": "attention",
+              "tier": "composite"
+            },
+            "mlp": {
+              "kind": "block",
+              "block": "SwiGLU",
+              "span": {
+                "line": 7,
+                "col": 84,
+                "end_line": 7,
+                "end_col": 92
+              },
+              "args": {},
+              "family": "mlp",
+              "tier": "composite"
+            }
+          },
+          "family": "structure",
+          "tier": "composite"
+        }
+      },
+      "init_span": {
+        "line": 5,
+        "col": 4,
+        "end_line": 7,
+        "end_col": 94
+      },
+      "call_span": {
+        "line": 6,
+        "col": 8,
+        "end_line": 7,
+        "end_col": 94
+      },
+      "representable": true,
+      "reason": null,
+      "reason_line": null
+    },
+    {
+      "name": "Dynamic",
+      "kind": "decoder",
+      "line": 10,
+      "end_line": 14,
+      "span": {
+        "line": 10,
+        "col": 0,
+        "end_line": 14,
+        "end_col": 94
+      },
+      "bases": [
+        "Decoder"
+      ],
+      "representable": false,
+      "reason": "__init__ has an assignment; only super().__init__(...) can be shown as a graph",
+      "reason_line": 12
+    },
+    {
+      "name": "Overrides",
+      "kind": "decoder",
+      "line": 17,
+      "end_line": 23,
+      "span": {
+        "line": 17,
+        "col": 0,
+        "end_line": 23,
+        "end_col": 35
+      },
+      "bases": [
+        "Decoder"
+      ],
+      "representable": false,
+      "reason": "the class body has the method forward; a Decoder subclass holds only __init__",
+      "reason_line": 22
+    }
+  ]
+}
