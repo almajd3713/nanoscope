@@ -24,12 +24,12 @@ function toMarkers(markers: Marker[]): monaco.editor.IMarkerData[] {
 }
 
 // The real editor. One model per path; the buffer's text belongs to the page, which passes it in.
-export default function MonacoSurface({ path, value, onChange, onSave, markers, readOnly, revealLine }: SurfaceProps) {
+export default function MonacoSurface({ path, value, onChange, onSave, markers, readOnly, revealLine, complete }: SurfaceProps) {
   const host = useRef<HTMLDivElement>(null);
   const editor = useRef<monaco.editor.IStandaloneCodeEditor | null>(null);
-  const latest = useRef({ onChange, onSave });
+  const latest = useRef({ onChange, onSave, complete });
   useEffect(() => {
-    latest.current = { onChange, onSave };
+    latest.current = { onChange, onSave, complete };
   });
 
   useEffect(() => {
@@ -51,7 +51,32 @@ export default function MonacoSurface({ path, value, onChange, onSave, markers, 
     editor.current = instance;
     instance.addCommand(monaco.KeyMod.CtrlCmd | monaco.KeyCode.KeyS, () => latest.current.onSave());
     const sub = instance.onDidChangeModelContent(() => latest.current.onChange(instance.getValue()));
+    const KIND = {
+      block: monaco.languages.CompletionItemKind.Class,
+      argument: monaco.languages.CompletionItemKind.Property,
+      preset: monaco.languages.CompletionItemKind.Constant,
+    } as const;
+    const provider = monaco.languages.registerCompletionItemProvider("python", {
+      triggerCharacters: ["(", ",", " ", '"', "'"],
+      provideCompletionItems: (m, position) => {
+        if (m.uri.toString() !== model.uri.toString() || !latest.current.complete) return { suggestions: [] };
+        const before = m.getValueInRange({ startLineNumber: 1, startColumn: 1, endLineNumber: position.lineNumber, endColumn: position.column });
+        const word = m.getWordUntilPosition(position);
+        const range = { startLineNumber: position.lineNumber, endLineNumber: position.lineNumber, startColumn: word.startColumn, endColumn: word.endColumn };
+        return {
+          suggestions: latest.current.complete(before).map((s) => ({
+            label: s.label,
+            kind: KIND[s.kind],
+            insertText: s.insertText,
+            detail: s.detail,
+            documentation: s.documentation,
+            range,
+          })),
+        };
+      },
+    });
     return () => {
+      provider.dispose();
       sub.dispose();
       instance.dispose();
       model.dispose();

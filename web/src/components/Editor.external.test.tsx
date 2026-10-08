@@ -80,6 +80,6 @@ describe("Editor and the workspace watcher", () => {
     await waitFor(() => expect(screen.getByText("saved")).toBeTruthy());
     edit({ etag: "e2" }); // the watcher reporting our own write
     expect(screen.queryByText("changed on disk")).toBeNull();
-    expect(seen.filter((s) => s.method === "GET")).toHaveLength(1); // never re-read
+    expect(seen.filter((s) => s.method === "GET" && s.path === "/api/files/m.py")).toHaveLength(1); // never re-read
   });
 });

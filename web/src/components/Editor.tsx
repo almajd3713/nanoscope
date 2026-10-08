@@ -6,6 +6,7 @@ import { Tag } from "./Tag";
 import { CodeSurface } from "../editor/CodeSurface";
 import type { Marker } from "../editor/types";
 import { useFileBuffer } from "../editor/useFileBuffer";
+import { useCatalog } from "../editor/useCatalog";
 import { useLint } from "../editor/useLint";
 import { Check, Circle, Warning } from "../icons";
 import styles from "./Editor.module.css";
@@ -22,6 +23,7 @@ export function Editor({ path, markers = [], revealLine }: Props) {
   const buffer = useFileBuffer(path);
   // "Decide later" hides the dialog for this conflict; the banner brings it back
   const [putOff, setPutOff] = useState<string | null>(null);
+  const complete = useCatalog();
   const lint = useLint(path, buffer.etag);
   const shown = [...lint, ...markers];
   const conflictId = buffer.conflict?.currentEtag ?? null;
@@ -46,6 +48,7 @@ export function Editor({ path, markers = [], revealLine }: Props) {
             onSave={buffer.save}
             markers={shown}
             revealLine={revealLine}
+            complete={complete}
           />
         )}
       </div>
