@@ -64,18 +64,21 @@ def catalog(workspace: str | Path | None = None) -> dict[str, Any]:
     blocks = [_shipped(info) for info in registry.all_blocks() if not info.user]
     errors: list[dict[str, Any]] = []
     if workspace is not None:
+        from nanoscope.blocks.certs import state
         from nanoscope.blocks.discover import discover
 
         found = discover(workspace)
         errors = found["errors"]
         for b in found["blocks"]:
+            certification = state(b["file"], b["name"])
             blocks.append({
                 "name": b["name"], "family": b["family"], "tier": "composite", "module": None,
                 "args": [{"name": o["name"], "type": o["annotation"], "required": o["required"],
                           **({"default": o["default"]} if "default" in o else {})}
                          for o in b["options"]],
                 "doc": b["doc"], "reference": b["reference"], "features": [], "user": True,
-                "certified": False, "file": b["file"], "line": b["line"]})
+                "certified": certification["state"] == "certified", "file": b["file"],
+                "line": b["line"], "certification": certification})
     return {"schema": 1, "nanoscope": __version__, "blocks": blocks, "errors": errors}
 
 

@@ -142,6 +142,23 @@
             "integer",
             "null"
           ]
+        },
+        "certification": {
+          "description": "User blocks only: whether the block matches its registered reference for the file as it is now (stale: certified for an older version of the file).",
+          "type": "object",
+          "required": [
+            "state"
+          ],
+          "properties": {
+            "state": {
+              "enum": [
+                "certified",
+                "failed",
+                "stale",
+                "uncertified"
+              ]
+            }
+          }
         }
       }
     }

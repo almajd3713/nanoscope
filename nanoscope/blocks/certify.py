@@ -1,7 +1,8 @@
 """Certification of a user block: does it match the reference it was registered with?
 
     certify("models/gate.py", "Gate")   # runs the file (a worker does this), writes a cert
-    state("models/gate.py", "Gate")     # reads certs only: certified | failed | stale | uncertified
+
+`nanoscope.blocks.certs` reads the certs without running anything (the API uses it).
 
 The reference is the plain function given to `register_block(reference=fn)`. It is called as
 `fn(x, ...)`: the first parameter receives the random input, every other parameter is looked
@@ -25,51 +26,14 @@ from pathlib import Path
 from typing import Any
 
 import nanoscope.blocks.registry as registry
-from nanoscope import __version__, paths
+from nanoscope import __version__
+from nanoscope.blocks.certs import cert_path, read_cert, source_sha256
 from nanoscope.fsutil import write_json_atomic
-from nanoscope.schemas.upgrade import read_json
 
 SHAPES = ((2, 8), (1, 3))  # (batch, tokens) of the random inputs
 TRIALS = 3
 TOLERANCE = 1e-5
 D_MODEL = 16
-
-
-def source_sha256(path: str | Path) -> str:
-    return hashlib.sha256(Path(path).read_bytes()).hexdigest()
-
-
-def certs_dir() -> Path:
-    base = paths.home()
-    return base / "certs" if base else Path.home() / ".nanoscope" / "certs"
-
-
-def cert_path(sha: str) -> Path:
-    return certs_dir() / f"{sha}.json"
-
-
-def _read(path: Path) -> dict[str, Any] | None:
-    try:
-        return read_json(path, "cert")
-    except (OSError, ValueError):
-        return None
-
-
-def state(file: str | Path, name: str) -> dict[str, Any]:
-    """`{"state": ..., ...}` for one block. certified/failed carry the stored result; stale means
-    the block was certified (or failed) for an older version of the file."""
-    sha = source_sha256(file)
-    doc = _read(cert_path(sha))
-    if doc and name in doc["results"]:
-        result = doc["results"][name]
-        return {"state": "certified" if result["passed"] else "failed", **result}
-    resolved = str(Path(file).resolve())
-    for other in sorted(certs_dir().glob("*.json")) if certs_dir().exists() else []:
-        old = _read(other)
-        if old and old["file"] == resolved and name in old["results"] \
-                and old["source_sha256"] != sha:
-            return {"state": "stale", **old["results"][name]}
-    return {"state": "uncertified"}
 
 
 def _load_module(file: Path) -> Any:
@@ -173,7 +137,7 @@ def certify(file: str | Path, name: str) -> dict[str, Any]:
         ref_name = reference.__qualname__
     sha = source_sha256(file)
     path = cert_path(sha)
-    doc = _read(path) or {"schema": 1, "nanoscope": __version__, "source_sha256": sha,
+    doc = read_cert(path) or {"schema": 1, "nanoscope": __version__, "source_sha256": sha,
                           "file": str(file.resolve()), "results": {}}
     result = {"reference": ref_name, "tolerance": TOLERANCE, "at": _now(), **result}
     doc["results"][name] = result

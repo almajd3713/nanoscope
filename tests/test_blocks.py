@@ -797,20 +797,21 @@ def test_certify_passes_fails_and_goes_stale_when_the_source_changes(home, tmp_p
     from helpers import assert_valid
 
     from nanoscope.blocks import certify as cert
+    from nanoscope.blocks import certs
 
     file = tmp_path / "gates.py"
     file.write_text(GATE_SOURCE)
-    assert cert.state(file, "CertGate") == {"state": "uncertified"}
+    assert certs.state(file, "CertGate") == {"state": "uncertified"}
 
     ok = cert.certify(file, "CertGate")
     assert ok["passed"] and ok["max_abs_diff"] <= 1e-5 and ok["reference"] == "naive_gate"
     assert "matches the reference" in ok["message"]
-    assert cert.state(file, "CertGate")["state"] == "certified"
-    assert_valid("cert", json.loads(cert.cert_path(ok["source_sha256"]).read_text()))
+    assert certs.state(file, "CertGate")["state"] == "certified"
+    assert_valid("cert", json.loads(certs.cert_path(ok["source_sha256"]).read_text()))
 
     bad = cert.certify(file, "CertBadGate")
     assert not bad["passed"] and "differs from the reference" in bad["message"]
-    assert cert.state(file, "CertBadGate")["state"] == "failed"
+    assert certs.state(file, "CertBadGate")["state"] == "failed"
 
     none = cert.certify(file, "CertNoRef")
     assert not none["passed"] and "no reference" in none["message"]
@@ -819,16 +820,16 @@ def test_certify_passes_fails_and_goes_stale_when_the_source_changes(home, tmp_p
 
     # the badge belongs to the exact source: any edit invalidates it
     file.write_text(GATE_SOURCE + "\n# touched\n")
-    assert cert.state(file, "CertGate")["state"] == "stale"
-    assert cert.state(file, "CertGate")["passed"] is True  # what it was when last checked
+    assert certs.state(file, "CertGate")["state"] == "stale"
+    assert certs.state(file, "CertGate")["passed"] is True  # what it was when last checked
     again = cert.certify(file, "CertGate")
     assert again["source_sha256"] != ok["source_sha256"]
-    assert cert.state(file, "CertGate")["state"] == "certified"
+    assert certs.state(file, "CertGate")["state"] == "certified"
 
 
 def test_certify_job_runs_in_a_worker_process_and_records_the_cert(home, tmp_path):
     from nanoscope import queue
-    from nanoscope.blocks import certify as cert
+    from nanoscope.blocks import certs
     from nanoscope.cli import main
 
     file = tmp_path / "gates.py"
@@ -841,6 +842,6 @@ def test_certify_job_runs_in_a_worker_process_and_records_the_cert(home, tmp_pat
     assert stopped.value.code == 0
     result = json.loads(queue.get(job_id)["result"])
     assert result["passed"] and result["block"] == "JobGate"
-    assert cert.state(file, "JobGate")["state"] == "certified"
+    assert certs.state(file, "JobGate")["state"] == "certified"
     with pytest.raises(queue.InvalidJob):
         queue.enqueue("certify", {"file": str(file)})

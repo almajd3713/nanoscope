@@ -2,10 +2,12 @@ from __future__ import annotations
 
 from fastapi import APIRouter
 
-from nanoscope import paths
+from nanoscope import paths, queue
 from nanoscope.blocks.catalog import catalog
+from nanoscope.blocks.discover import discover
 from nanoscope.learn import gating, unlocks
-from nanoscope.server.models import BlocksDoc
+from nanoscope.server.jobs import job_doc
+from nanoscope.server.models import BlocksDoc, JobDoc
 
 router = APIRouter(prefix="/api", tags=["blocks"])
 
@@ -33,3 +35,21 @@ def blocks() -> BlocksDoc:
         block["lock"] = lock_state(block["name"])
     doc["policy"] = unlocks.policy()
     return BlocksDoc(**doc)
+
+
+@router.post("/blocks/{name}/certify", status_code=202)
+def certify_block(name: str) -> JobDoc:
+    """Check a block of the workspace against the reference it was registered with. It is a job:
+    the file has to be imported to build the block, which only a worker does."""
+    workspace = paths.workspace_dir()
+    found = discover(workspace)["blocks"] if workspace.exists() else []
+    block = next((b for b in found if b["name"] == name), None)
+    if block is None:
+        raise KeyError(f"no block named {name!r} is registered in the workspace")
+    if block["reference"] is None:
+        raise ValueError(f"{name} has no reference to be checked against: register it with "
+                         "register_block(reference=fn)")
+    job_id = queue.enqueue("certify", {"file": block["file"], "block": name},
+                           lane="interactive")
+    assert job_id is not None
+    return job_doc(queue.get(job_id))

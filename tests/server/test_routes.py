@@ -412,3 +412,43 @@ def test_validate_run_says_where_the_runs_land(client):
     # nothing is promised for a request with problems
     bad = client.post("/api/validate/run", json={"model": "bigram", "kwargs": {"lr": 1}}).json()
     assert bad["ok"] is False and bad["refs"] == []
+
+
+def test_certify_block_lists_state_and_queues_a_job(client, tmp_path, monkeypatch):
+    import json
+
+    from nanoscope.blocks import certs
+
+    ws = tmp_path / "ws"
+    ws.mkdir()
+    monkeypatch.setenv("NANOSCOPE_WORKSPACE", str(ws))
+    source = (
+        "@register_block(reference=naive, family='mlp')\nclass Gate(nn.Module):\n"
+        "    def __init__(self, d_model, context_length):\n        pass\n\n\n"
+        "@register_block\nclass Plain(nn.Module):\n"
+        "    def __init__(self, d_model, context_length):\n        pass\n")
+    (ws / "gate.py").write_text(source)
+
+    def mine():
+        blocks = {b["name"]: b for b in client.get("/api/blocks").json()["blocks"]}
+        return blocks["Gate"]
+
+    assert mine()["certification"] == {"state": "uncertified"} and mine()["certified"] is False
+    job = client.post("/api/blocks/Gate/certify")
+    assert job.status_code == 202
+    assert job.json()["kind"] == "certify"
+    assert job.json()["payload"] == {"file": str(ws / "gate.py"), "block": "Gate"}
+    assert client.post("/api/blocks/Nope/certify").status_code == 404
+    refused = client.post("/api/blocks/Plain/certify")
+    assert refused.status_code == 422 and "no reference" in refused.json()["detail"]
+    # a stored cert shows up, and goes stale when the file changes
+    sha = certs.source_sha256(ws / "gate.py")
+    certs.cert_path(sha).parent.mkdir(parents=True, exist_ok=True)
+    certs.cert_path(sha).write_text(json.dumps({
+        "schema": 1, "nanoscope": "0", "source_sha256": sha,
+        "file": str((ws / "gate.py").resolve()),
+        "results": {"Gate": {"passed": True, "message": "ok", "at": "t", "reference": "naive",
+                             "tolerance": 1e-5, "trials": 3, "max_abs_diff": 0.0}}}))
+    assert mine()["certified"] is True and mine()["certification"]["state"] == "certified"
+    (ws / "gate.py").write_text(source + "# edited\n")
+    assert mine()["certified"] is False and mine()["certification"]["state"] == "stale"
