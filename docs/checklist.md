@@ -4,7 +4,7 @@ The build list for [`plan-tool.md`](plan-tool.md), sections 4-10, with the decis
 2026-10-05 (plan section 11) applied. Phase numbers follow the plan's section 10. Every
 item is one line, so scripts and agents can grep and edit it.
 
-**Current focus:** P13 GUI MVP 1, 45 of 50. Left: P13.31 (Playwright set up and listing; the `e2e` CI job has not run on a PR yet), P13.33-P13.35 (specs written in web/e2e, not yet run: run `web/e2e/stack.sh up`, then `pnpm -C web exec playwright test --project=rest`, after `stack.sh reset`), and the gate P13.99.
+**Current focus:** P13 GUI MVP 1, 49 of 50. Only the gate P13.99 is left (make check, the server and first-notebook tests, then the PR for the user to merge). Then P14 (model page).
 
 ## Progress
 
@@ -17,7 +17,7 @@ item is one line, so scripts and agents can grep and edit it.
 | P10 | HTTP API (8-10 d) | 47 / 47 | done |
 | P11 | Release prep: PyPI + GHCR (2-3 d) | 17 / 17 | done |
 | P12 | docker-compose (3-4 d) | 20 / 20 | done |
-| P13 | GUI MVP 1: shell, Learn/Tinker screens (12-15 d) | 45 / 50 | in progress |
+| P13 | GUI MVP 1: shell, Learn/Tinker screens (12-15 d) | 49 / 50 | in progress |
 | P14 | GUI MVP 2: model page, drag-and-drop (14-17 d) | 0 / 35 | not started |
 | P15 | GUI Research (10-13 d) | 0 / 30 | not started |
 | P16 | Extend + depth (8-10 d) | 0 / 16 | not started |
@@ -540,11 +540,11 @@ Order: P13.01 and P13.02 first (these items live in `web/` and run in its CI job
 - [x] P13.49 Settings page and top-bar link: this browser (theme, level, show command-line equivalents), learning (gating policy through `POST /api/learn/policy`), data (each preset's state from `GET /api/data`, Prepare as a job), and this server (read-only, from P13.48, with where to change each value). · files: web/src/pages/Settings.tsx (new), web/src/app/Shell.tsx · deps: P13.08, P13.10, P13.11, P13.48 · done: `pnpm -C web test -- Settings` passes ✓ 2026-10-08 0601e6e: browser settings (theme, level, command toggle) never touch the server; gating policy goes through `POST /api/learn/policy`, Prepare through `POST /api/data/{preset}/prepare`; the server section is read-only with where to change each value
 
 ### P13 · End-to-end tests and docs
-- [ ] P13.31 Set up Playwright in `web/e2e` against compose, with a CI job `e2e`. · files: web/e2e/ (new), web/playwright.config.ts (new), .github/workflows/ci.yml · deps: P13.02, P12.13, P13.38-P13.45 · done: `pnpm -C web exec playwright test --list` exits 0 and the e2e job is green
+- [x] P13.31 Set up Playwright in `web/e2e` against compose, with a CI job `e2e`. · files: web/e2e/ (new), web/playwright.config.ts (new), .github/workflows/ci.yml · deps: P13.02, P12.13, P13.38-P13.45 · done: `pnpm -C web exec playwright test --list` exits 0 and the e2e job is green ✓ 2026-10-08 6b706f4: the `e2e` CI job (own compose project and port, signs in through the login link) is green on PR #15
 - [x] P13.32 Plan done-when: Foundations lesson 1 goes start → train → check passed in at most 6 clicks. · files: web/e2e/lesson1.spec.ts (new) · deps: P13.31, P13.15 · done: `pnpm -C web exec playwright test lesson1` passes ✓ 2026-10-08 1f7a52b: passed against a real compose stack on 2026-10-08 (5.2 min, 6 clicks). It found two real bugs, both fixed: the lessons page bounced back to /welcome on a stale cache, and the run page showed 404 for a queued run
-- [ ] P13.33 Plan done-when: Learn and Tinker submit identical `POST /api/runs` bodies when nothing was touched (checked by request interception). · files: web/e2e/levels.spec.ts (new) · deps: P13.31, P13.21 · done: `pnpm -C web exec playwright test levels` passes
-- [ ] P13.34 Plan done-when: a failed run shows its error from `status.json`. · files: web/e2e/failed-run.spec.ts (new) · deps: P13.31, P13.17 · done: `pnpm -C web exec playwright test failed-run` passes
-- [ ] P13.35 Plan done-when: Unlock all on the Components page sets policy `open` in `learn/unlocks.json`. · files: web/e2e/unlock.spec.ts (new) · deps: P13.31, P13.27 · done: `pnpm -C web exec playwright test unlock` passes
+- [x] P13.33 Plan done-when: Learn and Tinker submit identical `POST /api/runs` bodies when nothing was touched (checked by request interception). · files: web/e2e/levels.spec.ts (new) · deps: P13.31, P13.21 · done: `pnpm -C web exec playwright test levels` passes ✓ 2026-10-08 6b706f4: green in the `e2e` job: the lesson's Train and the run form send identical bodies
+- [x] P13.34 Plan done-when: a failed run shows its error from `status.json`. · files: web/e2e/failed-run.spec.ts (new) · deps: P13.31, P13.17 · done: `pnpm -C web exec playwright test failed-run` passes ✓ 2026-10-08 6b706f4: green in the `e2e` job
+- [x] P13.35 Plan done-when: Unlock all on the Components page sets policy `open` in `learn/unlocks.json`. · files: web/e2e/unlock.spec.ts (new) · deps: P13.31, P13.27 · done: `pnpm -C web exec playwright test unlock` passes ✓ 2026-10-08 6b706f4: green in the `e2e` job
 - [x] P13.36 Write `docs/gui.md`: screens, levels and the equivalent command for each screen. · files: docs/gui.md (new) · deps: P13.32 · done: `grep -c '^## ' docs/gui.md` prints at least 4 ✓ 2026-10-08 1f7a52b: docs/gui.md written (5 sections)
 - [ ] P13.99 PHASE GATE P13. Exit criteria: plan section 10 phase 13. · files: — · deps: P13.* · done: `make check` passes; the web and e2e CI jobs are green (P13.32-P13.35); `uv run pytest tests/test_first_model_notebook.py` passes; `make web-client && git diff --exit-code web/src/api`; `pnpm -C web tokens --check`, `pnpm -C web lint` and `pnpm -C web lint:css` pass; the screens match the approved mockups (P13.37); **USER ACTION** merge the PR
 
