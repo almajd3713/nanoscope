@@ -1,0 +1,78 @@
+.palette {
+  display: grid;
+  gap: var(--space-3);
+  align-content: start;
+  min-width: 0;
+}
+
+.group {
+  display: grid;
+  gap: var(--space-1);
+}
+
+.group h3 {
+  margin: 0;
+  color: var(--ink-muted);
+  text-transform: none;
+}
+
+.list {
+  display: grid;
+  gap: var(--space-1);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.item {
+  display: grid;
+  gap: 2px;
+  padding: var(--space-1) var(--space-2);
+  background: var(--surface-raised);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-2);
+  cursor: grab;
+}
+
+.item:active {
+  box-shadow: var(--shadow-drag);
+}
+
+.row {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.name {
+  flex: 1;
+  min-width: 0;
+  font-family: var(--font-mono);
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.locked {
+  background: var(--surface);
+  border-style: dashed;
+  color: var(--ink-muted);
+  cursor: not-allowed;
+}
+
+.muted {
+  color: var(--ink-muted);
+}
+
+.search {
+  height: var(--control);
+  padding: 0 var(--space-2);
+  border: 1px solid var(--line-strong);
+  border-radius: var(--radius-2);
+  background: var(--surface-sunken);
+  color: var(--ink);
+}
+
+.search:focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: 2px;
+}
