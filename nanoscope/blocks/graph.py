@@ -648,17 +648,35 @@ def _change_arg(cst: Any, call: Any, edit: dict[str, Any], prefix: str,
             raise ValueError(f"{name!r} is positional; it can only be removed from the end")
         args = [a for i, a in enumerate(call.args) if i != index]
         if args and index == len(call.args) - 1:  # the new last argument takes over its tail
-            args[-1] = args[-1].with_changes(comma=call.args[index].comma)
+            args[-1] = _take_tail(cst, args[-1], call.args[index].comma)
         return call.with_changes(args=args)
     value = cst.parse_expression(render(edit["value"], prefix))
     args = list(call.args)
     if index is not None:
         args[index] = args[index].with_changes(value=value)
     else:
-        args.append(cst.Arg(keyword=cst.Name(name), value=value,
-                            equal=cst.AssignEqual(whitespace_before=cst.SimpleWhitespace(""),
-                                                  whitespace_after=cst.SimpleWhitespace(""))))
+        new = cst.Arg(keyword=cst.Name(name), value=value,
+                      equal=cst.AssignEqual(whitespace_before=cst.SimpleWhitespace(""),
+                                            whitespace_after=cst.SimpleWhitespace("")))
+        tail = args[-1].comma if args else cst.MaybeSentinel.DEFAULT
+        if isinstance(tail, cst.Comma):  # a trailing comma (and the newline after it) moves on
+            first = args[0].comma
+            args[-1] = args[-1].with_changes(comma=first if isinstance(first, cst.Comma)
+                                             and len(args) > 1 else cst.Comma(
+                whitespace_after=cst.SimpleWhitespace(" ")))
+            new = new.with_changes(comma=tail)
+        args.append(new)
     return call.with_changes(args=args)
+
+
+def _take_tail(cst: Any, element: Any, tail: Any) -> Any:
+    """`element` (now last) ends with `tail`, the comma the removed last element had, unless its
+    own comma carries a comment: that comment stays."""
+    comma = element.comma
+    after = getattr(comma, "whitespace_after", None)
+    if isinstance(after, cst.ParenthesizedWhitespace) and after.first_line.comment is not None:
+        return element
+    return element.with_changes(comma=tail)
 
 
 def _bump_layers(cst: Any, call: Any, edit: dict[str, Any], positional: list[str]) -> Any:
@@ -717,7 +735,7 @@ def _edit_list(cst: Any, value: Any, edit: dict[str, Any], prefix: str) -> Any:
         raise ValueError(f"the list at {_where(edit)} would be empty; a pattern needs a block")
     removed = elements.pop(index)
     if index == len(elements):  # the new last item takes the old tail (trailing comma or none)
-        elements[-1] = elements[-1].with_changes(comma=removed.comma)
+        elements[-1] = _take_tail(cst, elements[-1], removed.comma)
     if isinstance(value, cst.Tuple) and len(elements) == 1 and \
             elements[0].comma is cst.MaybeSentinel.DEFAULT:
         elements[0] = elements[0].with_changes(comma=cst.Comma())

@@ -23,7 +23,8 @@ class GraphResponse(GraphDoc):
 
 class PatchRequest(BaseModel):
     """Either the edited graph (every changed argument is patched into the source), or an
-    explicit list of edits (`set_arg`, `replace_block`, `remove_arg`)."""
+    explicit list of edits (`set_arg`, `replace_block`, `remove_arg`, and the structural
+    `add_layer`, `remove_layer`, `set_pattern`, `fill_slot`; see nanoscope.blocks.graph)."""
 
     graph: dict[str, Any] | None = None
     edits: list[dict[str, Any]] | None = None

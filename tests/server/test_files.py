@@ -264,3 +264,86 @@ def test_lint(client, ws):
     assert client.post("/api/files/nope.py/lint").status_code == 404
     # nothing was executed or written
     assert (ws / "bad.py").read_text().count("never run") == 1
+
+
+TEMPLATE_FILE = '''\
+from nanoscope.blocks import AttentionTemplate, BlockTemplate, CausalMask, Decoder, Linear
+from nanoscope.blocks import RMSNorm, ScaledDotScores, Softmax, SwiGLU, WeightedSum
+
+
+class Fill(Decoder):
+    def __init__(self, vocab_size: int):
+        super().__init__(
+            vocab_size, 16, d_model=32, n_layers=2,
+            block=BlockTemplate(
+                norm1=RMSNorm(),
+                attn=AttentionTemplate(
+                    q=Linear(), k=Linear(), v=Linear(), scores=ScaledDotScores(), mask=None,
+                    normalize=Softmax(), mix=WeightedSum(), out=Linear()),
+                norm2=RMSNorm(), mlp=SwiGLU()),
+        )
+'''
+
+
+def test_graph_patch_all_ops(client, ws):
+    from nanoscope.learn import gating, unlocks
+
+    def block(name, **args):
+        return {"kind": "block", "block": name, "args": args, "span": None}
+
+    def lit(value):
+        return {"kind": "literal", "value": value, "span": None}
+
+    layer = block("Block", norm=block("RMSNorm"), attn=block("Attention", n_heads=lit(2)),
+                  mlp=block("SwiGLU"))
+    (ws / "mylm.py").write_text(GRAPH_FILE.replace(
+        '        raise RuntimeError("the API must never run this")\n', ""))
+    etag = client.post("/api/files/mylm.py/graph").json()["etag"]
+
+    def patch(edit, path="mylm.py"):
+        nonlocal etag
+        response = client.post(f"/api/files/{path}/graph/patch", json={"edits": [edit]},
+                               headers={"If-Match": etag})
+        if response.status_code == 200:
+            etag = response.json()["etag"]
+        return response
+
+    def args():
+        return client.post("/api/files/mylm.py/graph").json()["classes"][0]["args"]
+
+    assert patch({"op": "add_layer", "class": "MyLM"}).status_code == 200
+    assert args()["n_layers"]["value"] == 3
+    assert patch({"op": "remove_layer", "class": "MyLM"}).status_code == 200
+    assert args()["n_layers"]["value"] == 2
+    done = patch({"op": "set_pattern", "class": "MyLM", "items": [layer, layer]})
+    assert done.status_code == 200 and "block" not in args()
+    assert len(args()["pattern"]["items"]) == 2
+    assert patch({"op": "add_layer", "class": "MyLM", "path": ["pattern"], "node": layer,
+                  "index": 1}).status_code == 200
+    assert len(args()["pattern"]["items"]) == 3
+    assert patch({"op": "remove_layer", "class": "MyLM", "path": ["pattern"],
+                  "index": 0}).status_code == 200
+    assert len(args()["pattern"]["items"]) == 2
+    assert "# keep this comment" in (ws / "mylm.py").read_text()
+    bad = patch({"op": "remove_layer", "class": "MyLM", "path": ["pattern"], "index": 9})
+    assert bad.status_code == 422 and "no item 9" in bad.json()["detail"]
+    assert patch({"op": "nope", "class": "MyLM"}).status_code == 422
+
+    # fill_slot on a template, then the guided policy refuses a locked block in a slot
+    (ws / "fill.py").write_text(TEMPLATE_FILE)
+    etag = client.post("/api/files/fill.py/graph").json()["etag"]
+    fill = {"op": "fill_slot", "class": "Fill", "path": ["block", "attn"], "slot": "mask",
+            "node": block("CausalMask")}
+    assert patch(fill, "fill.py").status_code == 200
+    assert "mask=CausalMask()" in (ws / "fill.py").read_text()
+    gating.reload()
+    unlocks.set_policy("guided")
+    before = (ws / "fill.py").read_text()
+    refused = patch({**fill, "slot": "normalize", "node": block("RoPE")}, "fill.py")
+    assert refused.status_code == 422
+    assert (ws / "fill.py").read_text() == before
+    etag = client.post("/api/files/mylm.py/graph").json()["etag"]
+    roped = block("Block", norm=block("RMSNorm"), mlp=block("SwiGLU"),
+                  attn=block("Attention", n_heads=lit(2), pos=block("RoPE")))
+    refused = patch({"op": "add_layer", "class": "MyLM", "path": ["pattern"], "node": roped})
+    assert refused.status_code == 422 and refused.json()["type"] == "locked"

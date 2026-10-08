@@ -1218,7 +1218,7 @@
         "type": "object"
       },
       "PatchRequest": {
-        "description": "Either the edited graph (every changed argument is patched into the source), or an\nexplicit list of edits (`set_arg`, `replace_block`, `remove_arg`).",
+        "description": "Either the edited graph (every changed argument is patched into the source), or an\nexplicit list of edits (`set_arg`, `replace_block`, `remove_arg`, and the structural\n`add_layer`, `remove_layer`, `set_pattern`, `fill_slot`; see nanoscope.blocks.graph).",
         "properties": {
           "edits": {
             "anyOf": [
