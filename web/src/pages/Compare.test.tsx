@@ -99,6 +99,21 @@ describe("Compare", () => {
     expect(screen.getAllByText(/need 3\+ seeds each/).length).toBeGreaterThan(0);
   });
 
+  it("shows rows[].verdict unchanged, even when it disagrees with what the numbers might suggest", async () => {
+    // the page must not recompute a verdict from the interval: the library decides
+    const odd = {
+      ...compare,
+      rows: compare.rows.map((r) =>
+        r.label === "Modern" ? { ...r, verdict: "within noise", text: { ...r.text, verdict: "within noise" } } : r,
+      ),
+    };
+    renderCompare(URL_, { "POST /api/compare": { body: odd } });
+    await screen.findByRole("heading", { name: "Compare" });
+    const modern = within(screen.getByRole("table")).getByText("Modern").closest("tr")!;
+    expect(within(modern).getByText("within noise")).toBeTruthy();
+    expect(within(modern).queryByText("better")).toBeNull();
+  });
+
   it("asks for runs when there are fewer than two", async () => {
     renderCompare("/compare?runs=bigram");
     expect(await screen.findByText("Pick at least two runs")).toBeTruthy();

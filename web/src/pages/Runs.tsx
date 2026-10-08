@@ -12,6 +12,7 @@ import { useEvents } from "../hooks/useEvents";
 import { shows } from "../levels";
 import { MagnifyingGlass, Plus } from "../icons";
 import { stampText } from "../format";
+import { VisuallyHidden } from "@radix-ui/react-visually-hidden";
 import styles from "./Runs.module.css";
 
 const STATES = ["all", "running", "queued", "done", "stopped", "failed"] as const;
@@ -145,7 +146,7 @@ export function Runs() {
             <thead>
               <tr>
                 <th className="label" scope="col">
-                  <span aria-hidden="true"><span className="visually-hidden-label" aria-hidden="true" />nbsp;</span>
+                  <VisuallyHidden>Select</VisuallyHidden>
                 </th>
                 <th className="label" scope="col">State</th>
                 <th className="label" scope="col">Run</th>

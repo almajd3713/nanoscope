@@ -193,7 +193,7 @@ function Form({ models, presets, origin }: { models: ModelDoc[]; presets: Preset
 
   return (
     <div className={styles.page}>
-      <main className={styles.main}>
+      <div className={styles.main}>
         <header className={styles.head}>
           <span className={`small ${styles.muted}`}>
             {origin ? (
@@ -355,7 +355,7 @@ function Form({ models, presets, origin }: { models: ModelDoc[]; presets: Preset
             </span>
           )}
         </div>
-      </main>
+      </div>
 
       <aside className={styles.aside}>
         <section className={styles.panel} style={{ gap: "var(--space-2)" }}>

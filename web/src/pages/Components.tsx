@@ -12,6 +12,7 @@ import { ProblemFromError } from "../components/ProblemView";
 import { Tag } from "../components/Tag";
 import { stampText } from "../format";
 import { LockSimple, LockSimpleOpen } from "../icons";
+import { VisuallyHidden } from "@radix-ui/react-visually-hidden";
 import styles from "./Components.module.css";
 
 type Entry = { lesson: string; state: string; reason: string | null };
@@ -102,7 +103,7 @@ export function Components() {
               <th className="label" scope="col">Lesson that unlocks it</th>
               <th className="label" scope="col">How</th>
               <th className="label" scope="col">
-                <span aria-hidden="true">&nbsp;</span>
+                <VisuallyHidden>Action</VisuallyHidden>
               </th>
             </tr>
           </thead>

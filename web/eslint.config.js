@@ -17,6 +17,10 @@ export default tseslint.config(
             { name: "@phosphor-icons/react", message: "Import icons from src/icons (the design system's allowlist)." },
             { name: "lucide-react", message: "Banned by the design system." },
             { name: "react-icons", message: "Banned by the design system." },
+            { name: "simple-statistics", message: "The page shows the library's numbers; it computes none." },
+            { name: "jstat", message: "The page shows the library's numbers; it computes none." },
+            { name: "mathjs", message: "The page shows the library's numbers; it computes none." },
+            { name: "d3-array", importNames: ["mean", "deviation", "variance", "median", "quantile"], message: "The page shows the library's numbers; it computes none." },
           ],
           patterns: [
             { group: ["@heroicons/*", "react-icons/*", "lucide-react/*"], message: "Banned by the design system." },

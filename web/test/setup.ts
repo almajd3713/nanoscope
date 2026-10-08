@@ -1,7 +1,9 @@
 import { cleanup } from "@testing-library/react";
-import { afterEach, vi } from "vitest";
+import { afterEach, expect, vi } from "vitest";
+import * as axeMatchers from "vitest-axe/matchers";
 
 afterEach(() => cleanup());
+expect.extend(axeMatchers);
 
 // uPlot needs a real canvas and matchMedia; jsdom has neither. Tests of Curve replace this mock.
 vi.mock("uplot", () => ({

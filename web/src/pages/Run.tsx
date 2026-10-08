@@ -169,7 +169,7 @@ export function Run() {
 
   return (
     <div className={styles.page}>
-      <main className={styles.main}>
+      <div className={styles.main}>
         <header className={styles.head}>
           <span className={`small ${styles.muted}`}>
             <Link to="/runs" className={styles.link}>
@@ -298,7 +298,7 @@ export function Run() {
             <GeneratePanel runRef={ref} />
           </section>
         )}
-      </main>
+      </div>
 
       <aside className={styles.aside}>
         <section className={styles.panel}>
