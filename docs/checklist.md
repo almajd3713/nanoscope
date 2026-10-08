@@ -4,7 +4,7 @@ The build list for [`plan-tool.md`](plan-tool.md), sections 4-10, with the decis
 2026-10-05 (plan section 11) applied. Phase numbers follow the plan's section 10. Every
 item is one line, so scripts and agents can grep and edit it.
 
-**Current focus:** P13 GUI MVP 1. Mockups approved 2026-10-08. Next: P13.44-P13.45 (design-system mirror), then the screens.
+**Current focus:** P13 GUI MVP 1. The design-system items (P13.38-P13.45) are done. Next: P13.03-P13.07 (API client, state, shell plumbing), then the screens.
 
 ## Progress
 
@@ -17,7 +17,7 @@ item is one line, so scripts and agents can grep and edit it.
 | P10 | HTTP API (8-10 d) | 47 / 47 | done |
 | P11 | Release prep: PyPI + GHCR (2-3 d) | 17 / 17 | done |
 | P12 | docker-compose (3-4 d) | 20 / 20 | done |
-| P13 | GUI MVP 1: shell, Learn/Tinker screens (12-15 d) | 9 / 50 | in progress |
+| P13 | GUI MVP 1: shell, Learn/Tinker screens (12-15 d) | 11 / 50 | in progress |
 | P14 | GUI MVP 2: model page, drag-and-drop (14-17 d) | 0 / 35 | not started |
 | P15 | GUI Research (10-13 d) | 0 / 30 | not started |
 | P16 | Extend + depth (8-10 d) | 0 / 16 | not started |
@@ -496,8 +496,8 @@ Order: P13.01 and P13.02 first (these items live in `web/` and run in its CI job
 - [x] P13.41 Stylelint with the design system's rules: no hex, `rgb()`, `hsl()` or gradient functions outside `tokens.css`; no `text-transform: uppercase`; `letter-spacing` only 0; no `backdrop-filter`; `box-shadow` only `var(--shadow-pop)`, `var(--shadow-drag)` or `none`; no `px` font sizes outside `tokens.css`; `@keyframes` only in `motion.module.css`. Runs in the `web` CI job. · files: web/stylelint.config.js (new), web/package.json, web/test/fixtures/banned.module.css (new), .github/workflows/ci.yml · deps: P13.02, P13.38 · done: `pnpm -C web lint:css` passes on `web/src` and `pnpm -C web test -- stylelint` asserts the fixture fails with one error per banned pattern ✓ 2026-10-08 cee60db: tokens.css is exempt via ignoreFiles; `lint:css` is a CI step; the fixture yields 10 warnings, one per pattern (three rgb/hsl/gradient function errors)
 - [x] P13.42 An ESLint rule that rejects emoji in JSX text and string props, and the banned copy words (seamless, powerful, effortless, elevate, supercharge, unleash, AI-powered). · files: web/eslint-rules/no-banned-copy.js (new), web/eslint-rules/no-banned-copy.test.js (new), web/eslint.config.js · deps: P13.02 · done: `pnpm -C web test -- no-banned-copy` passes and `pnpm -C web lint` passes with the rule on ✓ 2026-10-08 2f9b383: applies to src/**/*.tsx (JSX text, string props, string and template literals in JSX expressions); a stray emoji and banned word were reported when tried
 - [x] P13.43 Theme: light, dark and system (the default) on `<html data-theme>`, kept in localStorage inside try/catch, plus `web/src/styles/theme.ts` (`readToken(name)` and a theme-change subscription) that Monaco, uPlot and React Flow use to take their colors from the tokens. · files: web/src/styles/theme.ts (new), web/src/styles/theme.test.ts (new) · deps: P13.38 · done: `pnpm -C web test -- theme` passes, including when localStorage throws and when the OS preference changes ✓ 2026-10-08 f796d1a: storage key `nanoscope.theme`; `initTheme()` runs in main.tsx; no pre-paint script yet, so a stored explicit choice can flash the system theme for one frame
-- [ ] P13.44 Write `docs/design-system.md`: the design system's README and sections in one file, the artifact link, and how to change it (the artifact first, then the mirror in one `design: …` commit, then the Decisions log for a rule change). · files: docs/design-system.md (new) · deps: P13.38 · done: `grep -c '^## ' docs/design-system.md` prints at least 8 and `grep -c 'D7a6hvoZR3zsH4zWiXYQQL' docs/design-system.md` prints at least 1
-- [ ] P13.45 Add a pull request template carrying the design system's review checklist (banned patterns, both themes, reduced motion, 1024px, copy read aloud, `EquivalentCommand` present, glyph + word for every state). · files: .github/pull_request_template.md (new) · deps: P13.44 · done: `grep -c 'Banned patterns' .github/pull_request_template.md` prints 1
+- [x] P13.44 Write `docs/design-system.md`: the design system's README and sections in one file, the artifact link, and how to change it (the artifact first, then the mirror in one `design: …` commit, then the Decisions log for a rule change). · files: docs/design-system.md (new) · deps: P13.38 · done: `grep -c '^## ' docs/design-system.md` prints at least 8 and `grep -c 'D7a6hvoZR3zsH4zWiXYQQL' docs/design-system.md` prints at least 1 ✓ 2026-10-08 b641fab: 17 sections; artifact version 1791460873-986d noted in the header
+- [x] P13.45 Add a pull request template carrying the design system's review checklist (banned patterns, both themes, reduced motion, 1024px, copy read aloud, `EquivalentCommand` present, glyph + word for every state). · files: .github/pull_request_template.md (new) · deps: P13.44 · done: `grep -c 'Banned patterns' .github/pull_request_template.md` prints 1 ✓ 2026-10-08 e5458c2: the review checklist lives in the template's UI section
 
 ### P13 · Web foundation
 - [x] P13.01 Scaffold `web/` with Vite, React and strict TypeScript under pnpm, with dev, build, lint, typecheck and test scripts. Delete the template's styles and assets (`index.css`, `App.css`, the logos): its `#646cff` accent and system font stack are banned by the design system. · files: web/package.json (new), web/pnpm-lock.yaml (new), web/tsconfig.json (new), web/vite.config.ts (new), web/src/main.tsx (new) · deps: P12.99 · done: `pnpm -C web build` exits 0 ✓ 2026-10-08 a281b15: Vite 8, React 19, TypeScript pinned ~6 (typescript-eslint rejects 7.0), template styles never added; `pnpm build` and `pnpm lint` pass
