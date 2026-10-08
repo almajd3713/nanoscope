@@ -18,7 +18,7 @@ item is one line, so scripts and agents can grep and edit it.
 | P11 | Release prep: PyPI + GHCR (2-3 d) | 17 / 17 | done |
 | P12 | docker-compose (3-4 d) | 20 / 20 | done |
 | P13 | GUI MVP 1: shell, Learn/Tinker screens (12-15 d) | 50 / 50 | done |
-| P14 | GUI MVP 2: model page, drag-and-drop (14-17 d) | 14 / 36 | in progress |
+| P14 | GUI MVP 2: model page, drag-and-drop (14-17 d) | 15 / 36 | in progress |
 | P15 | GUI Research (10-13 d) | 0 / 31 | not started |
 | P16 | Extend + depth (8-10 d) | 0 / 17 | not started |
 | P17 | Remaining curriculum paths (18-26 d) | 0 / 34 | not started |
@@ -577,7 +577,7 @@ Order: P13.01 and P13.02 first (these items live in `web/` and run in its CI job
 - [ ] P14.15 Certification and lock badges on nodes. · files: web/src/graph/nodes.tsx · deps: P14.14, P14.04, P14.35 · done: `pnpm -C web test -- nodes.badges` passes
 - [x] P14.16 Inspector panel: argument edits (`set_arg`) and a swap dropdown (`replace_block`); locked options are shown but disabled, with their lesson. · files: web/src/graph/Inspector.tsx (new) · deps: P14.12, P14.05 · done: `pnpm -C web test -- Inspector` passes · done 2026-10-08 (8093b54)
 - [x] P14.17 Palette sidebar grouped by family: locked items greyed out with a lock and a tooltip linking to the unlocking lesson, and a user-blocks section. · files: web/src/graph/Palette.tsx (new) · deps: P14.12, P14.04 · done: `pnpm -C web test -- Palette` passes · done 2026-10-08 (56d1cda)
-- [ ] P14.18 Drag-and-drop onto layer slots (norm, attn, mlp, pos) sends a `replace_block` patch through the API; a locked block can't be dropped, and the server's 422 is shown if one gets through. · files: web/src/graph/dnd.ts (new) · deps: P14.17, P14.16 · done: `pnpm -C web test -- dnd.slot` passes
+- [x] P14.18 Drag-and-drop onto layer slots (norm, attn, mlp, pos) sends a `replace_block` patch through the API; a locked block can't be dropped, and the server's 422 is shown if one gets through. · files: web/src/graph/dnd.ts (new) · deps: P14.17, P14.16 · done: `pnpm -C web test -- dnd.slot` passes · done 2026-10-08 (90607ce)
 - [ ] P14.19 Stack edits: drop onto the stack to `add_layer`, drag out or delete to `remove_layer`, and a pattern editor (e.g. sliding:global 3:1) that sends `set_pattern`. · files: web/src/graph/dnd.ts, web/src/graph/PatternEditor.tsx (new) · deps: P14.18, P14.35 · done: `pnpm -C web test -- dnd.stack` passes
 - [ ] P14.20 Lesson template canvas: template slots are drop targets for primitives (`fill_slot`). · files: web/src/graph/TemplateCanvas.tsx (new) · deps: P14.18 · done: `pnpm -C web test -- TemplateCanvas` passes
 - [ ] P14.21 Undo and redo as file versions re-applied through `PUT` with the ETag; no model state lives only in the client. · files: web/src/graph/history.ts (new) · deps: P14.18 · done: `pnpm -C web test -- history` passes
