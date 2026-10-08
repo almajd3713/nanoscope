@@ -1,6 +1,7 @@
 import { NavLink, Outlet } from "react-router-dom";
 import { LevelSwitch } from "../components/LevelSwitch";
 import { Mark } from "../components/Mark";
+import { QueuePanel } from "../components/QueuePanel";
 import { ThemeToggle } from "../components/ThemeToggle";
 import { setLevel, useLevel } from "./level";
 import styles from "./Shell.module.css";
@@ -42,6 +43,7 @@ export function Shell() {
       <main className={styles.content}>
         <Outlet />
       </main>
+      <QueuePanel />
     </div>
   );
 }

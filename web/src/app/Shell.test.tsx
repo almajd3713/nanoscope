@@ -2,19 +2,24 @@ import { act, render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { MemoryRouter, Route, Routes } from "react-router-dom";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { mockApi } from "../../test/fetch";
+import { Providers } from "./providers";
 import { resetLevelCache } from "./level";
 import { Shell } from "./Shell";
 
 function renderShell(path = "/runs") {
+  mockApi({ "GET /api/jobs": { body: [] }, "GET /api/workers": { body: [] } });
   return render(
-    <MemoryRouter initialEntries={[path]}>
-      <Routes>
-        <Route element={<Shell />}>
-          <Route path="/runs" element={<p>runs page</p>} />
-          <Route path="/learn" element={<p>learn page</p>} />
-        </Route>
-      </Routes>
-    </MemoryRouter>,
+    <Providers>
+      <MemoryRouter initialEntries={[path]}>
+        <Routes>
+          <Route element={<Shell />}>
+            <Route path="/runs" element={<p>runs page</p>} />
+            <Route path="/learn" element={<p>learn page</p>} />
+          </Route>
+        </Routes>
+      </MemoryRouter>
+    </Providers>,
   );
 }
 
