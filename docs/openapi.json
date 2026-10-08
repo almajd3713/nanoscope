@@ -112,6 +112,46 @@
         "title": "BlocksDoc",
         "type": "object"
       },
+      "CardPush": {
+        "properties": {
+          "repo": {
+            "title": "Repo",
+            "type": "string"
+          }
+        },
+        "required": [
+          "repo"
+        ],
+        "title": "CardPush",
+        "type": "object"
+      },
+      "CardPushed": {
+        "properties": {
+          "job": {
+            "$ref": "#/components/schemas/JobDoc"
+          },
+          "path_in_repo": {
+            "title": "Path In Repo",
+            "type": "string"
+          },
+          "repo": {
+            "title": "Repo",
+            "type": "string"
+          },
+          "study": {
+            "title": "Study",
+            "type": "string"
+          }
+        },
+        "required": [
+          "study",
+          "repo",
+          "path_in_repo",
+          "job"
+        ],
+        "title": "CardPushed",
+        "type": "object"
+      },
       "CheckRequest": {
         "properties": {
           "variant": {
@@ -633,6 +673,92 @@
           }
         },
         "title": "GenerateRequest",
+        "type": "object"
+      },
+      "GitStatus": {
+        "properties": {
+          "branch": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Branch"
+          },
+          "changed": {
+            "default": [],
+            "items": {
+              "type": "string"
+            },
+            "title": "Changed",
+            "type": "array"
+          },
+          "clean": {
+            "default": true,
+            "title": "Clean",
+            "type": "boolean"
+          },
+          "head": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Head"
+          },
+          "identity": {
+            "default": false,
+            "title": "Identity",
+            "type": "boolean"
+          },
+          "path": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Path"
+          },
+          "path_committed": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Path Committed"
+          },
+          "repo": {
+            "title": "Repo",
+            "type": "boolean"
+          },
+          "root": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Root"
+          }
+        },
+        "required": [
+          "repo"
+        ],
+        "title": "GitStatus",
         "type": "object"
       },
       "GraphResponse": {
@@ -1424,6 +1550,36 @@
         "title": "PrepareDoc",
         "type": "object"
       },
+      "PreregCommit": {
+        "properties": {
+          "preview_hash": {
+            "title": "Preview Hash",
+            "type": "string"
+          }
+        },
+        "required": [
+          "preview_hash"
+        ],
+        "title": "PreregCommit",
+        "type": "object"
+      },
+      "PreregJob": {
+        "properties": {
+          "job": {
+            "$ref": "#/components/schemas/JobDoc"
+          },
+          "study": {
+            "title": "Study",
+            "type": "string"
+          }
+        },
+        "required": [
+          "study",
+          "job"
+        ],
+        "title": "PreregJob",
+        "type": "object"
+      },
       "PresetSpecDoc": {
         "description": "A preset and every field that can be overridden (`nanoscope.specs.PresetSpec`).",
         "properties": {
@@ -2090,6 +2246,14 @@
       },
       "StudyUpload": {
         "properties": {
+          "devices": {
+            "default": [],
+            "items": {
+              "type": "string"
+            },
+            "title": "Devices",
+            "type": "array"
+          },
           "overwrite": {
             "default": false,
             "title": "Overwrite",
@@ -2124,6 +2288,14 @@
       },
       "StudyValidation": {
         "properties": {
+          "devices": {
+            "default": [],
+            "items": {
+              "type": "string"
+            },
+            "title": "Devices",
+            "type": "array"
+          },
           "spec": {
             "anyOf": [
               {
@@ -2149,6 +2321,47 @@
           }
         },
         "title": "StudyValidation",
+        "type": "object"
+      },
+      "StudyValidationResult": {
+        "properties": {
+          "estimate": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Estimate"
+          },
+          "ok": {
+            "title": "Ok",
+            "type": "boolean"
+          },
+          "problems": {
+            "items": {
+              "$ref": "#/components/schemas/ProblemItem"
+            },
+            "title": "Problems",
+            "type": "array"
+          },
+          "refs": {
+            "default": [],
+            "items": {
+              "type": "string"
+            },
+            "title": "Refs",
+            "type": "array"
+          }
+        },
+        "required": [
+          "ok",
+          "problems"
+        ],
+        "title": "StudyValidationResult",
         "type": "object"
       },
       "UnlockRequest": {
@@ -3472,6 +3685,66 @@
         "summary": "Lint File",
         "tags": [
           "files"
+        ]
+      }
+    },
+    "/api/git/status": {
+      "get": {
+        "description": "The workspace repository's state, read-only: whether a record study can run (a clean tree,\nits spec committed) and whether a preregistration commit could be made (an identity).\n`path` is a workspace file (e.g. `studies/m1.toml`) whose committed state is asked about.",
+        "operationId": "git_status_api_git_status_get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "path",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Path"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GitStatus"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "The request cannot be done as asked"
+          },
+          "4XX": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "An error (RFC 9457)"
+          }
+        },
+        "summary": "Git Status",
+        "tags": [
+          "git"
         ]
       }
     },
@@ -5196,6 +5469,291 @@
         ]
       }
     },
+    "/api/studies/{name}/bundle.zip": {
+      "get": {
+        "description": "Everything needed to check or re-run the study, as one zip: report.md, results.json, the\nspec, study.json, plan.json and the per-seed finals. Built from the files on disk.",
+        "operationId": "study_bundle_api_studies__name__bundle_zip_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "name",
+            "required": true,
+            "schema": {
+              "title": "Name",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "title": "Response Study Bundle Api Studies  Name  Bundle Zip Get"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "The request cannot be done as asked"
+          },
+          "4XX": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "An error (RFC 9457)"
+          }
+        },
+        "summary": "Study Bundle",
+        "tags": [
+          "studies"
+        ]
+      }
+    },
+    "/api/studies/{name}/card": {
+      "get": {
+        "description": "The ablation card (card.v1) of a finished record-mode study. Nothing is uploaded.",
+        "operationId": "study_card_api_studies__name__card_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "name",
+            "required": true,
+            "schema": {
+              "title": "Name",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "title": "Response Study Card Api Studies  Name  Card Get"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "The request cannot be done as asked"
+          },
+          "4XX": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "An error (RFC 9457)"
+          }
+        },
+        "summary": "Study Card",
+        "tags": [
+          "studies"
+        ]
+      }
+    },
+    "/api/studies/{name}/card/push": {
+      "post": {
+        "description": "Queue the upload of this study's card to a public Hub dataset (needs HF_TOKEN in the\nworker). Opt-in: nothing calls this on its own. The response names the one file uploaded;\n`GET .../card` is its content.",
+        "operationId": "push_card_api_studies__name__card_push_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "name",
+            "required": true,
+            "schema": {
+              "title": "Name",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CardPush"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "202": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CardPushed"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "The request cannot be done as asked"
+          },
+          "4XX": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "An error (RFC 9457)"
+          }
+        },
+        "summary": "Push Card",
+        "tags": [
+          "studies"
+        ]
+      }
+    },
+    "/api/studies/{name}/preregister/commit": {
+      "post": {
+        "description": "Queue the preregistration commit. The worker recomputes the preview and refuses unless\nits hash equals `preview_hash`; the job's result is the commit hash.",
+        "operationId": "preregister_commit_api_studies__name__preregister_commit_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "name",
+            "required": true,
+            "schema": {
+              "title": "Name",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PreregCommit"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "202": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PreregJob"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "The request cannot be done as asked"
+          },
+          "4XX": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "An error (RFC 9457)"
+          }
+        },
+        "summary": "Preregister Commit",
+        "tags": [
+          "studies"
+        ]
+      }
+    },
+    "/api/studies/{name}/preregister/preview": {
+      "post": {
+        "description": "Queue a preview of the preregistration commit: the files, the exact diff, the message,\nother uncommitted files and a hash. A worker runs git, so nothing here touches the\nrepository. The job's result is the preview.",
+        "operationId": "preregister_preview_api_studies__name__preregister_preview_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "name",
+            "required": true,
+            "schema": {
+              "title": "Name",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "202": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PreregJob"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "The request cannot be done as asked"
+          },
+          "4XX": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "An error (RFC 9457)"
+          }
+        },
+        "summary": "Preregister Preview",
+        "tags": [
+          "studies"
+        ]
+      }
+    },
     "/api/studies/{name}/report": {
       "get": {
         "description": "The study's results as data (results.v1): the comparison of its variants against the\nbaseline, and any preregistered predictions scored. Computed from the run files, so it works\nfor a study that is still running, and for one started from the command line.",
@@ -5478,7 +6036,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/Validation"
+                  "$ref": "#/components/schemas/StudyValidationResult"
                 }
               }
             },

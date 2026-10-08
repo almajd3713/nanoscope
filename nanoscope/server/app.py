@@ -33,12 +33,13 @@ from nanoscope.server.routes import (
     studies,
     validate,
 )
+from nanoscope.server.routes import git as git_routes
 from nanoscope.server.routes import settings as settings_routes
 from nanoscope.server.settings import Settings, check
 
 # every resource module adds its `router` here
 ROUTES = [presets, models, blocks, files, graph, validate, events, runs, compare, studies,
-          learn, hardware, jobs, hub, meta, settings_routes]
+          learn, hardware, jobs, hub, meta, settings_routes, git_routes]
 
 
 @asynccontextmanager

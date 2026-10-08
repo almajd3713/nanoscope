@@ -109,6 +109,33 @@ def _study(job: Any, payload: dict[str, Any]) -> dict[str, Any]:
     return {"study": spec.name, "runs": len(study.jobs()), "jobs": ids}
 
 
+def _load_spec_study(payload: dict[str, Any]) -> Any:
+    from nanoscope.study import load_study
+
+    return load_study(payload["spec"])
+
+
+def _prereg_preview(job: Any, payload: dict[str, Any]) -> dict[str, Any]:
+    """What a preregistration commit of this study's spec would hold (changes nothing)."""
+    from nanoscope.prereg import preview
+
+    return preview(_load_spec_study(payload)).to_dict()
+
+
+def _commit(job: Any, payload: dict[str, Any]) -> dict[str, Any]:
+    """Make the preregistration commit the user previewed; refused if the preview changed."""
+    from nanoscope.prereg import commit
+
+    return {"commit": commit(_load_spec_study(payload), payload["preview_hash"])}
+
+
+def _card_push(job: Any, payload: dict[str, Any]) -> dict[str, Any]:
+    """Upload an exported ablation card to a Hub dataset. Only ever queued on request."""
+    from nanoscope import cards
+
+    return cards.push(cards.read_card(payload["card"]), payload["repo"])
+
+
 def _sync_hub(job: Any, payload: dict[str, Any]) -> dict[str, Any]:
     """Pull a run that was trained elsewhere (Kaggle, Colab) from its private Hub repo, so
     it can be listed, compared and resumed here."""
@@ -124,6 +151,7 @@ def _sync_hub(job: Any, payload: dict[str, Any]) -> dict[str, Any]:
 HANDLERS: dict[str, Callable[[Any, dict[str, Any]], dict[str, Any]]] = {
     "run": _run, "prepare-data": _prepare_data, "bench": _bench, "check": _check,
     "describe": _describe, "study": _study, "sync-hub": _sync_hub, "certify": _certify,
+    "prereg-preview": _prereg_preview, "commit": _commit, "card-push": _card_push,
 }
 
 
@@ -131,6 +159,8 @@ def offline_refusal(kind: str, payload: dict[str, Any]) -> str | None:
     """Why a job cannot run under NANOSCOPE_JOBS_OFFLINE=1, or None if it can."""
     if kind == "sync-hub":
         return "it pulls a run from the Hugging Face Hub"
+    if kind == "card-push":
+        return f"it uploads a card to the Hub dataset {payload['repo']}"
     if kind == "run" and payload.get("push_to_hub"):
         return f"it pushes to the Hub repo {payload['push_to_hub']}"
     if kind == "run" and payload.get("wandb"):

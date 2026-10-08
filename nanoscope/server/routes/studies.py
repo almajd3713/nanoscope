@@ -1,13 +1,14 @@
 from __future__ import annotations
 
 import json
+import tempfile
+from pathlib import Path
 from typing import Any
 
-from fastapi import APIRouter, Request
+from fastapi import APIRouter, Request, Response
 from pydantic import BaseModel
 
-from nanoscope import paths, queue, store
-from nanoscope.compare import RunSet, compare, load_runs
+from nanoscope import cards, paths, queue, store, studyfiles
 from nanoscope.schemas.upgrade import read_json
 from nanoscope.server import workspace
 from nanoscope.server.errors import problem
@@ -15,7 +16,6 @@ from nanoscope.server.jobs import job_doc
 from nanoscope.server.models import JobDoc
 from nanoscope.server.routes.models import find_model
 from nanoscope.server.routes.validate import StudyValidation, validate_study
-from nanoscope.statistics import summarize
 from nanoscope.studyspec import StudySpec
 
 router = APIRouter(prefix="/api", tags=["studies"])
@@ -161,34 +161,125 @@ def study_report(name: str, request: Request) -> Any:
     """The study's results as data (results.v1): the comparison of its variants against the
     baseline, and any preregistered predictions scored. Computed from the run files, so it works
     for a study that is still running, and for one started from the command line."""
-    folder = study_dir(name)
-    if not folder.exists():
+    if not study_dir(name).exists():
         raise FileNotFoundError(f"no study {name!r} has run")
-    variants = sorted(p for p in folder.iterdir() if p.is_dir() and (
-        any(p.glob("seed-*/config.json")) or (p / "config.json").exists()))
-    if len(variants) < 2:
-        return problem(422, f"study {name!r} needs finished runs of at least 2 variants "
-                       f"(it has {len(variants)})", request)
     spec_file = workspace.root() / spec_path(name)
     spec = StudySpec.load(spec_file) if spec_file.exists() else None
-    baseline = None
-    if spec and spec.baseline:
-        baseline = next((v for v in variants if v.name == spec.baseline), None)
-    by_name = {v.name: RunSet(store.ref_of(v), load_runs(v), label=v.name) for v in variants}
-    base = by_name.get(baseline.name) if baseline else None
-    comparison = compare(*by_name.values(), baseline=base or next(iter(by_name.values())))
-    predictions: list[dict[str, Any]] = []
-    for variant, expected in (spec.predictions if spec else {}).items():
-        match = next((v for v in variants if v.name == variant), None)
-        if match is None:
-            continue
-        for metric, value in expected.items():
-            actual = summarize([r.final(metric) for r in load_runs(match)])
-            predictions.append({"variant": variant, "metric": metric, "predicted": value,
-                                "actual": actual, "error": (actual["mean"] - value) / value})
-    manifest_path = folder / "study.json"
-    manifest = read_json(manifest_path, "study") if manifest_path.exists() else None
-    return {"schema": 1, "nanoscope": comparison.to_dict()["nanoscope"], "study": name,
-            "mode": spec.mode if spec else "explore", "manifest": manifest,
-            "rows": comparison.rows, "notes": comparison.notes, "predictions": predictions,
-            "comparison": json.loads(json.dumps(comparison.to_dict(), default=str))}
+    try:
+        comparison, predictions, manifest = studyfiles.results(name, spec)
+    except ValueError as exc:
+        return problem(422, str(exc), request)
+    doc = studyfiles.results_doc(name, spec.mode if spec else "explore", comparison, predictions,
+                                 manifest)
+    return {**doc, "comparison": json.loads(json.dumps(comparison.to_dict(), default=str))}
+
+
+@router.get("/studies/{name}/bundle.zip")
+def study_bundle(name: str, request: Request) -> Any:
+    """Everything needed to check or re-run the study, as one zip: report.md, results.json, the
+    spec, study.json, plan.json and the per-seed finals. Built from the files on disk."""
+    if not study_dir(name).exists():
+        raise FileNotFoundError(f"no study {name!r} has run")
+    spec_file = workspace.root() / spec_path(name)
+    spec = StudySpec.load(spec_file) if spec_file.exists() else None
+    try:
+        comparison, predictions, manifest = studyfiles.results(name, spec)
+    except ValueError as exc:
+        return problem(422, str(exc), request)
+    mode = spec.mode if spec else "explore"
+    budget = None
+    if spec and spec.budget:
+        (kind, n), = spec.budget.items()
+        budget = ("Tokens" if kind == "tokens" else "FLOPs", n)
+    report = studyfiles.render_report(
+        name, mode, spec.preset if spec else "?", list(spec.seeds) if spec else [], budget,
+        manifest, comparison, predictions)
+    with tempfile.TemporaryDirectory() as tmp:
+        zipped = studyfiles.write_bundle(
+            Path(tmp) / f"{name}-bundle.zip", name, report,
+            studyfiles.results_doc(name, mode, comparison, predictions, manifest),
+            "spec.toml" if spec else "spec-missing.txt",
+            spec.to_toml() if spec else "the workspace has no spec file for this study\n")
+        data = zipped.read_bytes()
+    return Response(data, media_type="application/zip", headers={
+        "Content-Disposition": f'attachment; filename="{name}-bundle.zip"'})
+
+
+def _spec_or_404(name: str) -> StudySpec:
+    path = workspace.root() / spec_path(name)
+    if not path.exists():
+        raise FileNotFoundError(f"no study spec {spec_path(name)} in the workspace")
+    return StudySpec.load(path)
+
+
+@router.get("/studies/{name}/card")
+def study_card(name: str, request: Request) -> Any:
+    """The ablation card (card.v1) of a finished record-mode study. Nothing is uploaded."""
+    try:
+        return cards.card_from_files(_spec_or_404(name))
+    except ValueError as exc:
+        return problem(422, str(exc), request)
+
+
+class CardPush(BaseModel):
+    repo: str  # the public Hub dataset, user/name
+
+
+class CardPushed(BaseModel):
+    study: str
+    repo: str
+    path_in_repo: str  # the one file the job uploads
+    job: JobDoc
+
+
+@router.post("/studies/{name}/card/push", status_code=202, response_model=CardPushed)
+def push_card(name: str, body: CardPush, request: Request) -> Any:
+    """Queue the upload of this study's card to a public Hub dataset (needs HF_TOKEN in the
+    worker). Opt-in: nothing calls this on its own. The response names the one file uploaded;
+    `GET .../card` is its content."""
+    if body.repo.count("/") != 1 or not all(body.repo.split("/")):
+        return problem(422, f"{body.repo!r} is not a Hub dataset id; use user/name", request)
+    try:
+        card = cards.card_from_files(_spec_or_404(name))
+    except ValueError as exc:
+        return problem(422, str(exc), request)
+    path = cards.write_card(card, paths.reports_dir() / name / "card.json")
+    job_id = queue.enqueue("card-push", {"card": str(path), "repo": body.repo},
+                           lane="interactive")
+    assert job_id is not None
+    return CardPushed(study=name, repo=body.repo,
+                      path_in_repo=cards.push_plan(card, body.repo)["path_in_repo"],
+                      job=job_doc(queue.get(job_id)))
+
+
+class PreregJob(BaseModel):
+    study: str
+    job: JobDoc
+
+
+@router.post("/studies/{name}/preregister/preview", status_code=202, response_model=PreregJob)
+def preregister_preview(name: str) -> Any:
+    """Queue a preview of the preregistration commit: the files, the exact diff, the message,
+    other uncommitted files and a hash. A worker runs git, so nothing here touches the
+    repository. The job's result is the preview."""
+    _spec_or_404(name)
+    job_id = queue.enqueue("prereg-preview", {"spec": str(workspace.root() / spec_path(name))},
+                           lane="interactive")
+    assert job_id is not None
+    return PreregJob(study=name, job=job_doc(queue.get(job_id)))
+
+
+class PreregCommit(BaseModel):
+    preview_hash: str  # the hash of the preview the user confirmed
+
+
+@router.post("/studies/{name}/preregister/commit", status_code=202, response_model=PreregJob)
+def preregister_commit(name: str, body: PreregCommit) -> Any:
+    """Queue the preregistration commit. The worker recomputes the preview and refuses unless
+    its hash equals `preview_hash`; the job's result is the commit hash."""
+    _spec_or_404(name)
+    job_id = queue.enqueue(
+        "commit", {"spec": str(workspace.root() / spec_path(name)),
+                   "preview_hash": body.preview_hash}, lane="interactive")
+    assert job_id is not None
+    return PreregJob(study=name, job=job_doc(queue.get(job_id)))

@@ -102,25 +102,14 @@ def reproduction_interval(baseline: list[float], n_new: int = 1) -> tuple[float,
     return average - margin, average + margin
 
 
-def precision_plan(metric: str, preset: str, n_seeds: int) -> dict[str, Any]:
-    """How precisely `n_seeds` seeds would pin down a mean on this preset: the expected half-width
-    of a 95% interval, t * s / sqrt(n), where s is the seed-to-seed spread of the shipped
-    baselines (pooled over the models that have 3 or more seeds). Before spending compute, this
-    says whether a difference you hope to see is even detectable.
-
-    Without baselines for the preset there is no spread to borrow: `half_width` is None."""
+def _baseline_spread(metric: str, preset: str) -> tuple[float, list[str]] | None:
+    """The seed-to-seed spread of the shipped baselines for a preset, pooled over the models that
+    have 3 or more seeds: (sd, model names), or None when there is none to borrow."""
     import sys
-
-    from scipy.stats import t
 
     import nanoscope.compare  # noqa: F401  (loads the module; `nanoscope.compare` the name is a function)
 
     compare = sys.modules["nanoscope.compare"]
-    plan: dict[str, Any] = {"metric": metric, "preset": preset, "n_seeds": n_seeds, "sd": None,
-                            "half_width": None, "source": None, "models": []}
-    if n_seeds < 3:
-        plan["note"] = "a confidence interval needs at least 3 seeds"
-        return plan
     root = compare.BASELINES_DIR / preset
     variances, models = [], []
     for folder in sorted(p for p in root.glob("*") if p.is_dir()) if root.exists() else []:
@@ -132,13 +121,65 @@ def precision_plan(metric: str, preset: str, n_seeds: int) -> dict[str, Any]:
             variances.append(stdev(values) ** 2)
             models.append(folder.name)
     if not variances:
+        return None
+    return math.sqrt(sum(variances) / len(variances)), models
+
+
+def _unit(metric: str) -> str:
+    return {"val_bpb": "bpb", "val_loss": "nats per token"}.get(metric, metric)
+
+
+def noise_floor(preset: str, metric: str = "val_bpb") -> dict[str, Any]:
+    """How much two runs of the same model differ by seed alone on this preset: the pooled
+    seed-to-seed standard deviation of the shipped baselines. A difference much smaller than
+    this is not worth reading. `sd` is None (with a `note`) when no baseline has 3 or more
+    seeds for the preset."""
+    floor: dict[str, Any] = {"metric": metric, "preset": preset, "sd": None, "source": None,
+                             "models": []}
+    spread = _baseline_spread(metric, preset)
+    if spread is None:
+        floor["note"] = f"no shipped baselines with 3 or more seeds for preset {preset!r}"
+        return floor
+    sd, models = spread
+    floor.update(sd=sd, source=f"baselines/{preset}", models=models)
+    floor["text"] = (f"Seed noise on this preset is about {sd:.3f} {_unit(metric)} (standard "
+                     "deviation between seeds of the same model, from the shipped baselines).")
+    return floor
+
+
+def multiple_comparison_note(n_variants: int) -> str | None:
+    """A caution for more than 3 variants compared with one baseline: each 95% interval is
+    separate, so the chance that at least one excludes zero by luck grows with the count."""
+    if n_variants <= 3:
+        return None
+    chance = 1 - 0.95 ** n_variants
+    return (f"{n_variants} variants are compared with one baseline; each 95% interval is "
+            f"separate, so the chance that at least one excludes zero by luck alone is about "
+            f"{chance:.0%}. Treat a lone small win with care.")
+
+
+def precision_plan(metric: str, preset: str, n_seeds: int) -> dict[str, Any]:
+    """How precisely `n_seeds` seeds would pin down a mean on this preset: the expected half-width
+    of a 95% interval, t * s / sqrt(n), where s is the seed-to-seed spread of the shipped
+    baselines (pooled over the models that have 3 or more seeds). Before spending compute, this
+    says whether a difference you hope to see is even detectable.
+
+    Without baselines for the preset there is no spread to borrow: `half_width` is None."""
+    from scipy.stats import t
+
+    plan: dict[str, Any] = {"metric": metric, "preset": preset, "n_seeds": n_seeds, "sd": None,
+                            "half_width": None, "source": None, "models": []}
+    if n_seeds < 3:
+        plan["note"] = "a confidence interval needs at least 3 seeds"
+        return plan
+    spread = _baseline_spread(metric, preset)
+    if spread is None:
         plan["note"] = f"no shipped baselines with 3 or more seeds for preset {preset!r}"
         return plan
-    sd = math.sqrt(sum(variances) / len(variances))
+    sd, models = spread
     plan.update(sd=sd, source=f"baselines/{preset}", models=models)
     plan["half_width"] = float(t.ppf(0.975, n_seeds - 1)) * sd / math.sqrt(n_seeds)
-    unit = {"val_bpb": "bpb", "val_loss": "nats per token"}.get(metric, metric)
     plan["text"] = (f"With {n_seeds} seeds per model, a difference on this preset is known to "
-                    f"about ±{plan['half_width']:.3f} {unit} (from the shipped baselines' seed "
-                    "spread).")
+                    f"about ±{plan['half_width']:.3f} {_unit(metric)} (from the shipped "
+                    "baselines' seed spread).")
     return plan

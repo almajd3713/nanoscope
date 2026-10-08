@@ -20,7 +20,12 @@ from typing import Any
 
 from nanoscope import __version__, paths, store
 from nanoscope.schemas.upgrade import read_json
-from nanoscope.statistics import paired_difference, summarize, unpaired_difference
+from nanoscope.statistics import (
+    multiple_comparison_note,
+    paired_difference,
+    summarize,
+    unpaired_difference,
+)
 
 BASELINES_DIR = paths.baselines_dir()
 METRICS = {"val_bpb": "bits per byte", "val_loss": "loss (nats per token)"}
@@ -372,6 +377,8 @@ def compare(
                     f"{r.run_dir} stopped at step {r.final_step} of {r.preset['max_steps']}"
                 )
 
+    if note := multiple_comparison_note(len(sets) - 1):
+        notes.append(note)
     modes = {s.mode for s in sets}
     if len(modes) > 1:
         notes.append("mixes record and explore runs; only record runs belong in a claim")

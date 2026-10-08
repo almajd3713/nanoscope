@@ -82,7 +82,7 @@ def job_env(kind: str, payload: dict[str, Any],
     """The environment a job's process gets: ours, minus every secret it doesn't need."""
     env = dict(os.environ if environ is None else environ)
     wanted: set[str] = set()
-    if kind in ("prepare-data", "sync-hub"):
+    if kind in ("prepare-data", "sync-hub", "card-push"):
         wanted.update(("HF_TOKEN", "HUGGING_FACE_HUB_TOKEN"))
     elif kind == "run":
         if payload.get("push_to_hub"):

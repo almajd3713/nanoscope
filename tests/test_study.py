@@ -165,6 +165,41 @@ def test_record_mode_stores_the_commit_and_freezes_predictions(repo):
         load_study(path).run(devices=["cpu"])
 
 
+def test_record_mode_no_seed_peeking(repo):
+    path = repo / "study.py"
+    write_study(path, mode="record", seeds=3)
+    commit_all(repo)
+    study = load_study(path)
+    study.run(devices=["cpu"])
+    assert json.loads((study.dir / "study.json").read_text())["seeds"] == [0, 1, 2]
+
+    write_study(path, mode="record", seeds=4)
+    commit_all(repo, "add a seed after looking")
+    with pytest.raises(ValueError, match="seed peeking"):
+        load_study(path).run(devices=["cpu"])
+
+
+def test_bundle_holds_the_evidence(repo):
+    import zipfile
+
+    path = repo / "study.py"
+    write_study(path, mode="record")
+    commit_all(repo)
+    study = load_study(path)
+    study.run(devices=["cpu"])
+    out = study.report(write=False).bundle(repo / "out" / "bundle.zip")
+
+    with zipfile.ZipFile(out) as zf:
+        names = set(zf.namelist())
+        assert {"report.md", "results.json", "spec.toml", "study.json", "plan.json",
+                "finals.json"} <= names
+        finals = json.loads(zf.read("finals.json"))["finals"]
+        assert b"toy" in zf.read("spec.toml")
+        assert json.loads(zf.read("results.json"))["study"] == "toy"
+    assert sorted(finals) == ["small", "wide"] and sorted(finals["small"]) == ["0", "1", "2"]
+    assert finals["small"]["0"]["val_bpb"] > 0
+
+
 def test_record_results_are_never_overwritten(repo):
     path = repo / "study.py"
     write_study(path, mode="record")
@@ -545,3 +580,15 @@ def test_m1_jobs_stable():
         "no-z-loss": {"z_loss": 0.0, "ffn_hidden": 384},
     }
     assert {j.preset.max_steps for j in jobs} == {1954}
+
+
+def test_study_dry_run_prints_the_plan_and_trains_nothing(tmp_path, capsys):
+    from nanoscope.cli import main
+
+    path = tmp_path / "study.py"
+    write_study(path)
+    main(["study", str(path), "--dry-run"])
+    out = capsys.readouterr().out
+    assert "6 runs (2 variants x 3 seeds), nothing is trained" in out
+    assert "small:" in out and "wide:" in out and "estimate:" in out
+    assert not (paths.runs_dir() / "studies").exists()

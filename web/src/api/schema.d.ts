@@ -385,6 +385,28 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/git/status": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Git Status
+         * @description The workspace repository's state, read-only: whether a record study can run (a clean tree,
+         *     its spec committed) and whether a preregistration commit could be made (an identity).
+         *     `path` is a workspace file (e.g. `studies/m1.toml`) whose committed state is asked about.
+         */
+        get: operations["git_status_api_git_status_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/hardware": {
         parameters: {
             query?: never;
@@ -1000,6 +1022,112 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/studies/{name}/bundle.zip": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Study Bundle
+         * @description Everything needed to check or re-run the study, as one zip: report.md, results.json, the
+         *     spec, study.json, plan.json and the per-seed finals. Built from the files on disk.
+         */
+        get: operations["study_bundle_api_studies__name__bundle_zip_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/studies/{name}/card": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Study Card
+         * @description The ablation card (card.v1) of a finished record-mode study. Nothing is uploaded.
+         */
+        get: operations["study_card_api_studies__name__card_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/studies/{name}/card/push": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Push Card
+         * @description Queue the upload of this study's card to a public Hub dataset (needs HF_TOKEN in the
+         *     worker). Opt-in: nothing calls this on its own. The response names the one file uploaded;
+         *     `GET .../card` is its content.
+         */
+        post: operations["push_card_api_studies__name__card_push_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/studies/{name}/preregister/commit": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Preregister Commit
+         * @description Queue the preregistration commit. The worker recomputes the preview and refuses unless
+         *     its hash equals `preview_hash`; the job's result is the commit hash.
+         */
+        post: operations["preregister_commit_api_studies__name__preregister_commit_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/studies/{name}/preregister/preview": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Preregister Preview
+         * @description Queue a preview of the preregistration commit: the files, the exact diff, the message,
+         *     other uncommitted files and a hash. A worker runs git, so nothing here touches the
+         *     repository. The job's result is the preview.
+         */
+        post: operations["preregister_preview_api_studies__name__preregister_preview_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/studies/{name}/report": {
         parameters: {
             query?: never;
@@ -1226,6 +1354,21 @@ export interface components {
         } & {
             [key: string]: unknown;
         };
+        /** CardPush */
+        CardPush: {
+            /** Repo */
+            repo: string;
+        };
+        /** CardPushed */
+        CardPushed: {
+            job: components["schemas"]["JobDoc"];
+            /** Path In Repo */
+            path_in_repo: string;
+            /** Repo */
+            repo: string;
+            /** Study */
+            study: string;
+        };
         /** CheckRequest */
         CheckRequest: {
             /**
@@ -1447,6 +1590,36 @@ export interface components {
              * @default 30
              */
             timeout: number;
+        };
+        /** GitStatus */
+        GitStatus: {
+            /** Branch */
+            branch?: string | null;
+            /**
+             * Changed
+             * @default []
+             */
+            changed: string[];
+            /**
+             * Clean
+             * @default true
+             */
+            clean: boolean;
+            /** Head */
+            head?: string | null;
+            /**
+             * Identity
+             * @default false
+             */
+            identity: boolean;
+            /** Path */
+            path?: string | null;
+            /** Path Committed */
+            path_committed?: boolean | null;
+            /** Repo */
+            repo: boolean;
+            /** Root */
+            root?: string | null;
         };
         /** GraphResponse */
         GraphResponse: {
@@ -1747,6 +1920,17 @@ export interface components {
         } & {
             [key: string]: unknown;
         };
+        /** PreregCommit */
+        PreregCommit: {
+            /** Preview Hash */
+            preview_hash: string;
+        };
+        /** PreregJob */
+        PreregJob: {
+            job: components["schemas"]["JobDoc"];
+            /** Study */
+            study: string;
+        };
         /**
          * PresetSpecDoc
          * @description A preset and every field that can be overridden (`nanoscope.specs.PresetSpec`).
@@ -2026,6 +2210,11 @@ export interface components {
         /** StudyUpload */
         StudyUpload: {
             /**
+             * Devices
+             * @default []
+             */
+            devices: string[];
+            /**
              * Overwrite
              * @default false
              */
@@ -2039,12 +2228,33 @@ export interface components {
         };
         /** StudyValidation */
         StudyValidation: {
+            /**
+             * Devices
+             * @default []
+             */
+            devices: string[];
             /** Spec */
             spec?: {
                 [key: string]: unknown;
             } | null;
             /** Toml */
             toml?: string | null;
+        };
+        /** StudyValidationResult */
+        StudyValidationResult: {
+            /** Estimate */
+            estimate?: {
+                [key: string]: unknown;
+            } | null;
+            /** Ok */
+            ok: boolean;
+            /** Problems */
+            problems: components["schemas"]["ProblemItem"][];
+            /**
+             * Refs
+             * @default []
+             */
+            refs: string[];
         };
         /** UnlockRequest */
         UnlockRequest: {
@@ -2908,6 +3118,46 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["Diagnostic"][];
+                };
+            };
+            /** @description The request cannot be done as asked */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description An error (RFC 9457) */
+            "4XX": {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    git_status_api_git_status_get: {
+        parameters: {
+            query?: {
+                path?: string | null;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["GitStatus"];
                 };
             };
             /** @description The request cannot be done as asked */
@@ -4219,6 +4469,214 @@ export interface operations {
             };
         };
     };
+    study_bundle_api_studies__name__bundle_zip_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                name: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+            /** @description The request cannot be done as asked */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description An error (RFC 9457) */
+            "4XX": {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    study_card_api_studies__name__card_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                name: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+            /** @description The request cannot be done as asked */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description An error (RFC 9457) */
+            "4XX": {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    push_card_api_studies__name__card_push_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                name: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CardPush"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            202: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CardPushed"];
+                };
+            };
+            /** @description The request cannot be done as asked */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description An error (RFC 9457) */
+            "4XX": {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    preregister_commit_api_studies__name__preregister_commit_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                name: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PreregCommit"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            202: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PreregJob"];
+                };
+            };
+            /** @description The request cannot be done as asked */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description An error (RFC 9457) */
+            "4XX": {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    preregister_preview_api_studies__name__preregister_preview_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                name: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            202: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PreregJob"];
+                };
+            };
+            /** @description The request cannot be done as asked */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description An error (RFC 9457) */
+            "4XX": {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
     study_report_api_studies__name__report_get: {
         parameters: {
             query?: never;
@@ -4442,7 +4900,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["Validation"];
+                    "application/json": components["schemas"]["StudyValidationResult"];
                 };
             };
             /** @description The request cannot be done as asked */

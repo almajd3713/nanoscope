@@ -2,7 +2,7 @@ import math
 
 import pytest
 
-from nanoscope.statistics import precision_plan
+from nanoscope.statistics import multiple_comparison_note, noise_floor, precision_plan
 
 
 def test_precision_plan_uses_the_baseline_seed_spread():
@@ -24,3 +24,18 @@ def test_precision_plan_says_why_there_is_no_number():
     none = precision_plan("val_bpb", "no-such-preset", 5)
     assert none["half_width"] is None and none["source"] is None
     assert "no shipped baselines with 3 or more seeds for preset 'no-such-preset'" in none["note"]
+
+
+def test_noise_floor_is_the_baseline_seed_sd():
+    floor = noise_floor("tinystories-5min", "val_bpb")
+    plan = precision_plan("val_bpb", "tinystories-5min", 3)
+    assert floor["sd"] == pytest.approx(plan["sd"]) and floor["models"] == plan["models"]
+    assert f"{floor['sd']:.3f} bpb" in floor["text"]
+    none = noise_floor("no-such-preset")
+    assert none["sd"] is None and "no shipped baselines" in none["note"]
+
+
+def test_multiple_comparison_note_starts_above_three_variants():
+    assert multiple_comparison_note(3) is None
+    note = multiple_comparison_note(4)
+    assert "4 variants" in note and "19%" in note

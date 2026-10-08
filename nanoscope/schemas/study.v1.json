@@ -23,8 +23,20 @@
     "study_file_committed_at": {
       "type": "string"
     },
+    "preregistration_commit": {
+      "type": "string"
+    },
+    "committed_via": {
+      "const": "nanoscope"
+    },
     "started_at": {
       "type": "string"
+    },
+    "seeds": {
+      "type": "array",
+      "items": {
+        "type": "integer"
+      }
     },
     "predictions": {
       "type": "object",

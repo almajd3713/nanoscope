@@ -125,3 +125,129 @@ def test_record_mode_studies_are_not_run_here(client):
     refused = client.post("/api/studies/toy/run")
     assert refused.status_code == 422
     assert "preregistered with a commit" in refused.json()["detail"]
+
+
+def run_cli_study(tmp_path):
+    """What `nanoscope study` trains, without its report: that plots with matplotlib, and a
+    figure left for the garbage collector crashed the interpreter in a later test."""
+    from nanoscope.study import load_study
+
+    load_study(tmp_path / "ws" / "studies" / "toy.toml").run(devices=["cpu"])
+
+
+def test_bundle_is_a_zip_of_the_evidence(client, tmp_path):
+    import io
+    import json
+    import zipfile
+
+    client.post("/api/studies", json={"toml": SPEC})
+    assert client.get("/api/studies/toy/bundle.zip").status_code == 404
+    run_cli_study(tmp_path)
+
+    response = client.get("/api/studies/toy/bundle.zip")
+    assert response.status_code == 200 and response.headers["content-type"] == "application/zip"
+    assert 'filename="toy-bundle.zip"' in response.headers["content-disposition"]
+    with zipfile.ZipFile(io.BytesIO(response.content)) as zf:
+        names = set(zf.namelist())
+        assert {"report.md", "results.json", "spec.toml", "plan.json", "finals.json"} <= names
+        finals = json.loads(zf.read("finals.json"))["finals"]
+        assert sorted(finals) == ["small", "wide"] and sorted(finals["small"]) == ["0", "1"]
+        assert "# Study: toy" in zf.read("report.md").decode()
+        assert json.loads(zf.read("results.json"))["rows"][0]["label"] == "small"
+        assert 'name = "toy"' in zf.read("spec.toml").decode()
+
+
+def git(path, *args):
+    import subprocess
+
+    return subprocess.run(["git", *args], cwd=path, check=True, capture_output=True,
+                          text=True).stdout
+
+
+def test_git_status_is_read_only_and_names_the_file(client, tmp_path):
+    ws = tmp_path / "ws"
+    assert client.get("/api/git/status").json() == {
+        "repo": False, "root": None, "branch": None, "head": None, "clean": True,
+        "changed": [], "identity": False, "path": None, "path_committed": None}
+
+    git(ws, "init", "-q", "-b", "main")
+    git(ws, "config", "user.email", "t@example.com")
+    git(ws, "config", "user.name", "t")
+    client.post("/api/studies", json={"toml": SPEC})
+    status = client.get("/api/git/status", params={"path": "studies/toy.toml"}).json()
+    assert status["repo"] and status["branch"] == "main" and status["head"] is None
+    assert status["identity"] and not status["clean"] and status["changed"] == ["studies/toy.toml"]
+    assert status["path_committed"] is False
+
+    git(ws, "add", "."), git(ws, "commit", "-qm", "spec")
+    status = client.get("/api/git/status", params={"path": "studies/toy.toml"}).json()
+    assert status["clean"] and status["path_committed"] is True and len(status["head"]) == 40
+    (ws / "notes.txt").write_text("x")
+    dirty = client.get("/api/git/status", params={"path": "studies/toy.toml"}).json()
+    assert not dirty["clean"] and dirty["changed"] == ["notes.txt"]
+    assert dirty["path_committed"] is True  # the spec itself is unchanged
+    assert client.get("/api/git/status", params={"path": "../x"}).status_code == 400
+
+
+def test_preregister_card_and_push_go_through_jobs(client, tmp_path, monkeypatch):
+    import json
+
+    ws = tmp_path / "ws"
+    git(ws, "init", "-q", "-b", "main")
+    git(ws, "config", "user.email", "t@example.com")
+    git(ws, "config", "user.name", "t")
+    record = SPEC.replace("seeds = [0, 1]", 'seeds = [0, 1, 2]\nmode = "record"')
+    client.post("/api/studies", json={"toml": record})
+
+    preview_job = client.post("/api/studies/toy/preregister/preview")
+    assert preview_job.status_code == 202, preview_job.text
+    work_off(preview_job.json()["job"]["id"])
+    done = queue.get(preview_job.json()["job"]["id"])
+    preview = json.loads(done["result"])
+    assert preview["files"] == ["studies/toy.toml"] and preview["unrelated"] == []
+    assert "Preregister study toy" in preview["message"]
+    assert "+++ b/studies/toy.toml" in preview["diff"]
+
+    stale = client.post("/api/studies/toy/preregister/commit", json={"preview_hash": "0" * 16})
+    queue.claim("w", "cpu")
+    with pytest.raises(SystemExit):
+        main(["run-job", str(stale.json()["job"]["id"])])
+    assert "preview changed" in queue.get(stale.json()["job"]["id"])["error"]
+
+    commit_job = client.post("/api/studies/toy/preregister/commit",
+                             json={"preview_hash": preview["hash"]})
+    work_off(commit_job.json()["job"]["id"])
+    sha = json.loads(queue.get(commit_job.json()["job"]["id"])["result"])["commit"]
+    assert git(ws, "rev-parse", "HEAD").strip() == sha
+
+    assert client.get("/api/studies/toy/card").status_code == 422  # not run yet
+    run_cli_study(tmp_path)
+    card = client.get("/api/studies/toy/card")
+    assert card.status_code == 200, card.text
+    body = card.json()
+    assert body["mode"] == "record" and body["provenance"]["preregistration_commit"] == sha
+    assert sorted(body["finals"]["wide"]) == ["0", "1", "2"]
+
+    uploads = []
+
+    class FakeApi:
+        def upload_file(self, **kw):
+            uploads.append(kw)
+
+    monkeypatch.setattr("huggingface_hub.HfApi", FakeApi)
+    bad = client.post("/api/studies/toy/card/push", json={"repo": "nonsense"})
+    assert bad.status_code == 422 and uploads == []
+    pushed = client.post("/api/studies/toy/card/push", json={"repo": "me/cards"})
+    assert pushed.status_code == 202, pushed.text
+    assert pushed.json()["path_in_repo"] == "cards/toy.json" and uploads == []  # queued only
+    work_off(pushed.json()["job"]["id"])
+    assert len(uploads) == 1 and uploads[0]["repo_id"] == "me/cards"
+
+
+def test_explore_studies_have_no_card_and_unknown_studies_404(client):
+    client.post("/api/studies", json={"toml": SPEC})
+    refused = client.get("/api/studies/toy/card")
+    assert refused.status_code == 422 and "record-mode studies only" in refused.json()["detail"]
+    assert client.get("/api/studies/nope/card").status_code == 404
+    assert client.post("/api/studies/nope/preregister/preview").status_code == 404
+    assert client.post("/api/studies/toy/card/push", json={"repo": "me/c"}).status_code == 422

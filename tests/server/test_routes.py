@@ -195,7 +195,20 @@ def test_validate(client, tmp_path, monkeypatch):
 
     ok = study('name = "s"\nbaseline = "a"\n[[variants]]\nname = "a"\nmodel = "gpt2"\n'
                '[[variants]]\nname = "b"\nmodel = "modern"\n[variants.kwargs]\nn_kv_heads = 1\n')
-    assert ok == {"ok": True, "problems": [], "refs": []}
+    assert ok["ok"] and ok["problems"] == [] and ok["refs"] == []
+    assert ok["estimate"]["runs"] == 6 and ok["estimate"]["complete"] is False  # no bench yet
+    assert "nanoscope bench" in ok["estimate"]["text"]
+    import json
+
+    from nanoscope import paths
+
+    rows = [{"model": m, "device": "cpu", "tokens_per_sec": 10000.0} for m in ("GPT2", "Modern")]
+    (paths.hardware_dir()).mkdir(parents=True, exist_ok=True)
+    (paths.hardware_dir() / "bench.jsonl").write_text("".join(json.dumps(r) + "\n" for r in rows))
+    measured = client.post("/api/validate/study", json={"toml": (
+        'name = "s"\nseeds = [0]\n[[variants]]\nname = "a"\nmodel = "gpt2"\n'
+        '[[variants]]\nname = "b"\nmodel = "modern"\n'), "devices": ["cpu"]}).json()
+    assert measured["estimate"]["complete"] and measured["estimate"]["wall_seconds"] > 0
     broken = study('name = "s"\nbaseline = "c"\nseeds = [0, "x"]\nmode = "wild"\n'
                    '[overrides]\nnope = 1\n[[variants]]\nname = "a"\nmodel = "gpt2"\n'
                    '[[variants]]\nname = "a"\nmodel = "modern"\n[variants.kwargs]\ncolour = 1\n'

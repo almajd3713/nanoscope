@@ -40,7 +40,7 @@ import torch
 from torch import nn
 
 from nanoscope import __version__, paths, queue, store
-from nanoscope.compare import METRICS, Comparison, RunSet, compare, load_runs
+from nanoscope.compare import METRICS, Comparison
 from nanoscope.dataset import load_tokenizer
 from nanoscope.jobs.payload import preset_fields
 from nanoscope.log import info
@@ -50,7 +50,6 @@ from nanoscope.progress import one_line, snapshot
 from nanoscope.run import RunResult, run
 from nanoscope.schemas.upgrade import read_json
 from nanoscope.sizing import build_on_meta, count_params, flops_per_token
-from nanoscope.statistics import summarize
 from nanoscope.status import STOP_FILE
 from nanoscope.studyspec import StudySpec
 
@@ -271,6 +270,15 @@ class Study:
             for seed in self.seeds for v in self.variants.values()
         ]
 
+    def estimate(self, devices: list[str] | None = None,
+                 workers_per_device: int = 1) -> dict[str, Any]:
+        """How long `run()` would take on these devices, from `nanoscope bench --save`
+        measurements (see nanoscope.estimate.estimate_study)."""
+        from nanoscope.estimate import estimate_study
+
+        runs = [(j.variant.model_cls.__name__, j.preset) for j in self.jobs()]
+        return estimate_study(runs, devices, workers_per_device)
+
     def _provenance(self) -> dict[str, Any]:
         """Record mode: check the git state and freeze the preregistration."""
         if self.source is None:
@@ -296,6 +304,10 @@ class Study:
             "study_file_commit": file_commit,
             "study_file_committed_at": file_time,
         }
+        from nanoscope.prereg import TRAILER
+
+        if TRAILER in _git(["log", "-1", "--format=%B", file_commit], cwd).splitlines():
+            provenance.update(preregistration_commit=file_commit, committed_via="nanoscope")
         manifest_path = self.dir / "study.json"
         if manifest_path.exists():
             manifest = read_json(manifest_path, "study")
@@ -304,6 +316,13 @@ class Study:
                     f"the predictions in {self.source.name} changed after the study started "
                     f"on {manifest['started_at']}; preregistered predictions are frozen."
                 )
+            if "seeds" in manifest and manifest["seeds"] != self.seeds:
+                raise ValueError(
+                    f"the seeds in {self.source.name} are {self.seeds} but the study started "
+                    f"on {manifest['started_at']} with {manifest['seeds']}; a record study's "
+                    "seeds are fixed when it starts (adding seeds after seeing results is seed "
+                    "peeking). Start a new study to use other seeds."
+                )
         else:
             self.dir.mkdir(parents=True, exist_ok=True)
             manifest_path.write_text(json.dumps({
@@ -311,6 +330,7 @@ class Study:
                 **provenance,
                 "started_at": datetime.now(timezone.utc).isoformat(timespec="seconds"),
                 "predictions": self.predictions,
+                "seeds": self.seeds,
             }, indent=2), encoding="utf-8")
         return provenance
 
@@ -474,33 +494,19 @@ class Study:
             time.sleep(min(1.0, PROGRESS_EVERY))
 
     def report(self, write: bool = True) -> StudyReport:
-        sets = []
-        for v in self.variants:
-            if (self.dir / v).exists():
-                sets.append(RunSet(str(self.dir / v), load_runs(self.dir / v), label=v))
-        if len(sets) < 2:
-            raise ValueError(f"study {self.name!r} needs finished runs of at least 2 variants")
-        by_name = {s.label: s for s in sets}
-        base = by_name.get(self.baseline or "", sets[0])
-        comparison = compare(*sets, baseline=base)
+        from nanoscope import studyfiles
 
-        predictions = []
-        for variant, expected in self.predictions.items():
-            if variant not in by_name:
-                continue
-            for metric, value in expected.items():
-                actual = summarize([r.final(metric) for r in by_name[variant].runs])
-                predictions.append({
-                    "variant": variant, "metric": metric, "predicted": value, "actual": actual,
-                    "error": (actual["mean"] - value) / value,
-                })
-        manifest_path = self.dir / "study.json"
-        manifest = (read_json(manifest_path, "study")
-                    if manifest_path.exists() else None)
+        comparison, predictions, manifest = studyfiles.results(self.name, self.to_spec_safe())
         report = StudyReport(self, comparison, predictions, manifest)
         if write:
             report.write(paths.reports_dir() / self.name)
         return report
+
+    def to_spec_safe(self) -> StudySpec:
+        """The pieces of the spec a report reads (baseline and predictions), which need no
+        model refs, so a study defined in a notebook still reports."""
+        return StudySpec(self.name, baseline=self.baseline, predictions={
+            k: dict(v) for k, v in self.predictions.items()})
 
 
 @dataclass
@@ -511,44 +517,21 @@ class StudyReport:
     manifest: dict[str, Any] | None = None
 
     def __str__(self) -> str:
+        from nanoscope.studyfiles import render_report
+
         s = self.study
-        lines = [f"# Study: {s.name}", ""]
-        lines.append(f"- mode: {s.mode}")
-        lines.append(f"- preset: {s.preset.name}, seeds: {', '.join(map(str, s.seeds))}")
-        if s.budget is not None:
-            lines.append(f"- budget: {type(s.budget).__name__}({s.budget.n:.3g}) per run")
-        if self.manifest:
-            m = self.manifest
-            lines.append(f"- code: commit {m['commit'][:10]}")
-            lines.append(f"- preregistered: {m['study_file']} committed in "
-                         f"{m['study_file_commit'][:10]} at {m['study_file_committed_at']}; "
-                         f"first run started {m['started_at']}")
-        lines += ["", "## Results", "", "```", str(self.comparison), "```"]
-        if self.predictions:
-            lines += ["", "## Predictions", "",
-                      "| variant | metric | predicted | actual (95% CI) | error |",
-                      "|---|---|---|---|---|"]
-            for p in self.predictions:
-                a = p["actual"]
-                ci = (f" [{a['ci95_low']:.3f}, {a['ci95_high']:.3f}]"
-                      if a["ci95_low"] is not None else "")
-                lines.append(f"| {p['variant']} | {p['metric']} | {p['predicted']:.3f} | "
-                             f"{a['mean']:.3f}{ci} | {p['error']:+.1%} |")
-        return "\n".join(lines) + "\n"
+        budget = None if s.budget is None else (type(s.budget).__name__, s.budget.n)
+        return render_report(s.name, s.mode, s.preset.name, s.seeds, budget, self.manifest,
+                             self.comparison, self.predictions)
 
     __repr__ = __str__
 
     def to_dict(self) -> dict[str, Any]:
         """The report as plain data: exactly what `results.json` holds (results.v1)."""
-        return {
-            "schema": 1, "nanoscope": __version__,
-            "study": self.study.name,
-            "mode": self.study.mode,
-            "manifest": self.manifest,
-            "rows": self.comparison.rows,
-            "notes": self.comparison.notes,
-            "predictions": self.predictions,
-        }
+        from nanoscope.studyfiles import results_doc
+
+        return results_doc(self.study.name, self.study.mode, self.comparison, self.predictions,
+                           self.manifest)
 
     def write(self, out: Path) -> Path:
         import matplotlib.pyplot as plt
@@ -560,6 +543,20 @@ class StudyReport:
         fig = self.comparison.plot(save=out / "curves.png")
         plt.close(fig)
         return out
+
+    def bundle(self, path: str | Path) -> Path:
+        """Write a zip of everything needed to check or re-run the study: the report, the
+        results, the spec (TOML, or the study file itself when a spec can't hold it), study.json
+        and plan.json when they exist, and `finals.json` with every seed's final metrics."""
+        from nanoscope.studyfiles import write_bundle
+
+        s = self.study
+        try:
+            spec_name, spec = "spec.toml", s.to_spec().to_toml()
+        except ValueError:
+            spec_name = s.source.name if s.source else "study.py"
+            spec = s.source.read_text(encoding="utf-8") if s.source else ""
+        return write_bundle(path, s.name, str(self), self.to_dict(), spec_name, spec)
 
 
 def load_study(path: str | Path, name: str | None = None) -> Study:

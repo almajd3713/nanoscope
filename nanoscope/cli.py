@@ -6,7 +6,9 @@ nanoscope report studies/m1_ablation.py"""
 from __future__ import annotations
 
 import argparse
+import sys
 from pathlib import Path
+from typing import Any
 
 from nanoscope import paths
 from nanoscope.compare import compare
@@ -125,6 +127,8 @@ def build_parser() -> argparse.ArgumentParser:
                               help="CPU threads per worker (default: cores split between workers)")
     study_parser.add_argument("--compile", nargs="?", const="true", default=None,
                               help="torch.compile; or --compile reduce-overhead for CUDA graphs")
+    study_parser.add_argument("--dry-run", action="store_true",
+                              help="print the plan (runs, sizes, estimated time) and train nothing")
     study_parser.add_argument("--push-to-hub", default=None, metavar="REPO",
                               help="mirror runs to this Hub repo and resume from it")
 
@@ -135,6 +139,25 @@ def build_parser() -> argparse.ArgumentParser:
     spec_parser = sub.add_parser("spec", help="Print a study as TOML (a spec you can commit)")
     spec_parser.add_argument("file", help="path/to/study.py")
     spec_parser.add_argument("--name", default=None, help="which Study, if the file has several")
+
+    card_parser = sub.add_parser(
+        "card", help="Ablation cards: export a record study, push it, compare cards")
+    card_sub = card_parser.add_subparsers(dest="card_command", required=True)
+    export_parser = card_sub.add_parser("export", help="Write a finished record study's card")
+    export_parser.add_argument("file", help="path/to/study.py or study.toml")
+    export_parser.add_argument("--name", default=None, help="which Study, if the file has several")
+    export_parser.add_argument("--out", default=None, help="where to write (default: the report "
+                                                           "folder's card.json)")
+    push_parser = card_sub.add_parser(
+        "push", help="Upload a card to a Hub dataset (opt-in; shows what uploads first)")
+    push_parser.add_argument("card", help="path/to/card.json")
+    push_parser.add_argument("--repo", required=True, metavar="USER/DATASET")
+    push_parser.add_argument("--yes", action="store_true", help="upload without asking")
+    cmp_parser = card_sub.add_parser(
+        "compare", help="Compare cards from different people (Welch intervals); the last "
+                        "card's baseline is the reference")
+    cmp_parser.add_argument("cards", nargs="+", help="two or more card.json files")
+    cmp_parser.add_argument("--metric", default="val_bpb", choices=["val_bpb", "val_loss"])
 
     graph_parser = sub.add_parser(
         "graph", help="Show a model file's architecture graph (reads the file, runs nothing)")
@@ -194,7 +217,87 @@ def main(argv: list[str] | None = None) -> None:
         raise SystemExit(2) from exc
 
 
+def _preregister(argv: list[str]) -> None:
+    """`nanoscope study preregister <spec> [--yes]`: show what would be committed, then commit."""
+    from nanoscope.prereg import PreregError, commit, preview
+    from nanoscope.study import load_study
+
+    parser = argparse.ArgumentParser(
+        prog="nanoscope study preregister",
+        description="Commit a study's spec (it holds the predictions) before its first record "
+                    "run. Prints the exact diff and message first.")
+    parser.add_argument("file", help="path/to/study.py or study.toml")
+    parser.add_argument("--name", default=None, help="which Study, if the file has several")
+    parser.add_argument("--yes", action="store_true", help="commit without asking")
+    args = parser.parse_args(argv)
+    study = load_study(args.file, args.name)
+    try:
+        shown = preview(study)
+        print(f"files to commit: {', '.join(shown.files)}\n")
+        print(shown.diff or "(no changes: the file is already committed)")
+        print(f"message:\n{shown.message}\n")
+        if shown.unrelated:
+            print("other files have uncommitted changes, so this commit would be refused:")
+            print("\n".join(f"  {p}" for p in shown.unrelated))
+        if not args.yes:
+            try:
+                answer = input("Commit this? [y/N] ")
+            except EOFError:
+                answer = ""
+            if answer.strip().lower() not in ("y", "yes"):
+                print("not committed")
+                return
+        print(f"committed {commit(study, shown.hash)}")
+    except PreregError as exc:
+        raise SystemExit(f"nanoscope: {exc}") from exc
+
+
+def _dry_run(study: Any, devices: list[str] | None, workers_per_device: int) -> None:
+    sizes = study.sizes()
+    jobs = study.jobs()
+    print(f"study {study.name}: {len(jobs)} runs "
+          f"({len(study.variants)} variants x {len(study.seeds)} seeds), nothing is trained\n")
+    for name, size in sizes.items():
+        steps = next(j.preset.max_steps for j in jobs if j.variant.name == name)
+        print(f"  {name}: {size['non_embedding_params']:,} non-embedding params, "
+              f"{steps} steps")
+    print(f"\nestimate: {study.estimate(devices, workers_per_device)['text']}")
+
+
+def _card(args: argparse.Namespace) -> None:
+    from nanoscope import cards
+
+    if args.card_command == "export":
+        from nanoscope.study import load_study
+
+        study = load_study(args.file, args.name)
+        out = Path(args.out) if args.out else paths.reports_dir() / study.name / "card.json"
+        print(f"wrote {cards.write_card(cards.export_card(study), out)}")
+    elif args.card_command == "push":
+        card = cards.read_card(args.card)
+        plan = cards.push_plan(card, args.repo)
+        print(f"will upload to the public Hub dataset {args.repo}: {plan['path_in_repo']}\n")
+        print(plan["content"])
+        if not args.yes:
+            try:
+                answer = input("\nUpload this? [y/N] ")
+            except EOFError:
+                answer = ""
+            if answer.strip().lower() not in ("y", "yes"):
+                print("not uploaded")
+                return
+        cards.push(card, args.repo)
+        print(f"uploaded {plan['path_in_repo']} to {args.repo}")
+    else:
+        loaded = [cards.read_card(p) for p in args.cards]
+        print(cards.format_comparison(cards.compare_cards(loaded, args.metric)))
+
+
 def _main(argv: list[str] | None = None) -> None:
+    args_list = sys.argv[1:] if argv is None else argv
+    if args_list[:2] == ["study", "preregister"]:
+        _preregister(args_list[2:])
+        return
     parser = build_parser()
     args = parser.parse_args(argv)
     if args.command is None:
@@ -277,6 +380,10 @@ def _main(argv: list[str] | None = None) -> None:
             return
         root = args.path or paths.runs_dir()
         print(format_snapshot(snapshot(root), root))
+        return
+
+    if args.command == "card":
+        _card(args)
         return
 
     if args.command == "spec":
@@ -371,6 +478,10 @@ def _main(argv: list[str] | None = None) -> None:
         from nanoscope.study import load_study
 
         study = load_study(args.file, args.name)
+        if args.command == "study" and args.dry_run:
+            _dry_run(study, args.devices.split(",") if args.devices else None,
+                     args.workers_per_device)
+            return
         if args.command == "study":
             devices = args.devices.split(",") if args.devices else None
             if args.push_to_hub:
