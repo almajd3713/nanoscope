@@ -3,14 +3,16 @@ import { Link, useNavigate, useParams } from "react-router-dom";
 import { api } from "../api/client";
 import { unwrap } from "../api/problem";
 import { Button } from "../components/Button";
+import { CheckResult } from "../components/CheckResult";
 import { EquivalentCommand } from "../components/EquivalentCommand";
 import { LessonState } from "../components/LessonState";
 import { Markdown } from "../components/Markdown";
-import { ProblemFromError } from "../components/ProblemView";
+import { ProblemFromError, ProblemView } from "../components/ProblemView";
 import { Tabs } from "../components/Tabs";
 import { Check, Circle, CircleHalf, LockSimple, Play, X } from "../icons";
 import { computeText } from "../format";
 import { RUN_DEFAULTS } from "../runDefaults";
+import { useLessonCheck } from "../useLessonCheck";
 import styles from "./Lesson.module.css";
 
 function Glyph({ state, locked }: { state: string; locked: boolean }) {
@@ -53,6 +55,7 @@ export function Lesson() {
     retry: false,
   });
 
+  const check = useLessonCheck(id);
   const experiment = detail.data?.experiment as { kind?: string; model?: string } | undefined;
   const train = useMutation({
     mutationFn: () =>
@@ -147,6 +150,12 @@ export function Lesson() {
               Start lesson
             </Button>
           )}
+          {started && (
+            <Button variant="primary" size="lg" disabled={check.run.isPending || check.job?.state === "queued" || check.job?.state === "running"} onClick={() => check.run.mutate()}>
+              <Play size={16} aria-hidden="true" />
+              Run the check
+            </Button>
+          )}
           {experiment?.kind === "run" && (
             <Button disabled={!started || train.isPending} onClick={() => train.mutate()}>
               <Play size={16} aria-hidden="true" />
@@ -161,6 +170,8 @@ export function Lesson() {
         </div>
         {start.error && <ProblemFromError error={start.error} />}
         {train.error && <ProblemFromError error={train.error} />}
+        {check.run.error && <ProblemFromError error={check.run.error} />}
+        {check.job && <CheckPanel lessonTitle={d.title} job={check.job} result={check.result} checkDefs={d.checks.map((c) => ({ id: String(c["id"]), kind: String(c["kind"]) }))} unlocks={d.unlocks} />}
 
         <Tabs items={sections.map((s) => ({ id: s.id, label: s.label, content: <Markdown>{s.text}</Markdown> }))} />
 
@@ -183,5 +194,48 @@ export function Lesson() {
         <EquivalentCommand cli={`nanoscope learn start ${d.id}\nnanoscope learn check ${d.id}`} />
       </div>
     </div>
+  );
+}
+
+type JobView = NonNullable<ReturnType<typeof useLessonCheck>["job"]>;
+
+function CheckPanel({ lessonTitle, job, result, checkDefs, unlocks }: {
+  lessonTitle: string;
+  job: JobView;
+  result: ReturnType<typeof useLessonCheck>["result"];
+  checkDefs: { id: string; kind: string }[];
+  unlocks: string[];
+}) {
+  const kinds = new Map(checkDefs.map((c) => [c.id, c.kind]));
+  if (job.state === "queued" || job.state === "running") {
+    return (
+      <CheckResult
+        status="running"
+        title={lessonTitle}
+        checks={checkDefs.map((c) => ({ id: c.id, kind: c.kind, passed: null, reason: "not run yet" }))}
+        progress={job.state === "queued" ? "Waiting for a worker to start the check" : "Running the checks"}
+      />
+    );
+  }
+  if (job.state === "done" && result) {
+    return (
+      <CheckResult
+        status={result.passed ? "passed" : "failed"}
+        title={lessonTitle}
+        checks={result.checks.map((c) => ({ ...c, kind: kinds.get(c.id) ?? "" }))}
+      >
+        {result.passed
+          ? unlocks.length
+            ? `Check passed. ${unlocks.map((u) => u.split(":").pop()).join(", ")} ${unlocks.length === 1 ? "is" : "are"} unlocked.`
+            : "Check passed."
+          : "Read the reasons, edit your file, and run the check again."}
+      </CheckResult>
+    );
+  }
+  return (
+    <ProblemView
+      title={job.state === "cancelled" ? "The check was cancelled" : "The check did not finish"}
+      detail={job.error ?? ""}
+    />
   );
 }
