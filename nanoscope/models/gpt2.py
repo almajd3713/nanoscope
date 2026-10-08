@@ -17,6 +17,8 @@ from nanoscope.blocks.structure import Block, Decoder
 
 @shipped
 class GPT2(Decoder):
+    """A GPT-2 style decoder: learned positions, LayerNorm, GELU MLP, multi-head attention."""
+
     def __init__(
         self,
         vocab_size: int,

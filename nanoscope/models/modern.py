@@ -25,6 +25,8 @@ from nanoscope.blocks.structure import Block, Decoder
 
 @shipped
 class Modern(Decoder):
+    """The 2024-26 consensus decoder: RoPE, RMSNorm, SwiGLU, GQA, QK-norm, z-loss."""
+
     def __init__(
         self,
         vocab_size: int,
