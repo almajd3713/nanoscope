@@ -18,7 +18,7 @@ item is one line, so scripts and agents can grep and edit it.
 | P11 | Release prep: PyPI + GHCR (2-3 d) | 17 / 17 | done |
 | P12 | docker-compose (3-4 d) | 20 / 20 | done |
 | P13 | GUI MVP 1: shell, Learn/Tinker screens (12-15 d) | 50 / 50 | done |
-| P14 | GUI MVP 2: model page, drag-and-drop (14-17 d) | 19 / 36 | in progress |
+| P14 | GUI MVP 2: model page, drag-and-drop (14-17 d) | 20 / 36 | in progress |
 | P15 | GUI Research (10-13 d) | 0 / 31 | not started |
 | P16 | Extend + depth (8-10 d) | 0 / 17 | not started |
 | P17 | Remaining curriculum paths (18-26 d) | 0 / 34 | not started |
@@ -584,7 +584,7 @@ Order: P13.01 and P13.02 first (these items live in `web/` and run in its CI job
 - [ ] P14.22 Colour graph nodes live from `blockstats` SSE events when a run of this file is open. · files: web/src/graph/GraphView.tsx · deps: P14.12, P10.29, P14.35 · done: `pnpm -C web test -- GraphView.blockstats` passes
 - [x] P14.23 Model page: editor and graph side by side on one file; Lesson → Start opens the starter here. · files: web/src/pages/Model.tsx (new), web/src/pages/Lesson.tsx · deps: P14.12, P14.06 · done: `pnpm -C web test -- Model` passes · done 2026-10-08 (c151bfc)
 - [x] P14.24 Refresh the palette without a restart when `/api/learn/events` or the workspace's blocks change. · files: web/src/graph/Palette.tsx · deps: P14.17, P10.33 · done: `pnpm -C web test -- Palette.live` passes · done 2026-10-08 (76a9a31)
-- [ ] P14.34 Models page and nav item: the workspace's model classes (read by AST through `/api/files` and graph parse, never imported) with params and FLOPs from the last trace, the trace state, and the user's blocks with their certification; each opens the model page. · files: web/src/pages/Models.tsx (new), web/src/app/Shell.tsx · deps: P14.12, P14.04 · done: `pnpm -C web test -- Models` passes
+- [x] P14.34 Models page and nav item: the workspace's model classes (read by AST through `/api/files` and graph parse, never imported) with params and FLOPs from the last trace, the trace state, and the user's blocks with their certification; each opens the model page. · files: web/src/pages/Models.tsx (new), web/src/app/Shell.tsx · deps: P14.12, P14.04 · done: `pnpm -C web test -- Models` passes · done 2026-10-08 (05f6e25)
 
 ### P14 · End-to-end tests and docs
 - [ ] P14.25 Plan done-when: in the modern-block lesson, swapping LayerNorm→RMSNorm in the inspector changes exactly one line (`git diff --numstat` shows 1/1). · files: web/e2e/swap.spec.ts (new) · deps: P14.16, P14.23, P13.31 · done: `pnpm -C web exec playwright test swap` passes
