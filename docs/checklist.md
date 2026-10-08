@@ -4,7 +4,7 @@ The build list for [`plan-tool.md`](plan-tool.md), sections 4-10, with the decis
 2026-10-05 (plan section 11) applied. Phase numbers follow the plan's section 10. Every
 item is one line, so scripts and agents can grep and edit it.
 
-**Current focus:** P13 GUI MVP 1. The design-system items (P13.38-P13.45) are done. Next: the screens, starting with P13.12 (lessons list), then the screens.
+**Current focus:** P13 GUI MVP 1. The design-system items (P13.38-P13.45) are done. Next: the screens, starting with P13.13 (lesson page), then the screens.
 
 ## Progress
 
@@ -17,7 +17,7 @@ item is one line, so scripts and agents can grep and edit it.
 | P10 | HTTP API (8-10 d) | 47 / 47 | done |
 | P11 | Release prep: PyPI + GHCR (2-3 d) | 17 / 17 | done |
 | P12 | docker-compose (3-4 d) | 20 / 20 | done |
-| P13 | GUI MVP 1: shell, Learn/Tinker screens (12-15 d) | 20 / 50 | in progress |
+| P13 | GUI MVP 1: shell, Learn/Tinker screens (12-15 d) | 21 / 50 | in progress |
 | P14 | GUI MVP 2: model page, drag-and-drop (14-17 d) | 0 / 35 | not started |
 | P15 | GUI Research (10-13 d) | 0 / 30 | not started |
 | P16 | Extend + depth (8-10 d) | 0 / 16 | not started |
@@ -513,7 +513,7 @@ Order: P13.01 and P13.02 first (these items live in `web/` and run in its CI job
 - [x] P13.11 First-run onboarding: "I'm learning" (guided) or "I know this" (open) calls `POST /api/learn/policy`. · files: web/src/pages/Onboarding.tsx (new) · deps: P13.08, P10.33, P13.37 · done: `pnpm -C web test -- Onboarding` passes ✓ 2026-10-08 382f0f1: route `/welcome` outside the shell; `GET /api/learn/unlocks` gained `first_run` so the SPA can tell (the Lessons page redirects there, P13.12); added Button
 
 ### P13 · Screens
-- [ ] P13.12 Lessons list: paths and lessons with their state, lock marks and CPU/GPU estimates. · files: web/src/pages/Lessons.tsx (new) · deps: P13.08, P10.32, P13.37 · done: `pnpm -C web test -- Lessons` passes
+- [x] P13.12 Lessons list: paths and lessons with their state, lock marks and CPU/GPU estimates. · files: web/src/pages/Lessons.tsx (new) · deps: P13.08, P10.32, P13.37 · done: `pnpm -C web test -- Lessons` passes ✓ 2026-10-08 01c655a: rows link to `/learn/<path>/<lesson>` (the page is P13.13); estimates use the library's `cpu 0.5 min` format (`format.ts`); test fixtures are real server output; first visit redirects to `/welcome`
 - [ ] P13.13 Lesson page: `lesson.md` with Surface, Deep and Reading tabs (sanitized markdown), the estimates of both compute variants, and "Passing unlocks: …". · files: web/src/pages/Lesson.tsx (new) · deps: P13.12 · done: `pnpm -C web test -- Lesson` passes
 - [ ] P13.14 Lesson page actions: Start (`POST start`, then shows the starter file read-only with a link to the model page once P14 lands) and Train (runs the lesson's experiment and opens the run page). · files: web/src/pages/Lesson.tsx · deps: P13.13 · done: `pnpm -C web test -- Lesson.actions` passes
 - [ ] P13.15 Lesson Check: enqueues the check job, shows live progress, then each check's verdict with its reasons, and refreshes progress and unlocks. · files: web/src/pages/Lesson.tsx, web/src/components/CheckResult.tsx (new) · deps: P13.14, P13.05 · done: `pnpm -C web test -- CheckResult` passes
