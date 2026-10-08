@@ -1,0 +1,46 @@
+.inspector {
+  display: grid;
+  gap: var(--space-3);
+  align-content: start;
+  padding: var(--space-4);
+  background: var(--surface-raised);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-2);
+}
+
+.title {
+  display: grid;
+  gap: 2px;
+}
+
+.title h2 {
+  margin: 0;
+  font-family: var(--font-mono);
+}
+
+.muted {
+  color: var(--ink-muted);
+}
+
+.select {
+  height: var(--control);
+  padding: 0 var(--space-2);
+  border: 1px solid var(--line-strong);
+  border-radius: var(--radius-2);
+  background: var(--surface-sunken);
+  color: var(--ink);
+}
+
+.select:focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: 2px;
+}
+
+.fields {
+  display: grid;
+  gap: var(--space-3);
+}
+
+.locked {
+  color: var(--ink-muted);
+}

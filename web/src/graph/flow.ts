@@ -144,3 +144,20 @@ export function buildFlow(cls: GClass): Flow {
   connect({ first: "head", last: "head" });
   return flow;
 }
+
+// The node at `path` (an argument name selects an argument of the current call, an integer an
+// item of the current list), or null.
+export function nodeAt(cls: GClass, path: Path): GNode | null {
+  let current: GNode | undefined;
+  let args: Record<string, GNode> | undefined = cls.args;
+  for (const step of path) {
+    if (typeof step === "string") {
+      current = args?.[step];
+    } else {
+      current = current?.kind === "list" ? current.items[step] : undefined;
+    }
+    if (!current) return null;
+    args = current.kind === "block" ? current.args : undefined;
+  }
+  return current ?? null;
+}

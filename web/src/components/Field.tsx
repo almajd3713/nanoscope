@@ -6,6 +6,8 @@ type Props = {
   label: string;
   value: string;
   onChange?: (value: string) => void;
+  // Enter or leaving the field: the value is final
+  onCommit?: () => void;
   help?: string;
   disabled?: boolean;
   // a problem the library found with this field, word for word
@@ -15,7 +17,7 @@ type Props = {
   mono?: boolean;
 };
 
-export function Field({ label, value, onChange, help, disabled, problem, changedFrom, mono = true }: Props) {
+export function Field({ label, value, onChange, onCommit, help, disabled, problem, changedFrom, mono = true }: Props) {
   const id = useId();
   const describedBy = [help && `${id}-help`, problem && `${id}-problem`].filter(Boolean).join(" ") || undefined;
   return (
@@ -31,6 +33,8 @@ export function Field({ label, value, onChange, help, disabled, problem, changed
         aria-invalid={problem ? true : undefined}
         aria-describedby={describedBy}
         onChange={(e) => onChange?.(e.target.value)}
+        onBlur={onCommit}
+        onKeyDown={onCommit ? (e) => e.key === "Enter" && onCommit() : undefined}
       />
       {help && (
         <span id={`${id}-help`} className={`caption ${styles.muted}`}>
