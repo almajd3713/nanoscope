@@ -12,3 +12,11 @@ vi.mock("uplot", () => ({
   },
 }));
 vi.mock("uplot/dist/uPlot.min.css", () => ({}));
+
+// jsdom has no ResizeObserver; the plots only use it to follow their container's width.
+// (Assigned, not vi.stubGlobal: tests call vi.unstubAllGlobals, which would remove it.)
+globalThis.ResizeObserver = class {
+  observe() {}
+  unobserve() {}
+  disconnect() {}
+};

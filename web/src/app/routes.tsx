@@ -1,6 +1,7 @@
 import { Navigate, Route, Routes } from "react-router-dom";
 import { Lesson } from "../pages/Lesson";
 import { Lessons } from "../pages/Lessons";
+import { Compare } from "../pages/Compare";
 import { Runs } from "../pages/Runs";
 import { RunForm } from "../pages/RunForm";
 import { Run } from "../pages/Run";
@@ -26,7 +27,7 @@ export function AppRoutes() {
         <Route path="/runs" element={<Runs />} />
         <Route path="/runs/new" element={<RunForm />} />
         <Route path="/runs/*" element={<Run />} />
-        <Route path="/compare" element={<Pending title="Compare" />} />
+        <Route path="/compare" element={<Compare />} />
         <Route path="/studies" element={<Pending title="Studies" />} />
         <Route path="/hardware" element={<Pending title="Hardware" />} />
         <Route path="/components" element={<Pending title="Components" />} />
