@@ -46,6 +46,27 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/blocks/{name}/certify": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Certify Block
+         * @description Check a block of the workspace against the reference it was registered with. It is a job:
+         *     the file has to be imported to build the block, which only a worker does.
+         */
+        post: operations["certify_block_api_blocks__name__certify_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/compare": {
         parameters: {
             query?: never;
@@ -1651,7 +1672,8 @@ export interface components {
         /**
          * PatchRequest
          * @description Either the edited graph (every changed argument is patched into the source), or an
-         *     explicit list of edits (`set_arg`, `replace_block`, `remove_arg`).
+         *     explicit list of edits (`set_arg`, `replace_block`, `remove_arg`, and the structural
+         *     `add_layer`, `remove_layer`, `set_pattern`, `fill_slot`; see nanoscope.blocks.graph).
          */
         PatchRequest: {
             /** Edits */
@@ -2182,6 +2204,46 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["BlocksDoc"];
+                };
+            };
+            /** @description The request cannot be done as asked */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description An error (RFC 9457) */
+            "4XX": {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    certify_block_api_blocks__name__certify_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                name: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            202: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["JobDoc"];
                 };
             };
             /** @description The request cannot be done as asked */

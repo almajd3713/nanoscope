@@ -16,7 +16,7 @@ PUBLIC_MODULES = {
     "nanoscope.specs", "nanoscope.presets", "nanoscope.status", "nanoscope.progress",
     "nanoscope.prepare", "nanoscope.statistics", "nanoscope.studyspec", "nanoscope.study",
     "nanoscope.hardware", "nanoscope.estimate", "nanoscope.compare", "nanoscope.log",
-    "nanoscope.fsutil", "nanoscope.learn", "nanoscope.blocks.catalog",
+    "nanoscope.fsutil", "nanoscope.learn", "nanoscope.blocks.catalog", "nanoscope.blocks.certs",
     "nanoscope.blocks.discover", "nanoscope.blocks.graph", "nanoscope.blocks.registry",
     "nanoscope.jobs.payload", "nanoscope.runref",
     "nanoscope.models",  # the shipped models: our code, not a learner's
@@ -24,7 +24,7 @@ PUBLIC_MODULES = {
 # These execute or import user code: the API process never touches them (plan 8.1).
 FORBIDDEN = {"nanoscope.inspect", "nanoscope.modelref", "nanoscope.run", "nanoscope.train_loop",
              "nanoscope.blockstats", "nanoscope.bench", "nanoscope.jobs.execute",
-             "nanoscope.jobs.runner", "nanoscope.jobs.worker"}
+             "nanoscope.jobs.runner", "nanoscope.jobs.worker", "nanoscope.blocks.certify"}
 
 
 def imported_names(path: Path):

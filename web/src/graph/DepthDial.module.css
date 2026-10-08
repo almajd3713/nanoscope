@@ -1,0 +1,29 @@
+.dial {
+  display: inline-flex;
+  border: 1px solid var(--line-strong);
+  border-radius: var(--radius-2);
+  overflow: hidden;
+}
+
+.item {
+  height: var(--control-sm);
+  padding: 0 var(--space-3);
+  border: 0;
+  background: var(--surface-raised);
+  color: var(--ink);
+  cursor: pointer;
+}
+
+.item + .item {
+  border-left: 1px solid var(--line-strong);
+}
+
+.item[data-state="on"] {
+  background: var(--accent);
+  color: var(--on-accent);
+}
+
+.item:focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: -2px;
+}

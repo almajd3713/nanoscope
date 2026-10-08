@@ -440,3 +440,205 @@ def test_template_slot():
     graph["classes"][0]["args"]["block"]["args"]["attn"]["args"]["normalize"] = {
         "kind": "block", "block": "Softmax", "args": {}, "span": None}
     assert emit(graph, after) == after  # same block, nothing to change
+
+
+def test_structural_edits_n_layers_and_pattern_items():
+    source = (FIXTURES / "layer_pattern.py").read_text()
+    # n_layers +/- 1: one changed line
+    more = apply_edits(source, [{"op": "add_layer", "class": "SlidingGlobal"}])
+    ((line, old, new),) = changed_lines(source, more)
+    assert line == 11 and new == old.replace("n_layers=6", "n_layers=7")
+    fewer = apply_edits(more, [{"op": "remove_layer", "class": "SlidingGlobal"}])
+    assert fewer == source
+    with pytest.raises(ValueError, match="at least one layer"):
+        apply_edits(source.replace("n_layers=6", "n_layers=1"),
+                    [{"op": "remove_layer", "class": "SlidingGlobal"}])
+
+    # a pattern item: insert and remove keep the multi-line list and its trailing comma
+    node = {"kind": "block", "block": "Block", "span": None, "args": {
+        "norm": {"kind": "block", "block": "RMSNorm", "args": {}, "span": None},
+        "attn": {"kind": "block", "block": "Attention", "args": {"n_heads": lit(2)},
+                 "span": None},
+        "mlp": {"kind": "block", "block": "SwiGLU", "args": {}, "span": None}}}
+    grown = apply_edits(source, [{"op": "add_layer", "class": "SlidingGlobal",
+                                  "path": ["pattern"], "node": node}])
+    items = parse_text(grown)["classes"][0]["args"]["pattern"]["items"]
+    assert len(items) == 3 and items[2]["args"]["attn"]["args"]["n_heads"]["value"] == 2
+    assert "nb.Block(norm=nb.RMSNorm(), attn=nb.Attention(n_heads=2), mlp=nb.SwiGLU())" in grown
+    assert grown.count("\n") == source.count("\n") + 1  # one new line
+    front = apply_edits(source, [{"op": "add_layer", "class": "SlidingGlobal",
+                                  "path": ["pattern"], "node": node, "index": 0}])
+    assert parse_text(front)["classes"][0]["args"]["pattern"]["items"][0]["args"]["attn"][
+        "args"]["n_heads"]["value"] == 2
+    back = apply_edits(grown, [{"op": "remove_layer", "class": "SlidingGlobal",
+                                "path": ["pattern"], "index": 2}])
+    assert back == source
+    with pytest.raises(ValueError, match="would be empty"):
+        one = apply_edits(source, [{"op": "remove_layer", "class": "SlidingGlobal",
+                                    "path": ["pattern"], "index": 0}])
+        apply_edits(one, [{"op": "remove_layer", "class": "SlidingGlobal",
+                           "path": ["pattern"], "index": 0}])
+    with pytest.raises(ValueError, match="no item 5"):
+        apply_edits(source, [{"op": "remove_layer", "class": "SlidingGlobal",
+                              "path": ["pattern"], "index": 5}])
+
+
+def test_structural_edits_come_out_of_emit_as_minimal_edits():
+    path = FIXTURES / "layer_pattern.py"
+    source = path.read_text()
+    graph = parse(path)
+    pattern = graph["classes"][0]["args"]["pattern"]
+    pattern["items"].append(pattern["items"][0])
+    assert diff(parse(path), graph) == [{
+        "op": "add_layer", "class": "SlidingGlobal", "path": ["pattern"], "index": 2,
+        "node": pattern["items"][0]}]
+    after = emit(graph, source)
+    assert len(parse_text(after)["classes"][0]["args"]["pattern"]["items"]) == 3
+    graph = parse(path)
+    del graph["classes"][0]["args"]["pattern"]["items"][0]
+    assert diff(parse(path), graph) == [{
+        "op": "remove_layer", "class": "SlidingGlobal", "path": ["pattern"], "index": 0}]
+    assert len(parse_text(emit(graph, source))["classes"][0]["args"]["pattern"]["items"]) == 1
+
+
+def test_structural_edits_set_pattern_replaces_block():
+    source = (FIXTURES / "modern_like.py").read_text()
+    layer = parse_text(source)["classes"][0]["args"]["block"]
+    patched = apply_edits(source, [{"op": "set_pattern", "class": "MyModern",
+                                    "items": [layer, layer]}])
+    args = parse_text(patched)["classes"][0]["args"]
+    assert "block" not in args and len(args["pattern"]["items"]) == 2
+    with pytest.raises(ValueError, match="at least one block"):
+        apply_edits(source, [{"op": "set_pattern", "class": "MyModern", "items": []}])
+    # a pattern that already exists is replaced in place
+    pat = (FIXTURES / "layer_pattern.py").read_text()
+    new = apply_edits(pat, [{"op": "set_pattern", "class": "SlidingGlobal", "items": [
+        {"kind": "block", "block": "Block", "span": None, "args": {
+            k: {"kind": "block", "block": b, "args": {}, "span": None}
+            for k, b in (("norm", "RMSNorm"), ("attn", "Attention"), ("mlp", "SwiGLU"))}}]}])
+    assert len(parse_text(new)["classes"][0]["args"]["pattern"]["items"]) == 1
+
+
+def test_structural_edits_set_pattern_writes_one_block_per_line_in_a_multi_line_call():
+    source = (FIXTURES / "modern_like.py").read_text()
+    layer = parse_text(source)["classes"][0]["args"]["block"]
+    patched = apply_edits(source, [{"op": "set_pattern", "class": "MyModern",
+                                    "items": [layer, layer, layer]}])
+    lines = patched.splitlines()
+    start = next(i for i, line in enumerate(lines) if "pattern=[" in line)
+    assert lines[start + 1].startswith(" " * 16 + "Block(") and lines[start + 3].endswith("),")
+    assert lines[start + 4] == " " * 12 + "],"  # the bracket closes at the call's own indent
+    assert len(parse_text(patched)["classes"][0]["args"]["pattern"]["items"]) == 3
+
+
+def test_structural_edits_fill_slot():
+    path = FIXTURES / "template_fill.py"
+    source = path.read_text()
+    fill = {"kind": "block", "block": "CausalMask", "args": {}, "span": None}
+    edit = {"op": "fill_slot", "class": "FromPrimitives", "path": ["block", "attn"],
+            "slot": "mask", "node": fill}
+    after = apply_edits(source, [edit])
+    assert changed_lines(source, after) == [(
+        13, "                    scores=ScaledDotScores(), mask=None, normalize=Softmax(),",
+        "                    scores=ScaledDotScores(), mask=CausalMask(), normalize=Softmax(),")]
+    assert apply_edits(after, [{**edit, "node": None}]) == source  # emptying the slot
+    with pytest.raises(ValueError, match="has the slots .*not 'nope'"):
+        apply_edits(source, [{**edit, "slot": "nope"}])
+    with pytest.raises(ValueError, match="not a template"):
+        apply_edits(source, [{**edit, "path": ["block", "attn", "q"]}])
+    local = (FIXTURES / "composite_template.py").read_text()
+    out = apply_edits(local, [{"op": "fill_slot", "class": "UsesTemplate", "path": ["block"],
+                               "slot": "norm", "node": {"kind": "block", "block": "LayerNorm",
+                                                        "args": {}, "span": None}}])
+    assert "norm=LayerNorm()" in out
+
+
+def test_property_all_ops():
+    """Random sequences of every edit keep the file parseable, and the graph and file agree."""
+    from hypothesis import HealthCheck, given, settings
+    from hypothesis import strategies as st
+
+    from nanoscope.blocks.graph import strip_spans
+
+    def block(name, **args):
+        return {"kind": "block", "block": name, "args": args, "span": None}
+
+    layer = block("Block", norm=block("RMSNorm"), attn=block("Attention", n_heads=lit(2)),
+                  mlp=block("SwiGLU"))
+    bases = {name: (FIXTURES / f"{name}.py").read_text()
+             for name in ("modern_like", "layer_pattern", "odd_formatting")}
+    op = st.one_of(
+        st.tuples(st.just("layers"), st.sampled_from(["add_layer", "remove_layer"])),
+        st.tuples(st.just("item"), st.sampled_from(["add_layer", "remove_layer"]),
+                  st.integers(0, 3)),
+        st.tuples(st.just("pattern"), st.integers(1, 3)),
+        st.tuples(st.just("set"), st.sampled_from(["d_model", "z_loss"]), st.integers(1, 9)))
+
+    @given(st.sampled_from(sorted(bases)), st.lists(op, max_size=8))
+    @settings(max_examples=60, deadline=None, suppress_health_check=list(HealthCheck))
+    def check(name, ops):
+        source = bases[name]
+        cls = parse_text(source)["classes"][0]["name"]
+        for step in ops:
+            args = parse_text(source)["classes"][0]["args"]
+            if step[0] == "layers":
+                n = args["n_layers"]["value"]
+                if step[1] == "remove_layer" and n == 1:
+                    continue
+                edit = {"op": step[1], "class": cls}
+            elif step[0] == "item":
+                if "pattern" not in args:
+                    continue
+                n = len(args["pattern"]["items"])
+                if step[1] == "remove_layer":
+                    if n == 1:
+                        continue
+                    edit = {"op": step[1], "class": cls, "path": ["pattern"],
+                            "index": step[2] % n}
+                else:
+                    edit = {"op": step[1], "class": cls, "path": ["pattern"],
+                            "node": layer, "index": step[2] % (n + 1)}
+            elif step[0] == "pattern":
+                edit = {"op": "set_pattern", "class": cls, "items": [layer] * step[1]}
+            else:
+                edit = {"op": "set_arg", "class": cls, "path": [], "arg": step[1],
+                        "value": lit(step[2])}
+            source = apply_edits(source, [edit])
+            again = parse_text(source)
+            assert again["classes"][0]["representable"], source
+            graph = parse_text(source)
+            assert strip_spans(parse_text(emit(graph, source))) == strip_spans(graph)
+            assert emit(graph, source) == source  # and emitting what was parsed changes nothing
+
+    check()
+
+
+def test_filled_template_class_is_a_graph_of_its_slots():
+    """`class OneHead(AttentionTemplate)` with its slots in super().__init__ (lesson F03's
+    graph route): the slots are the arguments, and filling one is a fill_slot on the class."""
+    path = FIXTURES / "filled_template.py"
+    source = path.read_text()
+    cls = parse(path)["classes"][0]
+    assert (cls["name"], cls["kind"], cls["representable"]) == ("OneHead", "filled", True)
+    assert cls["template"] == "AttentionTemplate"
+    assert cls["slots"] == ["q", "k", "v", "scores", "mask", "normalize", "mix", "out"]
+    assert [p["name"] for p in cls["params"]] == ["d_model", "context_length"]
+    assert list(cls["args"]) == ["d_model", "context_length", *cls["slots"]]
+    assert cls["args"]["mask"]["kind"] == "literal" and cls["args"]["mask"]["value"] is None
+    assert cls["args"]["scores"]["block"] == "ScaledDotScores"
+
+    fill = {"op": "fill_slot", "class": "OneHead", "path": [], "slot": "mask",
+            "node": {"kind": "block", "block": "CausalMask", "args": {}, "span": None}}
+    after = apply_edits(source, [fill])
+    ((line, old, new),) = changed_lines(source, after)
+    assert "mask=CausalMask()" in new and "mask=None" in old and "Causal" in after.splitlines()[0]
+    again = parse_text(after)["classes"][0]
+    assert again["args"]["mask"]["block"] == "CausalMask"
+    # the emptied slot, an unknown slot, and a swap through the ordinary graph edit
+    assert apply_edits(after, [{**fill, "node": None}]) == source
+    with pytest.raises(ValueError, match="has the slots q, k, v.*not 'nope'"):
+        apply_edits(source, [{**fill, "slot": "nope"}])
+    graph = parse_text(source)
+    graph["classes"][0]["args"]["mix"] = {"kind": "block", "block": "WeightedSum", "args": {},
+                                          "span": None}
+    assert "mix=WeightedSum()" in emit(graph, source)

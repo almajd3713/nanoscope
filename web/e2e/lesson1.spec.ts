@@ -11,7 +11,7 @@ test("lesson 1: start, train, check passed in at most 6 clicks", async ({ page, 
   await clicks.on(page.getByRole("button", { name: "Continue to lessons" }));
   await clicks.on(page.getByRole("link", { name: /A bigram language model/ }));
   await clicks.on(page.getByRole("button", { name: "Start lesson" }));
-  await expect(page.getByText(/^Your file:/)).toBeVisible();
+  await expect(page.getByRole("button", { name: "Train" })).toBeVisible(); // the model page, or the lesson page of a started lesson
 
   await saveFile(request, "lessons/foundations/01-bigram/starter.py", solution("foundations/01-bigram.py"));
 

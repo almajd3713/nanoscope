@@ -1,3 +1,4 @@
+import { lazy, Suspense } from "react";
 import { Navigate, Route, Routes } from "react-router-dom";
 import { Lesson } from "../pages/Lesson";
 import { Lessons } from "../pages/Lessons";
@@ -7,9 +8,13 @@ import { Settings } from "../pages/Settings";
 import { Runs } from "../pages/Runs";
 import { RunForm } from "../pages/RunForm";
 import { Run } from "../pages/Run";
+import { Models } from "../pages/Models";
 import { Onboarding } from "../pages/Onboarding";
 import { BareLayout } from "./BareLayout";
 import { Shell } from "./Shell";
+
+// The model page carries the graph layout engine and the code editor: loaded when it is opened.
+const Model = lazy(() => import("../pages/Model").then((m) => ({ default: m.Model })));
 
 // Each screen replaces its title here as its checklist item lands.
 function Pending({ title }: { title: string }) {
@@ -26,6 +31,8 @@ export function AppRoutes() {
         <Route path="/" element={<Navigate to="/learn" replace />} />
         <Route path="/learn" element={<Lessons />} />
         <Route path="/learn/:path/:lesson" element={<Lesson />} />
+        <Route path="/models" element={<Models />} />
+        <Route path="/model/*" element={<Suspense fallback={<p className="small">Loading the model page</p>}><Model /></Suspense>} />
         <Route path="/runs" element={<Runs />} />
         <Route path="/runs/new" element={<RunForm />} />
         <Route path="/runs/*" element={<Run />} />

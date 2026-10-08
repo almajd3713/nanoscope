@@ -1,0 +1,82 @@
+.page {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-5);
+  max-width: var(--bp-wide, 1280px);
+}
+
+.head {
+  display: flex;
+  align-items: baseline;
+  gap: var(--space-3);
+}
+
+.head h1,
+.section h2,
+.section p {
+  margin: 0;
+}
+
+.section {
+  display: grid;
+  gap: var(--space-2);
+}
+
+.muted {
+  color: var(--ink-muted);
+}
+
+.right {
+  text-align: right;
+}
+
+.link {
+  color: var(--accent);
+}
+
+.cell {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.wrap {
+  overflow-x: auto;
+  background: var(--surface-raised);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-0);
+}
+
+.table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.table th {
+  text-align: left;
+  color: var(--ink-muted);
+  height: var(--row);
+  padding: 0 var(--space-2);
+  border-bottom: 1px solid var(--line);
+  white-space: nowrap;
+}
+
+.table td {
+  height: var(--row);
+  padding: 0 var(--space-2);
+  border-bottom: 1px solid var(--line);
+  white-space: nowrap;
+}
+
+.table th:first-child,
+.table td:first-child {
+  padding-left: var(--space-3);
+}
+
+.table tbody tr:last-child td {
+  border-bottom: 0;
+}
+
+.table tbody tr:hover td {
+  background: var(--surface);
+}

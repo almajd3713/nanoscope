@@ -6,9 +6,9 @@ import { ThemeToggle } from "../components/ThemeToggle";
 import { setLevel, useLevel } from "./level";
 import styles from "./Shell.module.css";
 
-// Models joins when the model page lands (P14.34).
 export const NAV = [
   { to: "/learn", label: "Learn" },
+  { to: "/models", label: "Models" },
   { to: "/runs", label: "Runs" },
   { to: "/compare", label: "Compare" },
   { to: "/studies", label: "Studies" },

@@ -196,6 +196,10 @@ def test_spa_fallback(home, tmp_path):
     assert "no-cache" in deep.headers["cache-control"]
     assert client.get("/assets/app.js").text == "console.log(1)"
     assert client.get("/assets/missing.js").status_code == 404  # a missing file is not the app
+    assert client.get("/favicon.ico").status_code == 404
+    # the model page of a workspace file: the route ends in .py and still reloads into the app
+    model = client.get("/model/lessons/modern-block/07-assemble/starter.py")
+    assert model.status_code == 200 and model.text == "<html>nanoscope app</html>"
     # the API is still the API
     assert client.get("/api/health").json() == {"status": "ok"}
     nope = client.get("/api/nope")

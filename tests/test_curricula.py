@@ -147,6 +147,24 @@ def test_f03_attention_head():
         "same-as-reference"]
 
 
+def test_f03_template_route():
+    """The graph route: OneHead filled from the attention template with primitive blocks passes
+    the same check (its `Linear` slots keep their weights one level down, `q.linear.weight`)."""
+    lesson = load_lesson("foundations/03-attention-head")
+    code = (SOLUTIONS / "templates" / "03-attention-head.py").read_text(encoding="utf-8")
+    doc = attempt(lesson, code)
+    assert doc["passed"], reasons(doc)
+    assert doc["checks"][1]["evidence"]["max_abs_diff"] < 1e-5
+    # an exact name still wins, and a name that matches nothing is still reported as before
+    from nanoscope.learn.checks import resolve_param
+
+    params = {"q.weight": 1, "q.linear.weight": 2, "k.linear.weight": 3, "a.b.linear.weight": 4}
+    assert resolve_param(params, "q.weight") == "q.weight"
+    assert resolve_param(params, "k.weight") == "k.linear.weight"
+    assert resolve_param(params, "z.weight") == "z.weight"
+    assert resolve_param(params, "weight") == "weight"
+
+
 def test_f04_multi_head(home):
     lesson = load_lesson("foundations/04-multi-head")
     assert lesson.unlocks == ["block:Attention"]

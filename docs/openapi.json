@@ -1218,7 +1218,7 @@
         "type": "object"
       },
       "PatchRequest": {
-        "description": "Either the edited graph (every changed argument is patched into the source), or an\nexplicit list of edits (`set_arg`, `replace_block`, `remove_arg`).",
+        "description": "Either the edited graph (every changed argument is patched into the source), or an\nexplicit list of edits (`set_arg`, `replace_block`, `remove_arg`, and the structural\n`add_layer`, `remove_layer`, `set_pattern`, `fill_slot`; see nanoscope.blocks.graph).",
         "properties": {
           "edits": {
             "anyOf": [
@@ -2374,7 +2374,7 @@
   },
   "info": {
     "title": "nanoscope",
-    "version": "0.4.0"
+    "version": "0.5.0"
   },
   "openapi": "3.1.0",
   "paths": {
@@ -2467,6 +2467,59 @@
           }
         },
         "summary": "Blocks",
+        "tags": [
+          "blocks"
+        ]
+      }
+    },
+    "/api/blocks/{name}/certify": {
+      "post": {
+        "description": "Check a block of the workspace against the reference it was registered with. It is a job:\nthe file has to be imported to build the block, which only a worker does.",
+        "operationId": "certify_block_api_blocks__name__certify_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "name",
+            "required": true,
+            "schema": {
+              "title": "Name",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "202": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/JobDoc"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "The request cannot be done as asked"
+          },
+          "4XX": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "An error (RFC 9457)"
+          }
+        },
+        "summary": "Certify Block",
         "tags": [
           "blocks"
         ]

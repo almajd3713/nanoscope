@@ -9,6 +9,11 @@ import { Providers } from "../app/providers";
 import { resetSettingsCache } from "../app/settings";
 import { Lesson } from "./Lesson";
 
+function ModelPage() {
+  const { "*": file } = useParams();
+  return <p>model page {file}</p>;
+}
+
 function RunPage() {
   const { "*": ref } = useParams();
   return <p>run page {ref}</p>;
@@ -22,6 +27,7 @@ function renderPage(routes: Parameters<typeof mockApi>[0]) {
         <Routes>
           <Route path="/learn/:path/:lesson" element={<Lesson />} />
           <Route path="/runs/*" element={<RunPage />} />
+          <Route path="/model/*" element={<ModelPage />} />
         </Routes>
       </MemoryRouter>
     </Providers>,
@@ -38,7 +44,7 @@ beforeEach(() => {
 afterEach(() => vi.unstubAllGlobals());
 
 describe("Lesson actions", () => {
-  it("starts the lesson, then shows the starter file read-only", async () => {
+  it("starting the lesson opens its starter file on the model page", async () => {
     let state = "not-started";
     const seen = renderPage({
       "GET /api/curricula/foundations/01-bigram": { body: () => ({ ...lesson01, state }) },
@@ -48,17 +54,27 @@ describe("Lesson actions", () => {
           return { lesson: "foundations/01-bigram", copied: ["lessons/foundations/01-bigram/starter.py"], kept: [], state, policy: "guided", first_start: false, workspace: "lessons/foundations/01-bigram" };
         },
       },
-      "GET /api/files/lessons/foundations/01-bigram/starter.py": {
-        body: { path: "lessons/foundations/01-bigram/starter.py", content: STARTER, etag: "e1" },
-      },
     });
     await screen.findByRole("heading", { name: lesson01.title });
     expect((screen.getByRole("button", { name: "Train" }) as HTMLButtonElement).disabled).toBe(true);
     await userEvent.click(screen.getByRole("button", { name: "Start lesson" }));
-    expect(await screen.findByText(/class MyBigram/)).toBeTruthy();
+    expect(await screen.findByText("model page lessons/foundations/01-bigram/starter.py")).toBeTruthy();
     expect(seen.some((r) => r.method === "POST" && r.path.endsWith("/start"))).toBe(true);
+  });
+
+  it("a started lesson shows its starter file and a way into the model page", async () => {
+    renderPage({
+      "GET /api/curricula/foundations/01-bigram": { body: { ...lesson01, state: "started" } },
+      "GET /api/files/lessons/foundations/01-bigram/starter.py": {
+        body: { path: "lessons/foundations/01-bigram/starter.py", content: STARTER, etag: "e1" },
+      },
+    });
+    expect(await screen.findByText(/class MyBigram/)).toBeTruthy();
     expect(screen.queryByRole("button", { name: "Start lesson" })).toBeNull();
-    expect((screen.getByRole("button", { name: "Train" }) as HTMLButtonElement).disabled).toBe(false);
+    const open = screen.getByRole("link", { name: "Open in the model page" });
+    expect(open.getAttribute("href")).toBe("/model/lessons/foundations/01-bigram/starter.py");
+    await userEvent.click(open);
+    expect(await screen.findByText("model page lessons/foundations/01-bigram/starter.py")).toBeTruthy();
   });
 
   it("Train runs the lesson's model with the level-0 defaults and opens the run page", async () => {

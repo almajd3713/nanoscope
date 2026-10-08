@@ -39,7 +39,7 @@ describe("Shell", () => {
     renderShell("/runs");
     const nav = screen.getByRole("navigation", { name: "Main" });
     const names = within(nav).getAllByRole("link").map((a) => a.textContent);
-    expect(names).toEqual(["Learn", "Runs", "Compare", "Studies", "Hardware", "Components"]);
+    expect(names).toEqual(["Learn", "Models", "Runs", "Compare", "Studies", "Hardware", "Components"]);
     expect(within(nav).getByRole("link", { name: "Runs" }).getAttribute("aria-current")).toBe("page");
     expect(within(nav).getByRole("link", { name: "Learn" }).getAttribute("aria-current")).toBeNull();
     expect(screen.getByText("runs page")).toBeTruthy();

@@ -1,0 +1,757 @@
+{
+ "schema": 1,
+ "nanoscope": "0.4.0",
+ "blocks": [
+  {
+   "name": "Attention",
+   "family": "attention",
+   "tier": "composite",
+   "module": "nanoscope.blocks.attention",
+   "args": [
+    {
+     "name": "n_heads",
+     "type": "int",
+     "required": true
+    },
+    {
+     "name": "n_kv_heads",
+     "type": "int | None",
+     "required": false,
+     "default": null
+    },
+    {
+     "name": "pos",
+     "type": "BlockSpec | nn.Module | None",
+     "required": false,
+     "default": null
+    },
+    {
+     "name": "qk_norm",
+     "type": "bool",
+     "required": false,
+     "default": false
+    },
+    {
+     "name": "window",
+     "type": "int | None",
+     "required": false,
+     "default": null
+    },
+    {
+     "name": "bias",
+     "type": "bool",
+     "required": false,
+     "default": false
+    }
+   ],
+   "doc": "n_heads query heads share n_kv_heads key/value heads (1 = multi-query, n_heads =\nplain multi-head). `pos` is a positional block (RoPE, NoPE) built at the head size;\n`window` limits each query to that many most recent positions.",
+   "reference": "naive_causal_attention",
+   "features": [
+    "gqa",
+    "qk_norm",
+    "sliding_window"
+   ],
+   "user": false,
+   "certified": true,
+   "file": null,
+   "line": null,
+   "lock": {
+    "lockable": true,
+    "locked": false,
+    "lesson": "foundations/04-multi-head",
+    "how": "earned"
+   }
+  },
+  {
+   "name": "Head",
+   "family": "embedding",
+   "tier": "primitive",
+   "module": "nanoscope.blocks.head",
+   "args": [
+    {
+     "name": "vocab_size",
+     "type": "int",
+     "required": true
+    }
+   ],
+   "doc": "x @ W.T with W of shape (vocab_size, d_model). The Decoder shares W with the token\nembedding when tie_weights is on (`head.weight is tok_emb.weight`).",
+   "reference": "tied_head",
+   "features": [
+    "tie_weights"
+   ],
+   "user": false,
+   "certified": true,
+   "file": null,
+   "line": null,
+   "lock": {
+    "lockable": false,
+    "locked": false,
+    "lesson": null,
+    "how": null
+   }
+  },
+  {
+   "name": "LearnedPosition",
+   "family": "embedding",
+   "tier": "primitive",
+   "module": "nanoscope.blocks.embedding",
+   "args": [],
+   "doc": "Adds a learned vector for each position: x[:, t] + table[t].",
+   "reference": "add_learned_position",
+   "features": [],
+   "user": false,
+   "certified": true,
+   "file": null,
+   "line": null,
+   "lock": {
+    "lockable": false,
+    "locked": false,
+    "lesson": null,
+    "how": null
+   }
+  },
+  {
+   "name": "TokenEmbedding",
+   "family": "embedding",
+   "tier": "primitive",
+   "module": "nanoscope.blocks.embedding",
+   "args": [
+    {
+     "name": "vocab_size",
+     "type": "int",
+     "required": true
+    }
+   ],
+   "doc": "Token ids (B, T) to vectors (B, T, d_model): row `id` of a (vocab_size, d_model) table,\nwhich is the same as a one-hot vector times the table.",
+   "reference": "embed_one_hot",
+   "features": [],
+   "user": false,
+   "certified": true,
+   "file": null,
+   "line": null,
+   "lock": {
+    "lockable": false,
+    "locked": false,
+    "lesson": null,
+    "how": null
+   }
+  },
+  {
+   "name": "GELUMLP",
+   "family": "mlp",
+   "tier": "primitive",
+   "module": "nanoscope.blocks.mlp",
+   "args": [
+    {
+     "name": "hidden",
+     "type": "int | None",
+     "required": false,
+     "default": null
+    },
+    {
+     "name": "bias",
+     "type": "bool",
+     "required": false,
+     "default": false
+    }
+   ],
+   "doc": "gelu(x W1) W2 with hidden size `hidden` (default 4 * d_model).",
+   "reference": "gelu",
+   "features": [],
+   "user": false,
+   "certified": true,
+   "file": null,
+   "line": null,
+   "lock": {
+    "lockable": false,
+    "locked": false,
+    "lesson": null,
+    "how": null
+   }
+  },
+  {
+   "name": "SwiGLU",
+   "family": "mlp",
+   "tier": "composite",
+   "module": "nanoscope.blocks.mlp",
+   "args": [
+    {
+     "name": "hidden",
+     "type": "int | None",
+     "required": false,
+     "default": null
+    }
+   ],
+   "doc": "silu(x W1) * (x W3), then W2. The default hidden size is 8/3 * d_model rounded up to\na multiple of 8, which keeps the parameter count of a 4 * d_model GELU MLP.",
+   "reference": "swiglu",
+   "features": [
+    "swiglu"
+   ],
+   "user": false,
+   "certified": true,
+   "file": null,
+   "line": null,
+   "lock": {
+    "lockable": true,
+    "locked": true,
+    "lesson": "modern-block/03-swiglu",
+    "how": null
+   }
+  },
+  {
+   "name": "LayerNorm",
+   "family": "norm",
+   "tier": "primitive",
+   "module": "nanoscope.blocks.norm",
+   "args": [
+    {
+     "name": "bias",
+     "type": "bool",
+     "required": false,
+     "default": true
+    },
+    {
+     "name": "eps",
+     "type": "float",
+     "required": false,
+     "default": 1e-05
+    }
+   ],
+   "doc": "Subtract the mean, divide by the standard deviation, scale (and shift with a bias).",
+   "reference": "layer_norm",
+   "features": [],
+   "user": false,
+   "certified": true,
+   "file": null,
+   "line": null,
+   "lock": {
+    "lockable": false,
+    "locked": false,
+    "lesson": null,
+    "how": null
+   }
+  },
+  {
+   "name": "RMSNorm",
+   "family": "norm",
+   "tier": "composite",
+   "module": "nanoscope.blocks.norm",
+   "args": [
+    {
+     "name": "eps",
+     "type": "float",
+     "required": false,
+     "default": 1e-06
+    }
+   ],
+   "doc": "LayerNorm without centering or bias: x / rms(x) * weight.",
+   "reference": "rms_norm",
+   "features": [],
+   "user": false,
+   "certified": true,
+   "file": null,
+   "line": null,
+   "lock": {
+    "lockable": true,
+    "locked": false,
+    "lesson": "modern-block/01-rmsnorm",
+    "how": "earned"
+   }
+  },
+  {
+   "name": "NoPE",
+   "family": "positional",
+   "tier": "primitive",
+   "module": "nanoscope.blocks.positional",
+   "args": [],
+   "doc": "No positional signal at all: the causal mask alone tells attention about order.",
+   "reference": null,
+   "features": [],
+   "user": false,
+   "certified": false,
+   "file": null,
+   "line": null,
+   "lock": {
+    "lockable": false,
+    "locked": false,
+    "lesson": null,
+    "how": null
+   }
+  },
+  {
+   "name": "RoPE",
+   "family": "positional",
+   "tier": "composite",
+   "module": "nanoscope.blocks.positional",
+   "args": [
+    {
+     "name": "base",
+     "type": "float",
+     "required": false,
+     "default": 10000.0
+    }
+   ],
+   "doc": "Rotate each (x[i], x[i + D/2]) pair by position * theta_i, so a query-key dot product\ndepends only on how far apart the two positions are.",
+   "reference": "naive_rope",
+   "features": [
+    "rope"
+   ],
+   "user": false,
+   "certified": true,
+   "file": null,
+   "line": null,
+   "lock": {
+    "lockable": true,
+    "locked": true,
+    "lesson": "modern-block/02-rope",
+    "how": null
+   }
+  },
+  {
+   "name": "Activation",
+   "family": "primitive",
+   "tier": "primitive",
+   "module": "nanoscope.blocks.primitives",
+   "args": [
+    {
+     "name": "kind",
+     "type": "str",
+     "required": false,
+     "default": "gelu"
+    }
+   ],
+   "doc": "gelu (the tanh form GPT-2 uses), silu or relu.",
+   "reference": "gelu",
+   "features": [],
+   "user": false,
+   "certified": true,
+   "file": null,
+   "line": null,
+   "lock": {
+    "lockable": false,
+    "locked": false,
+    "lesson": null,
+    "how": null
+   }
+  },
+  {
+   "name": "CausalMask",
+   "family": "primitive",
+   "tier": "primitive",
+   "module": "nanoscope.blocks.primitives",
+   "args": [],
+   "doc": "Scores (..., T, S): positions a query may not see (key after query) become -inf.",
+   "reference": "causal_mask",
+   "features": [],
+   "user": false,
+   "certified": true,
+   "file": null,
+   "line": null,
+   "lock": {
+    "lockable": false,
+    "locked": false,
+    "lesson": null,
+    "how": null
+   }
+  },
+  {
+   "name": "Linear",
+   "family": "primitive",
+   "tier": "primitive",
+   "module": "nanoscope.blocks.primitives",
+   "args": [
+    {
+     "name": "in_features",
+     "type": "int | None",
+     "required": false,
+     "default": null
+    },
+    {
+     "name": "out_features",
+     "type": "int | None",
+     "required": false,
+     "default": null
+    },
+    {
+     "name": "bias",
+     "type": "bool",
+     "required": false,
+     "default": false
+    }
+   ],
+   "doc": "x @ W.T (+ b), from `in_features` to `out_features` (both default to d_model).",
+   "reference": "matmul",
+   "features": [],
+   "user": false,
+   "certified": true,
+   "file": null,
+   "line": null,
+   "lock": {
+    "lockable": false,
+    "locked": false,
+    "lesson": null,
+    "how": null
+   }
+  },
+  {
+   "name": "MergeHeads",
+   "family": "primitive",
+   "tier": "primitive",
+   "module": "nanoscope.blocks.primitives",
+   "args": [],
+   "doc": "(B, n_heads, T, D) to (B, T, n_heads * D); the inverse of SplitHeads.",
+   "reference": null,
+   "features": [],
+   "user": false,
+   "certified": false,
+   "file": null,
+   "line": null,
+   "lock": {
+    "lockable": false,
+    "locked": false,
+    "lesson": null,
+    "how": null
+   }
+  },
+  {
+   "name": "ScaledDotScores",
+   "family": "primitive",
+   "tier": "primitive",
+   "module": "nanoscope.blocks.primitives",
+   "args": [],
+   "doc": "q @ k.T / sqrt(head_dim) for (B, H, T, D) queries and keys: (B, H, T, S).",
+   "reference": "naive_causal_attention",
+   "features": [],
+   "user": false,
+   "certified": true,
+   "file": null,
+   "line": null,
+   "lock": {
+    "lockable": false,
+    "locked": false,
+    "lesson": null,
+    "how": null
+   }
+  },
+  {
+   "name": "Softmax",
+   "family": "primitive",
+   "tier": "primitive",
+   "module": "nanoscope.blocks.primitives",
+   "args": [],
+   "doc": "exp / sum(exp) over the last dimension.",
+   "reference": "softmax",
+   "features": [],
+   "user": false,
+   "certified": true,
+   "file": null,
+   "line": null,
+   "lock": {
+    "lockable": false,
+    "locked": false,
+    "lesson": null,
+    "how": null
+   }
+  },
+  {
+   "name": "SplitHeads",
+   "family": "primitive",
+   "tier": "primitive",
+   "module": "nanoscope.blocks.primitives",
+   "args": [
+    {
+     "name": "n_heads",
+     "type": "int",
+     "required": true
+    }
+   ],
+   "doc": "(B, T, n_heads * D) to (B, n_heads, T, D).",
+   "reference": null,
+   "features": [],
+   "user": false,
+   "certified": false,
+   "file": null,
+   "line": null,
+   "lock": {
+    "lockable": false,
+    "locked": false,
+    "lesson": null,
+    "how": null
+   }
+  },
+  {
+   "name": "WeightedSum",
+   "family": "primitive",
+   "tier": "primitive",
+   "module": "nanoscope.blocks.primitives",
+   "args": [],
+   "doc": "Attention weights (B, H, T, S) times values (B, H, S, D): (B, H, T, D).",
+   "reference": "weighted_sum",
+   "features": [],
+   "user": false,
+   "certified": true,
+   "file": null,
+   "line": null,
+   "lock": {
+    "lockable": false,
+    "locked": false,
+    "lesson": null,
+    "how": null
+   }
+  },
+  {
+   "name": "Block",
+   "family": "structure",
+   "tier": "composite",
+   "module": "nanoscope.blocks.structure",
+   "args": [
+    {
+     "name": "norm",
+     "type": "BlockSpec",
+     "required": true
+    },
+    {
+     "name": "attn",
+     "type": "BlockSpec",
+     "required": true
+    },
+    {
+     "name": "mlp",
+     "type": "BlockSpec",
+     "required": true
+    },
+    {
+     "name": "order",
+     "type": "str",
+     "required": false,
+     "default": "pre"
+    }
+   ],
+   "doc": "pre:  x = x + attn(norm1(x)); x = x + mlp(norm2(x))\npost: x = norm1(x + attn(x));   x = norm2(x + mlp(x))\n\n`norm` is one spec, built twice so the two norms have their own weights.",
+   "reference": "residual",
+   "features": [
+    "post_norm"
+   ],
+   "user": false,
+   "certified": true,
+   "file": null,
+   "line": null,
+   "lock": {
+    "lockable": true,
+    "locked": false,
+    "lesson": "foundations/05-block",
+    "how": "earned"
+   }
+  },
+  {
+   "name": "Decoder",
+   "family": "structure",
+   "tier": "composite",
+   "module": "nanoscope.blocks.structure",
+   "args": [
+    {
+     "name": "vocab_size",
+     "type": "int",
+     "required": true
+    },
+    {
+     "name": "context_length",
+     "type": "int",
+     "required": true
+    },
+    {
+     "name": "d_model",
+     "type": "int",
+     "required": true
+    },
+    {
+     "name": "n_layers",
+     "type": "int",
+     "required": true
+    },
+    {
+     "name": "block",
+     "type": "BlockSpec | None",
+     "required": false,
+     "default": null
+    },
+    {
+     "name": "final_norm",
+     "type": "BlockSpec | None",
+     "required": false,
+     "default": null
+    },
+    {
+     "name": "pos_emb",
+     "type": "BlockSpec | None",
+     "required": false,
+     "default": null
+    },
+    {
+     "name": "tie_weights",
+     "type": "bool",
+     "required": false,
+     "default": true
+    },
+    {
+     "name": "z_loss",
+     "type": "float",
+     "required": false,
+     "default": 0.0
+    },
+    {
+     "name": "pattern",
+     "type": "list[BlockSpec] | None",
+     "required": false,
+     "default": null
+    }
+   ],
+   "doc": "Token embedding, `n_layers` copies of `block`, a final norm and the output head.\n\n`pattern=[a, b]` instead of `block` repeats a list of block specs through the layers\n(a, b, a, b, ...), e.g. sliding-window and global attention layers.\n`pos_emb` (e.g. LearnedPosition()) is added after the token embedding; leave it out when\nattention carries the positions (RoPE). Like every model it returns logits, or\n`(logits, aux_loss)` when `z_loss` is set: the z-loss keeps the softmax normaliser near 1.\nBiases start at zero and matrices at N(0, 0.02), and each layer's output projections at\n0.02 / sqrt(2 * n_layers) so the residual stream does not grow with depth.",
+   "reference": null,
+   "features": [
+    "tie_weights",
+    "z_loss"
+   ],
+   "user": false,
+   "certified": false,
+   "file": null,
+   "line": null,
+   "lock": {
+    "lockable": true,
+    "locked": true,
+    "lesson": "foundations/06-gpt2",
+    "how": null
+   }
+  },
+  {
+   "name": "Residual",
+   "family": "structure",
+   "tier": "primitive",
+   "module": "nanoscope.blocks.composite",
+   "args": [
+    {
+     "name": "inner",
+     "type": "BlockSpec | nn.Module",
+     "required": true
+    }
+   ],
+   "doc": "x + inner(x).",
+   "reference": "residual",
+   "features": [],
+   "user": false,
+   "certified": true,
+   "file": null,
+   "line": null,
+   "lock": {
+    "lockable": false,
+    "locked": false,
+    "lesson": null,
+    "how": null
+   }
+  },
+  {
+   "name": "AttentionTemplate",
+   "family": "template",
+   "tier": "primitive",
+   "module": "nanoscope.blocks.templates.attention",
+   "args": [
+    {
+     "name": "q",
+     "type": "BlockSpec",
+     "required": true
+    },
+    {
+     "name": "k",
+     "type": "BlockSpec",
+     "required": true
+    },
+    {
+     "name": "v",
+     "type": "BlockSpec",
+     "required": true
+    },
+    {
+     "name": "scores",
+     "type": "BlockSpec",
+     "required": true
+    },
+    {
+     "name": "mask",
+     "type": "BlockSpec",
+     "required": true
+    },
+    {
+     "name": "normalize",
+     "type": "BlockSpec",
+     "required": true
+    },
+    {
+     "name": "mix",
+     "type": "BlockSpec",
+     "required": true
+    },
+    {
+     "name": "out",
+     "type": "BlockSpec",
+     "required": true
+    }
+   ],
+   "doc": "Single-head causal attention on (B, T, d_model):\n\n    q, k, v = q(x), k(x), v(x)             three projections\n    s = scores(q, k)                       how much each query likes each key\n    s = mask(s)                            hide the future\n    w = normalize(s)                       turn scores into weights that sum to 1\n    y = mix(w, v)                          the weighted sum of the values\n    return out(y)                          project back\n\nFill it with `Linear()`, `ScaledDotScores()`, `CausalMask()`, `Softmax()` and\n`WeightedSum()` and it matches `naive_causal_attention`.",
+   "reference": "naive_causal_attention",
+   "features": [],
+   "user": false,
+   "certified": true,
+   "file": null,
+   "line": null,
+   "lock": {
+    "lockable": false,
+    "locked": false,
+    "lesson": null,
+    "how": null
+   }
+  },
+  {
+   "name": "BlockTemplate",
+   "family": "template",
+   "tier": "primitive",
+   "module": "nanoscope.blocks.templates.block",
+   "args": [
+    {
+     "name": "norm1",
+     "type": "BlockSpec",
+     "required": true
+    },
+    {
+     "name": "attn",
+     "type": "BlockSpec",
+     "required": true
+    },
+    {
+     "name": "norm2",
+     "type": "BlockSpec",
+     "required": true
+    },
+    {
+     "name": "mlp",
+     "type": "BlockSpec",
+     "required": true
+    }
+   ],
+   "doc": "Pre-norm transformer layer: the residual adds are written here, the parts are slots.\n\n    x = x + attn(norm1(x))\n    x = x + mlp(norm2(x))\n\nThere are two norm slots (`norm1`, `norm2`) so the two norms get separate weights, as in\n`Block`. Fill them with `RMSNorm()`, an attention block and an MLP block.",
+   "reference": "residual",
+   "features": [],
+   "user": false,
+   "certified": true,
+   "file": null,
+   "line": null,
+   "lock": {
+    "lockable": false,
+    "locked": false,
+    "lesson": null,
+    "how": null
+   }
+  }
+ ],
+ "errors": [],
+ "policy": "guided"
+}

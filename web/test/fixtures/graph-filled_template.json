@@ -1,0 +1,180 @@
+{
+  "schema": 1,
+  "nanoscope": "0.4.0",
+  "path": "tests/fixtures/graphs/filled_template.py",
+  "classes": [
+    {
+      "name": "OneHead",
+      "kind": "filled",
+      "line": 4,
+      "end_line": 11,
+      "span": {
+        "line": 4,
+        "col": 0,
+        "end_line": 11,
+        "end_col": 9
+      },
+      "bases": [
+        "AttentionTemplate"
+      ],
+      "params": [
+        {
+          "name": "d_model",
+          "annotation": null,
+          "has_default": false
+        },
+        {
+          "name": "context_length",
+          "annotation": null,
+          "has_default": false
+        }
+      ],
+      "args": {
+        "d_model": {
+          "kind": "param",
+          "name": "d_model",
+          "span": {
+            "line": 7,
+            "col": 12,
+            "end_line": 7,
+            "end_col": 19
+          }
+        },
+        "context_length": {
+          "kind": "param",
+          "name": "context_length",
+          "span": {
+            "line": 7,
+            "col": 21,
+            "end_line": 7,
+            "end_col": 35
+          }
+        },
+        "q": {
+          "kind": "block",
+          "block": "Linear",
+          "span": {
+            "line": 8,
+            "col": 14,
+            "end_line": 8,
+            "end_col": 22
+          },
+          "args": {},
+          "family": "primitive",
+          "tier": "primitive"
+        },
+        "k": {
+          "kind": "block",
+          "block": "Linear",
+          "span": {
+            "line": 8,
+            "col": 26,
+            "end_line": 8,
+            "end_col": 34
+          },
+          "args": {},
+          "family": "primitive",
+          "tier": "primitive"
+        },
+        "v": {
+          "kind": "block",
+          "block": "Linear",
+          "span": {
+            "line": 8,
+            "col": 38,
+            "end_line": 8,
+            "end_col": 46
+          },
+          "args": {},
+          "family": "primitive",
+          "tier": "primitive"
+        },
+        "scores": {
+          "kind": "block",
+          "block": "ScaledDotScores",
+          "span": {
+            "line": 9,
+            "col": 19,
+            "end_line": 9,
+            "end_col": 36
+          },
+          "args": {},
+          "family": "primitive",
+          "tier": "primitive"
+        },
+        "mask": {
+          "kind": "literal",
+          "value": null,
+          "span": {
+            "line": 9,
+            "col": 43,
+            "end_line": 9,
+            "end_col": 47
+          }
+        },
+        "normalize": {
+          "kind": "block",
+          "block": "Softmax",
+          "span": {
+            "line": 9,
+            "col": 59,
+            "end_line": 9,
+            "end_col": 68
+          },
+          "args": {},
+          "family": "primitive",
+          "tier": "primitive"
+        },
+        "mix": {
+          "kind": "literal",
+          "value": null,
+          "span": {
+            "line": 10,
+            "col": 16,
+            "end_line": 10,
+            "end_col": 20
+          }
+        },
+        "out": {
+          "kind": "block",
+          "block": "Linear",
+          "span": {
+            "line": 10,
+            "col": 26,
+            "end_line": 10,
+            "end_col": 34
+          },
+          "args": {},
+          "family": "primitive",
+          "tier": "primitive"
+        }
+      },
+      "init_span": {
+        "line": 5,
+        "col": 4,
+        "end_line": 11,
+        "end_col": 9
+      },
+      "call_span": {
+        "line": 6,
+        "col": 8,
+        "end_line": 11,
+        "end_col": 9
+      },
+      "template": "AttentionTemplate",
+      "slots": [
+        "q",
+        "k",
+        "v",
+        "scores",
+        "mask",
+        "normalize",
+        "mix",
+        "out"
+      ],
+      "representable": true,
+      "reason": null,
+      "reason_line": null
+    }
+  ]
+}

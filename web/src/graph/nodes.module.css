@@ -1,0 +1,135 @@
+.node {
+  box-sizing: border-box;
+  width: 232px;
+  display: grid;
+  gap: 2px;
+  padding: var(--space-2) var(--space-3);
+  background: var(--surface-raised);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-2);
+  color: var(--ink);
+}
+
+.selected {
+  border-color: var(--accent);
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+}
+
+.over {
+  border-color: var(--accent);
+  background: var(--accent-soft);
+}
+
+.opaque {
+  background: var(--surface-sunken);
+  border-style: dashed;
+}
+
+.fixed {
+  background: var(--surface);
+}
+
+.head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--space-2);
+}
+
+.name {
+  font-family: var(--font-mono);
+  font-weight: 500;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.meta {
+  color: var(--ink-muted);
+}
+
+.args {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  font-family: var(--font-mono);
+  color: var(--ink-muted);
+}
+
+.group {
+  box-sizing: border-box;
+  border: 1px solid var(--line-strong);
+  border-radius: var(--radius-3);
+  background: var(--surface-sunken);
+  padding: var(--space-2) var(--space-3);
+  color: var(--ink-muted);
+}
+
+.lockedNode {
+  border-style: dashed;
+  background: var(--surface);
+  color: var(--ink-muted);
+}
+
+.trace {
+  color: var(--ink-muted);
+  font-family: var(--font-mono);
+}
+
+.research {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  color: var(--ink-muted);
+}
+
+.opaqueNote {
+  display: grid;
+  gap: var(--space-1);
+  justify-items: start;
+}
+
+.groupHead {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.spacer {
+  flex: 1;
+}
+
+.chips {
+  display: inline-flex;
+  gap: var(--space-2);
+}
+
+.chip {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  font-family: var(--font-mono);
+}
+
+.swatch {
+  width: 14px;
+  height: 14px;
+  border: 1px solid var(--line-strong);
+  border-radius: var(--radius-1);
+}
+
+.step {
+  width: var(--control-sm);
+  height: var(--control-sm);
+  border: 1px solid var(--line-strong);
+  border-radius: var(--radius-2);
+  background: var(--surface-raised);
+  color: var(--ink);
+  cursor: pointer;
+}
+
+.step:focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: 2px;
+}

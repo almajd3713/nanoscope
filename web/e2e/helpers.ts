@@ -29,3 +29,27 @@ export class Clicks {
     await target.click();
   }
 }
+
+// Run a lesson's check and wait for its result, the way the Run the check button does.
+export async function checkLesson(request: APIRequestContext, lesson: string): Promise<{ passed: boolean }> {
+  const queued = await request.post(`/api/curricula/${lesson}/check`, { data: { variant: "cpu" } });
+  expect(queued.ok(), await queued.text()).toBe(true);
+  const { id } = (await queued.json()) as { id: number };
+  let job: { state: string; result: { passed: boolean } | null; error: string | null } | null = null;
+  await expect
+    .poll(
+      async () => {
+        job = (await (await request.get(`/api/jobs/${id}`)).json()) as typeof job;
+        return job?.state;
+      },
+      { timeout: 120_000 },
+    )
+    .toMatch(/done|failed/);
+  expect(job!.state, job!.error ?? "").toBe("done");
+  return { passed: job!.result!.passed };
+}
+
+// A workspace file's text.
+export async function readFile(request: APIRequestContext, path: string): Promise<string> {
+  return ((await (await request.get(`/api/files/${path}`)).json()) as { content: string }).content;
+}

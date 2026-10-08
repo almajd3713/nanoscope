@@ -59,6 +59,10 @@ def default_static_dir() -> Path:
     return Path(__file__).parent / "static"
 
 
+ASSET_SUFFIXES = {".js", ".mjs", ".css", ".map", ".woff", ".woff2", ".ttf", ".png", ".jpg", ".svg",
+                  ".ico", ".webp", ".json", ".txt", ".wasm", ".webmanifest"}
+
+
 def install_spa(app: FastAPI, folder: Path) -> None:
     """Serve a built single-page app at `/`: real files as they are, and `index.html` for any
     other path without an extension, so client-side routes survive a reload. `/api` stays the
@@ -75,7 +79,9 @@ def install_spa(app: FastAPI, folder: Path) -> None:
         candidate = (root / path).resolve()
         if path and candidate.is_file() and candidate.is_relative_to(root):
             return FileResponse(candidate)
-        if "." in Path(path).name:  # a missing asset is a 404, not the app
+        # a missing asset is a 404, not the app; but a client route may end in `.py` (the model
+        # page of a workspace file), so only the app's own kinds of file count as assets
+        if path.startswith("assets/") or Path(path).suffix.lower() in ASSET_SUFFIXES:
             return problem(404, f"no file {path}", request)
         return FileResponse(index, headers={"Cache-Control": "no-cache"})
 

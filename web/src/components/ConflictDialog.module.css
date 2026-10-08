@@ -1,0 +1,28 @@
+.diff {
+  margin: 0;
+  max-height: 320px;
+  overflow: auto;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-2);
+  background: var(--surface);
+}
+
+.line {
+  display: block;
+  padding: 0 var(--space-2);
+  white-space: pre;
+}
+
+.add {
+  background: var(--diff-add-soft);
+  color: var(--diff-add);
+}
+
+.del {
+  background: var(--diff-del-soft);
+  color: var(--diff-del);
+}
+
+.hunk {
+  color: var(--ink-muted);
+}

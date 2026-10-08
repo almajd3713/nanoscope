@@ -1,0 +1,63 @@
+.canvas {
+  display: grid;
+  gap: var(--space-3);
+  align-content: start;
+}
+
+.template {
+  display: grid;
+  gap: var(--space-2);
+  padding: var(--space-3);
+  background: var(--surface-sunken);
+  border: 1px solid var(--line-strong);
+  border-radius: var(--radius-3);
+}
+
+.template h3 {
+  margin: 0;
+  font-family: var(--font-mono);
+}
+
+.slots {
+  display: grid;
+  gap: var(--space-2);
+  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+}
+
+.slot {
+  display: grid;
+  gap: 2px;
+  padding: var(--space-2) var(--space-3);
+  background: var(--surface-raised);
+  border: 1px dashed var(--line-strong);
+  border-radius: var(--radius-2);
+}
+
+.filled {
+  border-style: solid;
+  border-color: var(--line);
+}
+
+.over {
+  border-color: var(--accent);
+  background: var(--accent-soft);
+}
+
+.row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2);
+}
+
+.name {
+  font-family: var(--font-mono);
+}
+
+.muted {
+  color: var(--ink-muted);
+}
+
+.nested {
+  grid-column: 1 / -1;
+}

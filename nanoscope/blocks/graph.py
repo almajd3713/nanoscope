@@ -12,6 +12,10 @@ Each `Decoder` or `Composite` subclass in the file becomes a class entry. A `Dec
     opaque    a call to anything else; shown, but its inside is not editable
     expr      any other expression, kept as source text
 
+A class that fills a lesson template (`class OneHead(AttentionTemplate)` whose `__init__` only
+calls `super().__init__(d_model, context_length, q=Linear(), ...)`) has kind "filled": its slots are
+the arguments, edited like a Decoder's.
+
 A class with a statement outside this subset is code-only: it still appears, with the reason
 and the line. Every node carries its source span (1-based lines, 0-based columns), which
 `emit` uses to patch the file and `describe` uses to point at a line.
@@ -32,6 +36,7 @@ from nanoscope import __version__
 
 BLOCKS_MODULE = "nanoscope.blocks"
 BASES = {"Decoder": "decoder", "Composite": "composite"}
+TEMPLATE_PARAMS = ["d_model", "context_length"]  # what a Composite takes before its slots
 
 
 def _known_blocks() -> dict[str, registry.BlockInfo]:
@@ -107,6 +112,10 @@ class _Parser:
         module, _, last = name.rpartition(".")
         if last in BASES and (module == BLOCKS_MODULE or module.startswith(BLOCKS_MODULE + ".")):
             return BASES[last]
+        info = self.blocks.get(last)
+        if info and info.family == "template" and (
+                module == BLOCKS_MODULE or module.startswith(BLOCKS_MODULE + ".")):
+            return "filled"
         return None
 
     # -- argument values -------------------------------------------------------------------
@@ -172,7 +181,12 @@ class _Parser:
                 "bases": [_dotted(b) or ast.unparse(b) for b in node.bases],
             }
             try:
-                entry.update(self.decoder(node) if kind == "decoder" else self.composite(node))
+                if kind == "decoder":
+                    entry.update(self.decoder(node))
+                elif kind == "filled":
+                    entry.update(self.filled(node))
+                else:
+                    entry.update(self.composite(node))
                 entry.update(representable=True, reason=None, reason_line=None)
             except _CodeOnly as why:
                 entry.update(representable=False, reason=why.reason, reason_line=why.line)
@@ -187,6 +201,22 @@ class _Parser:
         return body
 
     def decoder(self, node: ast.ClassDef) -> dict[str, Any]:
+        return self._init_args(node, _decoder_params())
+
+    def filled(self, node: ast.ClassDef) -> dict[str, Any]:
+        """A class that fills a template: its slots are keyword arguments of super().__init__."""
+        out = self._init_args(node, TEMPLATE_PARAMS)
+        template = ""
+        for base in node.bases:
+            last = (_dotted(base) or "").rsplit(".", 1)[-1]
+            if last in self.blocks and self.blocks[last].family == "template":
+                template = last
+        info = self.blocks[template]
+        out["template"] = template
+        out["slots"] = list(getattr(importlib.import_module(info.module), template).SLOTS)
+        return out
+
+    def _init_args(self, node: ast.ClassDef, positional: list[str]) -> dict[str, Any]:
         init: ast.FunctionDef | None = None
         for stmt in self._body(node):
             if isinstance(stmt, ast.FunctionDef) and stmt.name == "__init__" and init is None:
@@ -200,8 +230,7 @@ class _Parser:
             return {"params": [], "args": {}, "init_span": None}
         params = _signature(init)
         names = {p["name"] for p in params}
-        call = self._super_call(init)
-        positional = _decoder_params()
+        call = self._super_call(init, positional)
         args: dict[str, Any] = {}
         for arg, name in zip(call.args, positional, strict=False):
             args[name] = self.value(arg, names)
@@ -211,7 +240,7 @@ class _Parser:
         return {"params": params, "args": args, "init_span": _span(init),
                 "call_span": _span(call)}
 
-    def _super_call(self, init: ast.FunctionDef) -> ast.Call:
+    def _super_call(self, init: ast.FunctionDef, positional: list[str]) -> ast.Call:
         body = init.body
         if body and isinstance(body[0], ast.Expr) and isinstance(body[0].value, ast.Constant) \
                 and isinstance(body[0].value.value, str):
@@ -228,7 +257,7 @@ class _Parser:
         if len(calls) > 1:
             raise _CodeOnly("__init__ calls super().__init__ more than once", calls[1].lineno)
         call = calls[0]
-        if len(call.args) > len(_decoder_params()) or any(
+        if len(call.args) > len(positional) or any(
                 isinstance(a, ast.Starred) for a in call.args) or any(
                 k.arg is None for k in call.keywords):
             raise _CodeOnly("super().__init__ takes *args or **kwargs", call.lineno)
@@ -332,6 +361,17 @@ def parse(path: str | Path) -> dict[str, Any]:
 #   {"op": "set_arg", "class": "MyLM", "path": ["block", "attn"], "arg": "n_heads", "value": node}
 #   {"op": "remove_arg", "class": "MyLM", "path": ["block", "attn"], "arg": "window"}
 #   {"op": "replace_block", "class": "MyLM", "path": ["block", "attn", "pos"], "node": node}
+#
+# Structural edits (the model page's stack and slot edits):
+#
+#   {"op": "add_layer", "class": "MyLM"}                      n_layers + 1 (a literal)
+#   {"op": "add_layer", "class": "MyLM", "path": ["pattern"], "node": node, "index": 1}
+#                                                             insert into a list (index: the end)
+#   {"op": "remove_layer", "class": "MyLM"}                   n_layers - 1 (never below 1)
+#   {"op": "remove_layer", "class": "MyLM", "path": ["pattern"], "index": 1}
+#   {"op": "set_pattern", "class": "MyLM", "items": [node, ...]}   pattern=[...], drops block=
+#   {"op": "fill_slot", "class": "MyLM", "path": ["block", "attn"], "slot": "mask", "node": node}
+#                                                             (node None empties the slot)
 
 DERIVED = ("span", "family", "tier", "local", "reason")
 
@@ -361,9 +401,10 @@ def diff(old: dict[str, Any], new: dict[str, Any]) -> list[dict[str, Any]]:
         if not before["representable"]:
             raise ValueError(f"{cls['name']} is code-only ({before['reason']}), so its graph "
                              "can't be edited; edit the source")
-        if before["kind"] != "decoder" or strip_spans(before.get("args")) == strip_spans(
-                cls.get("args")):
-            raise ValueError(f"{cls['name']}: only the arguments of a Decoder can be edited")
+        same_args = strip_spans(before.get("args")) == strip_spans(cls.get("args"))
+        if before["kind"] not in ("decoder", "filled") or same_args:
+            raise ValueError(f"{cls['name']}: only the arguments of a Decoder or a filled "
+                             "template can be edited")
         _diff_args(cls["name"], before["args"], cls["args"], [], edits)
     return edits
 
@@ -389,6 +430,10 @@ def _diff_node(cls: str, old: Any, new: Any, owner: list[Any], name: str,
     if old["kind"] == new["kind"] == "block" and old["block"] == new["block"] \
             and bool(old.get("local")) == bool(new.get("local")):
         _diff_args(cls, old["args"], new["args"], here, edits)
+    elif old["kind"] == new["kind"] == "list" and _one_item_apart(old, new) is not None:
+        op, index, node = _one_item_apart(old, new)  # type: ignore[misc]
+        edits.append({"op": op, "class": cls, "path": here, "index": index,
+                      **({"node": node} if node is not None else {})})
     elif old["kind"] == new["kind"] == "list" and len(old["items"]) == len(new["items"]):
         for i, (a, b) in enumerate(zip(old["items"], new["items"], strict=True)):
             if strip_spans(a) == strip_spans(b):
@@ -402,6 +447,21 @@ def _diff_node(cls: str, old: Any, new: Any, owner: list[Any], name: str,
         edits.append({"op": "replace_block", "class": cls, "path": here, "node": new})
     else:
         edits.append({"op": "set_arg", "class": cls, "path": owner, "arg": name, "value": new})
+
+
+def _one_item_apart(old: dict[str, Any], new: dict[str, Any]) -> tuple[str, int, Any] | None:
+    """("add_layer", i, node) or ("remove_layer", i, None) when the lists differ by one item."""
+    a = [strip_spans(x) for x in old["items"]]
+    b = [strip_spans(x) for x in new["items"]]
+    if len(b) == len(a) + 1:
+        for i in range(len(b)):
+            if b[:i] + b[i + 1:] == a:
+                return "add_layer", i, new["items"][i]
+    elif len(b) == len(a) - 1 and b:
+        for i in range(len(a)):
+            if a[:i] + a[i + 1:] == b:
+                return "remove_layer", i, None
+    return None
 
 
 def render(node: dict[str, Any], prefix: str = "") -> str:
@@ -457,26 +517,71 @@ def apply_edits(source: str, edits: list[dict[str, Any]]) -> str:
             raise ValueError(f"no Decoder or Composite class {edit['class']!r} in the file")
         if not cls["representable"]:
             raise ValueError(f"{cls['name']} is code-only ({cls['reason']}); edit the source")
-        if cls["kind"] != "decoder":
+        if cls["kind"] == "composite":
             raise ValueError(f"{cls['name']} is a template; its slots are filled where it is used")
-        module = _apply(cst, module, edit)
+        if edit["op"] == "fill_slot":
+            edit = _fill_slot_as_set_arg(edit, cls, existing)
+        module = _apply(cst, module, edit,
+                        TEMPLATE_PARAMS if cls["kind"] == "filled" else _decoder_params())
     return module.code
 
 
-def _apply(cst: Any, module: Any, edit: dict[str, Any]) -> Any:
+def _fill_slot_as_set_arg(edit: dict[str, Any], cls: dict[str, Any],
+                          existing: dict[str, Any]) -> dict[str, Any]:
+    """A fill_slot is a set_arg on the template's call, once the target is known to be a
+    template with that slot."""
+    target: Any = {"kind": "block", "args": cls["args"]}
+    if cls["kind"] == "filled":  # the class itself is the template
+        target.update(block=cls["template"], family="template")
+    for step in edit.get("path", []):
+        target = target["args"][step] if isinstance(step, str) and target["kind"] == "block" \
+            and step in target["args"] else None
+        if target is None:
+            raise ValueError(f"no argument {step!r} at {_where(edit)}")
+    if target["kind"] != "block" or not (target.get("local") or target.get("family") == "template"):
+        raise ValueError(f"{_where(edit)} is not a template; fill_slot fills template slots")
+    slots = _slots_of(target, existing)
+    if slots is not None and edit["slot"] not in slots:
+        raise ValueError(f"{target['block']} has the slots {', '.join(slots)}, "
+                         f"not {edit['slot']!r}")
+    node = edit.get("node")
+    value = node if node is not None else {"kind": "literal", "value": None, "span": None}
+    return {"op": "set_arg", "class": edit["class"], "path": edit.get("path", []),
+            "arg": edit["slot"], "value": value}
+
+
+def _slots_of(node: dict[str, Any], existing: dict[str, Any]) -> list[str] | None:
+    if node.get("local"):
+        found = next((c for c in existing["classes"] if c["name"] == node["block"]), None)
+        return found.get("slots") if found else None
+    info = next((i for i in registry.all_blocks() if i.name == node["block"]), None)
+    if info is None or info.user:
+        return None
+    cls = getattr(importlib.import_module(info.module), info.name, None)
+    slots = getattr(cls, "SLOTS", None)
+    return list(slots) if slots else None
+
+
+def _apply(cst: Any, module: Any, edit: dict[str, Any], positional: list[str]) -> Any:
     op = edit["op"]
     nodes = {"set_arg": [edit.get("value")], "replace_block": [edit.get("node")],
-             "remove_arg": []}.get(op)
+             "remove_arg": [], "add_layer": [edit.get("node")], "remove_layer": [],
+             "set_pattern": list(edit.get("items") or [])}.get(op)
     if nodes is None:
         raise ValueError(f"unknown edit {op!r}")
     module, prefix = _ensure_imports(cst, module, [n for node in nodes if node
                                                    for n in _block_names(node)])
-    positional = _decoder_params()
-
     def on_call(call: Any, path: list[Any], root: bool) -> Any:
         if not path:
             if op == "replace_block":
                 raise ValueError("replace_block needs a path to the node it replaces")
+            if op in ("add_layer", "remove_layer"):
+                if "node" in edit or "index" in edit:
+                    raise ValueError(f"{op} on a list needs the path of the list "
+                                     f"({_where(edit)} is a call)")
+                return _bump_layers(cst, call, edit, positional if root else [])
+            if op == "set_pattern":
+                return _set_pattern(cst, call, edit, prefix, positional if root else [])
             return _change_arg(cst, call, edit, prefix, positional if root else [])
         step, rest = path[0], path[1:]
         if not isinstance(step, str):
@@ -495,6 +600,8 @@ def _apply(cst: Any, module: Any, edit: dict[str, Any]) -> Any:
 
     def on_value(value: Any, path: list[Any]) -> Any:
         if not path:
+            if op in ("add_layer", "remove_layer") and isinstance(value, (cst.List, cst.Tuple)):
+                return _edit_list(cst, value, edit, prefix)
             if not isinstance(value, cst.Call):
                 raise ValueError(f"{_where(edit)} is not a block call")
             return on_call(value, path, False)
@@ -572,17 +679,103 @@ def _change_arg(cst: Any, call: Any, edit: dict[str, Any], prefix: str,
             raise ValueError(f"{name!r} is positional; it can only be removed from the end")
         args = [a for i, a in enumerate(call.args) if i != index]
         if args and index == len(call.args) - 1:  # the new last argument takes over its tail
-            args[-1] = args[-1].with_changes(comma=call.args[index].comma)
+            args[-1] = _take_tail(cst, args[-1], call.args[index].comma)
         return call.with_changes(args=args)
     value = cst.parse_expression(render(edit["value"], prefix))
     args = list(call.args)
     if index is not None:
         args[index] = args[index].with_changes(value=value)
     else:
-        args.append(cst.Arg(keyword=cst.Name(name), value=value,
-                            equal=cst.AssignEqual(whitespace_before=cst.SimpleWhitespace(""),
-                                                  whitespace_after=cst.SimpleWhitespace(""))))
+        new = cst.Arg(keyword=cst.Name(name), value=value,
+                      equal=cst.AssignEqual(whitespace_before=cst.SimpleWhitespace(""),
+                                            whitespace_after=cst.SimpleWhitespace("")))
+        tail = args[-1].comma if args else cst.MaybeSentinel.DEFAULT
+        if isinstance(tail, cst.Comma):  # a trailing comma (and the newline after it) moves on
+            first = args[0].comma
+            args[-1] = args[-1].with_changes(comma=first if isinstance(first, cst.Comma)
+                                             and len(args) > 1 else cst.Comma(
+                whitespace_after=cst.SimpleWhitespace(" ")))
+            new = new.with_changes(comma=tail)
+        args.append(new)
     return call.with_changes(args=args)
+
+
+def _take_tail(cst: Any, element: Any, tail: Any) -> Any:
+    """`element` (now last) ends with `tail`, the comma the removed last element had, unless its
+    own comma carries a comment: that comment stays."""
+    after: Any = getattr(element.comma, "whitespace_after", None)
+    if isinstance(after, cst.ParenthesizedWhitespace) and after.first_line.comment is not None:
+        return element
+    return element.with_changes(comma=tail)
+
+
+def _bump_layers(cst: Any, call: Any, edit: dict[str, Any], positional: list[str]) -> Any:
+    index = _arg_index(call, "n_layers", positional)
+    if index is None:
+        raise ValueError(f"{edit['class']} has no n_layers argument to change")
+    value = call.args[index].value
+    if not isinstance(value, cst.Integer):
+        raise ValueError(f"n_layers is not a number literal in {edit['class']}; edit the source")
+    now = int(value.value)
+    new = now + 1 if edit["op"] == "add_layer" else now - 1
+    if new < 1:
+        raise ValueError("a model needs at least one layer")
+    args = list(call.args)
+    args[index] = args[index].with_changes(value=value.with_changes(value=str(new)))
+    return call.with_changes(args=args)
+
+
+def _set_pattern(cst: Any, call: Any, edit: dict[str, Any], prefix: str,
+                 positional: list[str]) -> Any:
+    items = edit.get("items")
+    if not items:
+        raise ValueError("a pattern needs at least one block")
+    if _arg_index(call, "block", positional) is not None:
+        call = _change_arg(cst, call, {"op": "remove_arg", "class": edit["class"],
+                                       "arg": "block", "path": []}, prefix, positional)
+    node: dict[str, Any] = {"kind": "list", "items": items, "span": None}
+    before: Any = call.whitespace_before_args
+    if isinstance(before, cst.ParenthesizedWhitespace) and len(items) > 1:
+        # a call written over several lines gets one block per line, indented like its arguments
+        indent = before.last_line.value
+        lines = "".join(f"{indent}    {render(item, prefix)},\n" for item in items)
+        node = {"kind": "expr", "source": f"[\n{lines}{indent}]", "span": None}
+    return _change_arg(cst, call, {"op": "set_arg", "class": edit["class"], "path": [],
+                                   "arg": "pattern", "value": node}, prefix, positional)
+
+
+def _edit_list(cst: Any, value: Any, edit: dict[str, Any], prefix: str) -> Any:
+    elements = list(value.elements)
+    index = edit.get("index")
+    if edit["op"] == "add_layer":
+        if edit.get("node") is None:
+            raise ValueError(f"add_layer on a list needs a node ({_where(edit)})")
+        at = len(elements) if index is None else index
+        if not 0 <= at <= len(elements):
+            raise ValueError(f"no position {index} in the list at {_where(edit)}")
+        new = cst.Element(value=cst.parse_expression(render(edit["node"], prefix)))
+        first = elements[0].comma
+        sep = first if isinstance(first, cst.Comma) and len(elements) > 1 else cst.Comma(
+            whitespace_after=cst.SimpleWhitespace(" "))
+        if at == len(elements):  # the new last item takes the old tail
+            tail = elements[-1].comma
+            elements[-1] = elements[-1].with_changes(comma=sep)
+            new = new.with_changes(comma=tail)
+        else:
+            new = new.with_changes(comma=sep)
+        elements.insert(at, new)
+        return value.with_changes(elements=elements)
+    if index is None or not 0 <= index < len(elements):
+        raise ValueError(f"no item {index} to remove at {_where(edit)}")
+    if len(elements) == 1:
+        raise ValueError(f"the list at {_where(edit)} would be empty; a pattern needs a block")
+    removed = elements.pop(index)
+    if index == len(elements):  # the new last item takes the old tail (trailing comma or none)
+        elements[-1] = _take_tail(cst, elements[-1], removed.comma)
+    if isinstance(value, cst.Tuple) and len(elements) == 1 and \
+            elements[0].comma is cst.MaybeSentinel.DEFAULT:
+        elements[0] = elements[0].with_changes(comma=cst.Comma())
+    return value.with_changes(elements=elements)
 
 
 def _ensure_imports(cst: Any, module: Any, names: list[str]) -> tuple[Any, str]:
