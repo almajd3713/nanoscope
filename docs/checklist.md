@@ -4,7 +4,7 @@ The build list for [`plan-tool.md`](plan-tool.md), sections 4-10, with the decis
 2026-10-05 (plan section 11) applied. Phase numbers follow the plan's section 10. Every
 item is one line, so scripts and agents can grep and edit it.
 
-**Current focus:** P13 GUI MVP 1. The design-system items (P13.38-P13.45) are done. Next: the screens, starting with P13.11 (onboarding) and P13.12 (lessons list), then the screens.
+**Current focus:** P13 GUI MVP 1. The design-system items (P13.38-P13.45) are done. Next: the screens, starting with P13.12 (lessons list), then the screens.
 
 ## Progress
 
@@ -17,7 +17,7 @@ item is one line, so scripts and agents can grep and edit it.
 | P10 | HTTP API (8-10 d) | 47 / 47 | done |
 | P11 | Release prep: PyPI + GHCR (2-3 d) | 17 / 17 | done |
 | P12 | docker-compose (3-4 d) | 20 / 20 | done |
-| P13 | GUI MVP 1: shell, Learn/Tinker screens (12-15 d) | 19 / 50 | in progress |
+| P13 | GUI MVP 1: shell, Learn/Tinker screens (12-15 d) | 20 / 50 | in progress |
 | P14 | GUI MVP 2: model page, drag-and-drop (14-17 d) | 0 / 35 | not started |
 | P15 | GUI Research (10-13 d) | 0 / 30 | not started |
 | P16 | Extend + depth (8-10 d) | 0 / 16 | not started |
@@ -510,7 +510,7 @@ Order: P13.01 and P13.02 first (these items live in `web/` and run in its CI job
 - [x] P13.08 Build the app shell: nav (Learn, Runs, Compare, Studies, Hardware, Components) and a level switch whose choice is kept in localStorage inside try/catch. · files: web/src/app/Shell.tsx (new), web/src/app/level.ts (new) · deps: P13.04, P13.37, P13.38, P13.39, P13.40, P13.43 · done: `pnpm -C web test -- Shell` passes, including when localStorage throws ✓ 2026-10-08 db59cd4: react-router-dom; nav has no Models until P14.34; Settings link and theme toggle included; the queue footer is P13.28; routes are placeholders
 - [x] P13.09 Write `web/src/levels.ts`, the single table of which controls each level shows; hidden fields keep their level-0 defaults and are never sent changed. · files: web/src/levels.ts (new), web/src/levels.test.ts (new) · deps: P13.08 · done: `pnpm -C web test -- levels` passes ✓ 2026-10-08 57a6a3b: controls come from the design system's Levels table; `withoutHidden` resets hidden fields to defaults; later screens add their controls here
 - [x] P13.10 Add an `EquivalentCommand` component that every screen uses to show its CLI/Python equivalent. It renders only when the browser setting "Show command-line equivalents" is on (off by default; kept in localStorage inside try/catch) and takes no space when off. · files: web/src/components/EquivalentCommand.tsx (new) · deps: P13.08 · done: `grep -rL EquivalentCommand web/src/pages --include='*.tsx' --exclude='*.test.tsx'` lists only Login.tsx, and `pnpm -C web test -- EquivalentCommand` covers on, off and a throwing localStorage ✓ 2026-10-08 57a6a3b: browser setting `nanoscope.showCommands`, off by default (`app/settings.ts`); copy writes inside the click handler
-- [ ] P13.11 First-run onboarding: "I'm learning" (guided) or "I know this" (open) calls `POST /api/learn/policy`. · files: web/src/pages/Onboarding.tsx (new) · deps: P13.08, P10.33, P13.37 · done: `pnpm -C web test -- Onboarding` passes
+- [x] P13.11 First-run onboarding: "I'm learning" (guided) or "I know this" (open) calls `POST /api/learn/policy`. · files: web/src/pages/Onboarding.tsx (new) · deps: P13.08, P10.33, P13.37 · done: `pnpm -C web test -- Onboarding` passes ✓ 2026-10-08 382f0f1: route `/welcome` outside the shell; `GET /api/learn/unlocks` gained `first_run` so the SPA can tell (the Lessons page redirects there, P13.12); added Button
 
 ### P13 · Screens
 - [ ] P13.12 Lessons list: paths and lessons with their state, lock marks and CPU/GPU estimates. · files: web/src/pages/Lessons.tsx (new) · deps: P13.08, P10.32, P13.37 · done: `pnpm -C web test -- Lessons` passes
