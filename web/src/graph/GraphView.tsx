@@ -12,11 +12,13 @@ type Props = {
   depth?: Depth;
   selected?: string | null;
   onSelect?: (box: Box | null) => void;
+  // a palette block was dropped on a box
+  onDropBlock?: (box: Box, name: string) => void;
 };
 
 // The model as a diagram. It is a pure function of the parsed class: a file edited elsewhere
 // parses again and the view lays itself out again; no layout is kept anywhere.
-export function GraphView({ cls, depth = "detailed", selected = null, onSelect }: Props) {
+export function GraphView({ cls, depth = "detailed", selected = null, onSelect, onDropBlock }: Props) {
   const flow = useMemo(() => buildFlow(cls), [cls]);
   const [placed, setPlaced] = useState<{ flow: typeof flow; depth: Depth; layout: Layout } | null>(null);
 
@@ -56,7 +58,7 @@ export function GraphView({ cls, depth = "detailed", selected = null, onSelect }
         type: "block",
         position: { x: p.x, y: p.y },
         parentId: b.parent ?? undefined,
-        data: { box: b, depth, selected: selected === b.id },
+        data: { box: b, depth, selected: selected === b.id, onDropBlock },
         draggable: false,
       });
     }

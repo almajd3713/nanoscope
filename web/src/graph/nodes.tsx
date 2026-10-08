@@ -1,20 +1,45 @@
 import { Handle, type NodeProps, Position } from "@xyflow/react";
+import { useState } from "react";
+import { carriesBlock, DRAG_TYPE } from "./dnd";
 import type { Box } from "./flow";
 import type { Depth } from "./layout";
 import styles from "./nodes.module.css";
 
-export type BoxData = { box: Box; depth: Depth; selected: boolean; [key: string]: unknown };
+export type BoxData = {
+  box: Box;
+  depth: Depth;
+  selected: boolean;
+  // a block from the palette was dropped here
+  onDropBlock?: (box: Box, name: string) => void;
+  [key: string]: unknown;
+};
 export type GroupData = { label: string; [key: string]: unknown };
 
 // A box in the model graph: the block's class name in mono, then its slot and family in words.
 // Nodes are neutral: no colour per family; the family is a word.
 export function BlockNodeView({ data }: NodeProps) {
-  const { box, depth, selected } = data as BoxData;
+  const { box, depth, selected, onDropBlock } = data as BoxData;
+  const [over, setOver] = useState(false);
+  const droppable = onDropBlock !== undefined && box.path !== null;
   const shown = depth === "surface" ? [] : box.args.slice(0, 4);
   return (
     <div
-      className={[styles.node, selected && styles.selected, box.kind === "opaque" && styles.opaque, box.kind === "fixed" && styles.fixed].filter(Boolean).join(" ")}
+      className={[styles.node, selected && styles.selected, over && styles.over, box.kind === "opaque" && styles.opaque, box.kind === "fixed" && styles.fixed].filter(Boolean).join(" ")}
       aria-label={`${box.name}${box.slot ? ` in ${box.slot}` : ""}`}
+      onDragOver={droppable ? (e) => {
+        if (!carriesBlock(e)) return;
+        e.preventDefault();
+        e.dataTransfer.dropEffect = "copy";
+        setOver(true);
+      } : undefined}
+      onDragLeave={droppable ? () => setOver(false) : undefined}
+      onDrop={droppable ? (e) => {
+        setOver(false);
+        const name = e.dataTransfer.getData(DRAG_TYPE);
+        if (!name) return;
+        e.preventDefault();
+        onDropBlock?.(box, name);
+      } : undefined}
     >
       <Handle type="target" position={Position.Top} isConnectable={false} />
       <div className={styles.head}>
