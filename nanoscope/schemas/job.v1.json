@@ -298,6 +298,35 @@
           "additionalProperties": false
         }
       }
+    },
+    {
+      "properties": {
+        "kind": {
+          "const": "certify"
+        },
+        "payload": {
+          "type": "object",
+          "properties": {
+            "file": {
+              "type": "string",
+              "minLength": 1
+            },
+            "block": {
+              "type": "string",
+              "minLength": 1
+            },
+            "timeout": {
+              "type": "number",
+              "exclusiveMinimum": 0
+            }
+          },
+          "required": [
+            "file",
+            "block"
+          ],
+          "additionalProperties": false
+        }
+      }
     }
   ]
 }

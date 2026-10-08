@@ -1,6 +1,7 @@
 """The block core: registry, specs, lazy exports. Each block's own tests are added with it."""
 
 import copy
+import json
 import pickle
 
 import pytest
@@ -748,3 +749,98 @@ def test_block_template():
     torch.testing.assert_close(template(x), reference(x), atol=ATOL, rtol=0)
     assert template.norm1 is not template.norm2
     assert template.flops_per_token(8) == reference.flops_per_token(8)
+
+
+GATE_SOURCE = '''
+import torch
+import torch.nn as nn
+from nanoscope.blocks import register_block
+
+
+def naive_gate(x, weight, scale):
+    return x * torch.sigmoid(weight) * scale
+
+
+@register_block(reference=naive_gate, family="mlp")
+class CertGate(nn.Module):
+    def __init__(self, d_model, context_length, scale=2.0):
+        super().__init__()
+        self.weight = nn.Parameter(torch.zeros(d_model))
+        self.scale = scale
+
+    def forward(self, x):
+        return x * torch.sigmoid(self.weight) * self.scale
+
+
+@register_block(reference=naive_gate, family="mlp")
+class CertBadGate(nn.Module):
+    def __init__(self, d_model, context_length, scale=2.0):
+        super().__init__()
+        self.weight = nn.Parameter(torch.zeros(d_model))
+        self.scale = scale
+
+    def forward(self, x):
+        return x * torch.tanh(self.weight) * self.scale
+
+
+@register_block
+class CertNoRef(nn.Module):
+    def __init__(self, d_model, context_length):
+        super().__init__()
+
+    def forward(self, x):
+        return x
+'''
+
+
+def test_certify_passes_fails_and_goes_stale_when_the_source_changes(home, tmp_path):
+    from helpers import assert_valid
+
+    from nanoscope.blocks import certify as cert
+
+    file = tmp_path / "gates.py"
+    file.write_text(GATE_SOURCE)
+    assert cert.state(file, "CertGate") == {"state": "uncertified"}
+
+    ok = cert.certify(file, "CertGate")
+    assert ok["passed"] and ok["max_abs_diff"] <= 1e-5 and ok["reference"] == "naive_gate"
+    assert "matches the reference" in ok["message"]
+    assert cert.state(file, "CertGate")["state"] == "certified"
+    assert_valid("cert", json.loads(cert.cert_path(ok["source_sha256"]).read_text()))
+
+    bad = cert.certify(file, "CertBadGate")
+    assert not bad["passed"] and "differs from the reference" in bad["message"]
+    assert cert.state(file, "CertBadGate")["state"] == "failed"
+
+    none = cert.certify(file, "CertNoRef")
+    assert not none["passed"] and "no reference" in none["message"]
+    with pytest.raises(ValueError, match="registers no block named 'Nope'"):
+        cert.certify(file, "Nope")
+
+    # the badge belongs to the exact source: any edit invalidates it
+    file.write_text(GATE_SOURCE + "\n# touched\n")
+    assert cert.state(file, "CertGate")["state"] == "stale"
+    assert cert.state(file, "CertGate")["passed"] is True  # what it was when last checked
+    again = cert.certify(file, "CertGate")
+    assert again["source_sha256"] != ok["source_sha256"]
+    assert cert.state(file, "CertGate")["state"] == "certified"
+
+
+def test_certify_job_runs_in_a_worker_process_and_records_the_cert(home, tmp_path):
+    from nanoscope import queue
+    from nanoscope.blocks import certify as cert
+    from nanoscope.cli import main
+
+    file = tmp_path / "gates.py"
+    file.write_text(GATE_SOURCE.replace("CertGate", "JobGate").replace("CertBadGate", "JobBad")
+                    .replace("CertNoRef", "JobNoRef"))
+    job_id = queue.enqueue("certify", {"file": str(file), "block": "JobGate"})
+    queue.claim("w", "cpu")
+    with pytest.raises(SystemExit) as stopped:
+        main(["run-job", str(job_id)])
+    assert stopped.value.code == 0
+    result = json.loads(queue.get(job_id)["result"])
+    assert result["passed"] and result["block"] == "JobGate"
+    assert cert.state(file, "JobGate")["state"] == "certified"
+    with pytest.raises(queue.InvalidJob):
+        queue.enqueue("certify", {"file": str(file)})

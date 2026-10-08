@@ -1,0 +1,76 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://nanoscope.dev/schemas/cert.v1.json",
+  "title": "cert.v1",
+  "description": "certs/<source_sha256>.json: the result of checking the user blocks of one file against their registered references. It belongs to that exact source; a changed file has a new hash and so no cert.",
+  "type": "object",
+  "required": [
+    "schema",
+    "nanoscope",
+    "source_sha256",
+    "file",
+    "results"
+  ],
+  "additionalProperties": false,
+  "properties": {
+    "schema": {
+      "const": 1
+    },
+    "nanoscope": {
+      "type": "string"
+    },
+    "source_sha256": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "file": {
+      "type": "string"
+    },
+    "results": {
+      "type": "object",
+      "additionalProperties": {
+        "type": "object",
+        "required": [
+          "passed",
+          "message",
+          "at",
+          "reference",
+          "tolerance",
+          "trials",
+          "max_abs_diff"
+        ],
+        "additionalProperties": false,
+        "properties": {
+          "passed": {
+            "type": "boolean"
+          },
+          "message": {
+            "type": "string"
+          },
+          "at": {
+            "type": "string"
+          },
+          "reference": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "tolerance": {
+            "type": "number"
+          },
+          "trials": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "max_abs_diff": {
+            "type": [
+              "number",
+              "null"
+            ]
+          }
+        }
+      }
+    }
+  }
+}

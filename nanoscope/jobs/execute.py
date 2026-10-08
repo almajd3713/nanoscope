@@ -82,6 +82,12 @@ def _describe(job: Any, payload: dict[str, Any]) -> dict[str, Any]:
                     **payload.get("kwargs", {}))
 
 
+def _certify(job: Any, payload: dict[str, Any]) -> dict[str, Any]:
+    from nanoscope.blocks.certify import certify
+
+    return certify(payload["file"], payload["block"])
+
+
 def _study(job: Any, payload: dict[str, Any]) -> dict[str, Any]:
     """Load a study spec (this imports its models: it runs in a worker, not the API) and put
     every unfinished run on the batch lane."""
@@ -117,7 +123,7 @@ def _sync_hub(job: Any, payload: dict[str, Any]) -> dict[str, Any]:
 
 HANDLERS: dict[str, Callable[[Any, dict[str, Any]], dict[str, Any]]] = {
     "run": _run, "prepare-data": _prepare_data, "bench": _bench, "check": _check,
-    "describe": _describe, "study": _study, "sync-hub": _sync_hub,
+    "describe": _describe, "study": _study, "sync-hub": _sync_hub, "certify": _certify,
 }
 
 
