@@ -440,3 +440,102 @@ def test_template_slot():
     graph["classes"][0]["args"]["block"]["args"]["attn"]["args"]["normalize"] = {
         "kind": "block", "block": "Softmax", "args": {}, "span": None}
     assert emit(graph, after) == after  # same block, nothing to change
+
+
+def test_structural_edits_n_layers_and_pattern_items():
+    source = (FIXTURES / "layer_pattern.py").read_text()
+    # n_layers +/- 1: one changed line
+    more = apply_edits(source, [{"op": "add_layer", "class": "SlidingGlobal"}])
+    ((line, old, new),) = changed_lines(source, more)
+    assert line == 11 and new == old.replace("n_layers=6", "n_layers=7")
+    fewer = apply_edits(more, [{"op": "remove_layer", "class": "SlidingGlobal"}])
+    assert fewer == source
+    with pytest.raises(ValueError, match="at least one layer"):
+        apply_edits(source.replace("n_layers=6", "n_layers=1"),
+                    [{"op": "remove_layer", "class": "SlidingGlobal"}])
+
+    # a pattern item: insert and remove keep the multi-line list and its trailing comma
+    node = {"kind": "block", "block": "Block", "span": None, "args": {
+        "norm": {"kind": "block", "block": "RMSNorm", "args": {}, "span": None},
+        "attn": {"kind": "block", "block": "Attention", "args": {"n_heads": lit(2)},
+                 "span": None},
+        "mlp": {"kind": "block", "block": "SwiGLU", "args": {}, "span": None}}}
+    grown = apply_edits(source, [{"op": "add_layer", "class": "SlidingGlobal",
+                                  "path": ["pattern"], "node": node}])
+    items = parse_text(grown)["classes"][0]["args"]["pattern"]["items"]
+    assert len(items) == 3 and items[2]["args"]["attn"]["args"]["n_heads"]["value"] == 2
+    assert "nb.Block(norm=nb.RMSNorm(), attn=nb.Attention(n_heads=2), mlp=nb.SwiGLU())" in grown
+    assert grown.count("\n") == source.count("\n") + 1  # one new line
+    front = apply_edits(source, [{"op": "add_layer", "class": "SlidingGlobal",
+                                  "path": ["pattern"], "node": node, "index": 0}])
+    assert parse_text(front)["classes"][0]["args"]["pattern"]["items"][0]["args"]["attn"][
+        "args"]["n_heads"]["value"] == 2
+    back = apply_edits(grown, [{"op": "remove_layer", "class": "SlidingGlobal",
+                                "path": ["pattern"], "index": 2}])
+    assert back == source
+    with pytest.raises(ValueError, match="would be empty"):
+        one = apply_edits(source, [{"op": "remove_layer", "class": "SlidingGlobal",
+                                    "path": ["pattern"], "index": 0}])
+        apply_edits(one, [{"op": "remove_layer", "class": "SlidingGlobal",
+                           "path": ["pattern"], "index": 0}])
+    with pytest.raises(ValueError, match="no item 5"):
+        apply_edits(source, [{"op": "remove_layer", "class": "SlidingGlobal",
+                              "path": ["pattern"], "index": 5}])
+
+
+def test_structural_edits_come_out_of_emit_as_minimal_edits():
+    path = FIXTURES / "layer_pattern.py"
+    source = path.read_text()
+    graph = parse(path)
+    pattern = graph["classes"][0]["args"]["pattern"]
+    pattern["items"].append(pattern["items"][0])
+    assert diff(parse(path), graph) == [{
+        "op": "add_layer", "class": "SlidingGlobal", "path": ["pattern"], "index": 2,
+        "node": pattern["items"][0]}]
+    after = emit(graph, source)
+    assert len(parse_text(after)["classes"][0]["args"]["pattern"]["items"]) == 3
+    graph = parse(path)
+    del graph["classes"][0]["args"]["pattern"]["items"][0]
+    assert diff(parse(path), graph) == [{
+        "op": "remove_layer", "class": "SlidingGlobal", "path": ["pattern"], "index": 0}]
+    assert len(parse_text(emit(graph, source))["classes"][0]["args"]["pattern"]["items"]) == 1
+
+
+def test_structural_edits_set_pattern_replaces_block():
+    source = (FIXTURES / "modern_like.py").read_text()
+    layer = parse_text(source)["classes"][0]["args"]["block"]
+    patched = apply_edits(source, [{"op": "set_pattern", "class": "MyModern",
+                                    "items": [layer, layer]}])
+    args = parse_text(patched)["classes"][0]["args"]
+    assert "block" not in args and len(args["pattern"]["items"]) == 2
+    with pytest.raises(ValueError, match="at least one block"):
+        apply_edits(source, [{"op": "set_pattern", "class": "MyModern", "items": []}])
+    # a pattern that already exists is replaced in place
+    pat = (FIXTURES / "layer_pattern.py").read_text()
+    new = apply_edits(pat, [{"op": "set_pattern", "class": "SlidingGlobal", "items": [
+        {"kind": "block", "block": "Block", "span": None, "args": {
+            k: {"kind": "block", "block": b, "args": {}, "span": None}
+            for k, b in (("norm", "RMSNorm"), ("attn", "Attention"), ("mlp", "SwiGLU"))}}]}])
+    assert len(parse_text(new)["classes"][0]["args"]["pattern"]["items"]) == 1
+
+
+def test_structural_edits_fill_slot():
+    path = FIXTURES / "template_fill.py"
+    source = path.read_text()
+    fill = {"kind": "block", "block": "CausalMask", "args": {}, "span": None}
+    edit = {"op": "fill_slot", "class": "FromPrimitives", "path": ["block", "attn"],
+            "slot": "mask", "node": fill}
+    after = apply_edits(source, [edit])
+    assert changed_lines(source, after) == [(
+        13, "                    scores=ScaledDotScores(), mask=None, normalize=Softmax(),",
+        "                    scores=ScaledDotScores(), mask=CausalMask(), normalize=Softmax(),")]
+    assert apply_edits(after, [{**edit, "node": None}]) == source  # emptying the slot
+    with pytest.raises(ValueError, match="has the slots .*not 'nope'"):
+        apply_edits(source, [{**edit, "slot": "nope"}])
+    with pytest.raises(ValueError, match="not a template"):
+        apply_edits(source, [{**edit, "path": ["block", "attn", "q"]}])
+    local = (FIXTURES / "composite_template.py").read_text()
+    out = apply_edits(local, [{"op": "fill_slot", "class": "UsesTemplate", "path": ["block"],
+                               "slot": "norm", "node": {"kind": "block", "block": "LayerNorm",
+                                                        "args": {}, "span": None}}])
+    assert "norm=LayerNorm()" in out

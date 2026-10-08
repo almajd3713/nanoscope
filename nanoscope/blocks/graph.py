@@ -332,6 +332,17 @@ def parse(path: str | Path) -> dict[str, Any]:
 #   {"op": "set_arg", "class": "MyLM", "path": ["block", "attn"], "arg": "n_heads", "value": node}
 #   {"op": "remove_arg", "class": "MyLM", "path": ["block", "attn"], "arg": "window"}
 #   {"op": "replace_block", "class": "MyLM", "path": ["block", "attn", "pos"], "node": node}
+#
+# Structural edits (the model page's stack and slot edits):
+#
+#   {"op": "add_layer", "class": "MyLM"}                      n_layers + 1 (a literal)
+#   {"op": "add_layer", "class": "MyLM", "path": ["pattern"], "node": node, "index": 1}
+#                                                             insert into a list (index: the end)
+#   {"op": "remove_layer", "class": "MyLM"}                   n_layers - 1 (never below 1)
+#   {"op": "remove_layer", "class": "MyLM", "path": ["pattern"], "index": 1}
+#   {"op": "set_pattern", "class": "MyLM", "items": [node, ...]}   pattern=[...], drops block=
+#   {"op": "fill_slot", "class": "MyLM", "path": ["block", "attn"], "slot": "mask", "node": node}
+#                                                             (node None empties the slot)
 
 DERIVED = ("span", "family", "tier", "local", "reason")
 
@@ -389,6 +400,10 @@ def _diff_node(cls: str, old: Any, new: Any, owner: list[Any], name: str,
     if old["kind"] == new["kind"] == "block" and old["block"] == new["block"] \
             and bool(old.get("local")) == bool(new.get("local")):
         _diff_args(cls, old["args"], new["args"], here, edits)
+    elif old["kind"] == new["kind"] == "list" and _one_item_apart(old, new) is not None:
+        op, index, node = _one_item_apart(old, new)  # type: ignore[misc]
+        edits.append({"op": op, "class": cls, "path": here, "index": index,
+                      **({"node": node} if node is not None else {})})
     elif old["kind"] == new["kind"] == "list" and len(old["items"]) == len(new["items"]):
         for i, (a, b) in enumerate(zip(old["items"], new["items"], strict=True)):
             if strip_spans(a) == strip_spans(b):
@@ -402,6 +417,21 @@ def _diff_node(cls: str, old: Any, new: Any, owner: list[Any], name: str,
         edits.append({"op": "replace_block", "class": cls, "path": here, "node": new})
     else:
         edits.append({"op": "set_arg", "class": cls, "path": owner, "arg": name, "value": new})
+
+
+def _one_item_apart(old: dict[str, Any], new: dict[str, Any]) -> tuple[str, int, Any] | None:
+    """("add_layer", i, node) or ("remove_layer", i, None) when the lists differ by one item."""
+    a = [strip_spans(x) for x in old["items"]]
+    b = [strip_spans(x) for x in new["items"]]
+    if len(b) == len(a) + 1:
+        for i in range(len(b)):
+            if b[:i] + b[i + 1:] == a:
+                return "add_layer", i, new["items"][i]
+    elif len(b) == len(a) - 1 and b:
+        for i in range(len(a)):
+            if a[:i] + a[i + 1:] == b:
+                return "remove_layer", i, None
+    return None
 
 
 def render(node: dict[str, Any], prefix: str = "") -> str:
@@ -459,14 +489,51 @@ def apply_edits(source: str, edits: list[dict[str, Any]]) -> str:
             raise ValueError(f"{cls['name']} is code-only ({cls['reason']}); edit the source")
         if cls["kind"] != "decoder":
             raise ValueError(f"{cls['name']} is a template; its slots are filled where it is used")
+        if edit["op"] == "fill_slot":
+            edit = _fill_slot_as_set_arg(edit, cls, existing)
         module = _apply(cst, module, edit)
     return module.code
+
+
+def _fill_slot_as_set_arg(edit: dict[str, Any], cls: dict[str, Any],
+                          existing: dict[str, Any]) -> dict[str, Any]:
+    """A fill_slot is a set_arg on the template's call, once the target is known to be a
+    template with that slot."""
+    target: Any = {"kind": "block", "args": cls["args"]}
+    for step in edit.get("path", []):
+        target = target["args"][step] if isinstance(step, str) and target["kind"] == "block" \
+            and step in target["args"] else None
+        if target is None:
+            raise ValueError(f"no argument {step!r} at {_where(edit)}")
+    if target["kind"] != "block" or not (target.get("local") or target.get("family") == "template"):
+        raise ValueError(f"{_where(edit)} is not a template; fill_slot fills template slots")
+    slots = _slots_of(target, existing)
+    if slots is not None and edit["slot"] not in slots:
+        raise ValueError(f"{target['block']} has the slots {', '.join(slots)}, "
+                         f"not {edit['slot']!r}")
+    node = edit.get("node")
+    value = node if node is not None else {"kind": "literal", "value": None, "span": None}
+    return {"op": "set_arg", "class": edit["class"], "path": edit.get("path", []),
+            "arg": edit["slot"], "value": value}
+
+
+def _slots_of(node: dict[str, Any], existing: dict[str, Any]) -> list[str] | None:
+    if node.get("local"):
+        found = next((c for c in existing["classes"] if c["name"] == node["block"]), None)
+        return found.get("slots") if found else None
+    info = next((i for i in registry.all_blocks() if i.name == node["block"]), None)
+    if info is None or info.user:
+        return None
+    cls = getattr(importlib.import_module(info.module), info.name, None)
+    slots = getattr(cls, "SLOTS", None)
+    return list(slots) if slots else None
 
 
 def _apply(cst: Any, module: Any, edit: dict[str, Any]) -> Any:
     op = edit["op"]
     nodes = {"set_arg": [edit.get("value")], "replace_block": [edit.get("node")],
-             "remove_arg": []}.get(op)
+             "remove_arg": [], "add_layer": [edit.get("node")], "remove_layer": [],
+             "set_pattern": list(edit.get("items") or [])}.get(op)
     if nodes is None:
         raise ValueError(f"unknown edit {op!r}")
     module, prefix = _ensure_imports(cst, module, [n for node in nodes if node
@@ -477,6 +544,13 @@ def _apply(cst: Any, module: Any, edit: dict[str, Any]) -> Any:
         if not path:
             if op == "replace_block":
                 raise ValueError("replace_block needs a path to the node it replaces")
+            if op in ("add_layer", "remove_layer"):
+                if "node" in edit or "index" in edit:
+                    raise ValueError(f"{op} on a list needs the path of the list "
+                                     f"({_where(edit)} is a call)")
+                return _bump_layers(cst, call, edit, positional if root else [])
+            if op == "set_pattern":
+                return _set_pattern(cst, call, edit, prefix, positional if root else [])
             return _change_arg(cst, call, edit, prefix, positional if root else [])
         step, rest = path[0], path[1:]
         if not isinstance(step, str):
@@ -495,6 +569,8 @@ def _apply(cst: Any, module: Any, edit: dict[str, Any]) -> Any:
 
     def on_value(value: Any, path: list[Any]) -> Any:
         if not path:
+            if op in ("add_layer", "remove_layer") and isinstance(value, (cst.List, cst.Tuple)):
+                return _edit_list(cst, value, edit, prefix)
             if not isinstance(value, cst.Call):
                 raise ValueError(f"{_where(edit)} is not a block call")
             return on_call(value, path, False)
@@ -583,6 +659,69 @@ def _change_arg(cst: Any, call: Any, edit: dict[str, Any], prefix: str,
                             equal=cst.AssignEqual(whitespace_before=cst.SimpleWhitespace(""),
                                                   whitespace_after=cst.SimpleWhitespace(""))))
     return call.with_changes(args=args)
+
+
+def _bump_layers(cst: Any, call: Any, edit: dict[str, Any], positional: list[str]) -> Any:
+    index = _arg_index(call, "n_layers", positional)
+    if index is None:
+        raise ValueError(f"{edit['class']} has no n_layers argument to change")
+    value = call.args[index].value
+    if not isinstance(value, cst.Integer):
+        raise ValueError(f"n_layers is not a number literal in {edit['class']}; edit the source")
+    now = int(value.value)
+    new = now + 1 if edit["op"] == "add_layer" else now - 1
+    if new < 1:
+        raise ValueError("a model needs at least one layer")
+    args = list(call.args)
+    args[index] = args[index].with_changes(value=value.with_changes(value=str(new)))
+    return call.with_changes(args=args)
+
+
+def _set_pattern(cst: Any, call: Any, edit: dict[str, Any], prefix: str,
+                 positional: list[str]) -> Any:
+    items = edit.get("items")
+    if not items:
+        raise ValueError("a pattern needs at least one block")
+    if _arg_index(call, "block", positional) is not None:
+        call = _change_arg(cst, call, {"op": "remove_arg", "class": edit["class"],
+                                       "arg": "block", "path": []}, prefix, positional)
+    node = {"kind": "list", "items": items, "span": None}
+    return _change_arg(cst, call, {"op": "set_arg", "class": edit["class"], "path": [],
+                                   "arg": "pattern", "value": node}, prefix, positional)
+
+
+def _edit_list(cst: Any, value: Any, edit: dict[str, Any], prefix: str) -> Any:
+    elements = list(value.elements)
+    index = edit.get("index")
+    if edit["op"] == "add_layer":
+        if edit.get("node") is None:
+            raise ValueError(f"add_layer on a list needs a node ({_where(edit)})")
+        at = len(elements) if index is None else index
+        if not 0 <= at <= len(elements):
+            raise ValueError(f"no position {index} in the list at {_where(edit)}")
+        new = cst.Element(value=cst.parse_expression(render(edit["node"], prefix)))
+        first = elements[0].comma
+        sep = first if isinstance(first, cst.Comma) and len(elements) > 1 else cst.Comma(
+            whitespace_after=cst.SimpleWhitespace(" "))
+        if at == len(elements):  # the new last item takes the old tail
+            tail = elements[-1].comma
+            elements[-1] = elements[-1].with_changes(comma=sep)
+            new = new.with_changes(comma=tail)
+        else:
+            new = new.with_changes(comma=sep)
+        elements.insert(at, new)
+        return value.with_changes(elements=elements)
+    if index is None or not 0 <= index < len(elements):
+        raise ValueError(f"no item {index} to remove at {_where(edit)}")
+    if len(elements) == 1:
+        raise ValueError(f"the list at {_where(edit)} would be empty; a pattern needs a block")
+    removed = elements.pop(index)
+    if index == len(elements):  # the new last item takes the old tail (trailing comma or none)
+        elements[-1] = elements[-1].with_changes(comma=removed.comma)
+    if isinstance(value, cst.Tuple) and len(elements) == 1 and \
+            elements[0].comma is cst.MaybeSentinel.DEFAULT:
+        elements[0] = elements[0].with_changes(comma=cst.Comma())
+    return value.with_changes(elements=elements)
 
 
 def _ensure_imports(cst: Any, module: Any, names: list[str]) -> tuple[Any, str]:
