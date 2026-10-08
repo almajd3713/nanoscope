@@ -4,7 +4,7 @@ The build list for [`plan-tool.md`](plan-tool.md), sections 4-10, with the decis
 2026-10-05 (plan section 11) applied. Phase numbers follow the plan's section 10. Every
 item is one line, so scripts and agents can grep and edit it.
 
-**Current focus:** P13 GUI MVP 1, 49 of 50. Only the gate P13.99 is left (make check, the server and first-notebook tests, then the PR for the user to merge). Then P14 (model page).
+**Current focus:** P14 GUI MVP 2 (the model page). P13 is merged (PR #15). Next: P14.01.
 
 ## Progress
 
@@ -17,7 +17,7 @@ item is one line, so scripts and agents can grep and edit it.
 | P10 | HTTP API (8-10 d) | 47 / 47 | done |
 | P11 | Release prep: PyPI + GHCR (2-3 d) | 17 / 17 | done |
 | P12 | docker-compose (3-4 d) | 20 / 20 | done |
-| P13 | GUI MVP 1: shell, Learn/Tinker screens (12-15 d) | 49 / 50 | in progress |
+| P13 | GUI MVP 1: shell, Learn/Tinker screens (12-15 d) | 50 / 50 | done |
 | P14 | GUI MVP 2: model page, drag-and-drop (14-17 d) | 0 / 35 | not started |
 | P15 | GUI Research (10-13 d) | 0 / 30 | not started |
 | P16 | Extend + depth (8-10 d) | 0 / 16 | not started |
@@ -546,7 +546,7 @@ Order: P13.01 and P13.02 first (these items live in `web/` and run in its CI job
 - [x] P13.34 Plan done-when: a failed run shows its error from `status.json`. · files: web/e2e/failed-run.spec.ts (new) · deps: P13.31, P13.17 · done: `pnpm -C web exec playwright test failed-run` passes ✓ 2026-10-08 6b706f4: green in the `e2e` job
 - [x] P13.35 Plan done-when: Unlock all on the Components page sets policy `open` in `learn/unlocks.json`. · files: web/e2e/unlock.spec.ts (new) · deps: P13.31, P13.27 · done: `pnpm -C web exec playwright test unlock` passes ✓ 2026-10-08 6b706f4: green in the `e2e` job
 - [x] P13.36 Write `docs/gui.md`: screens, levels and the equivalent command for each screen. · files: docs/gui.md (new) · deps: P13.32 · done: `grep -c '^## ' docs/gui.md` prints at least 4 ✓ 2026-10-08 1f7a52b: docs/gui.md written (5 sections)
-- [ ] P13.99 PHASE GATE P13. Exit criteria: plan section 10 phase 13. · files: — · deps: P13.* · done: `make check` passes; the web and e2e CI jobs are green (P13.32-P13.35); `uv run pytest tests/test_first_model_notebook.py` passes; `make web-client && git diff --exit-code web/src/api`; `pnpm -C web tokens --check`, `pnpm -C web lint` and `pnpm -C web lint:css` pass; the screens match the approved mockups (P13.37); **USER ACTION** merge the PR
+- [x] P13.99 PHASE GATE P13. Exit criteria: plan section 10 phase 13. · files: — · deps: P13.* · done: `make check` passes; the web and e2e CI jobs are green (P13.32-P13.35); `uv run pytest tests/test_first_model_notebook.py` passes; `make web-client && git diff --exit-code web/src/api`; `pnpm -C web tokens --check`, `pnpm -C web lint` and `pnpm -C web lint:css` pass; the screens match the approved mockups (P13.37); **USER ACTION** merge the PR ✓ 2026-10-08 d0ebd4d: PR #15 merged by the user; every CI job green, including `e2e`
 
 ---
 
