@@ -128,6 +128,27 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/curricula/{path}/{lesson}/predict": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Predict
+         * @description Commit to a prediction before the experiment runs (what `nanoscope learn predict` does).
+         *     Once the lesson has been checked it is too late: a 422 says so.
+         */
+        post: operations["predict_api_curricula__path___lesson__predict_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/curricula/{path}/{lesson}/start": {
         parameters: {
             query?: never;
@@ -1633,6 +1654,26 @@ export interface components {
             /** Policy */
             policy: string;
         };
+        /** PredictRequest */
+        PredictRequest: {
+            /** High */
+            high?: number | null;
+            /** Low */
+            low?: number | null;
+            /** Note */
+            note?: string | null;
+            /** Verdict */
+            verdict?: string | null;
+        };
+        /** PredictResult */
+        PredictResult: {
+            /** At */
+            at: string;
+            /** File */
+            file: string;
+            /** Lesson */
+            lesson: string;
+        };
         /**
          * PrepareDoc
          * @description Data preparation state (prepare.v1).
@@ -2229,6 +2270,51 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["JobDoc"];
+                };
+            };
+            /** @description The request cannot be done as asked */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description An error (RFC 9457) */
+            "4XX": {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    predict_api_curricula__path___lesson__predict_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                path: string;
+                lesson: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: {
+            content: {
+                "application/json": components["schemas"]["PredictRequest"] | null;
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PredictResult"];
                 };
             };
             /** @description The request cannot be done as asked */

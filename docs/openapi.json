@@ -1288,6 +1288,79 @@
         "title": "PolicyRequest",
         "type": "object"
       },
+      "PredictRequest": {
+        "properties": {
+          "high": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "High"
+          },
+          "low": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Low"
+          },
+          "note": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Note"
+          },
+          "verdict": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Verdict"
+          }
+        },
+        "title": "PredictRequest",
+        "type": "object"
+      },
+      "PredictResult": {
+        "properties": {
+          "at": {
+            "title": "At",
+            "type": "string"
+          },
+          "file": {
+            "title": "File",
+            "type": "string"
+          },
+          "lesson": {
+            "title": "Lesson",
+            "type": "string"
+          }
+        },
+        "required": [
+          "lesson",
+          "at",
+          "file"
+        ],
+        "title": "PredictResult",
+        "type": "object"
+      },
       "PrepareDoc": {
         "additionalProperties": true,
         "description": "Data preparation state (prepare.v1).",
@@ -2486,6 +2559,85 @@
           }
         },
         "summary": "Check",
+        "tags": [
+          "learn"
+        ]
+      }
+    },
+    "/api/curricula/{path}/{lesson}/predict": {
+      "post": {
+        "description": "Commit to a prediction before the experiment runs (what `nanoscope learn predict` does).\nOnce the lesson has been checked it is too late: a 422 says so.",
+        "operationId": "predict_api_curricula__path___lesson__predict_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "path",
+            "required": true,
+            "schema": {
+              "title": "Path",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "lesson",
+            "required": true,
+            "schema": {
+              "title": "Lesson",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "anyOf": [
+                  {
+                    "$ref": "#/components/schemas/PredictRequest"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "title": "Body"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PredictResult"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "The request cannot be done as asked"
+          },
+          "4XX": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "An error (RFC 9457)"
+          }
+        },
+        "summary": "Predict",
         "tags": [
           "learn"
         ]
