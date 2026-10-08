@@ -1,0 +1,287 @@
+import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useCallback, useEffect, useState } from "react";
+import { Link, useParams } from "react-router-dom";
+import { api } from "../api/client";
+import { unwrap } from "../api/problem";
+import { Button } from "../components/Button";
+import { EquivalentCommand } from "../components/EquivalentCommand";
+import { ProblemFromError } from "../components/ProblemView";
+import { Progress } from "../components/Progress";
+import { Readout } from "../components/Readout";
+import { StateTag } from "../components/StateTag";
+import { clockText, countText, stampText } from "../format";
+import { Copy, X } from "../icons";
+import { useEvents } from "../hooks/useEvents";
+import styles from "./Run.module.css";
+
+const TERMINAL = ["done", "failed", "stopped", "cancelled"];
+const STALE_SECONDS = 120;
+
+type RunError = { type: string; message: string; traceback?: string[] };
+type Live = {
+  state?: string;
+  step?: number;
+  maxSteps?: number;
+  error?: RunError | null;
+  device?: string | null;
+  tokensPerSec?: number;
+  secondsPerStep?: number;
+  valBpb?: number;
+  valStep?: number;
+  at?: number; // when the last event arrived
+};
+type Baseline = {
+  ref: string;
+  metric: string;
+  interval: [number, number] | null;
+  value: number | null;
+  inside: boolean | null;
+};
+type Summary = { final_step: number; final_val_bpb: number | null };
+
+const bpb = (x: number) => x.toFixed(3);
+
+function useNow(everyMs: number): number {
+  const [now, setNow] = useState(() => Date.now());
+  useEffect(() => {
+    const id = setInterval(() => setNow(Date.now()), everyMs);
+    return () => clearInterval(id);
+  }, [everyMs]);
+  return now;
+}
+
+export function Run() {
+  const ref = useParams()["*"] ?? "";
+  const queryClient = useQueryClient();
+  const detail = useQuery({
+    queryKey: ["run", ref],
+    queryFn: () => unwrap(api.GET("/api/runs/{ref}", { params: { path: { ref } } })),
+  });
+  const [live, setLive] = useState<Live>({});
+  const now = useNow(10000);
+
+  const state = live.state ?? detail.data?.status?.state;
+  const watching = detail.data !== undefined && !TERMINAL.includes(state ?? "");
+
+  const refetch = useCallback(() => queryClient.invalidateQueries({ queryKey: ["run", ref] }), [queryClient, ref]);
+  const onEvent = useCallback(
+    (type: string, data: unknown) => {
+      const d = data as Record<string, unknown>;
+      setLive((prev) => {
+        const next: Live = { ...prev, at: Date.now() };
+        if (type === "state") {
+          next.state = d["state"] as string;
+          next.step = d["step"] as number;
+          next.maxSteps = d["max_steps"] as number;
+          next.error = (d["error"] as RunError | null) ?? null;
+          next.device = (d["device"] as string | null) ?? prev.device;
+        } else if (type === "step") {
+          next.step = d["step"] as number;
+          if (typeof d["tokens_per_sec"] === "number") next.tokensPerSec = d["tokens_per_sec"];
+          if (typeof d["elapsed"] === "number") next.secondsPerStep = d["elapsed"];
+        } else if (type === "eval" && typeof d["val_bpb"] === "number") {
+          next.valBpb = d["val_bpb"];
+          next.valStep = d["step"] as number;
+        }
+        return next;
+      });
+      if (type === "eval" || (type === "state" && TERMINAL.includes(d["state"] as string))) void refetch();
+    },
+    [refetch],
+  );
+  const stream = useEvents(watching ? `/api/runs/${ref}/events` : null, {
+    events: ["state", "step", "eval"],
+    onEvent,
+    onReset: () => {
+      setLive({});
+      void refetch();
+    },
+    resumeParam: "since_step",
+  });
+
+  if (detail.error) return <ProblemFromError error={detail.error} />;
+  if (!detail.data) return <p className={`body ${styles.muted}`}>Loading run…</p>;
+
+  const run = detail.data;
+  const status = run.status;
+  const config = run.config;
+  const summary = run.summary as Summary;
+  const baseline = run.baseline as Baseline | null;
+  const stats = (config?.["stats"] ?? {}) as Record<string, number | string | undefined>;
+  const preset = (config?.preset ?? {}) as Record<string, number | string>;
+
+  const step = live.step ?? status?.step ?? 0;
+  const maxSteps = live.maxSteps ?? status?.max_steps ?? (preset["max_steps"] as number | undefined) ?? 0;
+  const error: RunError | null = (live.error !== undefined ? live.error : (status?.error as RunError | null)) ?? null;
+  const device = live.device ?? (status?.device as string | undefined) ?? (stats["device"] as string | undefined);
+  const valBpb = live.valBpb ?? summary.final_val_bpb;
+  const valStep = live.valStep ?? summary.final_step;
+  const running = state === "running";
+  const eta = running && live.secondsPerStep && maxSteps > step ? clockText((maxSteps - step) * live.secondsPerStep) : undefined;
+  const silentFor = live.at !== undefined ? (now - live.at) / 1000 : 0;
+
+  const folder = ref.split("/").slice(0, -1).join("/");
+  const range = baseline?.interval
+    ? `${bpb(baseline.interval[0])} – ${bpb(baseline.interval[1])}`
+    : undefined;
+  const readoutSub =
+    baseline && range && valBpb !== null
+      ? baseline.inside === null
+        ? `shipped range for one new run: ${range}`
+        : `${baseline.inside ? "inside" : "outside"} the shipped range for one new run: ${range}`
+      : undefined;
+
+  return (
+    <div className={styles.page}>
+      <main className={styles.main}>
+        <header className={styles.head}>
+          <span className={`small ${styles.muted}`}>
+            <Link to="/runs" className={styles.link}>
+              Runs
+            </Link>{" "}
+            / <span className="value">{folder}</span>
+          </span>
+          <div className={styles.titleRow}>
+            <h1 className={`title ${styles.ref}`}>{ref}</h1>
+            {state && <StateTag state={state} />}
+            {running && (
+              <span className="value">step {step}</span>
+            )}
+          </div>
+          <span className={`small ${styles.muted}`}>
+            {watching && stream === "paused" ? (
+              <span className={styles.warn}>Live updates paused. Reconnecting…</span>
+            ) : watching ? (
+              "Live"
+            ) : (
+              state && `Finished ${state}`
+            )}
+            {watching && running && silentFor > STALE_SECONDS && ` · last update ${clockText(silentFor)} ago`}
+            {device && (
+              <>
+                {" · "}
+                <span className="value">{device}</span>
+              </>
+            )}
+            {status?.updated_at && !watching && (
+              <>
+                {" · "}
+                <span className="value">{stampText(status.updated_at)}</span>
+              </>
+            )}
+          </span>
+        </header>
+
+        {state === "failed" && error && (
+          <>
+            <section className={styles.error} role="alert">
+              <div className={styles.errorHead}>
+                <X size={16} aria-hidden="true" />
+                <span className="value-strong">{error.type}</span>
+              </div>
+              <p className="code">{error.message}</p>
+              <span className={`small ${styles.muted}`}>
+                From <span className="value">status.json</span>, word for word.
+              </span>
+            </section>
+            {error.traceback && error.traceback.length > 0 && <Traceback lines={error.traceback} />}
+          </>
+        )}
+
+        {(valBpb !== null || running || state === "done") && (
+          <section className={styles.measure}>
+            {valBpb !== null && valBpb !== undefined && (
+              <Readout
+                label={`Validation bpb, step ${valStep} (lower is better)`}
+                value={bpb(valBpb)}
+                unit="bpb"
+                sub={readoutSub}
+              />
+            )}
+            {live.tokensPerSec !== undefined && (
+              <Readout label="Throughput" value={countText(live.tokensPerSec)} unit="tokens/s" />
+            )}
+            {maxSteps > 0 && (
+              <div className={styles.progress}>
+                <Progress step={step} total={maxSteps} eta={eta} label="Training progress" />
+              </div>
+            )}
+          </section>
+        )}
+      </main>
+
+      <aside className={styles.aside}>
+        <section className={styles.panel}>
+          <h2 className={`label ${styles.muted}`}>Run</h2>
+          <dl className={`small ${styles.facts}`}>
+            <dt className={styles.muted}>Model</dt>
+            <dd>
+              <span className="value">{String(config?.model?.["class"] ?? "")}</span>
+            </dd>
+            <dt className={styles.muted}>Preset</dt>
+            <dd>
+              <span className="value">{preset["name"]}</span>
+            </dd>
+            <dt className={styles.muted}>Seed</dt>
+            <dd>
+              <span className="value">{config?.seed}</span>
+            </dd>
+            {typeof stats["n_params"] === "number" && (
+              <>
+                <dt className={styles.muted}>Params</dt>
+                <dd>
+                  <span className="value">
+                    {countText(stats["n_params"])}
+                    {typeof stats["n_non_embedding_params"] === "number" &&
+                      ` (${countText(stats["n_non_embedding_params"])} non-embedding)`}
+                  </span>
+                </dd>
+              </>
+            )}
+            {typeof status?.["started_at"] === "string" && (
+              <>
+                <dt className={styles.muted}>Started</dt>
+                <dd>
+                  <span className="value">{stampText(status["started_at"])}</span>
+                </dd>
+              </>
+            )}
+          </dl>
+        </section>
+        <section className={styles.panel}>
+          <h2 className={`label ${styles.muted}`}>Files</h2>
+          <span className={`value ${styles.files}`}>runs/{ref}/</span>
+          <span className={`small ${styles.muted}`}>
+            <span className="value">status.json</span> · <span className="value">metrics.jsonl</span> ·{" "}
+            <span className="value">config.json</span>
+          </span>
+        </section>
+        <EquivalentCommand cli={`nanoscope status runs/${folder}`} />
+      </aside>
+    </div>
+  );
+}
+
+function Traceback({ lines }: { lines: string[] }) {
+  const text = lines.join("\n");
+  const [copied, setCopied] = useState(false);
+  return (
+    <section className={styles.trace} aria-label="Traceback">
+      <header className={styles.traceHead}>
+        <h2 className="heading">Traceback, last {lines.length} lines</h2>
+        <Button
+          variant="quiet"
+          size="sm"
+          onClick={() => {
+            // inside the click handler: the clipboard needs a user gesture
+            void navigator.clipboard?.writeText(text).then(() => setCopied(true));
+          }}
+        >
+          <Copy size={16} aria-hidden="true" />
+          {copied ? "Copied" : "Copy"}
+        </Button>
+      </header>
+      <pre className={`${styles.traceBody} code-small`}>{text}</pre>
+    </section>
+  );
+}

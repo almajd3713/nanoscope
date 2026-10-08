@@ -1,0 +1,27 @@
+.progress {
+  display: grid;
+  gap: var(--space-1);
+  min-width: 240px;
+}
+
+.track {
+  height: 4px;
+  background: var(--surface-sunken);
+  border-radius: var(--radius-1);
+  overflow: hidden;
+}
+
+.fill {
+  height: 100%;
+  background: var(--ink);
+}
+
+.text {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-3);
+}
+
+.muted {
+  color: var(--ink-muted);
+}
