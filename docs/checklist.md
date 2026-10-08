@@ -4,7 +4,7 @@ The build list for [`plan-tool.md`](plan-tool.md), sections 4-10, with the decis
 2026-10-05 (plan section 11) applied. Phase numbers follow the plan's section 10. Every
 item is one line, so scripts and agents can grep and edit it.
 
-**Current focus:** P14 GUI MVP 2 (the model page). P13 is merged (PR #15). P14.01-P14.05 done. Next: P14.07.
+**Current focus:** P14 GUI MVP 2 (the model page). P13 is merged (PR #15). P14.01-P14.05 done. Next: P14.08.
 
 ## Progress
 
@@ -18,7 +18,7 @@ item is one line, so scripts and agents can grep and edit it.
 | P11 | Release prep: PyPI + GHCR (2-3 d) | 17 / 17 | done |
 | P12 | docker-compose (3-4 d) | 20 / 20 | done |
 | P13 | GUI MVP 1: shell, Learn/Tinker screens (12-15 d) | 50 / 50 | done |
-| P14 | GUI MVP 2: model page, drag-and-drop (14-17 d) | 6 / 36 | in progress |
+| P14 | GUI MVP 2: model page, drag-and-drop (14-17 d) | 7 / 36 | in progress |
 | P15 | GUI Research (10-13 d) | 0 / 31 | not started |
 | P16 | Extend + depth (8-10 d) | 0 / 17 | not started |
 | P17 | Remaining curriculum paths (18-26 d) | 0 / 34 | not started |
@@ -564,7 +564,7 @@ Order: P13.01 and P13.02 first (these items live in `web/` and run in its CI job
 
 ### P14 · Code editor
 - [x] P14.06 Monaco component that opens and saves through `/api/files` with the ETag, shows a dirty marker, and saves on Ctrl-S. · files: web/src/components/Editor.tsx (new) · deps: P13.99 · done: `pnpm -C web test -- Editor` passes · done 2026-10-08 (3863297)
-- [ ] P14.07 409 conflict dialog showing the server's diff, with "keep mine" and "take theirs". · files: web/src/components/ConflictDialog.tsx (new) · deps: P14.06 · done: `pnpm -C web test -- ConflictDialog` passes
+- [x] P14.07 409 conflict dialog showing the server's diff, with "keep mine" and "take theirs". · files: web/src/components/ConflictDialog.tsx (new) · deps: P14.06 · done: `pnpm -C web test -- ConflictDialog` passes · done 2026-10-08 (048a3c1)
 - [ ] P14.08 External edits from `/api/files/events` reload clean buffers and prompt for dirty ones. · files: web/src/components/Editor.tsx · deps: P14.06 · done: `pnpm -C web test -- Editor.external` passes
 - [ ] P14.09 ruff diagnostics on save, through `/api/files/{path}/lint`, shown as Monaco markers. · files: web/src/components/Editor.tsx · deps: P14.06, P10.21 · done: `pnpm -C web test -- Editor.ruff` passes
 - [ ] P14.10 Completions for block names and kwargs from the `/api/blocks` and `/api/presets` catalogs. · files: web/src/editor/completions.ts (new) · deps: P14.06 · done: `pnpm -C web test -- completions` passes
