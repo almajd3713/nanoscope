@@ -12,7 +12,8 @@
 
 .selected {
   border-color: var(--accent);
-  box-shadow: 0 0 0 1px var(--accent);
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
 }
 
 .over {

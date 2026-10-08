@@ -8,6 +8,7 @@ import { Settings } from "../pages/Settings";
 import { Runs } from "../pages/Runs";
 import { RunForm } from "../pages/RunForm";
 import { Run } from "../pages/Run";
+import { Models } from "../pages/Models";
 import { Onboarding } from "../pages/Onboarding";
 import { BareLayout } from "./BareLayout";
 import { Shell } from "./Shell";
@@ -30,6 +31,7 @@ export function AppRoutes() {
         <Route path="/" element={<Navigate to="/learn" replace />} />
         <Route path="/learn" element={<Lessons />} />
         <Route path="/learn/:path/:lesson" element={<Lesson />} />
+        <Route path="/models" element={<Models />} />
         <Route path="/model/*" element={<Suspense fallback={<p className="small">Loading the model page</p>}><Model /></Suspense>} />
         <Route path="/runs" element={<Runs />} />
         <Route path="/runs/new" element={<RunForm />} />
