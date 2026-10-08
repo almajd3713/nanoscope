@@ -15,3 +15,4 @@ experiments/**/artifacts/
 .vscode/
 graphify-out/
 workspace/
+nanoscope/server/static/
