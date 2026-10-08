@@ -105,6 +105,13 @@ describe("Run header", () => {
     expect(screen.getByText("done")).toBeTruthy();
   });
 
+  it("opens no stream for a run with no status.json, such as a shipped baseline", async () => {
+    renderRun({ ...failed, status: null, summary: { ...failed.summary, final_step: 500, final_val_bpb: 1.315 } });
+    await screen.findByRole("heading", { name: REF });
+    expect(MockEventSource.all).toHaveLength(0);
+    expect(screen.getByText("1.315")).toBeTruthy();
+  });
+
   it("shows the library's error when the run does not exist", async () => {
     mockApi({
       [`GET /api/runs/${REF}`]: {

@@ -1,9 +1,11 @@
-import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useQueries, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useCallback, useEffect, useState } from "react";
 import { Link, useParams } from "react-router-dom";
 import { api } from "../api/client";
 import { unwrap } from "../api/problem";
 import { Button } from "../components/Button";
+import { Curve } from "../components/Curve";
+import { evalPoints, type Row } from "../curveData";
 import { EquivalentCommand } from "../components/EquivalentCommand";
 import { ProblemFromError } from "../components/ProblemView";
 import { Progress } from "../components/Progress";
@@ -15,6 +17,7 @@ import { useEvents } from "../hooks/useEvents";
 import styles from "./Run.module.css";
 
 const TERMINAL = ["done", "failed", "stopped", "cancelled"];
+const LIVE_STATES = ["queued", "preparing", "running"];
 const STALE_SECONDS = 120;
 
 type RunError = { type: string; message: string; traceback?: string[] };
@@ -32,6 +35,7 @@ type Live = {
 };
 type Baseline = {
   ref: string;
+  n_seeds: number;
   metric: string;
   interval: [number, number] | null;
   value: number | null;
@@ -57,11 +61,25 @@ export function Run() {
     queryKey: ["run", ref],
     queryFn: () => unwrap(api.GET("/api/runs/{ref}", { params: { path: { ref } } })),
   });
+  const metrics = useQuery({
+    queryKey: ["run", ref, "metrics"],
+    queryFn: () => unwrap(api.GET("/api/runs/{ref}/metrics", { params: { path: { ref } } })),
+  });
+  const baselineInfo = detail.data?.baseline as Baseline | null | undefined;
+  const seedRefs = baselineInfo ? Array.from({ length: baselineInfo.n_seeds }, (_, i) => `${baselineInfo.ref}/seed-${i}`) : [];
+  const seeds = useQueries({
+    queries: seedRefs.map((seedRef) => ({
+      queryKey: ["run", seedRef, "metrics"],
+      queryFn: () => unwrap(api.GET("/api/runs/{ref}/metrics", { params: { path: { ref: seedRef } } })),
+      staleTime: Infinity, // shipped files do not change
+    })),
+  });
   const [live, setLive] = useState<Live>({});
   const now = useNow(10000);
 
   const state = live.state ?? detail.data?.status?.state;
-  const watching = detail.data !== undefined && !TERMINAL.includes(state ?? "");
+  // A run with no status.json (the shipped v0 baselines) has nothing to follow.
+  const watching = detail.data !== undefined && LIVE_STATES.includes(state ?? "");
 
   const refetch = useCallback(() => queryClient.invalidateQueries({ queryKey: ["run", ref] }), [queryClient, ref]);
   const onEvent = useCallback(
@@ -153,9 +171,7 @@ export function Run() {
               <span className={styles.warn}>Live updates paused. Reconnecting…</span>
             ) : watching ? (
               "Live"
-            ) : (
-              state && `Finished ${state}`
-            )}
+            ) : null}
             {watching && running && silentFor > STALE_SECONDS && ` · last update ${clockText(silentFor)} ago`}
             {device && (
               <>
@@ -206,6 +222,24 @@ export function Run() {
                 <Progress step={step} total={maxSteps} eta={eta} label="Training progress" />
               </div>
             )}
+          </section>
+        )}
+
+        {metrics.data && evalPoints(metrics.data.rows as Row[]).steps.length > 0 && (
+          <section className={styles.panel}>
+            <Curve
+              name={ref}
+              run={evalPoints(metrics.data.rows as Row[])}
+              baseline={
+                baseline && seeds.length > 0 && seeds.every((q) => q.data)
+                  ? {
+                      name: `shipped ${String(config?.model?.["class"] ?? "").toLowerCase()}, ${baseline.n_seeds} seeds`,
+                      seeds: seeds.map((q) => evalPoints((q.data?.rows ?? []) as Row[])),
+                    }
+                  : null
+              }
+              yLabel="Validation bpb (lower is better)"
+            />
           </section>
         )}
       </main>
