@@ -1,7 +1,9 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { api } from "../api/client";
 import { toProblem, unwrap } from "../api/problem";
+import { useEvents } from "../hooks/useEvents";
 import type { GClass } from "./flow";
+import type { PaletteBlock } from "./Palette";
 
 export type GraphDoc = { path: string; classes: GClass[]; etag: string };
 
@@ -41,5 +43,24 @@ export function usePatchGraph(path: string, etag: string | null) {
       // the file changed on disk: an open editor with a clean buffer reads it again
       void queryClient.invalidateQueries({ queryKey: ["file", path] });
     },
+  });
+}
+
+// The palette's catalog (every block with its lock state and, for your own, its certification),
+// kept current without a restart: a lesson check that unlocks a block, `nanoscope learn unlock`
+// in a terminal, a block you register in a file, a certification that finished.
+export function useBlocks() {
+  const queryClient = useQueryClient();
+  const refresh = () => void queryClient.invalidateQueries({ queryKey: ["blocks"] });
+  useEvents("/api/learn/events", { events: ["unlocks", "progress"], onEvent: refresh });
+  useEvents("/api/files/events", {
+    events: ["change"],
+    onEvent: (_type, data) => {
+      if ((data as { path?: string }).path?.endsWith(".py")) refresh();
+    },
+  });
+  return useQuery({
+    queryKey: ["blocks"],
+    queryFn: () => unwrap(api.GET("/api/blocks")) as unknown as Promise<{ blocks: PaletteBlock[]; policy: string }>,
   });
 }

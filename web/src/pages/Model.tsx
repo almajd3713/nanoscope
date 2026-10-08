@@ -1,8 +1,5 @@
-import { useQuery } from "@tanstack/react-query";
 import { useState } from "react";
 import { useParams, useSearchParams } from "react-router-dom";
-import { api } from "../api/client";
-import { unwrap } from "../api/problem";
 import { useLevel } from "../app/level";
 import { Button } from "../components/Button";
 import { Editor } from "../components/Editor";
@@ -10,13 +7,13 @@ import { EmptyState } from "../components/EmptyState";
 import { ProblemFromError, ProblemView } from "../components/ProblemView";
 import type { CatalogBlock } from "../editor/completions";
 import { useDescribeMarkers } from "../editor/diagnostics";
-import { type Edit, useGraph, usePatchGraph } from "../graph/api";
+import { type Edit, useBlocks, useGraph, usePatchGraph } from "../graph/api";
 import { planDrop } from "../graph/dnd";
 import type { Box } from "../graph/flow";
 import { GraphView } from "../graph/GraphView";
 import { useHistory } from "../graph/history";
 import { Inspector } from "../graph/Inspector";
-import { Palette, type PaletteBlock } from "../graph/Palette";
+import { Palette } from "../graph/Palette";
 import { hasTemplate, TemplateCanvas } from "../graph/TemplateCanvas";
 import { shows } from "../levels";
 import styles from "./Model.module.css";
@@ -29,10 +26,7 @@ export function Model() {
   const [search, setSearch] = useSearchParams();
   const level = useLevel();
   const graph = useGraph(path);
-  const blocks = useQuery({
-    queryKey: ["blocks"],
-    queryFn: () => unwrap(api.GET("/api/blocks")) as unknown as Promise<{ blocks: PaletteBlock[] }>,
-  });
+  const blocks = useBlocks();
   const [selected, setSelected] = useState<Box | null>(null);
   const [note, setNote] = useState<string | null>(null);
   const patch = usePatchGraph(path, graph.data?.etag ?? null);
