@@ -1,8 +1,10 @@
 import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
+import { BrowserRouter } from "react-router-dom";
+import { Providers } from "./app/providers";
+import { AppRoutes } from "./app/routes";
 import "./styles/tokens.css";
 import "./styles/fonts.css";
-import { Providers } from "./app/providers";
 import { initTheme } from "./styles/theme";
 
 initTheme();
@@ -13,7 +15,9 @@ if (!root) throw new Error("missing #root");
 createRoot(root).render(
   <StrictMode>
     <Providers>
-      <p>nanoscope</p>
+      <BrowserRouter>
+        <AppRoutes />
+      </BrowserRouter>
     </Providers>
   </StrictMode>,
 );
