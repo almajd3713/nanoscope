@@ -7,6 +7,7 @@ import { CheckResult } from "../components/CheckResult";
 import { EquivalentCommand } from "../components/EquivalentCommand";
 import { LessonState } from "../components/LessonState";
 import { Markdown } from "../components/Markdown";
+import { Predict } from "../components/Predict";
 import { ProblemFromError, ProblemView } from "../components/ProblemView";
 import { Tabs } from "../components/Tabs";
 import { Check, Circle, CircleHalf, LockSimple, Play, X } from "../icons";
@@ -171,6 +172,7 @@ export function Lesson() {
         {start.error && <ProblemFromError error={start.error} />}
         {train.error && <ProblemFromError error={train.error} />}
         {check.run.error && <ProblemFromError error={check.run.error} />}
+        {started && d.checks.some((c) => c["kind"] === "predicted") && <Predict lessonId={d.id} />}
         {check.job && <CheckPanel lessonTitle={d.title} job={check.job} result={check.result} checkDefs={d.checks.map((c) => ({ id: String(c["id"]), kind: String(c["kind"]) }))} unlocks={d.unlocks} />}
 
         <Tabs items={sections.map((s) => ({ id: s.id, label: s.label, content: <Markdown>{s.text}</Markdown> }))} />
