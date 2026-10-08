@@ -198,3 +198,21 @@ def test_params_kind_says_which_count_the_column_holds(tmp_path):
     both = compare("bigram", "gpt2", preset="tinystories-5min")
     assert {r["params_kind"] for r in both.rows} == {"total"}
     assert "total params" in str(both).splitlines()[2]
+
+
+def test_rows_carry_the_text_the_table_prints(capsys):
+    result = compare("bigram", "modern", "gpt2", preset="tinystories-5min")
+    doc = result.to_dict()
+    assert doc["title"].startswith("bits per byte on the first 200 validation documents of ")
+    assert doc["params_header"] == "total params"
+    bigram, modern, gpt2 = doc["rows"]
+    assert modern["text"]["delta"].startswith("−0.16") and modern["text"]["verdict"] == "better"
+    assert modern["text"]["statement"].startswith("Modern vs GPT2: −0.16")
+    assert modern["text"]["statement"].endswith("bpb, 3 seeds each, paired")
+    assert gpt2["text"]["delta"] == "(baseline)" and gpt2["text"]["statement"] is None
+    # the printed table is made of exactly these cells
+    printed = str(result)
+    for row in doc["rows"]:
+        assert row["text"]["value"] in printed and row["text"]["delta"] in printed
+    assert "With 3 seeds per model, a difference on this preset is known to about ±0.0" in (
+        doc["precision_plan"]["text"])
