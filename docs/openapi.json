@@ -2001,6 +2001,10 @@
       "UnlocksView": {
         "description": "The unlocks document plus every lockable id with its current state.",
         "properties": {
+          "first_run": {
+            "title": "First Run",
+            "type": "boolean"
+          },
           "lockable": {
             "additionalProperties": {
               "additionalProperties": true,
@@ -2029,6 +2033,7 @@
         "required": [
           "schema_version",
           "policy",
+          "first_run",
           "unlocks",
           "lockable"
         ],

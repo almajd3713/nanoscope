@@ -101,11 +101,13 @@ def test_check_is_a_job(client, tmp_path, monkeypatch):
 def test_unlocks(client):
     view = client.get("/api/learn/unlocks").json()
     assert view["policy"] == "open" and view["unlocks"] == {}
+    assert view["first_run"] is True  # nobody has chosen yet
     assert view["lockable"]["block:Attention"] == {
         "lesson": "foundations/04-multi-head", "state": "open", "reason": None}
     assert len(view["lockable"]) == 9
     assert client.post("/api/learn/policy", json={"policy": "guided"}).json()["policy"] == "guided"
     view = client.get("/api/learn/unlocks").json()
+    assert view["first_run"] is False
     assert {v["state"] for v in view["lockable"].values()} == {"locked"}
     # skipping one lesson needs a reason, and names the lock
     assert client.post("/api/learn/unlock", json={"id": "Attention"}).status_code == 422

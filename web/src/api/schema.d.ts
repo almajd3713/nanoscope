@@ -1938,6 +1938,8 @@ export interface components {
          * @description The unlocks document plus every lockable id with its current state.
          */
         UnlocksView: {
+            /** First Run */
+            first_run: boolean;
             /** Lockable */
             lockable: {
                 [key: string]: {

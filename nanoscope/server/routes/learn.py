@@ -159,6 +159,7 @@ class UnlocksView(BaseModel):
 
     schema_version: int
     policy: str
+    first_run: bool  # no unlocks.json yet: nobody has chosen guided or open
     unlocks: dict[str, dict[str, Any]]
     lockable: dict[str, dict[str, Any]]  # id -> {lesson, state: earned|skipped|open|locked}
 
@@ -173,7 +174,7 @@ def _view() -> UnlocksView:
         lockable[unlock_id] = {"lesson": lesson, "state": state,
                                "reason": entry.get("reason") if entry else None}
     return UnlocksView(schema_version=doc["schema"], policy=doc["policy"],
-                       unlocks=doc["unlocks"], lockable=lockable)
+                       first_run=not unlocks.exists(), unlocks=doc["unlocks"], lockable=lockable)
 
 
 @router.get("/learn/unlocks")
