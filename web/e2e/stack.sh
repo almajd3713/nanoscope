@@ -37,7 +37,7 @@ case "${1:-}" in
     ;;
   down)
     compose down -v --remove-orphans
-    rm -rf "$NANOSCOPE_WORKSPACE"
+    rm -rf "$NANOSCOPE_WORKSPACE" || true  # files the containers wrote belong to uid 1000
     ;;
   *)
     echo "usage: $0 up|down" >&2

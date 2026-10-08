@@ -28,7 +28,7 @@ test("Learn and Tinker send the same run request when nothing was touched", asyn
   // Tinker: the run form for the same model, nothing edited
   await setLevel("Tinker");
   await page.goto("/runs/new");
-  await page.getByLabel("Model").selectOption({ label: "lessons/foundations/02-mlp/starter.py:MyMLP" });
+  await page.getByRole("combobox", { name: "Model" }).selectOption({ label: "lessons/foundations/02-mlp/starter.py:MyMLP" });
   await page.getByRole("button", { name: "Train" }).click();
   await page.waitForURL(/\/runs\//);
 
