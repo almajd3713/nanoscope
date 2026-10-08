@@ -4,7 +4,7 @@ The build list for [`plan-tool.md`](plan-tool.md), sections 4-10, with the decis
 2026-10-05 (plan section 11) applied. Phase numbers follow the plan's section 10. Every
 item is one line, so scripts and agents can grep and edit it.
 
-**Current focus:** P13 GUI MVP 1. The design-system items (P13.38-P13.45) are done. Next: the screens, starting with P13.18 (curve), then the screens.
+**Current focus:** P13 GUI MVP 1. The design-system items (P13.38-P13.45) are done. Next: the screens, starting with P13.19 (samples), then the screens.
 
 ## Progress
 
@@ -17,7 +17,7 @@ item is one line, so scripts and agents can grep and edit it.
 | P10 | HTTP API (8-10 d) | 47 / 47 | done |
 | P11 | Release prep: PyPI + GHCR (2-3 d) | 17 / 17 | done |
 | P12 | docker-compose (3-4 d) | 20 / 20 | done |
-| P13 | GUI MVP 1: shell, Learn/Tinker screens (12-15 d) | 27 / 50 | in progress |
+| P13 | GUI MVP 1: shell, Learn/Tinker screens (12-15 d) | 28 / 50 | in progress |
 | P14 | GUI MVP 2: model page, drag-and-drop (14-17 d) | 0 / 35 | not started |
 | P15 | GUI Research (10-13 d) | 0 / 30 | not started |
 | P16 | Extend + depth (8-10 d) | 0 / 16 | not started |
@@ -519,7 +519,7 @@ Order: P13.01 and P13.02 first (these items live in `web/` and run in its CI job
 - [x] P13.15 Lesson Check: enqueues the check job, shows live progress, then each check's verdict with its reasons, and refreshes progress and unlocks. · files: web/src/pages/Lesson.tsx, web/src/components/CheckResult.tsx (new) · deps: P13.14, P13.05 · done: `pnpm -C web test -- CheckResult` passes ✓ 2026-10-08 06e2ff0: the lesson's latest check job from `GET /api/jobs?kind=check` is the state and the last result (survives a reload; polls every second while queued or running); verified with a real worker against a starter; no per-check progress exists in the job, so running shows the job state only
 - [x] P13.16 Predict box on the lesson page, for lessons with a `predicted` check: it records the prediction (`POST`, as `nanoscope learn predict` does) before the experiment runs, and the check result shows the library's score. Run-form and compare predictions are dropped (Decisions log, 2026-10-07); research predictions live in study specs (P15). · files: web/src/components/Predict.tsx (new) · deps: P13.15, P9.16 · done: `pnpm -C web test -- Predict` passes ✓ 2026-10-08 78068c2: the API had no predict endpoint, so `POST /api/curricula/{path}/{lesson}/predict` was added (`checks.commit_prediction`, shared with the CLI); no shipped lesson has a `predicted` check yet, so the box is tested against a mocked one; the score appears in the check's own reason
 - [x] P13.17 Run page header: state, ETA, device and step from SSE; a failed run shows its error and traceback tail from `status.json`. · files: web/src/pages/Run.tsx (new) · deps: P13.05, P10.29, P13.37, P13.46 · done: `pnpm -C web test -- Run.header` passes ✓ 2026-10-08 bdb1714: route `/runs/*`; failed fixture is a real run; state, step, ETA (remaining steps x the newest step's seconds, shown only while running), device, readout with the API's inside/outside-the-shipped-range, pause notice, traceback with Copy; Curve, Samples and actions are P13.18-P13.20
-- [ ] P13.18 Live loss/bpb curve with uPlot, with the baseline band from the shipped seeds and the eval points. · files: web/src/components/Curve.tsx (new) · deps: P13.17 · done: `pnpm -C web test -- Curve` passes
+- [x] P13.18 Live loss/bpb curve with uPlot, with the baseline band from the shipped seeds and the eval points. · files: web/src/components/Curve.tsx (new) · deps: P13.17 · done: `pnpm -C web test -- Curve` passes ✓ 2026-10-08 ae68ea4: uPlot, colours read from tokens and rebuilt on theme change; the band is the shipped seeds' min-max per eval step (no mean line, so the browser computes no statistic); train loss is not drawn (different unit from bpb); jsdom has no canvas, so uPlot is mocked in tests
 - [ ] P13.19 Samples timeline on the run page. · files: web/src/components/Samples.tsx (new) · deps: P13.17 · done: `pnpm -C web test -- Samples` passes
 - [ ] P13.20 Run actions: stop, resume, generate (a prompt box) and duplicate. · files: web/src/pages/Run.tsx · deps: P13.17, P10.26, P10.27 · done: `pnpm -C web test -- Run.actions` passes
 - [ ] P13.21 Run form generated from ModelSpec/PresetSpec (Tinker): fields with help text, live `/api/validate/run` problems inline, seeds. · files: web/src/pages/RunForm.tsx (new) · deps: P13.09, P10.22, P13.37 · done: `pnpm -C web test -- RunForm` passes
