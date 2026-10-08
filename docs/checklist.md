@@ -18,7 +18,7 @@ item is one line, so scripts and agents can grep and edit it.
 | P11 | Release prep: PyPI + GHCR (2-3 d) | 17 / 17 | done |
 | P12 | docker-compose (3-4 d) | 20 / 20 | done |
 | P13 | GUI MVP 1: shell, Learn/Tinker screens (12-15 d) | 50 / 50 | done |
-| P14 | GUI MVP 2: model page, drag-and-drop (14-17 d) | 20 / 36 | in progress |
+| P14 | GUI MVP 2: model page, drag-and-drop (14-17 d) | 22 / 36 | in progress |
 | P15 | GUI Research (10-13 d) | 0 / 31 | not started |
 | P16 | Extend + depth (8-10 d) | 0 / 17 | not started |
 | P17 | Remaining curriculum paths (18-26 d) | 0 / 34 | not started |
@@ -587,8 +587,8 @@ Order: P13.01 and P13.02 first (these items live in `web/` and run in its CI job
 - [x] P14.34 Models page and nav item: the workspace's model classes (read by AST through `/api/files` and graph parse, never imported) with params and FLOPs from the last trace, the trace state, and the user's blocks with their certification; each opens the model page. · files: web/src/pages/Models.tsx (new), web/src/app/Shell.tsx · deps: P14.12, P14.04 · done: `pnpm -C web test -- Models` passes · done 2026-10-08 (05f6e25)
 
 ### P14 · End-to-end tests and docs
-- [ ] P14.25 Plan done-when: in the modern-block lesson, swapping LayerNorm→RMSNorm in the inspector changes exactly one line (`git diff --numstat` shows 1/1). · files: web/e2e/swap.spec.ts (new) · deps: P14.16, P14.23, P13.31 · done: `pnpm -C web exec playwright test swap` passes
-- [ ] P14.26 Plan done-when: the same swap made by drag-and-drop gives an identical diff. · files: web/e2e/swap.spec.ts · deps: P14.25, P14.18 · done: `pnpm -C web exec playwright test swap` passes
+- [x] P14.25 Plan done-when: in the modern-block lesson, swapping LayerNorm→RMSNorm in the inspector changes exactly one line (`git diff --numstat` shows 1/1). · files: web/e2e/swap.spec.ts (new) · deps: P14.16, P14.23, P13.31 · done: `pnpm -C web exec playwright test swap` passes · done 2026-10-08 (04b9f0a)
+- [x] P14.26 Plan done-when: the same swap made by drag-and-drop gives an identical diff. · files: web/e2e/swap.spec.ts · deps: P14.25, P14.18 · done: `pnpm -C web exec playwright test swap` passes · done 2026-10-08 (04b9f0a)
 - [ ] P14.27 Plan done-when: an external edit to the file updates the open graph. · files: web/e2e/external-edit.spec.ts (new) · deps: P14.23, P14.08 · done: `pnpm -C web exec playwright test external-edit` passes
 - [ ] P14.28 Plan done-when: a locked block shows its unlock lesson and can't be dropped; after the lesson's check passes (using the solution file), it can be dragged without a restart. · files: web/e2e/locked.spec.ts (new) · deps: P14.24, P14.18 · done: `pnpm -C web exec playwright test locked` passes
 - [ ] P14.29 Plan done-when: a certified user block passes its check job and appears in the palette without a restart. · files: web/e2e/user-block.spec.ts (new) · deps: P14.24, P14.04 · done: `pnpm -C web exec playwright test user-block` passes
