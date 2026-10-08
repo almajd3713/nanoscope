@@ -119,6 +119,33 @@ def _holds_runs(path: Path) -> bool:
     return (path / "config.json").exists() or any(path.glob("seed-*/config.json"))
 
 
+def baseline_range(run_dir: Path, metric: str = "val_bpb") -> dict[str, Any] | None:
+    """Where the shipped baseline of this run's preset and model puts one new run, and whether
+    this run is inside it. None when no baseline ships for the preset and model name (the
+    baseline folder is the model's class name, lower case). `interval` is None for a baseline
+    of fewer than three seeds, and `value`/`inside` are None while the run has no measurement."""
+    from nanoscope.statistics import reproduction_interval
+
+    try:
+        config = read_json(run_dir / "config.json", "config")
+        folder = BASELINES_DIR / config["preset"]["name"] / config["model"]["class"].lower()
+        base = load_runs(folder) if folder.is_dir() else []
+    except (FileNotFoundError, KeyError, ValueError):
+        return None
+    if not base:
+        return None
+    values = [r.final(metric) for r in base]
+    interval = reproduction_interval(values)
+    try:
+        value: float | None = SeedRun.load(run_dir).final(metric)
+    except (FileNotFoundError, ValueError):
+        value = None
+    inside = None if interval is None or value is None else interval[0] <= value <= interval[1]
+    return {"ref": store.ref_of(folder), "metric": metric, "n_seeds": len(values),
+            "values": values, "interval": list(interval) if interval else None,
+            "value": value, "inside": inside}
+
+
 def _resolve(item: Any, preset: str | None) -> RunSet:
     from nanoscope.run import RunGroup, RunResult
 

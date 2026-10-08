@@ -1756,6 +1756,10 @@ export interface components {
         };
         /** RunDetail */
         RunDetail: {
+            /** Baseline */
+            baseline?: {
+                [key: string]: unknown;
+            } | null;
             config: components["schemas"]["ConfigDoc"] | null;
             /** Ref */
             ref: string;

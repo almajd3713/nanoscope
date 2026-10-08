@@ -353,3 +353,43 @@ def test_generate_without_a_worker_is_a_503(client, monkeypatch):
     assert response.status_code == 503 and "start one with `nanoscope worker`" in response.json()[
         "detail"]
     assert [j["state"] for j in queue.list_jobs()] == ["cancelled"]
+
+
+def test_baseline_range(client, finished, home):
+    import json
+    import shutil
+
+    from nanoscope import paths
+    from nanoscope.compare import BASELINES_DIR
+    from nanoscope.statistics import reproduction_interval
+
+    # a run with no shipped baseline for its preset and model says so
+    assert client.get(f"/api/runs/{finished[0].ref}").json()["baseline"] is None
+
+    # a GPT-2 run on the baseline preset carries the shipped seeds' range for one new run
+    source = BASELINES_DIR / "tinystories-5min" / "gpt2" / "seed-0"
+    mine = paths.runs_dir() / "tinystories-5min" / "gpt2" / "seed-0"
+    shutil.copytree(source, mine)
+    body = client.get("/api/runs/tinystories-5min/gpt2/seed-0").json()["baseline"]
+    values = [json.loads(line) for line in (mine / "metrics.jsonl").read_text().splitlines()]
+    mine_final = [r["val_bpb"] for r in values if "val_bpb" in r][-1]
+    shipped = [
+        [json.loads(x) for x in (BASELINES_DIR / "tinystories-5min" / "gpt2" / f"seed-{i}"
+                                 / "metrics.jsonl").read_text().splitlines()]
+        for i in range(3)]
+    finals = [[r["val_bpb"] for r in rows if "val_bpb" in r][-1] for rows in shipped]
+    low, high = reproduction_interval(finals)
+    assert body["ref"] == "baselines/tinystories-5min/gpt2" and body["n_seeds"] == 3
+    assert body["metric"] == "val_bpb" and body["values"] == pytest.approx(finals)
+    assert body["interval"] == pytest.approx([low, high])
+    assert body["value"] == pytest.approx(mine_final) and body["inside"] is True
+
+    # a result far outside the range says so
+    rows = (mine / "metrics.jsonl").read_text().splitlines()
+    last = max(i for i, line in enumerate(rows) if "val_bpb" in json.loads(line))
+    changed = json.loads(rows[last])
+    changed["val_bpb"] = high + 1.0
+    rows[last] = json.dumps(changed)
+    (mine / "metrics.jsonl").write_text("\n".join(rows) + "\n")
+    outside = client.get("/api/runs/tinystories-5min/gpt2/seed-0").json()["baseline"]
+    assert outside["inside"] is False and outside["value"] == pytest.approx(high + 1.0)

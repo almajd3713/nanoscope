@@ -1545,6 +1545,18 @@
       },
       "RunDetail": {
         "properties": {
+          "baseline": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Baseline"
+          },
           "config": {
             "anyOf": [
               {

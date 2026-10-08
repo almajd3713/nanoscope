@@ -7,6 +7,13 @@ import pytest
 from nanoscope.server.app import create_app
 
 
+@pytest.fixture(autouse=True)
+def no_built_app(monkeypatch, tmp_path):
+    """Tests of the API must not depend on whether `make web` has built the app into the
+    package: with one, every non-API path is the page instead of a 404."""
+    monkeypatch.setattr("nanoscope.server.app.default_static_dir", lambda: tmp_path / "no-app")
+
+
 class LiveServer:
     def __init__(self, url):
         self.url = url

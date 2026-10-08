@@ -11,6 +11,7 @@ from fastapi.responses import JSONResponse
 from pydantic import BaseModel, Field
 
 from nanoscope import paths, queue, store
+from nanoscope.compare import baseline_range
 from nanoscope.progress import RunState
 from nanoscope.schemas.upgrade import read_json
 from nanoscope.server.errors import problem
@@ -39,6 +40,9 @@ class RunDetail(BaseModel):
     config: ConfigDoc | None
     status: StatusDoc | None
     summary: dict[str, Any]
+    # the shipped baseline's range for one new run and whether this run is inside it; null when
+    # no baseline ships for the run's preset and model
+    baseline: dict[str, Any] | None = None
 
 
 def entry(run: RunState) -> RunEntry:
@@ -341,4 +345,4 @@ def get_run(ref: str) -> RunDetail:
     return RunDetail(
         ref=ref, config=ConfigDoc.model_validate(config) if config else None,
         status=StatusDoc.model_validate(status) if status else None,
-        summary=summary_of(run_dir))
+        summary=summary_of(run_dir), baseline=baseline_range(run_dir))
