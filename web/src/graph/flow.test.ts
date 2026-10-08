@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import layerPattern from "../../test/fixtures/graph-layer_pattern.json";
 import modern from "../../test/fixtures/graph-modern_like.json";
 import opaque from "../../test/fixtures/graph-opaque_block.json";
+import oneHead from "../../test/fixtures/graph-filled_template.json";
 import codeOnly from "../../test/fixtures/graph-code_only.json";
 import { buildFlow, type GClass } from "./flow";
 
@@ -58,5 +59,14 @@ describe("buildFlow", () => {
   it("draws nothing for a class that is code only", () => {
     const flow = buildFlow(cls(codeOnly, 1));
     expect(flow).toEqual({ boxes: [], groups: [], arrows: [] });
+  });
+
+  it("draws a class that fills a template as its filled slots in order, empty slots left out", () => {
+    const flow = buildFlow(cls(oneHead));
+    expect(flow.boxes.map((b) => [b.slot, b.name])).toEqual([
+      ["q", "Linear"], ["k", "Linear"], ["v", "Linear"], ["scores", "ScaledDotScores"], ["normalize", "Softmax"], ["out", "Linear"],
+    ]);
+    expect(flow.boxes[0]!.path).toEqual(["q"]);
+    expect(flow.arrows.map((a) => a.id)).toEqual(["q>k", "k>v", "v>scores", "scores>normalize", "normalize>out"]);
   });
 });

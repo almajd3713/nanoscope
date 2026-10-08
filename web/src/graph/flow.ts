@@ -12,13 +12,15 @@ export type GNode =
   | { kind: "block"; block: string; args: Record<string, GNode>; family?: string; tier?: string; local?: boolean; span?: Span };
 export type GClass = {
   name: string;
-  kind: "decoder" | "composite";
+  kind: "decoder" | "composite" | "filled";
   line: number;
   representable: boolean;
   reason?: string | null;
   reason_line?: number | null;
   args?: Record<string, GNode>;
   slots?: string[];
+  // a "filled" class (class OneHead(AttentionTemplate)) names the template it fills
+  template?: string;
 };
 export type Path = (string | number)[];
 
@@ -110,9 +112,25 @@ function fixed(id: string, name: string, slot: string, family: string, args: [st
 }
 
 // A Decoder class: embedding, the layers, the final norm, the head.
+// A class that fills a template: its filled slots, in the order the template runs them.
+function buildFilled(cls: GClass): Flow {
+  const flow: Flow = { boxes: [], groups: [], arrows: [] };
+  let before: string | null = null;
+  for (const slot of cls.slots ?? []) {
+    const node = cls.args?.[slot];
+    if (!node || (node.kind === "literal" && node.value === null)) continue; // an empty slot has no box
+    const own = addBlock(flow, node, slot, [slot], null);
+    if (before) flow.arrows.push({ id: `${before}>${own.first}`, from: before, to: own.first, kind: "flow" });
+    before = own.last;
+  }
+  return flow;
+}
+
 export function buildFlow(cls: GClass): Flow {
   const flow: Flow = { boxes: [], groups: [], arrows: [] };
-  if (!cls.representable || cls.kind !== "decoder" || !cls.args) return flow;
+  if (!cls.representable || !cls.args) return flow;
+  if (cls.kind === "filled") return buildFilled(cls);
+  if (cls.kind !== "decoder") return flow;
   const args = cls.args;
   let before: string | null = null;
   const connect = (ends: Ends) => {

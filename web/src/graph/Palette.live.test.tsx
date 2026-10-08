@@ -1,4 +1,4 @@
-import { act, render, screen, waitFor } from "@testing-library/react";
+import { act, render, screen, waitFor, within } from "@testing-library/react";
 import { MemoryRouter } from "react-router-dom";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import blocks from "../../test/fixtures/blocks-guided.json";
@@ -60,5 +60,25 @@ describe("Palette stays current", () => {
     act(() => stream("/api/files/events").emit("change", { path: "blocks/mine.py", kind: "added", etag: "y" }));
     expect(await screen.findByText("ScaledMLP")).toBeTruthy();
     expect(screen.getByText("not certified")).toBeTruthy();
+  });
+
+  it("shows a block as certified when its certification job finishes", async () => {
+    let done = false;
+    const mine = (state: string) => ({ name: "GateE2E", family: "mlp", args: [], user: true, certified: state === "certified", certification: { state }, lock: { lockable: false, locked: false, lesson: null, how: null } });
+    mockApi({
+      "GET /api/blocks": { body: () => ({ ...blocks, blocks: [...blocks.blocks, mine(done ? "certified" : "uncertified")] }) },
+      "GET /api/jobs": { body: () => [{ id: 4, state: done ? "done" : "running" }] },
+    });
+    render(
+      <Providers>
+        <MemoryRouter>
+          <LivePalette />
+        </MemoryRouter>
+      </Providers>,
+    );
+    const item = async () => (await screen.findByText("GateE2E")).closest("li")!;
+    expect(within(await item()).getByText("not certified")).toBeTruthy();
+    done = true;
+    await waitFor(async () => expect(within(await item()).getByLabelText("certified")).toBeTruthy(), { timeout: 4000 });
   });
 });

@@ -286,6 +286,19 @@ def _input_sets(inputs: list[Any]) -> list[list[Any]]:
     return [list(inputs)]
 
 
+def resolve_param(params: dict[str, Any], key: str) -> str:
+    """`q.weight` also names the weight of a template's `q` slot filled with the `Linear` block,
+    which keeps it one level down (`q.linear.weight`): the template route and the code route are
+    judged by the same check. An exact name always wins; otherwise one inserted level is accepted
+    when it is the only match."""
+    if key in params or "." not in key:
+        return key
+    head, _, tail = key.partition(".")
+    found = [name for name in params if name.startswith(head + ".") and name.endswith("." + tail)
+             and name.count(".") == key.count(".") + 1]
+    return found[0] if len(found) == 1 else key
+
+
 @checker("equivalent")
 def check_equivalent(ctx: Context, check: Check) -> Result:
     """The learner's module matches a naive reference on random inputs. Weights are copied
@@ -327,7 +340,7 @@ def check_equivalent(ctx: Context, check: Check) -> Result:
                     if isinstance(item, str) and item.startswith("input:"):
                         call.append(inputs[int(item[6:])])
                     elif isinstance(item, str) and item.startswith("param:"):
-                        key = item[6:]
+                        key = resolve_param(params, item[6:])
                         if key not in params:
                             return Result(
                                 check.id, check.kind, False,

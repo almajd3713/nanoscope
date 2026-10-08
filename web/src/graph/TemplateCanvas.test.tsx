@@ -3,6 +3,7 @@ import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
 import blocks from "../../test/fixtures/blocks-guided.json";
 import filled from "../../test/fixtures/graph-template_fill.json";
+import oneHead from "../../test/fixtures/graph-filled_template.json";
 import modern from "../../test/fixtures/graph-modern_like.json";
 import type { CatalogBlock } from "../editor/completions";
 import { DRAG_TYPE } from "./dnd";
@@ -57,5 +58,18 @@ describe("TemplateCanvas", () => {
   it("says when a class has no template", () => {
     render(<TemplateCanvas cls={modern.classes[0] as unknown as GClass} blocks={catalog} onEdit={() => {}} />);
     expect(screen.getByText(/has no template to fill/)).toBeTruthy();
+  });
+
+  it("a class that fills a template is the template: its own slots, each a fill_slot at the class", () => {
+    const onEdit = vi.fn();
+    const head = oneHead.classes[0] as unknown as GClass;
+    render(<TemplateCanvas cls={head} blocks={catalog} onEdit={onEdit} />);
+    const outer = screen.getByRole("region", { name: "AttentionTemplate template" });
+    expect(within(outer).getAllByRole("group").map((g) => g.getAttribute("aria-label"))).toEqual(
+      ["q", "k", "v", "scores", "mask", "normalize", "mix", "out"].map((s) => `${s} slot`),
+    );
+    expect(within(screen.getByRole("group", { name: "mix slot" })).getByText("drop a block here")).toBeTruthy(); // mix=None
+    fireEvent.drop(screen.getByRole("group", { name: "mix slot" }), { dataTransfer: dragOf("WeightedSum") });
+    expect(onEdit).toHaveBeenCalledWith([{ op: "fill_slot", class: "OneHead", path: [], slot: "mix", node: { kind: "block", block: "WeightedSum", args: {}, span: null } }]);
   });
 });

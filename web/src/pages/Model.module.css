@@ -37,10 +37,11 @@
 
 .stage {
   display: grid;
-  grid-template-rows: minmax(0, 1fr) auto;
+  grid-template-rows: minmax(280px, 1fr) auto;
   gap: var(--space-3);
   min-height: 0;
   min-width: 0;
+  overflow: auto;
 }
 
 .select {

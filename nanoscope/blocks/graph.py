@@ -12,6 +12,10 @@ Each `Decoder` or `Composite` subclass in the file becomes a class entry. A `Dec
     opaque    a call to anything else; shown, but its inside is not editable
     expr      any other expression, kept as source text
 
+A class that fills a lesson template (`class OneHead(AttentionTemplate)` whose `__init__` only
+calls `super().__init__(d_model, context_length, q=Linear(), ...)`) has kind "filled": its slots are
+the arguments, edited like a Decoder's.
+
 A class with a statement outside this subset is code-only: it still appears, with the reason
 and the line. Every node carries its source span (1-based lines, 0-based columns), which
 `emit` uses to patch the file and `describe` uses to point at a line.
@@ -32,6 +36,7 @@ from nanoscope import __version__
 
 BLOCKS_MODULE = "nanoscope.blocks"
 BASES = {"Decoder": "decoder", "Composite": "composite"}
+TEMPLATE_PARAMS = ["d_model", "context_length"]  # what a Composite takes before its slots
 
 
 def _known_blocks() -> dict[str, registry.BlockInfo]:
@@ -107,6 +112,10 @@ class _Parser:
         module, _, last = name.rpartition(".")
         if last in BASES and (module == BLOCKS_MODULE or module.startswith(BLOCKS_MODULE + ".")):
             return BASES[last]
+        info = self.blocks.get(last)
+        if info and info.family == "template" and (
+                module == BLOCKS_MODULE or module.startswith(BLOCKS_MODULE + ".")):
+            return "filled"
         return None
 
     # -- argument values -------------------------------------------------------------------
@@ -172,7 +181,12 @@ class _Parser:
                 "bases": [_dotted(b) or ast.unparse(b) for b in node.bases],
             }
             try:
-                entry.update(self.decoder(node) if kind == "decoder" else self.composite(node))
+                if kind == "decoder":
+                    entry.update(self.decoder(node))
+                elif kind == "filled":
+                    entry.update(self.filled(node))
+                else:
+                    entry.update(self.composite(node))
                 entry.update(representable=True, reason=None, reason_line=None)
             except _CodeOnly as why:
                 entry.update(representable=False, reason=why.reason, reason_line=why.line)
@@ -187,6 +201,22 @@ class _Parser:
         return body
 
     def decoder(self, node: ast.ClassDef) -> dict[str, Any]:
+        return self._init_args(node, _decoder_params())
+
+    def filled(self, node: ast.ClassDef) -> dict[str, Any]:
+        """A class that fills a template: its slots are keyword arguments of super().__init__."""
+        out = self._init_args(node, TEMPLATE_PARAMS)
+        template = ""
+        for base in node.bases:
+            last = (_dotted(base) or "").rsplit(".", 1)[-1]
+            if last in self.blocks and self.blocks[last].family == "template":
+                template = last
+        info = self.blocks[template]
+        out["template"] = template
+        out["slots"] = list(getattr(importlib.import_module(info.module), template).SLOTS)
+        return out
+
+    def _init_args(self, node: ast.ClassDef, positional: list[str]) -> dict[str, Any]:
         init: ast.FunctionDef | None = None
         for stmt in self._body(node):
             if isinstance(stmt, ast.FunctionDef) and stmt.name == "__init__" and init is None:
@@ -200,8 +230,7 @@ class _Parser:
             return {"params": [], "args": {}, "init_span": None}
         params = _signature(init)
         names = {p["name"] for p in params}
-        call = self._super_call(init)
-        positional = _decoder_params()
+        call = self._super_call(init, positional)
         args: dict[str, Any] = {}
         for arg, name in zip(call.args, positional, strict=False):
             args[name] = self.value(arg, names)
@@ -211,7 +240,7 @@ class _Parser:
         return {"params": params, "args": args, "init_span": _span(init),
                 "call_span": _span(call)}
 
-    def _super_call(self, init: ast.FunctionDef) -> ast.Call:
+    def _super_call(self, init: ast.FunctionDef, positional: list[str]) -> ast.Call:
         body = init.body
         if body and isinstance(body[0], ast.Expr) and isinstance(body[0].value, ast.Constant) \
                 and isinstance(body[0].value.value, str):
@@ -228,7 +257,7 @@ class _Parser:
         if len(calls) > 1:
             raise _CodeOnly("__init__ calls super().__init__ more than once", calls[1].lineno)
         call = calls[0]
-        if len(call.args) > len(_decoder_params()) or any(
+        if len(call.args) > len(positional) or any(
                 isinstance(a, ast.Starred) for a in call.args) or any(
                 k.arg is None for k in call.keywords):
             raise _CodeOnly("super().__init__ takes *args or **kwargs", call.lineno)
@@ -372,9 +401,10 @@ def diff(old: dict[str, Any], new: dict[str, Any]) -> list[dict[str, Any]]:
         if not before["representable"]:
             raise ValueError(f"{cls['name']} is code-only ({before['reason']}), so its graph "
                              "can't be edited; edit the source")
-        if before["kind"] != "decoder" or strip_spans(before.get("args")) == strip_spans(
-                cls.get("args")):
-            raise ValueError(f"{cls['name']}: only the arguments of a Decoder can be edited")
+        same_args = strip_spans(before.get("args")) == strip_spans(cls.get("args"))
+        if before["kind"] not in ("decoder", "filled") or same_args:
+            raise ValueError(f"{cls['name']}: only the arguments of a Decoder or a filled "
+                             "template can be edited")
         _diff_args(cls["name"], before["args"], cls["args"], [], edits)
     return edits
 
@@ -487,11 +517,12 @@ def apply_edits(source: str, edits: list[dict[str, Any]]) -> str:
             raise ValueError(f"no Decoder or Composite class {edit['class']!r} in the file")
         if not cls["representable"]:
             raise ValueError(f"{cls['name']} is code-only ({cls['reason']}); edit the source")
-        if cls["kind"] != "decoder":
+        if cls["kind"] == "composite":
             raise ValueError(f"{cls['name']} is a template; its slots are filled where it is used")
         if edit["op"] == "fill_slot":
             edit = _fill_slot_as_set_arg(edit, cls, existing)
-        module = _apply(cst, module, edit)
+        module = _apply(cst, module, edit,
+                        TEMPLATE_PARAMS if cls["kind"] == "filled" else _decoder_params())
     return module.code
 
 
@@ -500,6 +531,8 @@ def _fill_slot_as_set_arg(edit: dict[str, Any], cls: dict[str, Any],
     """A fill_slot is a set_arg on the template's call, once the target is known to be a
     template with that slot."""
     target: Any = {"kind": "block", "args": cls["args"]}
+    if cls["kind"] == "filled":  # the class itself is the template
+        target.update(block=cls["template"], family="template")
     for step in edit.get("path", []):
         target = target["args"][step] if isinstance(step, str) and target["kind"] == "block" \
             and step in target["args"] else None
@@ -529,7 +562,7 @@ def _slots_of(node: dict[str, Any], existing: dict[str, Any]) -> list[str] | Non
     return list(slots) if slots else None
 
 
-def _apply(cst: Any, module: Any, edit: dict[str, Any]) -> Any:
+def _apply(cst: Any, module: Any, edit: dict[str, Any], positional: list[str]) -> Any:
     op = edit["op"]
     nodes = {"set_arg": [edit.get("value")], "replace_block": [edit.get("node")],
              "remove_arg": [], "add_layer": [edit.get("node")], "remove_layer": [],
@@ -538,8 +571,6 @@ def _apply(cst: Any, module: Any, edit: dict[str, Any]) -> Any:
         raise ValueError(f"unknown edit {op!r}")
     module, prefix = _ensure_imports(cst, module, [n for node in nodes if node
                                                    for n in _block_names(node)])
-    positional = _decoder_params()
-
     def on_call(call: Any, path: list[Any], root: bool) -> Any:
         if not path:
             if op == "replace_block":
@@ -672,8 +703,7 @@ def _change_arg(cst: Any, call: Any, edit: dict[str, Any], prefix: str,
 def _take_tail(cst: Any, element: Any, tail: Any) -> Any:
     """`element` (now last) ends with `tail`, the comma the removed last element had, unless its
     own comma carries a comment: that comment stays."""
-    comma = element.comma
-    after = getattr(comma, "whitespace_after", None)
+    after: Any = getattr(element.comma, "whitespace_after", None)
     if isinstance(after, cst.ParenthesizedWhitespace) and after.first_line.comment is not None:
         return element
     return element.with_changes(comma=tail)

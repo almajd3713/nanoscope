@@ -1,4 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useEffect, useRef } from "react";
 import { api } from "../api/client";
 import { toProblem, unwrap } from "../api/problem";
 import { useEvents } from "../hooks/useEvents";
@@ -17,6 +18,14 @@ export function graphKey(path: string) {
 
 // The parsed graph of a workspace file. The file is read with `ast`; nothing is imported.
 export function useGraph(path: string) {
+  const queryClient = useQueryClient();
+  // anything that changes the file (another editor, git, a save) parses it again
+  useEvents("/api/files/events", {
+    events: ["change"],
+    onEvent: (_type, data) => {
+      if ((data as { path?: string }).path === path) void queryClient.invalidateQueries({ queryKey: graphKey(path) });
+    },
+  });
   return useQuery({
     queryKey: graphKey(path),
     queryFn: () => unwrap(api.POST("/api/files/{path}/graph", { params: { path: { path } } })) as unknown as Promise<GraphDoc>,
@@ -59,6 +68,18 @@ export function useBlocks() {
       if ((data as { path?: string }).path?.endsWith(".py")) refresh();
     },
   });
+  // A certification is a job: when one finishes, the block's badge changed on disk.
+  const certify = useQuery({
+    queryKey: ["jobs", "certify"],
+    queryFn: () => unwrap(api.GET("/api/jobs", { params: { query: { kind: "certify", limit: 50 } } })) as unknown as Promise<{ id: number; state: string }[]>,
+    refetchInterval: (q) => ((q.state.data ?? []).some((j) => ["queued", "running"].includes(j.state)) ? 1000 : false),
+  });
+  const finished = (certify.data ?? []).filter((j) => !["queued", "running"].includes(j.state)).map((j) => j.id).join(",");
+  const seen = useRef<string | null>(null);
+  useEffect(() => {
+    if (seen.current !== null && seen.current !== finished) void queryClient.invalidateQueries({ queryKey: ["blocks"] });
+    seen.current = finished;
+  }, [finished, queryClient]);
   return useQuery({
     queryKey: ["blocks"],
     queryFn: () => unwrap(api.GET("/api/blocks")) as unknown as Promise<{ blocks: PaletteBlock[]; policy: string }>,

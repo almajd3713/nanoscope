@@ -86,18 +86,28 @@ function TemplateCard({ cls, template, blocks, onEdit, setNote }: { cls: GClass;
   );
 }
 
+// The templates a class holds, outermost first: a class that fills a template is one itself.
+function templatesOf(cls: GClass): Found[] {
+  if (cls.kind === "filled" && cls.template && cls.args) {
+    const slots = cls.slots ?? [];
+    const args = Object.fromEntries(Object.entries(cls.args).filter(([k]) => slots.includes(k)));
+    return [{ path: [], node: { kind: "block", block: cls.template, family: "template", args } }];
+  }
+  const top = Object.entries(cls.args ?? {}).flatMap(([k, v]) => templatesIn(v, [k]));
+  // the outermost only: nested ones are drawn inside their owner
+  return top.filter((t) => !top.some((o) => o !== t && t.path.length > o.path.length && o.path.every((p, i) => t.path[i] === p)));
+}
+
 // Whether the class has a template to fill (a lesson's starter does).
 export function hasTemplate(cls: GClass): boolean {
-  return Object.entries(cls.args ?? {}).some(([k, v]) => templatesIn(v, [k]).length > 0);
+  return templatesOf(cls).length > 0;
 }
 
 // The lesson template as slots to fill: each slot is a drop target for a primitive from the
 // palette, and an empty slot says so. Every drop is a fill_slot patch.
 export function TemplateCanvas({ cls, blocks, onEdit }: Props) {
   const [note, setNote] = useState<string | null>(null);
-  const top = Object.entries(cls.args ?? {}).flatMap(([k, v]) => templatesIn(v, [k]));
-  // the outermost templates only: nested ones are drawn inside their owner
-  const outer = top.filter((t) => !top.some((o) => o !== t && t.path.length > o.path.length && o.path.every((p, i) => t.path[i] === p)));
+  const outer = templatesOf(cls);
   if (outer.length === 0) {
     return <p className="body">{cls.name} has no template to fill. Start a lesson to get one.</p>;
   }

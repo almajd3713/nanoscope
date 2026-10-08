@@ -273,7 +273,8 @@
         "kind": {
           "enum": [
             "decoder",
-            "composite"
+            "composite",
+            "filled"
           ]
         },
         "line": {
@@ -346,6 +347,9 @@
               "type": "null"
             }
           ]
+        },
+        "template": {
+          "type": "string"
         }
       },
       "if": {
@@ -379,6 +383,20 @@
                 "const": "composite"
               }
             }
+          },
+          {
+            "required": [
+              "params",
+              "args",
+              "init_span",
+              "template",
+              "slots"
+            ],
+            "properties": {
+              "kind": {
+                "const": "filled"
+              }
+            }
           }
         ]
       },
@@ -406,6 +424,11 @@
             {
               "required": [
                 "params"
+              ]
+            },
+            {
+              "required": [
+                "template"
               ]
             }
           ]

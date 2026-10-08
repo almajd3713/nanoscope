@@ -599,3 +599,34 @@ def test_property_all_ops():
             assert emit(graph, source) == source  # and emitting what was parsed changes nothing
 
     check()
+
+
+def test_filled_template_class_is_a_graph_of_its_slots():
+    """`class OneHead(AttentionTemplate)` with its slots in super().__init__ (lesson F03's
+    graph route): the slots are the arguments, and filling one is a fill_slot on the class."""
+    path = FIXTURES / "filled_template.py"
+    source = path.read_text()
+    cls = parse(path)["classes"][0]
+    assert (cls["name"], cls["kind"], cls["representable"]) == ("OneHead", "filled", True)
+    assert cls["template"] == "AttentionTemplate"
+    assert cls["slots"] == ["q", "k", "v", "scores", "mask", "normalize", "mix", "out"]
+    assert [p["name"] for p in cls["params"]] == ["d_model", "context_length"]
+    assert list(cls["args"]) == ["d_model", "context_length", *cls["slots"]]
+    assert cls["args"]["mask"]["kind"] == "literal" and cls["args"]["mask"]["value"] is None
+    assert cls["args"]["scores"]["block"] == "ScaledDotScores"
+
+    fill = {"op": "fill_slot", "class": "OneHead", "path": [], "slot": "mask",
+            "node": {"kind": "block", "block": "CausalMask", "args": {}, "span": None}}
+    after = apply_edits(source, [fill])
+    ((line, old, new),) = changed_lines(source, after)
+    assert "mask=CausalMask()" in new and "mask=None" in old and "Causal" in after.splitlines()[0]
+    again = parse_text(after)["classes"][0]
+    assert again["args"]["mask"]["block"] == "CausalMask"
+    # the emptied slot, an unknown slot, and a swap through the ordinary graph edit
+    assert apply_edits(after, [{**fill, "node": None}]) == source
+    with pytest.raises(ValueError, match="has the slots q, k, v.*not 'nope'"):
+        apply_edits(source, [{**fill, "slot": "nope"}])
+    graph = parse_text(source)
+    graph["classes"][0]["args"]["mix"] = {"kind": "block", "block": "WeightedSum", "args": {},
+                                          "span": None}
+    assert "mix=WeightedSum()" in emit(graph, source)
