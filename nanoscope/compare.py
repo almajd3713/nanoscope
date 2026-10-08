@@ -225,7 +225,11 @@ class Comparison:
         preset = self.sets[0].config["preset"]
         header = (f"{METRICS[self.metric]} on the first {preset['eval_docs']} validation "
                   f"documents of {preset['dataset']} (lower is better)")
-        table = [["model", "seeds", "non-emb params", "tokens", self.metric,
+        kinds = {row.get("params_kind", "non-embedding") for row in self.rows}
+        # the header says which count the column holds; a mixed table marks each cell
+        header_params = ("non-emb params" if kinds == {"non-embedding"}
+                         else "total params" if kinds == {"total"} else "params")
+        table = [["model", "seeds", header_params, "tokens", self.metric,
                   f"Δ vs {self.baseline}", ""]]
         for row in self.rows:
             s, d = row["summary"], row["delta"]
@@ -243,7 +247,10 @@ class Comparison:
                          f"[{_fmt(d['ci95_low'], True)}, {_fmt(d['ci95_high'], True)}]")
                 if not d["paired"]:
                     verdict += " (unpaired)"
-            table.append([row["label"], str(s["n"]), f"{row['params'] / 1e6:.2f}M",
+            params = f"{row['params'] / 1e6:.2f}M"
+            if len(kinds) > 1:
+                params += " (total)" if row.get("params_kind") == "total" else " (non-emb)"
+            table.append([row["label"], str(s["n"]), params,
                           f"{row['tokens'] / 1e6:.1f}M", value, delta, verdict])
         widths = [max(len(r[i]) for r in table) for i in range(len(table[0]))]
         lines = ["  ".join(c.ljust(w) for c, w in zip(r, widths, strict=True)).rstrip()
@@ -360,8 +367,10 @@ def compare(
             "label": s.label,
             "source": s.source,
             "seeds": s.seeds,
-            # studies match non-embedding parameters, so that is the number to show
+            # studies match non-embedding parameters, so that is the number to show; the shipped
+            # v0 baselines only record the total, and the row says so
             "params": stats.get("n_non_embedding_params", stats["n_params"]),
+            "params_kind": "non-embedding" if "n_non_embedding_params" in stats else "total",
             "tokens": s.runs[0].final_step * s.runs[0].tokens_per_step,
             "summary": summarize(list(values.values())),
             "delta": delta,

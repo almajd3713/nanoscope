@@ -170,3 +170,31 @@ def test_to_dict_curves(fake_data):
     plan = doc["precision_plan"]
     assert (plan["metric"], plan["preset"], plan["n_seeds"]) == ("val_bpb", "test-tiny", 3)
     assert plan["half_width"] is None and "no shipped baselines" in plan["note"]
+
+
+def test_params_kind_says_which_count_the_column_holds(tmp_path):
+    import shutil
+
+    own = run(Bigram, tiny(), device="cpu", seeds=3, progress=False)
+    # the shipped v0 baselines only record the total: make a copy of ours that does the same
+    old = tmp_path / "old"
+    shutil.copytree(own[0].run_dir.parent, old)
+    for config in old.glob("seed-*/config.json"):
+        doc = json.loads(config.read_text())
+        del doc["stats"]["n_non_embedding_params"]
+        config.write_text(json.dumps(doc))
+
+    mixed = compare(own, old)
+    assert [r["params_kind"] for r in mixed.rows] == ["non-embedding", "total"]
+    header = str(mixed).splitlines()[2]
+    assert "params" in header and "non-emb params" not in header and "total params" not in header
+    assert "(total)" in str(mixed) and "(non-emb)" in str(mixed)
+
+    plain = compare(own, run(Bigram, tiny(), device="cpu", seeds=3, d_model=48, progress=False))
+    assert {r["params_kind"] for r in plain.rows} == {"non-embedding"}
+    assert "non-emb params" in str(plain).splitlines()[2]
+
+    # two shipped baselines are both totals, and the header says so
+    both = compare("bigram", "gpt2", preset="tinystories-5min")
+    assert {r["params_kind"] for r in both.rows} == {"total"}
+    assert "total params" in str(both).splitlines()[2]

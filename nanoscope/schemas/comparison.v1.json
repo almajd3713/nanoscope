@@ -60,6 +60,12 @@
               "within noise",
               "no CI"
             ]
+          },
+          "params_kind": {
+            "enum": [
+              "non-embedding",
+              "total"
+            ]
           }
         },
         "required": [
