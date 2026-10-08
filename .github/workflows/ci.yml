@@ -48,6 +48,28 @@ jobs:
       - run: uv run pytest tests/server -v
       - run: make openapi && git diff --exit-code docs/openapi.json
 
+  web:
+    # The GUI: lint, types, unit tests and the production build.
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: web
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          package_json_file: web/package.json
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: pnpm
+          cache-dependency-path: web/pnpm-lock.yaml
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm lint
+      - run: pnpm typecheck
+      - run: pnpm test
+      - run: pnpm build
+
   first-notebook:
     # Guards level 0: the first notebook stays at 3 cells and trains on CPU in under 2 minutes.
     runs-on: ubuntu-latest
