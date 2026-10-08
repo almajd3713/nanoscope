@@ -18,6 +18,14 @@ export function fileKey(path: string) {
   return ["file", path] as const;
 }
 
+// The server's copy of a file with its ETag.
+export function useFileDoc(path: string) {
+  return useQuery({
+    queryKey: fileKey(path),
+    queryFn: () => unwrap(api.GET("/api/files/{path}", { params: { path: { path } } })) as unknown as Promise<FileDoc>,
+  });
+}
+
 // One file open for editing: the server's copy (with its ETag), the unsaved text on top of it,
 // and the save that sends the ETag back. The text lives here and on the server, nowhere else.
 export function useFileBuffer(path: string) {
@@ -27,10 +35,7 @@ export function useFileBuffer(path: string) {
   const [external, setExternal] = useState<{ path: string; change: External } | null>(null);
   const known = useRef<{ etag: string | null; dirty: boolean; saving: boolean }>({ etag: null, dirty: false, saving: false });
 
-  const file = useQuery({
-    queryKey: fileKey(path),
-    queryFn: () => unwrap(api.GET("/api/files/{path}", { params: { path: { path } } })) as unknown as Promise<FileDoc>,
-  });
+  const file = useFileDoc(path);
   const base = file.data;
   const mine = draft && draft.path === path ? draft.text : null;
   const text = mine ?? base?.content ?? "";
