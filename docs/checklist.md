@@ -4,7 +4,7 @@ The build list for [`plan-tool.md`](plan-tool.md), sections 4-10, with the decis
 2026-10-05 (plan section 11) applied. Phase numbers follow the plan's section 10. Every
 item is one line, so scripts and agents can grep and edit it.
 
-**Current focus:** P13 GUI MVP 1. The design-system items (P13.38-P13.45) are done. Next: the screens, starting with P13.27 (Components page), then the screens.
+**Current focus:** P13 GUI MVP 1. The design-system items (P13.38-P13.45) are done. Next: the screens, starting with P13.28 (queue panel), then the screens.
 
 ## Progress
 
@@ -17,7 +17,7 @@ item is one line, so scripts and agents can grep and edit it.
 | P10 | HTTP API (8-10 d) | 47 / 47 | done |
 | P11 | Release prep: PyPI + GHCR (2-3 d) | 17 / 17 | done |
 | P12 | docker-compose (3-4 d) | 20 / 20 | done |
-| P13 | GUI MVP 1: shell, Learn/Tinker screens (12-15 d) | 37 / 50 | in progress |
+| P13 | GUI MVP 1: shell, Learn/Tinker screens (12-15 d) | 38 / 50 | in progress |
 | P14 | GUI MVP 2: model page, drag-and-drop (14-17 d) | 0 / 35 | not started |
 | P15 | GUI Research (10-13 d) | 0 / 30 | not started |
 | P16 | Extend + depth (8-10 d) | 0 / 16 | not started |
@@ -528,7 +528,7 @@ Order: P13.01 and P13.02 first (these items live in `web/` and run in its CI job
 - [x] P13.24 Compare page: the verdict table rendered from the API rows verbatim, notes as warnings, per-seed curves. · files: web/src/pages/Compare.tsx (new) · deps: P13.18, P10.30, P13.37, P13.47 · done: `pnpm -C web test -- Compare` asserts the verdict text equals the fixture's ✓ 2026-10-08 4e94fe9: the page shows the library's own words: rows gained `text` (value, delta, verdict, statement), the doc gained `title` and `params_header`, so the CLI table and the page print the same cells; `/compare?runs=a,b[&baseline=][&preset=][&metric=]`; fixture is a real response
 - [x] P13.25 Forest plot in plain SVG of the deltas with CIs, using API values only. · files: web/src/components/ForestPlot.tsx (new) · deps: P13.24 · done: `pnpm -C web test -- ForestPlot` passes ✓ 2026-10-08 4e94fe9: plain SVG, drawn from rows[].delta only; axis ticks are layout only; has a text equivalent in its aria-label
 - [x] P13.26 Precision plan line ("with 5 seeds the CI would be about ±0.008") from the API. · files: web/src/pages/Compare.tsx · deps: P13.24 · done: `pnpm -C web test -- Compare.precision` passes ✓ 2026-10-08 4e94fe9: the sentence comes from `precision_plan.text` (new), or its `note` when there is no number
-- [ ] P13.27 Components page: the lock state of every block and feature, how each was unlocked, an evidence link, Unlock all (with a confirm step) and unlock-one with a reason. · files: web/src/pages/Components.tsx (new) · deps: P13.08, P10.33, P13.37 · done: `pnpm -C web test -- Components` passes
+- [x] P13.27 Components page: the lock state of every block and feature, how each was unlocked, an evidence link, Unlock all (with a confirm step) and unlock-one with a reason. · files: web/src/pages/Components.tsx (new) · deps: P13.08, P10.33, P13.37 · done: `pnpm -C web test -- Components` passes ✓ 2026-10-08 0cf58cc: Radix AlertDialog (Cancel focused) for Unlock all, Dialog with a required reason for unlock-one; 'evidence' links to the lesson page, whose last check result is the evidence (no endpoint serves learn/checks files)
 - [ ] P13.28 Queue mini panel in the shell footer: current jobs with cancel. · files: web/src/components/QueuePanel.tsx (new) · deps: P13.08, P10.35, P13.37 · done: `pnpm -C web test -- QueuePanel` passes
 - [ ] P13.29 Accessibility basics: every control reachable by keyboard, and verdicts never shown by colour alone. · files: web/src/** · deps: P13.24 · done: `pnpm -C web test -- a11y` (axe on the main pages) passes
 - [ ] P13.30 Guard against statistics in the frontend: an ESLint rule that forbids statistics libraries, and a test that the compare page shows `rows[].verdict` unchanged. · files: web/eslint.config.js, web/src/pages/Compare.test.tsx · deps: P13.24 · done: `pnpm -C web lint` passes with the rule on
