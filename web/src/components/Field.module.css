@@ -1,0 +1,49 @@
+.field {
+  display: grid;
+  gap: var(--space-1);
+  min-width: 0;
+  align-content: start;
+}
+
+.input {
+  height: var(--control);
+  padding: 0 var(--space-2);
+  border: 1px solid var(--line-strong);
+  border-radius: var(--radius-2);
+  background: var(--surface-sunken);
+  color: var(--ink);
+  min-width: 0;
+}
+
+.input::placeholder {
+  color: var(--ink-muted);
+}
+
+.input:disabled {
+  color: var(--ink-disabled);
+  border-color: var(--line);
+}
+
+.input:focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: 2px;
+}
+
+.problem .input {
+  border-color: var(--bad);
+}
+
+.muted {
+  color: var(--ink-muted);
+}
+
+.message {
+  display: flex;
+  gap: var(--space-1);
+  align-items: flex-start;
+  color: var(--bad);
+}
+
+.changed {
+  font-weight: 500;
+}
