@@ -4,7 +4,7 @@ The build list for [`plan-tool.md`](plan-tool.md), sections 4-10, with the decis
 2026-10-05 (plan section 11) applied. Phase numbers follow the plan's section 10. Every
 item is one line, so scripts and agents can grep and edit it.
 
-**Current focus:** P13 GUI MVP 1. The design-system items (P13.38-P13.45) are done. Next: the screens, starting with P13.20 (run actions), then the screens.
+**Current focus:** P13 GUI MVP 1. The design-system items (P13.38-P13.45) are done. Next: the screens, starting with P13.21 (run form), then the screens.
 
 ## Progress
 
@@ -17,7 +17,7 @@ item is one line, so scripts and agents can grep and edit it.
 | P10 | HTTP API (8-10 d) | 47 / 47 | done |
 | P11 | Release prep: PyPI + GHCR (2-3 d) | 17 / 17 | done |
 | P12 | docker-compose (3-4 d) | 20 / 20 | done |
-| P13 | GUI MVP 1: shell, Learn/Tinker screens (12-15 d) | 29 / 50 | in progress |
+| P13 | GUI MVP 1: shell, Learn/Tinker screens (12-15 d) | 30 / 50 | in progress |
 | P14 | GUI MVP 2: model page, drag-and-drop (14-17 d) | 0 / 35 | not started |
 | P15 | GUI Research (10-13 d) | 0 / 30 | not started |
 | P16 | Extend + depth (8-10 d) | 0 / 16 | not started |
@@ -521,7 +521,7 @@ Order: P13.01 and P13.02 first (these items live in `web/` and run in its CI job
 - [x] P13.17 Run page header: state, ETA, device and step from SSE; a failed run shows its error and traceback tail from `status.json`. · files: web/src/pages/Run.tsx (new) · deps: P13.05, P10.29, P13.37, P13.46 · done: `pnpm -C web test -- Run.header` passes ✓ 2026-10-08 bdb1714: route `/runs/*`; failed fixture is a real run; state, step, ETA (remaining steps x the newest step's seconds, shown only while running), device, readout with the API's inside/outside-the-shipped-range, pause notice, traceback with Copy; Curve, Samples and actions are P13.18-P13.20
 - [x] P13.18 Live loss/bpb curve with uPlot, with the baseline band from the shipped seeds and the eval points. · files: web/src/components/Curve.tsx (new) · deps: P13.17 · done: `pnpm -C web test -- Curve` passes ✓ 2026-10-08 ae68ea4: uPlot, colours read from tokens and rebuilt on theme change; the band is the shipped seeds' min-max per eval step (no mean line, so the browser computes no statistic); train loss is not drawn (different unit from bpb); jsdom has no canvas, so uPlot is mocked in tests
 - [x] P13.19 Samples timeline on the run page. · files: web/src/components/Samples.tsx (new) · deps: P13.17 · done: `pnpm -C web test -- Samples` passes ✓ 2026-10-08 8cab177: tabs per step, newest by default, your choice kept when a new sample arrives; live through the `sample` event; fixture is a shipped baseline's real samples
-- [ ] P13.20 Run actions: stop, resume, generate (a prompt box) and duplicate. · files: web/src/pages/Run.tsx · deps: P13.17, P10.26, P10.27 · done: `pnpm -C web test -- Run.actions` passes
+- [x] P13.20 Run actions: stop, resume, generate (a prompt box) and duplicate. · files: web/src/pages/Run.tsx · deps: P13.17, P10.26, P10.27 · done: `pnpm -C web test -- Run.actions` passes ✓ 2026-10-08 e8ed6f7: Duplicate is a link to `/runs/new?from=<ref>` (shown from Tinker up): the run form (P13.21) must read `from` and start from that run's config; Resume for stopped and cancelled runs; Generate for done and stopped runs, with the API's defaults
 - [ ] P13.21 Run form generated from ModelSpec/PresetSpec (Tinker): fields with help text, live `/api/validate/run` problems inline, seeds. · files: web/src/pages/RunForm.tsx (new) · deps: P13.09, P10.22, P13.37 · done: `pnpm -C web test -- RunForm` passes
 - [ ] P13.22 "Duplicate and change one thing" flow (Tinker), which pre-fills the form from a run's config. · files: web/src/pages/RunForm.tsx · deps: P13.21 · done: `pnpm -C web test -- RunForm.duplicate` passes
 - [ ] P13.23 Runs list with prefix and state filters and live state. · files: web/src/pages/Runs.tsx (new) · deps: P13.05, P10.23, P13.37 · done: `pnpm -C web test -- Runs` passes
