@@ -1,4 +1,6 @@
 import { Navigate, Route, Routes } from "react-router-dom";
+import { Onboarding } from "../pages/Onboarding";
+import { BareLayout } from "./BareLayout";
 import { Shell } from "./Shell";
 
 // Each screen replaces its title here as its checklist item lands.
@@ -9,6 +11,9 @@ function Pending({ title }: { title: string }) {
 export function AppRoutes() {
   return (
     <Routes>
+      <Route element={<BareLayout />}>
+        <Route path="/welcome" element={<Onboarding />} />
+      </Route>
       <Route element={<Shell />}>
         <Route path="/" element={<Navigate to="/learn" replace />} />
         <Route path="/learn" element={<Pending title="Lessons" />} />
