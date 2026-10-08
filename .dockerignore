@@ -17,3 +17,6 @@ notebooks
 tests
 docs
 AGENTS.md
+web/node_modules
+web/dist
+nanoscope/server/static

@@ -119,6 +119,33 @@ def _holds_runs(path: Path) -> bool:
     return (path / "config.json").exists() or any(path.glob("seed-*/config.json"))
 
 
+def baseline_range(run_dir: Path, metric: str = "val_bpb") -> dict[str, Any] | None:
+    """Where the shipped baseline of this run's preset and model puts one new run, and whether
+    this run is inside it. None when no baseline ships for the preset and model name (the
+    baseline folder is the model's class name, lower case). `interval` is None for a baseline
+    of fewer than three seeds, and `value`/`inside` are None while the run has no measurement."""
+    from nanoscope.statistics import reproduction_interval
+
+    try:
+        config = read_json(run_dir / "config.json", "config")
+        folder = BASELINES_DIR / config["preset"]["name"] / config["model"]["class"].lower()
+        base = load_runs(folder) if folder.is_dir() else []
+    except (FileNotFoundError, KeyError, ValueError):
+        return None
+    if not base:
+        return None
+    values = [r.final(metric) for r in base]
+    interval = reproduction_interval(values)
+    try:
+        value: float | None = SeedRun.load(run_dir).final(metric)
+    except (FileNotFoundError, ValueError):
+        value = None
+    inside = None if interval is None or value is None else interval[0] <= value <= interval[1]
+    return {"ref": store.ref_of(folder), "metric": metric, "n_seeds": len(values),
+            "values": values, "interval": list(interval) if interval else None,
+            "value": value, "inside": inside}
+
+
 def _resolve(item: Any, preset: str | None) -> RunSet:
     from nanoscope.run import RunGroup, RunResult
 
@@ -171,6 +198,42 @@ def _fmt(x: float | None, sign: bool = False) -> str:
     return f"{x:+.3f}".replace("-", "−") if sign else f"{x:.3f}"
 
 
+UNITS = {"val_bpb": "bpb", "val_loss": "nats per token"}
+
+
+def _row_texts(rows: list[dict[str, Any]], baseline: str, metric: str) -> None:
+    """The words and numbers of each row as the table prints them (`row["text"]`), so the
+    command line and the web page show the same text and neither reformats a number."""
+    kinds = {row.get("params_kind", "non-embedding") for row in rows}
+    unit = UNITS[metric]
+    for row in rows:
+        s, d = row["summary"], row["delta"]
+        value = _fmt(s["mean"])
+        if s["ci95_low"] is not None:
+            value += f" ± {(s['ci95_high'] - s['ci95_low']) / 2:.3f}"
+        params = f"{row['params'] / 1e6:.2f}M"
+        if len(kinds) > 1:
+            params += " (total)" if row.get("params_kind") == "total" else " (non-emb)"
+        verdict = row["verdict"]
+        statement = None
+        if d is None:
+            delta, verdict = "(baseline)", ""
+        elif d["ci95_low"] is None:
+            delta = _fmt(d["mean"], sign=True)
+            verdict += ": need 3+ seeds each"
+            statement = (f"{row['label']} vs {baseline}: {delta} {unit}, "
+                         "need 3+ seeds each for an interval")
+        else:
+            delta = (f"{_fmt(d['mean'], True)} "
+                     f"[{_fmt(d['ci95_low'], True)}, {_fmt(d['ci95_high'], True)}]")
+            if not d["paired"]:
+                verdict += " (unpaired)"
+            statement = (f"{row['label']} vs {baseline}: {delta} {unit}, {d['n']} seeds each, "
+                         f"{'paired' if d['paired'] else 'unpaired'}")
+        row["text"] = {"params": params, "tokens": f"{row['tokens'] / 1e6:.1f}M", "value": value,
+                       "delta": delta, "verdict": verdict, "statement": statement}
+
+
 def verdict_of(delta: dict[str, Any] | None) -> str:
     """What a row's difference from the baseline says (lower is better for both metrics):
     "better" or "worse" when the 95% interval excludes zero, "within noise" when it
@@ -194,30 +257,27 @@ class Comparison:
     notes: list[str] = field(default_factory=list)
     sets: list[RunSet] = field(default_factory=list, repr=False)
 
-    def __str__(self) -> str:
+    @property
+    def title(self) -> str:
         preset = self.sets[0].config["preset"]
-        header = (f"{METRICS[self.metric]} on the first {preset['eval_docs']} validation "
-                  f"documents of {preset['dataset']} (lower is better)")
-        table = [["model", "seeds", "non-emb params", "tokens", self.metric,
+        return (f"{METRICS[self.metric]} on the first {preset['eval_docs']} validation "
+                f"documents of {preset['dataset']} (lower is better)")
+
+    @property
+    def params_header(self) -> str:
+        """Which count the parameter column holds; a mixed table marks each cell instead."""
+        kinds = {row.get("params_kind", "non-embedding") for row in self.rows}
+        return ("non-emb params" if kinds == {"non-embedding"}
+                else "total params" if kinds == {"total"} else "params")
+
+    def __str__(self) -> str:
+        header = self.title
+        table = [["model", "seeds", self.params_header, "tokens", self.metric,
                   f"Δ vs {self.baseline}", ""]]
         for row in self.rows:
-            s, d = row["summary"], row["delta"]
-            value = _fmt(s["mean"])
-            if s["ci95_low"] is not None:
-                value += f" ± {(s['ci95_high'] - s['ci95_low']) / 2:.3f}"
-            verdict = row["verdict"]
-            if d is None:
-                delta, verdict = "(baseline)", ""
-            elif d["ci95_low"] is None:
-                delta = _fmt(d["mean"], sign=True)
-                verdict += ": need 3+ seeds each"
-            else:
-                delta = (f"{_fmt(d['mean'], True)} "
-                         f"[{_fmt(d['ci95_low'], True)}, {_fmt(d['ci95_high'], True)}]")
-                if not d["paired"]:
-                    verdict += " (unpaired)"
-            table.append([row["label"], str(s["n"]), f"{row['params'] / 1e6:.2f}M",
-                          f"{row['tokens'] / 1e6:.1f}M", value, delta, verdict])
+            t = row["text"]
+            table.append([row["label"], str(row["summary"]["n"]), t["params"], t["tokens"],
+                          t["value"], t["delta"], t["verdict"]])
         widths = [max(len(r[i]) for r in table) for i in range(len(table[0]))]
         lines = ["  ".join(c.ljust(w) for c, w in zip(r, widths, strict=True)).rstrip()
                  for r in table]
@@ -231,6 +291,8 @@ class Comparison:
         out: dict[str, Any] = {
             "schema": 1, "nanoscope": __version__, "metric": self.metric,
             "baseline": self.baseline, "rows": self.rows, "notes": self.notes}
+        if self.sets:
+            out["title"], out["params_header"] = self.title, self.params_header
         if self.sets:
             from nanoscope.statistics import precision_plan
 
@@ -333,13 +395,16 @@ def compare(
             "label": s.label,
             "source": s.source,
             "seeds": s.seeds,
-            # studies match non-embedding parameters, so that is the number to show
+            # studies match non-embedding parameters, so that is the number to show; the shipped
+            # v0 baselines only record the total, and the row says so
             "params": stats.get("n_non_embedding_params", stats["n_params"]),
+            "params_kind": "non-embedding" if "n_non_embedding_params" in stats else "total",
             "tokens": s.runs[0].final_step * s.runs[0].tokens_per_step,
             "summary": summarize(list(values.values())),
             "delta": delta,
             "verdict": verdict_of(delta),
         })
+    _row_texts(rows, sets[base_index].label, metric)
     return Comparison(metric, sets[base_index].label, rows, notes, sets)
 
 

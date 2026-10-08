@@ -10,6 +10,8 @@ from nanoscope.blocks.registry import shipped
 
 @shipped
 class Bigram(nn.Module):
+    """Predicts the next token from the current token alone."""
+
     def __init__(self, vocab_size: int, d_model: int = 32) -> None:
         super().__init__()
         self.token_embedding = nn.Embedding(vocab_size, d_model)

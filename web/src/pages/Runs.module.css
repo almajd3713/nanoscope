@@ -1,0 +1,159 @@
+.page {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-5);
+}
+
+.head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-3);
+}
+
+.head h1 {
+  margin: 0;
+}
+
+.muted {
+  color: var(--ink-muted);
+}
+
+.warn {
+  color: var(--warn);
+}
+
+.spacer {
+  flex: 1;
+}
+
+.filters {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-3);
+}
+
+.search {
+  position: relative;
+  width: 320px;
+  max-width: 100%;
+}
+
+.search svg {
+  position: absolute;
+  left: var(--space-2);
+  top: 6px;
+  color: var(--ink-muted);
+}
+
+.search input {
+  width: 100%;
+  box-sizing: border-box;
+  height: var(--control);
+  padding: 0 var(--space-2) 0 30px;
+  border: 1px solid var(--line-strong);
+  border-radius: var(--radius-2);
+  background: var(--surface-sunken);
+  color: var(--ink);
+}
+
+.search input:focus-visible,
+.states button:focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: 2px;
+}
+
+.states {
+  display: inline-flex;
+  padding: 2px;
+  gap: 2px;
+  background: var(--surface-sunken);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-2);
+}
+
+.states button {
+  height: 22px;
+  padding: 0 var(--space-2);
+  border: 1px solid transparent;
+  border-radius: var(--radius-1);
+  background: transparent;
+  color: var(--ink-muted);
+  font-weight: 500;
+  cursor: pointer;
+}
+
+.states button:hover {
+  color: var(--ink);
+}
+
+.states button[aria-pressed="true"] {
+  background: var(--surface-raised);
+  border-color: var(--line-strong);
+  color: var(--ink);
+}
+
+.check {
+  display: inline-flex;
+  gap: var(--space-2);
+  align-items: center;
+}
+
+.check input,
+.table input[type="checkbox"] {
+  accent-color: var(--accent);
+}
+
+.wrap {
+  overflow-x: auto;
+  background: var(--surface-raised);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-0);
+}
+
+.table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.table th {
+  text-align: left;
+  color: var(--ink-muted);
+  height: var(--row);
+  padding: 0 var(--space-2);
+  border-bottom: 1px solid var(--line);
+  white-space: nowrap;
+}
+
+.table td {
+  height: var(--row);
+  padding: 0 var(--space-2);
+  border-bottom: 1px solid var(--line);
+  white-space: nowrap;
+}
+
+.table th:first-child,
+.table td:first-child {
+  padding-left: var(--space-3);
+}
+
+.table tbody tr:last-child td {
+  border-bottom: 0;
+}
+
+.table tbody tr:hover td {
+  background: var(--surface);
+}
+
+.table tr[data-selected="true"] td {
+  background: var(--accent-soft);
+}
+
+.right {
+  text-align: right !important;
+}
+
+.link {
+  color: var(--accent);
+}

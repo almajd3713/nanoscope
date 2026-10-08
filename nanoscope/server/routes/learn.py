@@ -148,6 +148,32 @@ def check(path: str, lesson: str, body: CheckRequest | None = None) -> JobDoc:
     return job_doc(queue.get(job_id))
 
 
+class PredictRequest(BaseModel):
+    verdict: str | None = None  # better, worse or within noise
+    low: float | None = None  # the interval you expect for the difference
+    high: float | None = None
+    note: str | None = None
+
+
+class PredictResult(BaseModel):
+    lesson: str
+    at: str
+    file: str  # the prediction.toml in your workspace, relative to it
+
+
+@router.post("/curricula/{path}/{lesson}/predict")
+def predict(path: str, lesson: str, body: PredictRequest | None = None) -> PredictResult:
+    """Commit to a prediction before the experiment runs (what `nanoscope learn predict` does).
+    Once the lesson has been checked it is too late: a 422 says so."""
+    from nanoscope.learn.checks import commit_prediction
+
+    spec = loader.load_lesson(f"{path}/{lesson}")
+    given = body.model_dump(exclude_none=True) if body else {}
+    file, stamp = commit_prediction(spec, given)
+    return PredictResult(lesson=spec.id, at=stamp,
+                         file=file.relative_to(paths.workspace_dir()).as_posix())
+
+
 @router.get("/learn/progress")
 def learn_progress() -> ProgressDoc:
     """Where you are in each lesson (progress.json)."""
@@ -159,6 +185,7 @@ class UnlocksView(BaseModel):
 
     schema_version: int
     policy: str
+    first_run: bool  # no unlocks.json yet: nobody has chosen guided or open
     unlocks: dict[str, dict[str, Any]]
     lockable: dict[str, dict[str, Any]]  # id -> {lesson, state: earned|skipped|open|locked}
 
@@ -173,7 +200,7 @@ def _view() -> UnlocksView:
         lockable[unlock_id] = {"lesson": lesson, "state": state,
                                "reason": entry.get("reason") if entry else None}
     return UnlocksView(schema_version=doc["schema"], policy=doc["policy"],
-                       unlocks=doc["unlocks"], lockable=lockable)
+                       first_run=not unlocks.exists(), unlocks=doc["unlocks"], lockable=lockable)
 
 
 @router.get("/learn/unlocks")

@@ -170,3 +170,49 @@ def test_to_dict_curves(fake_data):
     plan = doc["precision_plan"]
     assert (plan["metric"], plan["preset"], plan["n_seeds"]) == ("val_bpb", "test-tiny", 3)
     assert plan["half_width"] is None and "no shipped baselines" in plan["note"]
+
+
+def test_params_kind_says_which_count_the_column_holds(tmp_path):
+    import shutil
+
+    own = run(Bigram, tiny(), device="cpu", seeds=3, progress=False)
+    # the shipped v0 baselines only record the total: make a copy of ours that does the same
+    old = tmp_path / "old"
+    shutil.copytree(own[0].run_dir.parent, old)
+    for config in old.glob("seed-*/config.json"):
+        doc = json.loads(config.read_text())
+        del doc["stats"]["n_non_embedding_params"]
+        config.write_text(json.dumps(doc))
+
+    mixed = compare(own, old)
+    assert [r["params_kind"] for r in mixed.rows] == ["non-embedding", "total"]
+    header = str(mixed).splitlines()[2]
+    assert "params" in header and "non-emb params" not in header and "total params" not in header
+    assert "(total)" in str(mixed) and "(non-emb)" in str(mixed)
+
+    plain = compare(own, run(Bigram, tiny(), device="cpu", seeds=3, d_model=48, progress=False))
+    assert {r["params_kind"] for r in plain.rows} == {"non-embedding"}
+    assert "non-emb params" in str(plain).splitlines()[2]
+
+    # two shipped baselines are both totals, and the header says so
+    both = compare("bigram", "gpt2", preset="tinystories-5min")
+    assert {r["params_kind"] for r in both.rows} == {"total"}
+    assert "total params" in str(both).splitlines()[2]
+
+
+def test_rows_carry_the_text_the_table_prints(capsys):
+    result = compare("bigram", "modern", "gpt2", preset="tinystories-5min")
+    doc = result.to_dict()
+    assert doc["title"].startswith("bits per byte on the first 200 validation documents of ")
+    assert doc["params_header"] == "total params"
+    bigram, modern, gpt2 = doc["rows"]
+    assert modern["text"]["delta"].startswith("−0.16") and modern["text"]["verdict"] == "better"
+    assert modern["text"]["statement"].startswith("Modern vs GPT2: −0.16")
+    assert modern["text"]["statement"].endswith("bpb, 3 seeds each, paired")
+    assert gpt2["text"]["delta"] == "(baseline)" and gpt2["text"]["statement"] is None
+    # the printed table is made of exactly these cells
+    printed = str(result)
+    for row in doc["rows"]:
+        assert row["text"]["value"] in printed and row["text"]["delta"] in printed
+    assert "With 3 seeds per model, a difference on this preset is known to about ±0.0" in (
+        doc["precision_plan"]["text"])

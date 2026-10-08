@@ -1,0 +1,106 @@
+.footer {
+  position: sticky;
+  bottom: 0;
+  background: var(--surface);
+  border-top: 1px solid var(--line);
+}
+
+.bar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-3);
+  min-height: 28px;
+  padding: 0 var(--space-5);
+}
+
+.toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  height: var(--control-sm);
+  padding: 0 var(--space-2);
+  border: 1px solid transparent;
+  border-radius: var(--radius-2);
+  background: transparent;
+  color: var(--ink);
+  font-weight: 500;
+  cursor: pointer;
+}
+
+.toggle:hover {
+  background: var(--surface-sunken);
+}
+
+.toggle:focus-visible,
+.cancel:focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: 2px;
+}
+
+.muted {
+  color: var(--ink-muted);
+}
+
+.spacer {
+  flex: 1;
+}
+
+.worker {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  color: var(--ink-muted);
+}
+
+.panel {
+  background: var(--surface-raised);
+  border-top: 1px solid var(--line-strong);
+  box-shadow: var(--shadow-pop);
+}
+
+.jobs {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  max-height: 40vh;
+  overflow-y: auto;
+}
+
+.job {
+  display: grid;
+  grid-template-columns: 104px 88px minmax(0, 1fr) auto var(--control-sm);
+  gap: var(--space-2);
+  align-items: center;
+  height: var(--row);
+  padding: 0 var(--space-5);
+  border-bottom: 1px solid var(--line);
+}
+
+.target {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.cancel {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: var(--control-sm);
+  height: var(--control-sm);
+  padding: 0;
+  border: 1px solid transparent;
+  border-radius: var(--radius-2);
+  background: transparent;
+  color: var(--ink);
+  cursor: pointer;
+}
+
+.cancel:hover {
+  background: var(--surface-sunken);
+}
+
+.note {
+  padding: var(--space-2) var(--space-5);
+}

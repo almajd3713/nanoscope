@@ -616,6 +616,42 @@ def read_prediction(file: Path) -> dict[str, Any]:
     return doc
 
 
+class PredictionTooLate(ValueError):
+    """The lesson was already checked: a prediction only counts if it comes first."""
+
+
+class PredictionMissing(ValueError):
+    """Nothing was said and there is no prediction.toml to commit."""
+
+
+def commit_prediction(lesson: LessonSpec, given: dict[str, Any], owner: str = "local"
+                      ) -> tuple[Path, str]:
+    """Write `prediction.toml` from `given` (or commit the file already there when `given` is
+    empty), validate it, and record the time. Raises `PredictionTooLate` once the lesson has
+    been checked, `PredictionMissing` for nothing to commit, `ValueError` for a bad prediction.
+    Returns (file, timestamp)."""
+    import hashlib
+
+    import tomli_w
+
+    first = progress.entry(lesson.id, owner)["first_checked_at"]
+    if first is not None:
+        raise PredictionTooLate(f"{lesson.id} was first checked at {first}: a prediction only "
+                                "counts if it is recorded before the experiment runs, so it is "
+                                "too late for this lesson")
+    file = prediction_path(lesson)
+    if given:
+        file.parent.mkdir(parents=True, exist_ok=True)
+        file.write_text(tomli_w.dumps(given), encoding="utf-8")
+    elif not file.exists():
+        raise PredictionMissing("say what you expect, e.g. --verdict better --low -0.2 "
+                                f"--high -0.05\n(or write {file} yourself)")
+    read_prediction(file)
+    stamp = progress.record_prediction(lesson.id, file, hashlib.sha256(
+        file.read_bytes()).hexdigest(), owner)
+    return file, stamp
+
+
 @checker("predicted")
 def check_predicted(ctx: Context, check: Check) -> Result:
     """The learner committed to a prediction *before* the first check, and it matches what the

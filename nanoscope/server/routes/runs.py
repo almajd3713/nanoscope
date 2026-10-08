@@ -11,13 +11,14 @@ from fastapi.responses import JSONResponse
 from pydantic import BaseModel, Field
 
 from nanoscope import paths, queue, store
+from nanoscope.compare import baseline_range
 from nanoscope.progress import RunState
 from nanoscope.schemas.upgrade import read_json
 from nanoscope.server.errors import problem
 from nanoscope.server.jobs import job_doc
 from nanoscope.server.models import ConfigDoc, JobDoc, StatusDoc
 from nanoscope.server.routes.models import resolve_ref
-from nanoscope.server.routes.validate import model_spec
+from nanoscope.server.routes.validate import model_spec, planned_ref
 
 router = APIRouter(prefix="/api", tags=["runs"])
 
@@ -32,6 +33,8 @@ class RunEntry(BaseModel):
     updated: float  # seconds since the last metrics row
     stale: bool = False  # says running, but nothing has refreshed status.json lately
     error: dict[str, Any] | None = None
+    model: str | None = None  # the model class, from config.json
+    started_at: str | None = None  # from status.json; runs without one have none
 
 
 class RunDetail(BaseModel):
@@ -39,12 +42,27 @@ class RunDetail(BaseModel):
     config: ConfigDoc | None
     status: StatusDoc | None
     summary: dict[str, Any]
+    # the shipped baseline's range for one new run and whether this run is inside it; null when
+    # no baseline ships for the run's preset and model
+    baseline: dict[str, Any] | None = None
+
+
+def _read(run_dir: Path, name: str, kind: str) -> dict[str, Any]:
+    path = run_dir / name
+    try:
+        return read_json(path, kind) if path.exists() else {}
+    except (OSError, ValueError):
+        return {}
 
 
 def entry(run: RunState) -> RunEntry:
+    config = _read(run.run_dir, "config.json", "config")
+    status = _read(run.run_dir, "status.json", "status")
     return RunEntry(ref=store.ref_of(run.run_dir), state=run.state, step=run.step,
                     max_steps=run.max_steps, val_bpb=run.val_bpb, updated=run.updated,
-                    stale=run.stale, error=run.error)
+                    stale=run.stale, error=run.error,
+                    model=(config.get("model") or {}).get("class"),
+                    started_at=status.get("started_at"))
 
 
 def read_metrics(run_dir: Path, since_step: int = 0) -> list[dict[str, Any]]:
@@ -124,8 +142,7 @@ def submit_run(body: RunRequest, request: Request) -> Any:
     the worker runs it."""
     from dataclasses import fields as dataclass_fields
 
-    from nanoscope.presets import Preset, get_preset
-    from nanoscope.runref import REQUIRED, run_ref
+    from nanoscope.presets import Preset
     from nanoscope.specs import validate_run_spec
 
     spec, locked = model_spec(body.model)
@@ -144,11 +161,7 @@ def submit_run(body: RunRequest, request: Request) -> Any:
     preset_names = {f.name for f in dataclass_fields(Preset)}
     model_kwargs = {k: v for k, v in body.kwargs.items() if k in tunable}
     overrides = {k: v for k, v in body.kwargs.items() if k not in tunable and k in preset_names}
-    given = get_preset(body.preset)
-    preset = given.override(**overrides)
-    defaults = {p.name: REQUIRED if p.required else p.default for p in spec.params
-                if not p.from_data}
-    ref = run_ref(spec.name, defaults, model_kwargs, given, preset, body.seed)
+    ref = planned_ref(spec, body.preset, body.kwargs, body.seed)
     payload: dict[str, Any] = {
         "model": resolve_ref(body.model), "preset": body.preset, "seed": body.seed,
         "kwargs": model_kwargs, "compile": body.compile, "wandb": body.wandb}
@@ -341,4 +354,4 @@ def get_run(ref: str) -> RunDetail:
     return RunDetail(
         ref=ref, config=ConfigDoc.model_validate(config) if config else None,
         status=StatusDoc.model_validate(status) if status else None,
-        summary=summary_of(run_dir))
+        summary=summary_of(run_dir), baseline=baseline_range(run_dir))

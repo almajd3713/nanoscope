@@ -1,0 +1,140 @@
+.page {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-5);
+}
+
+.head {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.titleRow {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-3);
+}
+
+.titleRow h1,
+.head p,
+.panel h2 {
+  margin: 0;
+}
+
+.spacer {
+  flex: 1;
+}
+
+.muted {
+  color: var(--ink-muted);
+}
+
+.list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+  align-items: center;
+}
+
+.panel {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  padding: var(--space-4);
+  background: var(--surface-raised);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-2);
+}
+
+.split {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-5);
+  align-items: flex-start;
+}
+
+.tableCol {
+  flex: 999 1 640px;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.plotCol {
+  flex: 1 1 420px;
+  min-width: 320px;
+}
+
+.wrap {
+  overflow-x: auto;
+  background: var(--surface-raised);
+  border: 1px solid var(--line);
+}
+
+.table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.table th {
+  text-align: left;
+  color: var(--ink-muted);
+  height: var(--row);
+  padding: 0 var(--space-2);
+  border-bottom: 1px solid var(--line);
+  white-space: nowrap;
+}
+
+.table td {
+  height: var(--row);
+  padding: 0 var(--space-2);
+  border-bottom: 1px solid var(--line);
+  white-space: nowrap;
+}
+
+.table th:first-child,
+.table td:first-child {
+  padding-left: var(--space-3);
+}
+
+.table tbody tr:last-child td {
+  border-bottom: 0;
+}
+
+.right {
+  text-align: right !important;
+}
+
+.swatch {
+  display: inline-block;
+  width: 10px;
+  height: 0;
+  margin-right: var(--space-2);
+  vertical-align: middle;
+  border-top: 2px solid var(--series-1);
+}
+
+.dashed {
+  border-top-style: dashed;
+  border-top-color: var(--baseline);
+}
+
+.s1 { border-top-color: var(--series-1); }
+.s2 { border-top-color: var(--series-2); }
+.s3 { border-top-color: var(--series-3); }
+.s4 { border-top-color: var(--series-4); }
+.s5 { border-top-color: var(--series-5); }
+.s6 { border-top-color: var(--series-6); }
+
+.verdicts {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.link {
+  color: var(--accent);
+}

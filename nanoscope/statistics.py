@@ -137,4 +137,8 @@ def precision_plan(metric: str, preset: str, n_seeds: int) -> dict[str, Any]:
     sd = math.sqrt(sum(variances) / len(variances))
     plan.update(sd=sd, source=f"baselines/{preset}", models=models)
     plan["half_width"] = float(t.ppf(0.975, n_seeds - 1)) * sd / math.sqrt(n_seeds)
+    unit = {"val_bpb": "bpb", "val_loss": "nats per token"}.get(metric, metric)
+    plan["text"] = (f"With {n_seeds} seeds per model, a difference on this preset is known to "
+                    f"about ±{plan['half_width']:.3f} {unit} (from the shipped baselines' seed "
+                    "spread).")
     return plan

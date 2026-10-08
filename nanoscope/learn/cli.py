@@ -195,35 +195,22 @@ def format_status(owner: str = "local") -> str:
 
 
 def _predict(args: argparse.Namespace) -> int:
-    import hashlib
-
-    import tomli_w
-
-    from nanoscope.learn.checks import prediction_path, read_prediction
+    from nanoscope.learn.checks import PredictionMissing, PredictionTooLate, commit_prediction
 
     lesson = loader.load_lesson(args.lesson)
-    first = progress.entry(lesson.id)["first_checked_at"]
-    if first is not None:
-        print(f"{lesson.id} was first checked at {first}: a prediction only counts if it is "
-              "recorded before the experiment runs, so it is too late for this lesson")
-        return 1
-    file = prediction_path(lesson)
     given = {k: v for k, v in {"verdict": args.verdict, "low": args.low, "high": args.high,
                                "note": args.note}.items() if v is not None}
-    if given:
-        file.parent.mkdir(parents=True, exist_ok=True)
-        file.write_text(tomli_w.dumps(given), encoding="utf-8")
-    elif not file.exists():
-        print("say what you expect, e.g. --verdict better --low -0.2 --high -0.05")
-        print(f"(or write {file} yourself)")
-        return 2
     try:
-        read_prediction(file)
+        file, stamp = commit_prediction(lesson, given)
+    except PredictionTooLate as exc:
+        print(exc)
+        return 1
+    except PredictionMissing as exc:
+        print(exc)
+        return 2
     except ValueError as exc:
         print(exc)
         return 2
-    stamp = progress.record_prediction(lesson.id, file, hashlib.sha256(
-        file.read_bytes()).hexdigest())
     print(f"recorded your prediction for {lesson.id} at {stamp}: {file}")
     print(f"  it can't be changed now. Next: nanoscope learn check {lesson.id}")
     return 0

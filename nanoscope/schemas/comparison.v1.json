@@ -60,6 +60,16 @@
               "within noise",
               "no CI"
             ]
+          },
+          "params_kind": {
+            "enum": [
+              "non-embedding",
+              "total"
+            ]
+          },
+          "text": {
+            "type": "object",
+            "description": "the row's words and numbers as the table prints them"
           }
         },
         "required": [
@@ -170,6 +180,12 @@
           "type": "string"
         }
       }
+    },
+    "title": {
+      "type": "string"
+    },
+    "params_header": {
+      "type": "string"
     }
   },
   "required": [

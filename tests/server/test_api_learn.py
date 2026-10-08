@@ -5,7 +5,7 @@ from fastapi.testclient import TestClient
 
 from nanoscope import paths, queue
 from nanoscope.cli import main
-from nanoscope.learn import gating, unlocks
+from nanoscope.learn import gating, progress, unlocks
 from nanoscope.server.app import create_app
 
 
@@ -101,11 +101,13 @@ def test_check_is_a_job(client, tmp_path, monkeypatch):
 def test_unlocks(client):
     view = client.get("/api/learn/unlocks").json()
     assert view["policy"] == "open" and view["unlocks"] == {}
+    assert view["first_run"] is True  # nobody has chosen yet
     assert view["lockable"]["block:Attention"] == {
         "lesson": "foundations/04-multi-head", "state": "open", "reason": None}
     assert len(view["lockable"]) == 9
     assert client.post("/api/learn/policy", json={"policy": "guided"}).json()["policy"] == "guided"
     view = client.get("/api/learn/unlocks").json()
+    assert view["first_run"] is False
     assert {v["state"] for v in view["lockable"].values()} == {"locked"}
     # skipping one lesson needs a reason, and names the lock
     assert client.post("/api/learn/unlock", json={"id": "Attention"}).status_code == 422
@@ -167,3 +169,20 @@ def test_learn_events(home):
         return seen
 
     assert asyncio.run(scenario()) == {"unlocks", "progress"}
+
+
+def test_predict(client):
+    lesson = "foundations/01-bigram"
+    url = "/api/curricula/foundations/01-bigram/predict"
+    nothing = client.post(url, json={})
+    assert nothing.status_code == 422 and "say what you expect" in nothing.json()["detail"]
+    bad = client.post(url, json={"verdict": "larger"})
+    assert bad.status_code == 422 and "verdict must be one of" in bad.json()["detail"]
+    done = client.post(url, json={"verdict": "better", "low": -0.2, "high": -0.05, "note": "x"})
+    assert done.status_code == 200
+    body = done.json()
+    assert body["lesson"] == lesson and body["file"].endswith("prediction.toml") and body["at"]
+    assert progress.prediction(lesson)["at"] == body["at"]
+    progress.mark(lesson, "checking", check_id="c")
+    late = client.post(url, json={"verdict": "worse"})
+    assert late.status_code == 422 and "too late for this lesson" in late.json()["detail"]

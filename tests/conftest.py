@@ -36,3 +36,14 @@ def fake_data(home, monkeypatch):
 
     monkeypatch.setattr(dataset, "_iter_texts", texts)
     return calls
+
+
+@pytest.fixture(autouse=True)
+def no_built_app(monkeypatch, tmp_path):
+    """No test may depend on whether `make web` has built the app into the package: with one,
+    every non-API path is the page instead of a 404."""
+    try:
+        import nanoscope.server.app  # noqa: F401  (needs the server extra)
+    except ImportError:
+        return
+    monkeypatch.setattr("nanoscope.server.app.default_static_dir", lambda: tmp_path / "no-app")

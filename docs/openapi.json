@@ -1080,6 +1080,34 @@
         "title": "LintRequest",
         "type": "object"
       },
+      "Listening": {
+        "properties": {
+          "host": {
+            "title": "Host",
+            "type": "string"
+          },
+          "loopback": {
+            "title": "Loopback",
+            "type": "boolean"
+          },
+          "port": {
+            "title": "Port",
+            "type": "integer"
+          },
+          "token_required": {
+            "title": "Token Required",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "host",
+          "port",
+          "loopback",
+          "token_required"
+        ],
+        "title": "Listening",
+        "type": "object"
+      },
       "MetricsPage": {
         "properties": {
           "last_step": {
@@ -1288,6 +1316,79 @@
         "title": "PolicyRequest",
         "type": "object"
       },
+      "PredictRequest": {
+        "properties": {
+          "high": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "High"
+          },
+          "low": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Low"
+          },
+          "note": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Note"
+          },
+          "verdict": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Verdict"
+          }
+        },
+        "title": "PredictRequest",
+        "type": "object"
+      },
+      "PredictResult": {
+        "properties": {
+          "at": {
+            "title": "At",
+            "type": "string"
+          },
+          "file": {
+            "title": "File",
+            "type": "string"
+          },
+          "lesson": {
+            "title": "Lesson",
+            "type": "string"
+          }
+        },
+        "required": [
+          "lesson",
+          "at",
+          "file"
+        ],
+        "title": "PredictResult",
+        "type": "object"
+      },
       "PrepareDoc": {
         "additionalProperties": true,
         "description": "Data preparation state (prepare.v1).",
@@ -1472,6 +1573,18 @@
       },
       "RunDetail": {
         "properties": {
+          "baseline": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Baseline"
+          },
           "config": {
             "anyOf": [
               {
@@ -1530,6 +1643,17 @@
             "title": "Max Steps",
             "type": "integer"
           },
+          "model": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Model"
+          },
           "ref": {
             "title": "Ref",
             "type": "string"
@@ -1538,6 +1662,17 @@
             "default": false,
             "title": "Stale",
             "type": "boolean"
+          },
+          "started_at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Started At"
           },
           "state": {
             "title": "State",
@@ -1682,6 +1817,57 @@
           "text"
         ],
         "title": "Sample",
+        "type": "object"
+      },
+      "SettingsDoc": {
+        "description": "Read-only facts about this server. Secrets appear only as yes or no.",
+        "properties": {
+          "data": {
+            "title": "Data",
+            "type": "string"
+          },
+          "home": {
+            "title": "Home",
+            "type": "string"
+          },
+          "jobs_offline": {
+            "title": "Jobs Offline",
+            "type": "boolean"
+          },
+          "listening": {
+            "$ref": "#/components/schemas/Listening"
+          },
+          "runs": {
+            "title": "Runs",
+            "type": "string"
+          },
+          "version": {
+            "title": "Version",
+            "type": "string"
+          },
+          "workers": {
+            "items": {
+              "$ref": "#/components/schemas/WorkerSecrets"
+            },
+            "title": "Workers",
+            "type": "array"
+          },
+          "workspace": {
+            "title": "Workspace",
+            "type": "string"
+          }
+        },
+        "required": [
+          "version",
+          "home",
+          "workspace",
+          "data",
+          "runs",
+          "listening",
+          "jobs_offline",
+          "workers"
+        ],
+        "title": "SettingsDoc",
         "type": "object"
       },
       "StartRequest": {
@@ -2001,6 +2187,10 @@
       "UnlocksView": {
         "description": "The unlocks document plus every lockable id with its current state.",
         "properties": {
+          "first_run": {
+            "title": "First Run",
+            "type": "boolean"
+          },
           "lockable": {
             "additionalProperties": {
               "additionalProperties": true,
@@ -2029,6 +2219,7 @@
         "required": [
           "schema_version",
           "policy",
+          "first_run",
           "unlocks",
           "lockable"
         ],
@@ -2046,6 +2237,14 @@
               "$ref": "#/components/schemas/ProblemItem"
             },
             "title": "Problems",
+            "type": "array"
+          },
+          "refs": {
+            "default": [],
+            "items": {
+              "type": "string"
+            },
+            "title": "Refs",
             "type": "array"
           }
         },
@@ -2093,6 +2292,32 @@
           "schemas"
         ],
         "title": "Version",
+        "type": "object"
+      },
+      "WorkerSecrets": {
+        "properties": {
+          "device": {
+            "title": "Device",
+            "type": "string"
+          },
+          "secrets": {
+            "additionalProperties": {
+              "type": "boolean"
+            },
+            "title": "Secrets",
+            "type": "object"
+          },
+          "worker_id": {
+            "title": "Worker Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "worker_id",
+          "device",
+          "secrets"
+        ],
+        "title": "WorkerSecrets",
         "type": "object"
       },
       "nanoscope__server__routes__runs__StopResult": {
@@ -2481,6 +2706,85 @@
           }
         },
         "summary": "Check",
+        "tags": [
+          "learn"
+        ]
+      }
+    },
+    "/api/curricula/{path}/{lesson}/predict": {
+      "post": {
+        "description": "Commit to a prediction before the experiment runs (what `nanoscope learn predict` does).\nOnce the lesson has been checked it is too late: a 422 says so.",
+        "operationId": "predict_api_curricula__path___lesson__predict_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "path",
+            "required": true,
+            "schema": {
+              "title": "Path",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "lesson",
+            "required": true,
+            "schema": {
+              "title": "Lesson",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "anyOf": [
+                  {
+                    "$ref": "#/components/schemas/PredictRequest"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "title": "Body"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PredictResult"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "The request cannot be done as asked"
+          },
+          "4XX": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "An error (RFC 9457)"
+          }
+        },
+        "summary": "Predict",
         "tags": [
           "learn"
         ]
@@ -4698,6 +5002,48 @@
         "summary": "Get Schema",
         "tags": [
           "meta"
+        ]
+      }
+    },
+    "/api/settings": {
+      "get": {
+        "description": "Where this server keeps things, how it listens, and which credentials its workers have\n(HF_TOKEN, WANDB_API_KEY: yes or no, from their heartbeat, never the values). Change a value\nwhere the page says: these are environment variables and flags, not settings you edit here.",
+        "operationId": "settings_api_settings_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SettingsDoc"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "The request cannot be done as asked"
+          },
+          "4XX": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "An error (RFC 9457)"
+          }
+        },
+        "summary": "Settings",
+        "tags": [
+          "settings"
         ]
       }
     },

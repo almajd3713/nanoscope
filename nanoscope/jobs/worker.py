@@ -290,4 +290,12 @@ class Worker:
             "device": self.device, "slots": self.slots, "pid": os.getpid(),
             "host": socket.gethostname(), "jobs": sorted(self.active),
             "started_at": self._started_at, "heartbeat_at": self._now(),
+            "secrets": self._secrets(),
         })
+
+    @staticmethod
+    def _secrets() -> dict[str, bool]:
+        """Which credentials this worker has, as yes or no. Never the values: a job only gets
+        the ones it needs (jobs/runner.py job_env), and the web page reads this file."""
+        hf = os.environ.get("HF_TOKEN") or os.environ.get("HUGGING_FACE_HUB_TOKEN")
+        return {"HF_TOKEN": bool(hf), "WANDB_API_KEY": bool(os.environ.get("WANDB_API_KEY"))}
