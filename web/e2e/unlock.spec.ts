@@ -2,6 +2,8 @@ import { expect, test } from "@playwright/test";
 
 // Plan done-when: Unlock all on the Components page sets policy open in learn/unlocks.json.
 test("Unlock all sets the policy to open", async ({ page, request }) => {
+  // earlier specs leave the policy open: start from guided, where Unlock all is offered
+  await request.post("/api/learn/policy", { data: { policy: "guided" } });
   await page.goto("/components");
   await page.getByRole("button", { name: "Unlock all" }).click();
   const dialog = page.getByRole("alertdialog");
