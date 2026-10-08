@@ -4,7 +4,7 @@ The build list for [`plan-tool.md`](plan-tool.md), sections 4-10, with the decis
 2026-10-05 (plan section 11) applied. Phase numbers follow the plan's section 10. Every
 item is one line, so scripts and agents can grep and edit it.
 
-**Current focus:** P13 GUI MVP 1. The design-system items (P13.38-P13.45) are done. Next: the screens, starting with P13.16 (Predict) and P13.17 (run page), then the screens.
+**Current focus:** P13 GUI MVP 1. The design-system items (P13.38-P13.45) are done. Next: the screens, starting with P13.17 (run page header), then the screens.
 
 ## Progress
 
@@ -17,7 +17,7 @@ item is one line, so scripts and agents can grep and edit it.
 | P10 | HTTP API (8-10 d) | 47 / 47 | done |
 | P11 | Release prep: PyPI + GHCR (2-3 d) | 17 / 17 | done |
 | P12 | docker-compose (3-4 d) | 20 / 20 | done |
-| P13 | GUI MVP 1: shell, Learn/Tinker screens (12-15 d) | 24 / 50 | in progress |
+| P13 | GUI MVP 1: shell, Learn/Tinker screens (12-15 d) | 25 / 50 | in progress |
 | P14 | GUI MVP 2: model page, drag-and-drop (14-17 d) | 0 / 35 | not started |
 | P15 | GUI Research (10-13 d) | 0 / 30 | not started |
 | P16 | Extend + depth (8-10 d) | 0 / 16 | not started |
@@ -517,7 +517,7 @@ Order: P13.01 and P13.02 first (these items live in `web/` and run in its CI job
 - [x] P13.13 Lesson page: `lesson.md` with Surface, Deep and Reading tabs (sanitized markdown), the estimates of both compute variants, and "Passing unlocks: …". · files: web/src/pages/Lesson.tsx (new) · deps: P13.12 · done: `pnpm -C web test -- Lesson` passes ✓ 2026-10-08 66b0ee0: react-markdown + remark-gfm (raw HTML and javascript: links are not rendered, tested); outline, facts (unlocks, compute, checks, not allowed), advice-only lock note; route `/learn/:path/:lesson`; Attempts fact waits for progress (P13.15)
 - [x] P13.14 Lesson page actions: Start (`POST start`, then shows the starter file read-only with a link to the model page once P14 lands) and Train (runs the lesson's experiment and opens the run page). · files: web/src/pages/Lesson.tsx · deps: P13.13 · done: `pnpm -C web test -- Lesson.actions` passes ✓ 2026-10-08 9966e98: checked against the real API (start, file read, POST /api/runs); Train sends the level-0 defaults (`runDefaults.ts`) for `kind = "run"` experiments; study-kind experiments have no button yet; the model-page link waits for P14
 - [x] P13.15 Lesson Check: enqueues the check job, shows live progress, then each check's verdict with its reasons, and refreshes progress and unlocks. · files: web/src/pages/Lesson.tsx, web/src/components/CheckResult.tsx (new) · deps: P13.14, P13.05 · done: `pnpm -C web test -- CheckResult` passes ✓ 2026-10-08 06e2ff0: the lesson's latest check job from `GET /api/jobs?kind=check` is the state and the last result (survives a reload; polls every second while queued or running); verified with a real worker against a starter; no per-check progress exists in the job, so running shows the job state only
-- [ ] P13.16 Predict box on the lesson page, for lessons with a `predicted` check: it records the prediction (`POST`, as `nanoscope learn predict` does) before the experiment runs, and the check result shows the library's score. Run-form and compare predictions are dropped (Decisions log, 2026-10-07); research predictions live in study specs (P15). · files: web/src/components/Predict.tsx (new) · deps: P13.15, P9.16 · done: `pnpm -C web test -- Predict` passes
+- [x] P13.16 Predict box on the lesson page, for lessons with a `predicted` check: it records the prediction (`POST`, as `nanoscope learn predict` does) before the experiment runs, and the check result shows the library's score. Run-form and compare predictions are dropped (Decisions log, 2026-10-07); research predictions live in study specs (P15). · files: web/src/components/Predict.tsx (new) · deps: P13.15, P9.16 · done: `pnpm -C web test -- Predict` passes ✓ 2026-10-08 78068c2: the API had no predict endpoint, so `POST /api/curricula/{path}/{lesson}/predict` was added (`checks.commit_prediction`, shared with the CLI); no shipped lesson has a `predicted` check yet, so the box is tested against a mocked one; the score appears in the check's own reason
 - [ ] P13.17 Run page header: state, ETA, device and step from SSE; a failed run shows its error and traceback tail from `status.json`. · files: web/src/pages/Run.tsx (new) · deps: P13.05, P10.29, P13.37, P13.46 · done: `pnpm -C web test -- Run.header` passes
 - [ ] P13.18 Live loss/bpb curve with uPlot, with the baseline band from the shipped seeds and the eval points. · files: web/src/components/Curve.tsx (new) · deps: P13.17 · done: `pnpm -C web test -- Curve` passes
 - [ ] P13.19 Samples timeline on the run page. · files: web/src/components/Samples.tsx (new) · deps: P13.17 · done: `pnpm -C web test -- Samples` passes
