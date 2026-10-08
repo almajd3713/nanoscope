@@ -1,10 +1,12 @@
+import { useState } from "react";
 import { Button } from "./Button";
+import { ConflictDialog } from "./ConflictDialog";
 import { ProblemFromError } from "./ProblemView";
 import { Tag } from "./Tag";
 import { CodeSurface } from "../editor/CodeSurface";
 import type { Marker } from "../editor/types";
 import { useFileBuffer } from "../editor/useFileBuffer";
-import { Check, Circle } from "../icons";
+import { Check, Circle, Warning } from "../icons";
 import styles from "./Editor.module.css";
 
 type Props = {
@@ -17,6 +19,9 @@ type Props = {
 // A save the server refuses is shown, never retried silently.
 export function Editor({ path, markers = [], revealLine }: Props) {
   const buffer = useFileBuffer(path);
+  // "Decide later" hides the dialog for this conflict; the banner brings it back
+  const [putOff, setPutOff] = useState<string | null>(null);
+  const conflictId = buffer.conflict?.currentEtag ?? null;
   if (buffer.error) return <div className={styles.problem}><ProblemFromError error={buffer.error} /></div>;
   return (
     <section className={styles.editor} aria-label={`Editor for ${path}`}>
@@ -41,6 +46,23 @@ export function Editor({ path, markers = [], revealLine }: Props) {
           />
         )}
       </div>
+      {buffer.conflict && (
+        <>
+          <div className={styles.problem} role="status">
+            <Tag tone="warn" icon={Warning}>changed on disk</Tag>{" "}
+            <Button size="sm" onClick={() => setPutOff(null)}>Resolve</Button>
+          </div>
+          <ConflictDialog
+            open={putOff !== conflictId}
+            onOpenChange={(open) => setPutOff(open ? null : conflictId)}
+            path={path}
+            diff={buffer.conflict.diff}
+            busy={buffer.saving}
+            onKeepMine={buffer.keepMine}
+            onTakeTheirs={() => void buffer.takeTheirs()}
+          />
+        </>
+      )}
       {buffer.saveError ? <div className={styles.problem}><ProblemFromError error={buffer.saveError} /></div> : null}
     </section>
   );

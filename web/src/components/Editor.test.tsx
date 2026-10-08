@@ -89,4 +89,49 @@ describe("Editor", () => {
     );
     expect(await screen.findByRole("alert")).toBeTruthy();
   });
+
+  it("on a 409 shows the diff, and keep mine saves again with the ETag the server gave", async () => {
+    const etags: (string | null)[] = [];
+    let first = true;
+    const seen = open({
+      "PUT /api/files/models/my_lm.py": {
+        status: () => {
+          const status = first ? 409 : 200;
+          first = false;
+          return status;
+        },
+        problem: false,
+        body: (sent: unknown) =>
+          etags.length === 0 && (etags.push("e1"), true)
+            ? { title: "Conflict", status: 409, detail: "models/my_lm.py changed since you read it; nothing was written", current_etag: "e9", diff: "-on disk\n+yours\n" }
+            : { ...FILE, content: (sent as { content: string }).content, etag: "e10" },
+      },
+    });
+    const box = await screen.findByLabelText("Source of models/my_lm.py");
+    await userEvent.type(box, "!");
+    await userEvent.click(screen.getByRole("button", { name: "Save" }));
+    expect(await screen.findByText("models/my_lm.py changed on disk")).toBeTruthy();
+    expect(screen.getByLabelText("Differences").textContent).toContain("−on disk");
+    await userEvent.click(screen.getByRole("button", { name: "Keep mine" }));
+    await waitFor(() => expect(screen.getByText("saved")).toBeTruthy());
+    expect(seen.filter((s) => s.method === "PUT")).toHaveLength(2);
+  });
+
+  it("take theirs drops my text and reads the file again", async () => {
+    let reads = 0;
+    open({
+      "GET /api/files/models/my_lm.py": { body: () => ({ ...FILE, content: reads++ === 0 ? FILE.content : "theirs\n", etag: "e5" }) },
+      "PUT /api/files/models/my_lm.py": {
+        status: 409,
+        problem: true,
+        body: { title: "Conflict", status: 409, detail: "changed", current_etag: "e5", diff: "-theirs\n+mine\n" },
+      },
+    });
+    const box = await screen.findByLabelText("Source of models/my_lm.py");
+    await userEvent.type(box, "mine");
+    await userEvent.click(screen.getByRole("button", { name: "Save" }));
+    await userEvent.click(await screen.findByRole("button", { name: "Take theirs" }));
+    await waitFor(() => expect((screen.getByLabelText("Source of models/my_lm.py") as HTMLTextAreaElement).value).toBe("theirs\n"));
+    expect(screen.getByText("saved")).toBeTruthy();
+  });
 });
