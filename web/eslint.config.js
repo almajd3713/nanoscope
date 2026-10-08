@@ -2,6 +2,7 @@ import js from "@eslint/js";
 import reactHooks from "eslint-plugin-react-hooks";
 import globals from "globals";
 import tseslint from "typescript-eslint";
+import noBannedCopy from "./eslint-rules/no-banned-copy.js";
 
 export default tseslint.config(
   { ignores: ["dist"] },
@@ -24,6 +25,11 @@ export default tseslint.config(
         },
       ],
     },
+  },
+  {
+    files: ["src/**/*.tsx"],
+    plugins: { nanoscope: { rules: { "no-banned-copy": noBannedCopy } } },
+    rules: { "nanoscope/no-banned-copy": "error" },
   },
   {
     files: ["src/icons/**"],
