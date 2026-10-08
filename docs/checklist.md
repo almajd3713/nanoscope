@@ -4,7 +4,7 @@ The build list for [`plan-tool.md`](plan-tool.md), sections 4-10, with the decis
 2026-10-05 (plan section 11) applied. Phase numbers follow the plan's section 10. Every
 item is one line, so scripts and agents can grep and edit it.
 
-**Current focus:** P13 GUI MVP 1. The design-system items (P13.38-P13.45) are done. Next: P13.03-P13.07 (API client, state, shell plumbing), then the screens.
+**Current focus:** P13 GUI MVP 1. The design-system items (P13.38-P13.45) are done. Next: P13.04-P13.07 (providers, SSE, login, static build), then the screens.
 
 ## Progress
 
@@ -17,7 +17,7 @@ item is one line, so scripts and agents can grep and edit it.
 | P10 | HTTP API (8-10 d) | 47 / 47 | done |
 | P11 | Release prep: PyPI + GHCR (2-3 d) | 17 / 17 | done |
 | P12 | docker-compose (3-4 d) | 20 / 20 | done |
-| P13 | GUI MVP 1: shell, Learn/Tinker screens (12-15 d) | 11 / 50 | in progress |
+| P13 | GUI MVP 1: shell, Learn/Tinker screens (12-15 d) | 12 / 50 | in progress |
 | P14 | GUI MVP 2: model page, drag-and-drop (14-17 d) | 0 / 35 | not started |
 | P15 | GUI Research (10-13 d) | 0 / 30 | not started |
 | P16 | Extend + depth (8-10 d) | 0 / 16 | not started |
@@ -502,7 +502,7 @@ Order: P13.01 and P13.02 first (these items live in `web/` and run in its CI job
 ### P13 · Web foundation
 - [x] P13.01 Scaffold `web/` with Vite, React and strict TypeScript under pnpm, with dev, build, lint, typecheck and test scripts. Delete the template's styles and assets (`index.css`, `App.css`, the logos): its `#646cff` accent and system font stack are banned by the design system. · files: web/package.json (new), web/pnpm-lock.yaml (new), web/tsconfig.json (new), web/vite.config.ts (new), web/src/main.tsx (new) · deps: P12.99 · done: `pnpm -C web build` exits 0 ✓ 2026-10-08 a281b15: Vite 8, React 19, TypeScript pinned ~6 (typescript-eslint rejects 7.0), template styles never added; `pnpm build` and `pnpm lint` pass
 - [x] P13.02 Add a CI job `web` running ESLint, `tsc --noEmit`, vitest and the build. · files: web/eslint.config.js (new), .github/workflows/ci.yml · deps: P13.01 · done: the job is green on the PR ✓ 2026-10-08 765eae7: `web` job green on PR #15
-- [ ] P13.03 Generate the API client from `docs/openapi.json` (openapi-typescript + openapi-fetch) into `web/src/api/`, add `make web-client`, and fail CI when it is stale. · files: web/src/api/ (new), Makefile, .github/workflows/ci.yml · deps: P13.01, P10.39, P13.38-P13.45 · done: `make web-client && git diff --exit-code web/src/api`
+- [x] P13.03 Generate the API client from `docs/openapi.json` (openapi-typescript + openapi-fetch) into `web/src/api/`, add `make web-client`, and fail CI when it is stale. · files: web/src/api/ (new), Makefile, .github/workflows/ci.yml · deps: P13.01, P10.39, P13.38-P13.45 · done: `make web-client && git diff --exit-code web/src/api` ✓ 2026-10-08 dcfea81: schema.d.ts (openapi-typescript 7) plus a `client.ts` wrapper; CI regenerates it and fails on a diff
 - [ ] P13.04 Add the TanStack Query provider and an error boundary that shows problem+json `detail` verbatim. · files: web/src/app/providers.tsx (new), web/src/components/ProblemView.tsx (new) · deps: P13.03, P13.38, P13.38-P13.45 · done: `pnpm -C web test -- ProblemView` passes and asserts the verbatim text
 - [ ] P13.05 Write the SSE hook `useEvents(url)` with reconnect, `Last-Event-ID`, `reset` handling and cookie auth, with vitest tests on a mock EventSource. · files: web/src/hooks/useEvents.ts (new), web/src/hooks/useEvents.test.ts (new) · deps: P13.04, P13.38-P13.45 · done: `pnpm -C web test -- useEvents` passes
 - [ ] P13.06 Login flow: the SPA handles 401 by explaining where to find the login URL (server log, or `docker compose logs api`). · files: web/src/pages/Login.tsx (new) · deps: P13.04, P10.06, P13.38-P13.45 · done: `pnpm -C web test -- Login` passes
