@@ -128,7 +128,7 @@ describe("Model page", () => {
 
   it("says so when the file has no model", async () => {
     open({ [`POST /api/files/${FILE}/graph`]: { body: { ...doc, classes: [] } } });
-    expect(await screen.findByText("No model in this file")).toBeTruthy();
+    expect(await screen.findByText("No graph for this file")).toBeTruthy();
   });
 
   it("shows the library's message when the file cannot be read", async () => {

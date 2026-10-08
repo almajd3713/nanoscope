@@ -111,4 +111,12 @@ describe("Model page for a lesson file", () => {
     expect(await screen.findByText(REASON, { selector: "span" })).toBeTruthy();
     expect(await screen.findByText(`nanoscope 4:1 ${REASON}`)).toBeTruthy();
   });
+
+  it("a lesson file that is plain PyTorch has no graph but keeps the lesson's actions and shows the code", async () => {
+    open({ [`POST /api/files/${FILE}/graph`]: { body: { ...graph, path: FILE, etag: "e1", classes: [] } } });
+    expect(await screen.findByText("No graph for this file")).toBeTruthy();
+    const bar = await screen.findByRole("region", { name: "Lesson" });
+    expect(within(bar).getByRole("button", { name: "Run the check" })).toBeTruthy();
+    expect(screen.getByLabelText("Your file").textContent).toBe(SOURCE);
+  });
 });

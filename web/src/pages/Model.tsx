@@ -71,14 +71,21 @@ export function Model() {
     );
   }
   if (graph.data && !cls) {
+    // a plain PyTorch model (most of the early lessons): nothing to draw, but it is still the
+    // lesson's file, so the lesson's actions and the code are here
     return (
       <div className={styles.page}>
         <h1 className="title">{path}</h1>
+        {lesson.ids && <LessonBar file={path} lesson={lesson} />}
         <EmptyState
-          title="No model in this file"
-          body={`The file has no Decoder or Composite class to draw. ${shows("editor", level) ? "Write one in the editor below, or open another file." : "Start a lesson to get a file with one."}`}
+          title="No graph for this file"
+          body="It has no Decoder or Composite class, so there is nothing to draw: it is plain PyTorch. Edit it in your editor or below."
         />
-        {shows("editor", level) && <Editor path={path} />}
+        {shows("editor", level) ? (
+          <Editor path={path} markers={checked} />
+        ) : (
+          <pre className="code" aria-label="Your file">{source}</pre>
+        )}
       </div>
     );
   }
