@@ -1,0 +1,35 @@
+.panel {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+
+.panel h2 {
+  margin: 0;
+}
+
+.muted {
+  color: var(--ink-muted);
+}
+
+.input {
+  min-width: 0;
+  padding: var(--space-1) var(--space-2);
+  border: 1px solid var(--line-strong);
+  border-radius: var(--radius-2);
+  background: var(--surface-sunken);
+  color: var(--ink);
+  resize: vertical;
+}
+
+.input:focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: 2px;
+}
+
+.out {
+  margin: 0;
+  max-width: 80ch;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}

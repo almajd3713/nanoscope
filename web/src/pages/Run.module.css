@@ -143,3 +143,7 @@
 .files {
   overflow-wrap: anywhere;
 }
+
+.spacer {
+  flex: 1;
+}

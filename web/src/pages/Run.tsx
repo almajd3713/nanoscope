@@ -1,19 +1,22 @@
-import { useQueries, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQueries, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useCallback, useEffect, useState } from "react";
 import { Link, useParams } from "react-router-dom";
 import { api } from "../api/client";
 import { unwrap } from "../api/problem";
-import { Button } from "../components/Button";
+import { useLevel } from "../app/level";
+import { shows } from "../levels";
+import { Button, ButtonLink } from "../components/Button";
 import { Curve } from "../components/Curve";
 import { evalPoints, type Row } from "../curveData";
 import { EquivalentCommand } from "../components/EquivalentCommand";
 import { ProblemFromError } from "../components/ProblemView";
 import { Progress } from "../components/Progress";
+import { GeneratePanel } from "../components/GeneratePanel";
 import { Samples } from "../components/Samples";
 import { Readout } from "../components/Readout";
 import { StateTag } from "../components/StateTag";
 import { clockText, countText, stampText } from "../format";
-import { Copy, X } from "../icons";
+import { ArrowClockwise, Copy, CopySimple, Stop, X } from "../icons";
 import { useEvents } from "../hooks/useEvents";
 import styles from "./Run.module.css";
 
@@ -81,6 +84,15 @@ export function Run() {
   });
   const [live, setLive] = useState<Live>({});
   const now = useNow(10000);
+  const level = useLevel();
+  const stop = useMutation({
+    mutationFn: () => unwrap(api.POST("/api/runs/{ref}/stop", { params: { path: { ref } } })),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["run", ref] }),
+  });
+  const resume = useMutation({
+    mutationFn: () => unwrap(api.POST("/api/runs/{ref}/resume", { params: { path: { ref } } })),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["run", ref] }),
+  });
 
   const state = live.state ?? detail.data?.status?.state;
   // A run with no status.json (the shipped v0 baselines) has nothing to follow.
@@ -168,10 +180,29 @@ export function Run() {
           <div className={styles.titleRow}>
             <h1 className={`title ${styles.ref}`}>{ref}</h1>
             {state && <StateTag state={state} />}
-            {running && (
-              <span className="value">step {step}</span>
+            {running && <span className="value">step {step}</span>}
+            <span className={styles.spacer} />
+            {["queued", "preparing", "running"].includes(state ?? "") && (
+              <Button variant="danger" disabled={stop.isPending} onClick={() => stop.mutate()}>
+                <Stop size={16} aria-hidden="true" />
+                Stop run
+              </Button>
+            )}
+            {["stopped", "cancelled"].includes(state ?? "") && (
+              <Button disabled={resume.isPending} onClick={() => resume.mutate()}>
+                <ArrowClockwise size={16} aria-hidden="true" />
+                Resume
+              </Button>
+            )}
+            {shows("duplicate", level) && (
+              <ButtonLink to={`/runs/new?from=${encodeURIComponent(ref)}`}>
+                <CopySimple size={16} aria-hidden="true" />
+                Duplicate and change one thing
+              </ButtonLink>
             )}
           </div>
+          {stop.error && <ProblemFromError error={stop.error} />}
+          {resume.error && <ProblemFromError error={resume.error} />}
           <span className={`small ${styles.muted}`}>
             {watching && stream === "paused" ? (
               <span className={styles.warn}>Live updates paused. Reconnecting…</span>
@@ -259,6 +290,12 @@ export function Run() {
                   : undefined
               }
             />
+          </section>
+        )}
+
+        {["done", "stopped"].includes(state ?? "") && (
+          <section className={styles.panel}>
+            <GeneratePanel runRef={ref} />
           </section>
         )}
       </main>
