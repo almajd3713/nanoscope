@@ -4,7 +4,7 @@ The build list for [`plan-tool.md`](plan-tool.md), sections 4-10, with the decis
 2026-10-05 (plan section 11) applied. Phase numbers follow the plan's section 10. Every
 item is one line, so scripts and agents can grep and edit it.
 
-**Current focus:** P13 GUI MVP 1. The design-system items (P13.38-P13.45) are done. Next: the screens, starting with P13.13 (lesson page), then the screens.
+**Current focus:** P13 GUI MVP 1. The design-system items (P13.38-P13.45) are done. Next: the screens, starting with P13.14 (lesson actions), then the screens.
 
 ## Progress
 
@@ -17,7 +17,7 @@ item is one line, so scripts and agents can grep and edit it.
 | P10 | HTTP API (8-10 d) | 47 / 47 | done |
 | P11 | Release prep: PyPI + GHCR (2-3 d) | 17 / 17 | done |
 | P12 | docker-compose (3-4 d) | 20 / 20 | done |
-| P13 | GUI MVP 1: shell, Learn/Tinker screens (12-15 d) | 21 / 50 | in progress |
+| P13 | GUI MVP 1: shell, Learn/Tinker screens (12-15 d) | 22 / 50 | in progress |
 | P14 | GUI MVP 2: model page, drag-and-drop (14-17 d) | 0 / 35 | not started |
 | P15 | GUI Research (10-13 d) | 0 / 30 | not started |
 | P16 | Extend + depth (8-10 d) | 0 / 16 | not started |
@@ -514,7 +514,7 @@ Order: P13.01 and P13.02 first (these items live in `web/` and run in its CI job
 
 ### P13 · Screens
 - [x] P13.12 Lessons list: paths and lessons with their state, lock marks and CPU/GPU estimates. · files: web/src/pages/Lessons.tsx (new) · deps: P13.08, P10.32, P13.37 · done: `pnpm -C web test -- Lessons` passes ✓ 2026-10-08 01c655a: rows link to `/learn/<path>/<lesson>` (the page is P13.13); estimates use the library's `cpu 0.5 min` format (`format.ts`); test fixtures are real server output; first visit redirects to `/welcome`
-- [ ] P13.13 Lesson page: `lesson.md` with Surface, Deep and Reading tabs (sanitized markdown), the estimates of both compute variants, and "Passing unlocks: …". · files: web/src/pages/Lesson.tsx (new) · deps: P13.12 · done: `pnpm -C web test -- Lesson` passes
+- [x] P13.13 Lesson page: `lesson.md` with Surface, Deep and Reading tabs (sanitized markdown), the estimates of both compute variants, and "Passing unlocks: …". · files: web/src/pages/Lesson.tsx (new) · deps: P13.12 · done: `pnpm -C web test -- Lesson` passes ✓ 2026-10-08 66b0ee0: react-markdown + remark-gfm (raw HTML and javascript: links are not rendered, tested); outline, facts (unlocks, compute, checks, not allowed), advice-only lock note; route `/learn/:path/:lesson`; Attempts fact waits for progress (P13.15)
 - [ ] P13.14 Lesson page actions: Start (`POST start`, then shows the starter file read-only with a link to the model page once P14 lands) and Train (runs the lesson's experiment and opens the run page). · files: web/src/pages/Lesson.tsx · deps: P13.13 · done: `pnpm -C web test -- Lesson.actions` passes
 - [ ] P13.15 Lesson Check: enqueues the check job, shows live progress, then each check's verdict with its reasons, and refreshes progress and unlocks. · files: web/src/pages/Lesson.tsx, web/src/components/CheckResult.tsx (new) · deps: P13.14, P13.05 · done: `pnpm -C web test -- CheckResult` passes
 - [ ] P13.16 Predict box on the lesson page, for lessons with a `predicted` check: it records the prediction (`POST`, as `nanoscope learn predict` does) before the experiment runs, and the check result shows the library's score. Run-form and compare predictions are dropped (Decisions log, 2026-10-07); research predictions live in study specs (P15). · files: web/src/components/Predict.tsx (new) · deps: P13.15, P9.16 · done: `pnpm -C web test -- Predict` passes
