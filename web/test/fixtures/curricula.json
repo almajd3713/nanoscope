@@ -1,0 +1,315 @@
+[
+ {
+  "id": "foundations",
+  "title": "Foundations",
+  "level": 0,
+  "summary": "Build a GPT-2 style language model from the smallest part up: a bigram, an MLP, one attention head, many heads, a transformer block, and the whole stack.",
+  "prerequisites": [],
+  "compute": {
+   "cpu": {
+    "preset": "tinystories-5min",
+    "budget": null,
+    "estimate_minutes": 14.0
+   }
+  },
+  "lessons": [
+   {
+    "id": "foundations/01-bigram",
+    "slug": "01-bigram",
+    "title": "A bigram language model",
+    "summary": "Predict the next token from the current token alone: the smallest language model.",
+    "level": 0,
+    "state": "not-started",
+    "locked_by": [],
+    "unlocks": [],
+    "compute": {
+     "cpu": {
+      "preset": "tinystories-5min",
+      "budget": null,
+      "estimate_minutes": 3.0
+     }
+    }
+   },
+   {
+    "id": "foundations/02-mlp",
+    "slug": "02-mlp",
+    "title": "An MLP over a window of tokens",
+    "summary": "Look at the last few tokens instead of one, and add a hidden layer.",
+    "level": 0,
+    "state": "not-started",
+    "locked_by": [
+     "foundations/01-bigram"
+    ],
+    "unlocks": [],
+    "compute": {
+     "cpu": {
+      "preset": "tinystories-5min",
+      "budget": null,
+      "estimate_minutes": 2.0
+     }
+    }
+   },
+   {
+    "id": "foundations/03-attention-head",
+    "slug": "03-attention-head",
+    "title": "One causal attention head",
+    "summary": "Let every token look back at the earlier ones and take a weighted average of what it finds.",
+    "level": 0,
+    "state": "not-started",
+    "locked_by": [
+     "foundations/02-mlp"
+    ],
+    "unlocks": [],
+    "compute": {
+     "cpu": {
+      "preset": "tinystories-5min",
+      "budget": null,
+      "estimate_minutes": 0.5
+     }
+    }
+   },
+   {
+    "id": "foundations/04-multi-head",
+    "slug": "04-multi-head",
+    "title": "Multi-head attention",
+    "summary": "Run several attention heads side by side, each on its own slice of the vector.",
+    "level": 0,
+    "state": "not-started",
+    "locked_by": [
+     "foundations/03-attention-head"
+    ],
+    "unlocks": [
+     "block:Attention"
+    ],
+    "compute": {
+     "cpu": {
+      "preset": "tinystories-5min",
+      "budget": null,
+      "estimate_minutes": 0.5
+     }
+    }
+   },
+   {
+    "id": "foundations/05-block",
+    "slug": "05-block",
+    "title": "The transformer block",
+    "summary": "Wrap attention and an MLP in normalisation and residual connections: the layer GPT is made of.",
+    "level": 0,
+    "state": "not-started",
+    "locked_by": [
+     "foundations/04-multi-head"
+    ],
+    "unlocks": [
+     "block:Block"
+    ],
+    "compute": {
+     "cpu": {
+      "preset": "tinystories-5min",
+      "budget": null,
+      "estimate_minutes": 0.5
+     }
+    }
+   },
+   {
+    "id": "foundations/06-gpt2",
+    "slug": "06-gpt2",
+    "title": "GPT-2: stack the blocks",
+    "summary": "Token and position embeddings, a stack of blocks, a final norm and a tied output layer: that is GPT-2.",
+    "level": 0,
+    "state": "not-started",
+    "locked_by": [
+     "foundations/05-block"
+    ],
+    "unlocks": [
+     "block:Decoder"
+    ],
+    "compute": {
+     "cpu": {
+      "preset": "tinystories-5min",
+      "budget": null,
+      "estimate_minutes": 4.0
+     }
+    }
+   }
+  ]
+ },
+ {
+  "id": "modern-block",
+  "title": "The modern block",
+  "level": 1,
+  "summary": "Replace GPT-2's parts with the ones current models use (RMSNorm, RoPE, SwiGLU, grouped-query attention, QK-norm, z-loss), build each yourself, then measure whether they help.",
+  "prerequisites": [
+   "foundations"
+  ],
+  "compute": {
+   "cpu": {
+    "preset": "tinystories-5min",
+    "budget": null,
+    "estimate_minutes": 15.0
+   },
+   "gpu": {
+    "preset": "tinystories-30min",
+    "budget": null,
+    "estimate_minutes": 10.0
+   }
+  },
+  "lessons": [
+   {
+    "id": "modern-block/01-rmsnorm",
+    "slug": "01-rmsnorm",
+    "title": "RMSNorm",
+    "summary": "LayerNorm without the mean and the bias: scale each vector by its root mean square.",
+    "level": 1,
+    "state": "not-started",
+    "locked_by": [
+     "foundations/05-block"
+    ],
+    "unlocks": [
+     "block:RMSNorm"
+    ],
+    "compute": {
+     "cpu": {
+      "preset": "tinystories-5min",
+      "budget": null,
+      "estimate_minutes": 0.2
+     }
+    }
+   },
+   {
+    "id": "modern-block/02-rope",
+    "slug": "02-rope",
+    "title": "Rotary position embeddings (RoPE)",
+    "summary": "Encode where a token is by rotating its query and key, so attention sees relative distance.",
+    "level": 1,
+    "state": "not-started",
+    "locked_by": [
+     "modern-block/01-rmsnorm"
+    ],
+    "unlocks": [
+     "block:RoPE"
+    ],
+    "compute": {
+     "cpu": {
+      "preset": "tinystories-5min",
+      "budget": null,
+      "estimate_minutes": 0.2
+     }
+    }
+   },
+   {
+    "id": "modern-block/03-swiglu",
+    "slug": "03-swiglu",
+    "title": "SwiGLU",
+    "summary": "A gated MLP: one branch decides how much of the other gets through.",
+    "level": 1,
+    "state": "not-started",
+    "locked_by": [
+     "modern-block/01-rmsnorm"
+    ],
+    "unlocks": [
+     "block:SwiGLU"
+    ],
+    "compute": {
+     "cpu": {
+      "preset": "tinystories-5min",
+      "budget": null,
+      "estimate_minutes": 0.2
+     }
+    }
+   },
+   {
+    "id": "modern-block/04-gqa",
+    "slug": "04-gqa",
+    "title": "Grouped-query attention (GQA)",
+    "summary": "Let several query heads share one key/value head, and shrink the memory a model needs when generating.",
+    "level": 1,
+    "state": "not-started",
+    "locked_by": [
+     "foundations/04-multi-head"
+    ],
+    "unlocks": [
+     "feature:gqa"
+    ],
+    "compute": {
+     "cpu": {
+      "preset": "tinystories-5min",
+      "budget": null,
+      "estimate_minutes": 0.3
+     }
+    }
+   },
+   {
+    "id": "modern-block/05-qk-norm",
+    "slug": "05-qk-norm",
+    "title": "QK-norm",
+    "summary": "Normalise queries and keys before the dot product so attention scores can't blow up.",
+    "level": 1,
+    "state": "not-started",
+    "locked_by": [
+     "modern-block/01-rmsnorm",
+     "foundations/04-multi-head"
+    ],
+    "unlocks": [
+     "feature:qk_norm"
+    ],
+    "compute": {
+     "cpu": {
+      "preset": "tinystories-5min",
+      "budget": null,
+      "estimate_minutes": 0.3
+     }
+    }
+   },
+   {
+    "id": "modern-block/06-z-loss",
+    "slug": "06-z-loss",
+    "title": "z-loss",
+    "summary": "A small penalty that keeps the softmax normaliser near 1, so the output logits stay well behaved.",
+    "level": 1,
+    "state": "not-started",
+    "locked_by": [
+     "foundations/06-gpt2"
+    ],
+    "unlocks": [
+     "feature:z_loss"
+    ],
+    "compute": {
+     "cpu": {
+      "preset": "tinystories-5min",
+      "budget": null,
+      "estimate_minutes": 0.1
+     }
+    }
+   },
+   {
+    "id": "modern-block/07-assemble",
+    "slug": "07-assemble",
+    "title": "Assemble the modern block, and measure it",
+    "summary": "Put RMSNorm, RoPE, SwiGLU, GQA, QK-norm and z-loss into one model and test whether it beats GPT-2 by more than the noise.",
+    "level": 1,
+    "state": "not-started",
+    "locked_by": [
+     "modern-block/01-rmsnorm",
+     "modern-block/02-rope",
+     "modern-block/03-swiglu",
+     "modern-block/04-gqa",
+     "modern-block/05-qk-norm",
+     "modern-block/06-z-loss"
+    ],
+    "unlocks": [],
+    "compute": {
+     "cpu": {
+      "preset": "tinystories-5min",
+      "budget": null,
+      "estimate_minutes": 15.0
+     },
+     "gpu": {
+      "preset": "tinystories-30min",
+      "budget": null,
+      "estimate_minutes": 10.0
+     }
+    }
+   }
+  ]
+ }
+]
