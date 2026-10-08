@@ -93,6 +93,10 @@ export function GraphView({ cls, depth = "detailed", selected = null, onSelect, 
         type: "block",
         position: { x: p.x, y: p.y },
         parentId: b.parent ?? undefined,
+        // known from the layout: react-flow shows a node only once it has measured it, and a
+        // measurement that never arrives (seen in CI) left the whole graph invisible
+        initialWidth: p.width,
+        initialHeight: p.height,
         data: { box: b, depth, selected: selected === b.id, onDropBlock, info: infoOf?.(b.name), trace: traceOf(trace, b.module), onEditInCode },
         draggable: false,
       });
