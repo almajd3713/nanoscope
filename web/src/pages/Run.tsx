@@ -2,7 +2,7 @@ import { useMutation, useQueries, useQuery, useQueryClient } from "@tanstack/rea
 import { useCallback, useEffect, useState } from "react";
 import { Link, useParams } from "react-router-dom";
 import { api } from "../api/client";
-import { unwrap } from "../api/problem";
+import { ApiProblem, unwrap } from "../api/problem";
 import { useLevel } from "../app/level";
 import { shows } from "../levels";
 import { Button, ButtonLink } from "../components/Button";
@@ -64,6 +64,16 @@ export function Run() {
   const detail = useQuery({
     queryKey: ["run", ref],
     queryFn: () => unwrap(api.GET("/api/runs/{ref}", { params: { path: { ref } } })),
+    // A queued run has no folder yet: ask again until its worker makes one.
+    refetchInterval: (q) => (q.state.error instanceof ApiProblem && q.state.error.status === 404 ? 1000 : false),
+  });
+  const missing = detail.error instanceof ApiProblem && detail.error.status === 404;
+  const queued = useQuery({
+    queryKey: ["jobs", "run", ref],
+    queryFn: () => unwrap(api.GET("/api/jobs", { params: { query: { kind: "run", limit: 50 } } })),
+    enabled: missing,
+    refetchInterval: 1000,
+    select: (jobs) => jobs.filter((j) => j.ref === ref && ["queued", "running"].includes(j.state)).at(-1),
   });
   const metrics = useQuery({
     queryKey: ["run", ref, "metrics"],
@@ -135,6 +145,32 @@ export function Run() {
     resumeParam: "since_step",
   });
 
+  if (missing && queued.data) {
+    return (
+      <div className={styles.main}>
+        <header className={styles.head}>
+          <span className={`small ${styles.muted}`}>
+            <Link to="/runs" className={styles.link}>
+              Runs
+            </Link>
+          </span>
+          <div className={styles.titleRow}>
+            <h1 className={`title ${styles.ref}`}>{ref}</h1>
+            <StateTag state={queued.data.state === "running" ? "preparing" : "queued"} />
+            <span className={styles.spacer} />
+            <Button variant="danger" disabled={stop.isPending} onClick={() => stop.mutate()}>
+              <Stop size={16} aria-hidden="true" />
+              Stop run
+            </Button>
+          </div>
+          <span className={`small ${styles.muted}`}>
+            {queued.data.state === "running" ? "A worker has it and is getting the run ready." : "Waiting for a worker to start this run."}
+          </span>
+        </header>
+        {stop.error && <ProblemFromError error={stop.error} />}
+      </div>
+    );
+  }
   if (detail.error) return <ProblemFromError error={detail.error} />;
   if (!detail.data) return <p className={`body ${styles.muted}`}>Loading run…</p>;
 

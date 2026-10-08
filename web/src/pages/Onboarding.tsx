@@ -16,8 +16,11 @@ export function Onboarding() {
   const queryClient = useQueryClient();
   const choose = useMutation({
     mutationFn: (chosen: Policy) => unwrap(api.POST("/api/learn/policy", { body: { policy: chosen } })),
-    onSuccess: async () => {
-      await queryClient.invalidateQueries({ queryKey: ["learn", "unlocks"] });
+    onSuccess: async (view) => {
+      // The answer is the new unlocks view (first_run is false now). Put it in the cache before
+      // leaving, or the lessons page would read the old "first run" and send you back here.
+      queryClient.setQueryData(["learn", "unlocks"], view);
+      await queryClient.invalidateQueries({ queryKey: ["learn"] });
       navigate("/learn");
     },
   });

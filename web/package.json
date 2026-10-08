@@ -11,7 +11,8 @@
     "test": "vitest run --passWithNoTests",
     "tokens": "tsx scripts/tokens.ts",
     "lint:css": "stylelint 'src/**/*.css'",
-    "api": "openapi-typescript ../docs/openapi.json -o src/api/schema.d.ts"
+    "api": "openapi-typescript ../docs/openapi.json -o src/api/schema.d.ts",
+    "e2e": "playwright test"
   },
   "dependencies": {
     "@phosphor-icons/react": "^2.1.10",
@@ -31,6 +32,7 @@
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",
+    "@playwright/test": "^1.63.0",
     "@testing-library/jest-dom": "^7.0.1",
     "@testing-library/react": "^16.3.3",
     "@testing-library/user-event": "^14.6.7",

@@ -3,7 +3,7 @@ import { vi } from "vitest";
 export type Seen = { method: string; path: string; body: unknown };
 
 // Replace fetch with a table of "METHOD /path" -> response. Returns what was requested.
-export function mockApi(routes: Record<string, { status?: number; body: unknown | ((sent: unknown) => unknown); problem?: boolean }>): Seen[] {
+export function mockApi(routes: Record<string, { status?: number | (() => number); body: unknown | ((sent: unknown) => unknown); problem?: boolean }>): Seen[] {
   const seen: Seen[] = [];
   vi.stubGlobal(
     "fetch",
@@ -18,7 +18,7 @@ export function mockApi(routes: Record<string, { status?: number; body: unknown 
       const sent = text ? JSON.parse(text) : undefined;
       const body = typeof hit.body === "function" ? (hit.body as (sent: unknown) => unknown)(sent) : hit.body;
       return new Response(JSON.stringify(body), {
-        status: hit.status ?? 200,
+        status: typeof hit.status === "function" ? hit.status() : (hit.status ?? 200),
         headers: { "content-type": hit.problem ? "application/problem+json" : "application/json" },
       });
     }),

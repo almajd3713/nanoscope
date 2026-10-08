@@ -2,7 +2,7 @@ import { act, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { MemoryRouter, Route, Routes } from "react-router-dom";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { Providers } from "../app/providers";
+import { makeQueryClient, Providers } from "../app/providers";
 import { resetSettingsCache } from "../app/settings";
 import { mockApi } from "../../test/fetch";
 import { Onboarding } from "./Onboarding";
@@ -34,6 +34,25 @@ describe("Onboarding", () => {
     await userEvent.click(screen.getByRole("button", { name: "Continue to lessons" }));
     expect(await screen.findByText("lessons page")).toBeTruthy();
     expect(seen).toEqual([{ method: "POST", path: "/api/learn/policy", body: { policy: "guided" } }]);
+  });
+
+  it("leaves the unlocks cache saying the first run is over, so the lessons page does not send you back", async () => {
+    mockApi({ "POST /api/learn/policy": { body: { policy: "guided", first_run: false, unlocks: {}, lockable: {}, schema_version: 1 } } });
+    const client = makeQueryClient();
+    client.setQueryData(["learn", "unlocks"], { policy: "open", first_run: true });
+    render(
+      <Providers client={client}>
+        <MemoryRouter initialEntries={["/welcome"]}>
+          <Routes>
+            <Route path="/welcome" element={<Onboarding />} />
+            <Route path="/learn" element={<p>lessons page</p>} />
+          </Routes>
+        </MemoryRouter>
+      </Providers>,
+    );
+    await userEvent.click(screen.getByRole("button", { name: "Continue to lessons" }));
+    await screen.findByText("lessons page");
+    expect((client.getQueryData(["learn", "unlocks"]) as { first_run: boolean }).first_run).toBe(false);
   });
 
   it("sends open when I know this is chosen", async () => {

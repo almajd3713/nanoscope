@@ -13,7 +13,8 @@ export function Lessons() {
   const curricula = useQuery({ queryKey: ["curricula"], queryFn: () => unwrap(api.GET("/api/curricula")) });
 
   // Nobody has chosen guided or open yet: ask once.
-  if (unlocks.data?.first_run) return <Navigate to="/welcome" replace />;
+  // (not while a refetch is under way: a cached "first run" may be about to change)
+  if (unlocks.data?.first_run && !unlocks.isFetching) return <Navigate to="/welcome" replace />;
 
   const error = unlocks.error ?? curricula.error;
   return (

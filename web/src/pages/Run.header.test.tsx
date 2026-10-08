@@ -112,6 +112,34 @@ describe("Run header", () => {
     expect(screen.getByText("1.315")).toBeTruthy();
   });
 
+  it("shows a queued run as queued while it has no folder yet, then follows it once it does", async () => {
+    let started = false;
+    const job = { id: 4, kind: "run", state: "queued", ref: REF, payload: {}, created_at: 1 };
+    mockApi({
+      [`GET /api/runs/${REF}`]: {
+        status: () => (started ? 200 : 404),
+        body: () => (started ? running : { title: "Not found", status: 404, detail: `no run at ref '${REF}'` }),
+        problem: true,
+      },
+      "GET /api/jobs": { body: () => [job] },
+    });
+    render(
+      <Providers>
+        <MemoryRouter initialEntries={[`/runs/${REF}`]}>
+          <Routes>
+            <Route path="/runs/*" element={<Run />} />
+          </Routes>
+        </MemoryRouter>
+      </Providers>,
+    );
+    expect(await screen.findByText("Waiting for a worker to start this run.")).toBeTruthy();
+    expect(screen.getByText("queued")).toBeTruthy();
+    expect(screen.getByRole("button", { name: "Stop run" })).toBeTruthy();
+    expect(screen.queryByRole("alert")).toBeNull();
+    started = true; // the worker made the folder
+    expect(await screen.findByText("step 300", {}, { timeout: 4000 })).toBeTruthy();
+  });
+
   it("shows the library's error when the run does not exist", async () => {
     mockApi({
       [`GET /api/runs/${REF}`]: {

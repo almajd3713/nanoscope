@@ -73,6 +73,39 @@ jobs:
       - run: pnpm test
       - run: pnpm build
 
+  e2e:
+    # The GUI against a real compose stack: the plan's done-when checks, in a browser.
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          package_json_file: web/package.json
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: pnpm
+          cache-dependency-path: web/pnpm-lock.yaml
+      - run: pnpm install --frozen-lockfile
+        working-directory: web
+      - run: pnpm exec playwright install --with-deps chromium
+        working-directory: web
+      - run: web/e2e/stack.sh up
+      - run: pnpm e2e
+        working-directory: web
+      - name: Keep the traces of a failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: e2e-traces
+          path: web/test-results
+      - name: Stack logs on failure
+        if: failure()
+        run: docker compose -p nanoscope-e2e -f compose.yaml logs --tail 80
+      - run: web/e2e/stack.sh down
+        if: always()
+
   first-notebook:
     # Guards level 0: the first notebook stays at 3 cells and trains on CPU in under 2 minutes.
     runs-on: ubuntu-latest
