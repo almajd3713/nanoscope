@@ -4,7 +4,7 @@ The build list for [`plan-tool.md`](plan-tool.md), sections 4-10, with the decis
 2026-10-05 (plan section 11) applied. Phase numbers follow the plan's section 10. Every
 item is one line, so scripts and agents can grep and edit it.
 
-**Current focus:** P13 GUI MVP 1. The design-system items (P13.38-P13.45) are done. Next: the screens, starting with P13.29 (accessibility), then the screens.
+**Current focus:** P13 GUI MVP 1. The design-system items (P13.38-P13.45) are done. Next: the screens, starting with P13.48 and P13.49 (settings), then the e2e tests (P13.31-P13.36), then the screens.
 
 ## Progress
 
@@ -17,7 +17,7 @@ item is one line, so scripts and agents can grep and edit it.
 | P10 | HTTP API (8-10 d) | 47 / 47 | done |
 | P11 | Release prep: PyPI + GHCR (2-3 d) | 17 / 17 | done |
 | P12 | docker-compose (3-4 d) | 20 / 20 | done |
-| P13 | GUI MVP 1: shell, Learn/Tinker screens (12-15 d) | 39 / 50 | in progress |
+| P13 | GUI MVP 1: shell, Learn/Tinker screens (12-15 d) | 41 / 50 | in progress |
 | P14 | GUI MVP 2: model page, drag-and-drop (14-17 d) | 0 / 35 | not started |
 | P15 | GUI Research (10-13 d) | 0 / 30 | not started |
 | P16 | Extend + depth (8-10 d) | 0 / 16 | not started |
@@ -530,8 +530,8 @@ Order: P13.01 and P13.02 first (these items live in `web/` and run in its CI job
 - [x] P13.26 Precision plan line ("with 5 seeds the CI would be about ±0.008") from the API. · files: web/src/pages/Compare.tsx · deps: P13.24 · done: `pnpm -C web test -- Compare.precision` passes ✓ 2026-10-08 4e94fe9: the sentence comes from `precision_plan.text` (new), or its `note` when there is no number
 - [x] P13.27 Components page: the lock state of every block and feature, how each was unlocked, an evidence link, Unlock all (with a confirm step) and unlock-one with a reason. · files: web/src/pages/Components.tsx (new) · deps: P13.08, P10.33, P13.37 · done: `pnpm -C web test -- Components` passes ✓ 2026-10-08 0cf58cc: Radix AlertDialog (Cancel focused) for Unlock all, Dialog with a required reason for unlock-one; 'evidence' links to the lesson page, whose last check result is the evidence (no endpoint serves learn/checks files)
 - [x] P13.28 Queue mini panel in the shell footer: current jobs with cancel. · files: web/src/components/QueuePanel.tsx (new) · deps: P13.08, P10.35, P13.37 · done: `pnpm -C web test -- QueuePanel` passes ✓ 2026-10-08 ec1a75c: polls `/api/jobs` every 3 s and `/api/workers` every 5 s (no jobs stream exists); per-device worker lines from Research up; workers whose heartbeat is over 60 s old are ignored
-- [ ] P13.29 Accessibility basics: every control reachable by keyboard, and verdicts never shown by colour alone. · files: web/src/** · deps: P13.24 · done: `pnpm -C web test -- a11y` (axe on the main pages) passes
-- [ ] P13.30 Guard against statistics in the frontend: an ESLint rule that forbids statistics libraries, and a test that the compare page shows `rows[].verdict` unchanged. · files: web/eslint.config.js, web/src/pages/Compare.test.tsx · deps: P13.24 · done: `pnpm -C web lint` passes with the rule on
+- [x] P13.29 Accessibility basics: every control reachable by keyboard, and verdicts never shown by colour alone. · files: web/src/** · deps: P13.24 · done: `pnpm -C web test -- a11y` (axe on the main pages) passes ✓ 2026-10-08 6221e66: axe (vitest-axe) on lessons, a lesson, a run, runs, the run form, compare, components, onboarding and login; it found nested `<main>` on two pages and two empty table headers, all fixed; colour contrast is not checked in jsdom (the token pairs were checked in the design system); every verdict and state has a glyph and its word, tested
+- [x] P13.30 Guard against statistics in the frontend: an ESLint rule that forbids statistics libraries, and a test that the compare page shows `rows[].verdict` unchanged. · files: web/eslint.config.js, web/src/pages/Compare.test.tsx · deps: P13.24 · done: `pnpm -C web lint` passes with the rule on ✓ 2026-10-08 6221e66: no-restricted-imports for simple-statistics, jstat, mathjs and d3-array's mean, deviation, variance, median, quantile (tried: it rejects them); a test feeds the page a verdict that disagrees with its interval and sees it shown unchanged
 
 ### P13 · Library and API gaps found by the mockups (https://claude.ai/artifact/VDJ45sFJB44bqg82gZcrGR)
 - [x] P13.46 The run detail (`GET /api/runs/{ref}`) carries a `baseline` block when shipped baselines exist for the run's preset and model name: the baselines' ref, their final values, `statistics.reproduction_interval` for one new run, and whether this run's final value is inside it. The run page shows it as "inside the shipped range" (or outside), never computing it in the browser. · files: nanoscope/server/routes/runs.py, nanoscope/store.py, tests/server/test_runs.py · deps: P12.99 · done: `uv run pytest tests/server/test_runs.py -k baseline_range` passes, including a run with no shipped baseline ✓ 2026-10-08 512b4dd: `compare.baseline_range` (baseline folder = model class name lower-cased); also made API tests independent of a locally built web app (autouse fixture), because `make web` put an index.html where tests expected 404s
