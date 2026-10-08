@@ -19,6 +19,9 @@ router = APIRouter(prefix="/api/validate", tags=["validate"])
 class Validation(BaseModel):
     ok: bool
     problems: list[ProblemItem]
+    # where the runs will land, one per seed, when the request is valid (the same names POST
+    # /api/runs gives them: a run that is already done is not trained again)
+    refs: list[str] = []
 
 
 class RunValidation(BaseModel):
@@ -54,8 +57,23 @@ def _scan(file: Any) -> list[gating.LockedUse]:
         return []
 
 
-def _result(problems: list[Problem]) -> Validation:
-    return Validation(ok=not problems, problems=[ProblemItem(**p.to_dict()) for p in problems])
+def _result(problems: list[Problem], refs: list[str] | None = None) -> Validation:
+    return Validation(ok=not problems, problems=[ProblemItem(**p.to_dict()) for p in problems],
+                      refs=refs or [])
+
+
+def planned_ref(spec: ModelSpec, preset: str, kwargs: dict[str, Any], seed: int) -> str:
+    """Where one seed of this request will land (a valid request: see validate_run_spec)."""
+    from nanoscope.runref import REQUIRED, run_ref
+
+    tunable = {p.name for p in spec.tunable()}
+    preset_names = {f.name for f in dataclass_fields(Preset)}
+    model_kwargs = {k: v for k, v in kwargs.items() if k in tunable}
+    overrides = {k: v for k, v in kwargs.items() if k not in tunable and k in preset_names}
+    given = get_preset(preset)
+    defaults = {p.name: REQUIRED if p.required else p.default for p in spec.params
+                if not p.from_data}
+    return run_ref(spec.name, defaults, model_kwargs, given, given.override(**overrides), seed)
 
 
 @router.post("/run")
@@ -66,7 +84,12 @@ def validate_run(body: RunValidation) -> Validation:
         spec, locked = model_spec(body.model)
     except KeyError as exc:
         return _result([Problem("unknown_model", "model", str(exc.args[0]))])
-    return _result(validate_run_spec(spec, body.preset, body.kwargs, body.seeds, locked))
+    problems = validate_run_spec(spec, body.preset, body.kwargs, body.seeds, locked)
+    if problems:
+        return _result(problems)
+    seeds = body.seeds
+    chosen = [0] if seeds is None else list(range(seeds)) if isinstance(seeds, int) else list(seeds)
+    return _result(problems, [planned_ref(spec, body.preset, body.kwargs, n) for n in chosen])
 
 
 @router.post("/study")

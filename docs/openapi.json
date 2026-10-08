@@ -2137,6 +2137,14 @@
             },
             "title": "Problems",
             "type": "array"
+          },
+          "refs": {
+            "default": [],
+            "items": {
+              "type": "string"
+            },
+            "title": "Refs",
+            "type": "array"
           }
         },
         "required": [

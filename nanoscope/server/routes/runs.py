@@ -18,7 +18,7 @@ from nanoscope.server.errors import problem
 from nanoscope.server.jobs import job_doc
 from nanoscope.server.models import ConfigDoc, JobDoc, StatusDoc
 from nanoscope.server.routes.models import resolve_ref
-from nanoscope.server.routes.validate import model_spec
+from nanoscope.server.routes.validate import model_spec, planned_ref
 
 router = APIRouter(prefix="/api", tags=["runs"])
 
@@ -128,8 +128,7 @@ def submit_run(body: RunRequest, request: Request) -> Any:
     the worker runs it."""
     from dataclasses import fields as dataclass_fields
 
-    from nanoscope.presets import Preset, get_preset
-    from nanoscope.runref import REQUIRED, run_ref
+    from nanoscope.presets import Preset
     from nanoscope.specs import validate_run_spec
 
     spec, locked = model_spec(body.model)
@@ -148,11 +147,7 @@ def submit_run(body: RunRequest, request: Request) -> Any:
     preset_names = {f.name for f in dataclass_fields(Preset)}
     model_kwargs = {k: v for k, v in body.kwargs.items() if k in tunable}
     overrides = {k: v for k, v in body.kwargs.items() if k not in tunable and k in preset_names}
-    given = get_preset(body.preset)
-    preset = given.override(**overrides)
-    defaults = {p.name: REQUIRED if p.required else p.default for p in spec.params
-                if not p.from_data}
-    ref = run_ref(spec.name, defaults, model_kwargs, given, preset, body.seed)
+    ref = planned_ref(spec, body.preset, body.kwargs, body.seed)
     payload: dict[str, Any] = {
         "model": resolve_ref(body.model), "preset": body.preset, "seed": body.seed,
         "kwargs": model_kwargs, "compile": body.compile, "wandb": body.wandb}

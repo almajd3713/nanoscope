@@ -2008,6 +2008,11 @@ export interface components {
             ok: boolean;
             /** Problems */
             problems: components["schemas"]["ProblemItem"][];
+            /**
+             * Refs
+             * @default []
+             */
+            refs: string[];
         };
         /** VariantInfo */
         VariantInfo: {

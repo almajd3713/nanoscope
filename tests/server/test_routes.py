@@ -167,7 +167,7 @@ def test_validate(client, tmp_path, monkeypatch):
     def run(**body):
         return client.post("/api/validate/run", json={"model": "modern", **body}).json()
 
-    assert run() == {"ok": True, "problems": []}
+    assert run() == {"ok": True, "problems": [], "refs": ["tinystories-5min/modern/seed-0"]}
     bad = run(preset="nope", kwargs={"n_kv_heads": "two", "colour": "red", "max_steps": "ten"},
               seeds=0)
     codes = {p["code"] for p in bad["problems"]}
@@ -195,7 +195,7 @@ def test_validate(client, tmp_path, monkeypatch):
 
     ok = study('name = "s"\nbaseline = "a"\n[[variants]]\nname = "a"\nmodel = "gpt2"\n'
                '[[variants]]\nname = "b"\nmodel = "modern"\n[variants.kwargs]\nn_kv_heads = 1\n')
-    assert ok == {"ok": True, "problems": []}
+    assert ok == {"ok": True, "problems": [], "refs": []}
     broken = study('name = "s"\nbaseline = "c"\nseeds = [0, "x"]\nmode = "wild"\n'
                    '[overrides]\nnope = 1\n[[variants]]\nname = "a"\nmodel = "gpt2"\n'
                    '[[variants]]\nname = "a"\nmodel = "modern"\n[variants.kwargs]\ncolour = 1\n'
@@ -393,3 +393,22 @@ def test_schemas(client):
     assert client.get("/api/schemas/status?version=9").status_code == 404
     for name in listing:  # every published schema is served
         assert client.get(f"/api/schemas/{name}").status_code == 200
+
+
+def test_validate_run_says_where_the_runs_land(client):
+    body = {"model": "bigram", "preset": "tinystories-5min", "kwargs": {"d_model": 64}, "seeds": 2}
+    ok = client.post("/api/validate/run", json=body).json()
+    assert ok["ok"] is True and len(ok["refs"]) == 2
+    assert ok["refs"][0].startswith("tinystories-5min/bigram-")
+    assert ok["refs"][0].endswith("/seed-0")
+    assert ok["refs"][1].endswith("/seed-1")
+    # the names are the ones POST /api/runs gives
+    queued = client.post("/api/runs",
+                         json={"model": "bigram", "kwargs": {"d_model": 64}, "seed": 1})
+    assert queued.json()["ref"] == ok["refs"][1]
+    # defaults give the plain name; a list of seeds is taken as it is
+    plain = client.post("/api/validate/run", json={"model": "bigram", "seeds": [3]}).json()
+    assert plain["refs"] == ["tinystories-5min/bigram/seed-3"]
+    # nothing is promised for a request with problems
+    bad = client.post("/api/validate/run", json={"model": "bigram", "kwargs": {"lr": 1}}).json()
+    assert bad["ok"] is False and bad["refs"] == []
