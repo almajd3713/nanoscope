@@ -1,6 +1,7 @@
 import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { installEventSource } from "../../test/eventsource";
 import { mockApi } from "../../test/fetch";
 import { Providers } from "../app/providers";
 import { Editor } from "./Editor";
@@ -9,6 +10,7 @@ vi.mock("../editor/CodeSurface", async () => await import("../../test/fakeSurfac
 
 const FILE = { path: "models/my_lm.py", content: "print('hi')\n", etag: "e1" };
 
+beforeEach(installEventSource);
 afterEach(() => vi.unstubAllGlobals());
 
 function open(routes: Parameters<typeof mockApi>[0] = {}) {
