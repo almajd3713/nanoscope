@@ -1,6 +1,7 @@
 import { Navigate, Route, Routes } from "react-router-dom";
 import { Lesson } from "../pages/Lesson";
 import { Lessons } from "../pages/Lessons";
+import { Components } from "../pages/Components";
 import { Compare } from "../pages/Compare";
 import { Runs } from "../pages/Runs";
 import { RunForm } from "../pages/RunForm";
@@ -30,7 +31,7 @@ export function AppRoutes() {
         <Route path="/compare" element={<Compare />} />
         <Route path="/studies" element={<Pending title="Studies" />} />
         <Route path="/hardware" element={<Pending title="Hardware" />} />
-        <Route path="/components" element={<Pending title="Components" />} />
+        <Route path="/components" element={<Components />} />
         <Route path="/settings" element={<Pending title="Settings" />} />
       </Route>
     </Routes>
