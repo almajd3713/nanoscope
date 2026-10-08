@@ -4,7 +4,7 @@ The build list for [`plan-tool.md`](plan-tool.md), sections 4-10, with the decis
 2026-10-05 (plan section 11) applied. Phase numbers follow the plan's section 10. Every
 item is one line, so scripts and agents can grep and edit it.
 
-**Current focus:** P13 GUI MVP 1. The design-system items (P13.38-P13.45) are done. Next: P13.05-P13.07 (SSE hook, login, static build), then the screens.
+**Current focus:** P13 GUI MVP 1. The design-system items (P13.38-P13.45) are done. Next: P13.06-P13.07 (login, static build), then the screens.
 
 ## Progress
 
@@ -17,7 +17,7 @@ item is one line, so scripts and agents can grep and edit it.
 | P10 | HTTP API (8-10 d) | 47 / 47 | done |
 | P11 | Release prep: PyPI + GHCR (2-3 d) | 17 / 17 | done |
 | P12 | docker-compose (3-4 d) | 20 / 20 | done |
-| P13 | GUI MVP 1: shell, Learn/Tinker screens (12-15 d) | 13 / 50 | in progress |
+| P13 | GUI MVP 1: shell, Learn/Tinker screens (12-15 d) | 14 / 50 | in progress |
 | P14 | GUI MVP 2: model page, drag-and-drop (14-17 d) | 0 / 35 | not started |
 | P15 | GUI Research (10-13 d) | 0 / 30 | not started |
 | P16 | Extend + depth (8-10 d) | 0 / 16 | not started |
@@ -504,7 +504,7 @@ Order: P13.01 and P13.02 first (these items live in `web/` and run in its CI job
 - [x] P13.02 Add a CI job `web` running ESLint, `tsc --noEmit`, vitest and the build. · files: web/eslint.config.js (new), .github/workflows/ci.yml · deps: P13.01 · done: the job is green on the PR ✓ 2026-10-08 765eae7: `web` job green on PR #15
 - [x] P13.03 Generate the API client from `docs/openapi.json` (openapi-typescript + openapi-fetch) into `web/src/api/`, add `make web-client`, and fail CI when it is stale. · files: web/src/api/ (new), Makefile, .github/workflows/ci.yml · deps: P13.01, P10.39, P13.38-P13.45 · done: `make web-client && git diff --exit-code web/src/api` ✓ 2026-10-08 dcfea81: schema.d.ts (openapi-typescript 7) plus a `client.ts` wrapper; CI regenerates it and fails on a diff
 - [x] P13.04 Add the TanStack Query provider and an error boundary that shows problem+json `detail` verbatim. · files: web/src/app/providers.tsx (new), web/src/components/ProblemView.tsx (new) · deps: P13.03, P13.38, P13.38-P13.45 · done: `pnpm -C web test -- ProblemView` passes and asserts the verbatim text ✓ 2026-10-08 96b6b11: `api/problem.ts` (ApiProblem, `unwrap` for openapi-fetch results), no retry on a 4xx; vitest setup file cleans the DOM between tests
-- [ ] P13.05 Write the SSE hook `useEvents(url)` with reconnect, `Last-Event-ID`, `reset` handling and cookie auth, with vitest tests on a mock EventSource. · files: web/src/hooks/useEvents.ts (new), web/src/hooks/useEvents.test.ts (new) · deps: P13.04, P13.38-P13.45 · done: `pnpm -C web test -- useEvents` passes
+- [x] P13.05 Write the SSE hook `useEvents(url)` with reconnect, `Last-Event-ID`, `reset` handling and cookie auth, with vitest tests on a mock EventSource. · files: web/src/hooks/useEvents.ts (new), web/src/hooks/useEvents.test.ts (new) · deps: P13.04, P13.38-P13.45 · done: `pnpm -C web test -- useEvents` passes ✓ 2026-10-08 8162dd7: resumes through a `resumeParam` (`since_step`), not Last-Event-ID (see Decisions log)
 - [ ] P13.06 Login flow: the SPA handles 401 by explaining where to find the login URL (server log, or `docker compose logs api`). · files: web/src/pages/Login.tsx (new) · deps: P13.04, P10.06, P13.38-P13.45 · done: `pnpm -C web test -- Login` passes
 - [ ] P13.07 Build the SPA into `nanoscope/server/static/` for the wheel (release workflow) and the image (a multi-stage Dockerfile). · files: Makefile (`make web`), docker/Dockerfile.cpu, .github/workflows/release.yml · deps: P13.01, P10.38, P13.38-P13.45 · done: `make web && uv build && unzip -l dist/*.whl | grep -c server/static/index.html` prints 1
 - [ ] P13.08 Build the app shell: nav (Learn, Runs, Compare, Studies, Hardware, Components) and a level switch whose choice is kept in localStorage inside try/catch. · files: web/src/app/Shell.tsx (new), web/src/app/level.ts (new) · deps: P13.04, P13.37, P13.38, P13.39, P13.40, P13.43 · done: `pnpm -C web test -- Shell` passes, including when localStorage throws
@@ -773,3 +773,4 @@ right phase, then tick it here as `[x] → P<n>.<id>`.
 - 2026-10-07 P12.05: `NANOSCOPE_SLOTS` is a compose variable, passed as `--slots`; the code has no such env var.
 - 2026-10-07 P12.02: only `api` has a `build:` (two services building one tag collide). The fallback is `docker compose build api && docker compose up --pull never`.
 - 2026-10-07 P12.08: the published `ghcr.io/almajd3713/nanoscope:cpu` is the 0.3.0 image: it lacks the volume directories and git, so a hardened worker on a fresh volume cannot write. A new image must be published (release tag or version bump) before compose works from GHCR. This is a USER ACTION.
+- 2026-10-08 P13.05: the server resumes a run stream from `?since_step=N` and does not read `Last-Event-ID` (docs/server.md), so `useEvents` closes the browser's own retry and reconnects itself with the resume parameter from the last row id. If a stream without a resume parameter is added, either add one or make the server read `Last-Event-ID`.
