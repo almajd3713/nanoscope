@@ -932,6 +932,28 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/settings": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Settings
+         * @description Where this server keeps things, how it listens, and which credentials its workers have
+         *     (HF_TOKEN, WANDB_API_KEY: yes or no, from their heartbeat, never the values). Change a value
+         *     where the page says: these are environment variables and flags, not settings you edit here.
+         */
+        get: operations["settings_api_settings_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/studies": {
         parameters: {
             query?: never;
@@ -1572,6 +1594,17 @@ export interface components {
             /** Content */
             content?: string | null;
         };
+        /** Listening */
+        Listening: {
+            /** Host */
+            host: string;
+            /** Loopback */
+            loopback: boolean;
+            /** Port */
+            port: number;
+            /** Token Required */
+            token_required: boolean;
+        };
         /** MetricsPage */
         MetricsPage: {
             /** Last Step */
@@ -1864,6 +1897,27 @@ export interface components {
             /** Text */
             text: string;
         };
+        /**
+         * SettingsDoc
+         * @description Read-only facts about this server. Secrets appear only as yes or no.
+         */
+        SettingsDoc: {
+            /** Data */
+            data: string;
+            /** Home */
+            home: string;
+            /** Jobs Offline */
+            jobs_offline: boolean;
+            listening: components["schemas"]["Listening"];
+            /** Runs */
+            runs: string;
+            /** Version */
+            version: string;
+            /** Workers */
+            workers: components["schemas"]["WorkerSecrets"][];
+            /** Workspace */
+            workspace: string;
+        };
         /** StartRequest */
         StartRequest: {
             /** Gating */
@@ -2033,6 +2087,17 @@ export interface components {
             schemas: {
                 [key: string]: number;
             };
+        };
+        /** WorkerSecrets */
+        WorkerSecrets: {
+            /** Device */
+            device: string;
+            /** Secrets */
+            secrets: {
+                [key: string]: boolean;
+            };
+            /** Worker Id */
+            worker_id: string;
         };
         /** StopResult */
         nanoscope__server__routes__runs__StopResult: {
@@ -3952,6 +4017,44 @@ export interface operations {
                     "application/json": {
                         [key: string]: unknown;
                     };
+                };
+            };
+            /** @description The request cannot be done as asked */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description An error (RFC 9457) */
+            "4XX": {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    settings_api_settings_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SettingsDoc"];
                 };
             };
             /** @description The request cannot be done as asked */

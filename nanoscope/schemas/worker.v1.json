@@ -5,16 +5,55 @@
   "description": "A live worker: its device, slots, current jobs and last heartbeat.",
   "type": "object",
   "properties": {
-    "schema": {"const": 1},
-    "nanoscope": {"type": "string"},
-    "worker_id": {"type": "string"},
-    "device": {"type": "string"},
-    "slots": {"type": "integer", "minimum": 1},
-    "pid": {"type": "integer"},
-    "host": {"type": "string"},
-    "jobs": {"type": "array", "items": {"type": "integer"}},
-    "started_at": {"type": "string"},
-    "heartbeat_at": {"type": "string"}
+    "schema": {
+      "const": 1
+    },
+    "nanoscope": {
+      "type": "string"
+    },
+    "worker_id": {
+      "type": "string"
+    },
+    "device": {
+      "type": "string"
+    },
+    "slots": {
+      "type": "integer",
+      "minimum": 1
+    },
+    "pid": {
+      "type": "integer"
+    },
+    "host": {
+      "type": "string"
+    },
+    "jobs": {
+      "type": "array",
+      "items": {
+        "type": "integer"
+      }
+    },
+    "started_at": {
+      "type": "string"
+    },
+    "heartbeat_at": {
+      "type": "string"
+    },
+    "secrets": {
+      "type": "object",
+      "description": "which credentials the worker has (yes or no, never the values)",
+      "additionalProperties": {
+        "type": "boolean"
+      }
+    }
   },
-  "required": ["schema", "worker_id", "device", "slots", "jobs", "started_at", "heartbeat_at"]
+  "required": [
+    "schema",
+    "worker_id",
+    "device",
+    "slots",
+    "jobs",
+    "started_at",
+    "heartbeat_at"
+  ]
 }

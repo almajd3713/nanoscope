@@ -1080,6 +1080,34 @@
         "title": "LintRequest",
         "type": "object"
       },
+      "Listening": {
+        "properties": {
+          "host": {
+            "title": "Host",
+            "type": "string"
+          },
+          "loopback": {
+            "title": "Loopback",
+            "type": "boolean"
+          },
+          "port": {
+            "title": "Port",
+            "type": "integer"
+          },
+          "token_required": {
+            "title": "Token Required",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "host",
+          "port",
+          "loopback",
+          "token_required"
+        ],
+        "title": "Listening",
+        "type": "object"
+      },
       "MetricsPage": {
         "properties": {
           "last_step": {
@@ -1791,6 +1819,57 @@
         "title": "Sample",
         "type": "object"
       },
+      "SettingsDoc": {
+        "description": "Read-only facts about this server. Secrets appear only as yes or no.",
+        "properties": {
+          "data": {
+            "title": "Data",
+            "type": "string"
+          },
+          "home": {
+            "title": "Home",
+            "type": "string"
+          },
+          "jobs_offline": {
+            "title": "Jobs Offline",
+            "type": "boolean"
+          },
+          "listening": {
+            "$ref": "#/components/schemas/Listening"
+          },
+          "runs": {
+            "title": "Runs",
+            "type": "string"
+          },
+          "version": {
+            "title": "Version",
+            "type": "string"
+          },
+          "workers": {
+            "items": {
+              "$ref": "#/components/schemas/WorkerSecrets"
+            },
+            "title": "Workers",
+            "type": "array"
+          },
+          "workspace": {
+            "title": "Workspace",
+            "type": "string"
+          }
+        },
+        "required": [
+          "version",
+          "home",
+          "workspace",
+          "data",
+          "runs",
+          "listening",
+          "jobs_offline",
+          "workers"
+        ],
+        "title": "SettingsDoc",
+        "type": "object"
+      },
       "StartRequest": {
         "properties": {
           "gating": {
@@ -2213,6 +2292,32 @@
           "schemas"
         ],
         "title": "Version",
+        "type": "object"
+      },
+      "WorkerSecrets": {
+        "properties": {
+          "device": {
+            "title": "Device",
+            "type": "string"
+          },
+          "secrets": {
+            "additionalProperties": {
+              "type": "boolean"
+            },
+            "title": "Secrets",
+            "type": "object"
+          },
+          "worker_id": {
+            "title": "Worker Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "worker_id",
+          "device",
+          "secrets"
+        ],
+        "title": "WorkerSecrets",
         "type": "object"
       },
       "nanoscope__server__routes__runs__StopResult": {
@@ -4897,6 +5002,48 @@
         "summary": "Get Schema",
         "tags": [
           "meta"
+        ]
+      }
+    },
+    "/api/settings": {
+      "get": {
+        "description": "Where this server keeps things, how it listens, and which credentials its workers have\n(HF_TOKEN, WANDB_API_KEY: yes or no, from their heartbeat, never the values). Change a value\nwhere the page says: these are environment variables and flags, not settings you edit here.",
+        "operationId": "settings_api_settings_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SettingsDoc"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "The request cannot be done as asked"
+          },
+          "4XX": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "An error (RFC 9457)"
+          }
+        },
+        "summary": "Settings",
+        "tags": [
+          "settings"
         ]
       }
     },
