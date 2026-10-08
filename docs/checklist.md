@@ -4,7 +4,7 @@ The build list for [`plan-tool.md`](plan-tool.md), sections 4-10, with the decis
 2026-10-05 (plan section 11) applied. Phase numbers follow the plan's section 10. Every
 item is one line, so scripts and agents can grep and edit it.
 
-**Current focus:** P15 library and API are done (P15.01-P15.11, P15.13-P15.15, 118cb13). Left for the user: P15.12 (public Hub dataset), P14.33 (tag v0.5.0). Next: P15.30, the P15 mockups from the real output above (user approves); the P15 GUI items wait on it.
+**Current focus:** P15 library and API are done (P15.01-P15.11, P15.13-P15.15, 118cb13). Left for the user: P14.33 (tag v0.5.0). Next: P15.30, the P15 mockups from the real output above (user approves); the P15 GUI items wait on it.
 
 ## Progress
 
@@ -19,7 +19,7 @@ item is one line, so scripts and agents can grep and edit it.
 | P12 | docker-compose (3-4 d) | 20 / 20 | done |
 | P13 | GUI MVP 1: shell, Learn/Tinker screens (12-15 d) | 50 / 50 | done |
 | P14 | GUI MVP 2: model page, drag-and-drop (14-17 d) | 35 / 36 | merged; P14.33 (tag v0.5.0) is the user's |
-| P15 | GUI Research (10-13 d) | 14 / 31 | library + API done; P15.12 (user) and the P15.30 mockups next |
+| P15 | GUI Research (10-13 d) | 15 / 31 | library + API + Hub dataset done; the P15.30 mockups next |
 | P16 | Extend + depth (8-10 d) | 0 / 17 | not started |
 | P17 | Remaining curriculum paths (18-26 d) | 0 / 34 | not started |
 
@@ -614,7 +614,7 @@ Order: P13.01 and P13.02 first (these items live in `web/` and run in its CI job
 - [x] P15.09 Create `nanoscope/cards.py` with `export_card(study)` in a `card.v1` schema (spec, per-seed finals, provenance, commit, version), for record mode only. · files: nanoscope/cards.py (new), nanoscope/schemas/card.v1.json (new), tests/test_cards.py (new) · deps: P15.03 · done: `uv run pytest tests/test_cards.py -k export` passes, including the refusal for explore mode ✓ 2026-10-08 118cb13: cards.export_card / card_from_files, card.v1 schema
 - [x] P15.10 Add `nanoscope card export` and `nanoscope card push --repo user/dataset`; push is an opt-in job that uses `HF_TOKEN` and never runs automatically. · files: nanoscope/cli.py, nanoscope/cards.py, nanoscope/jobs/execute.py · deps: P15.09 · done: `uv run pytest tests/test_cards.py -k push` passes with FakeHub ✓ 2026-10-08 118cb13: `card export|push`, `card-push` job (HF_TOKEN, refused offline)
 - [x] P15.11 Add `nanoscope card compare`, which compares cards from different people with Welch CIs and requires the same preset eval text. · files: nanoscope/cards.py, tests/test_cards.py · deps: P15.09 · done: `uv run pytest tests/test_cards.py -k compare` passes ✓ 2026-10-08 118cb13: `card compare` with Welch intervals, same-eval-text check
-- [ ] P15.12 **USER ACTION** Create the public Hub dataset (e.g. `almajd3713/nanoscope-ablation-cards`) with a dataset card and licence, and set `HF_TOKEN`. · files: — · deps: P15.10 · done: the user confirms the dataset URL; record it in the Decisions log
+- [x] P15.12 **USER ACTION** Create the public Hub dataset (e.g. `almajd3713/nanoscope-ablation-cards`) with a dataset card and licence, and set `HF_TOKEN`. · files: — · deps: P15.10 · done: the user confirms the dataset URL; record it in the Decisions log ✓ 2026-10-08: https://huggingface.co/datasets/RedhouaneLazib/nanoscope-ablation-cards (public, MIT, dataset card uploaded; the agent created it with the HF_TOKEN from .env on the user's say-so)
 - [x] P15.13 Return study compute estimates (the per-job `estimate_seconds` combined across devices) from `/api/validate/study` and `nanoscope study --dry-run`. · files: nanoscope/estimate.py, nanoscope/study.py, nanoscope/cli.py · deps: P9.10 · done: `uv run pytest tests/test_estimate.py -k study` passes ✓ 2026-10-08 118cb13: estimate_study/spec_runs, Study.estimate, `study --dry-run`, estimate in /api/validate/study
 
 ### P15 · API
@@ -727,6 +727,7 @@ Order: P13.01 and P13.02 first (these items live in `web/` and run in its CI job
 Append one line per decision: `- YYYY-MM-DD <item id or plan section>: <decision> (<who>)`.
 
 - 2026-10-08 P15.14: the API cannot import nanoscope.study (it pulls in run), so report/finals/bundle/card logic lives in torch-free `nanoscope/studyfiles.py` and `nanoscope/cards.py`; git commits (`prereg`) are worker jobs, `GET /api/git/status` is read-only (fsmonitor off, no hooks). `POST /studies/{name}/run` still refuses record mode: P15.18 must change that for committed specs in a clean tree (agent).
+- 2026-10-08 P15.12: the cards dataset is under the account that owns the token, `RedhouaneLazib/nanoscope-ablation-cards` (not `almajd3713/...`: that is the GitHub name); the user let the agent read HF_TOKEN from .env and create it (user).
 - 2026-10-08 P15: the full local suite is left to CI (the box is too slow: ~25 min and stuck in the torch-compile tests); targeted tests, ruff, pyright and the web typecheck pass locally (user).
 
 - 2026-10-08 P14.35/P15.30/P16.16: screens the approved mockups do not show get their own approval items: a P14 addendum (Research depth, opaque nodes, node badges, stack and pattern edits, live blockstats colour, small error states), the P15 screens and the P16 screens. Each blocks only the screen items it draws (user asked; agent listed the gaps by reading the boards).
