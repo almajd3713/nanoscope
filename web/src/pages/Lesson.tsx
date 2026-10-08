@@ -1,14 +1,16 @@
-import { useQuery } from "@tanstack/react-query";
-import { Link, useParams } from "react-router-dom";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { Link, useNavigate, useParams } from "react-router-dom";
 import { api } from "../api/client";
 import { unwrap } from "../api/problem";
+import { Button } from "../components/Button";
 import { EquivalentCommand } from "../components/EquivalentCommand";
 import { LessonState } from "../components/LessonState";
 import { Markdown } from "../components/Markdown";
 import { ProblemFromError } from "../components/ProblemView";
 import { Tabs } from "../components/Tabs";
-import { Check, Circle, CircleHalf, LockSimple, X } from "../icons";
+import { Check, Circle, CircleHalf, LockSimple, Play, X } from "../icons";
 import { computeText } from "../format";
+import { RUN_DEFAULTS } from "../runDefaults";
 import styles from "./Lesson.module.css";
 
 function Glyph({ state, locked }: { state: string; locked: boolean }) {
@@ -27,6 +29,40 @@ export function Lesson() {
     queryFn: () => unwrap(api.GET("/api/curricula/{path}/{lesson}", { params: { path: { path, lesson } } })),
   });
   const all = useQuery({ queryKey: ["curricula"], queryFn: () => unwrap(api.GET("/api/curricula")) });
+
+  const queryClient = useQueryClient();
+  const navigate = useNavigate();
+  const startedState = detail.data?.state ?? "not-started";
+  const started = startedState !== "not-started";
+  const starterPath = detail.data ? `${detail.data.workspace}/starter.py` : "";
+  const hasStarter = detail.data?.files.includes("starter.py") ?? false;
+
+  const start = useMutation({
+    mutationFn: () =>
+      unwrap(api.POST("/api/curricula/{path}/{lesson}/start", { params: { path: { path, lesson } }, body: {} })),
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: ["curricula"] });
+      await queryClient.invalidateQueries({ queryKey: ["learn"] });
+    },
+  });
+
+  const file = useQuery({
+    queryKey: ["file", starterPath],
+    queryFn: () => unwrap(api.GET("/api/files/{path}", { params: { path: { path: starterPath } } })),
+    enabled: started && hasStarter,
+    retry: false,
+  });
+
+  const experiment = detail.data?.experiment as { kind?: string; model?: string } | undefined;
+  const train = useMutation({
+    mutationFn: () =>
+      unwrap(
+        api.POST("/api/runs", {
+          body: { ...RUN_DEFAULTS, kwargs: {}, model: `${starterPath}:${experiment?.model ?? ""}` },
+        }),
+      ) as Promise<{ ref: string }>,
+    onSuccess: (run) => navigate(`/runs/${run.ref}`),
+  });
 
   if (detail.error) return <ProblemFromError error={detail.error} />;
   if (!detail.data) return <p className={`body ${styles.muted}`}>Loading lesson…</p>;
@@ -105,7 +141,44 @@ export function Lesson() {
           {intro.trim() && <Markdown>{intro}</Markdown>}
         </header>
 
+        <div className={styles.actions}>
+          {!started && (
+            <Button variant="primary" size="lg" disabled={start.isPending} onClick={() => start.mutate()}>
+              Start lesson
+            </Button>
+          )}
+          {experiment?.kind === "run" && (
+            <Button disabled={!started || train.isPending} onClick={() => train.mutate()}>
+              <Play size={16} aria-hidden="true" />
+              Train
+            </Button>
+          )}
+          {started && hasStarter && (
+            <span className={`small ${styles.muted}`}>
+              Your file: <span className="value">workspace/{starterPath}</span>
+            </span>
+          )}
+        </div>
+        {start.error && <ProblemFromError error={start.error} />}
+        {train.error && <ProblemFromError error={train.error} />}
+
         <Tabs items={sections.map((s) => ({ id: s.id, label: s.label, content: <Markdown>{s.text}</Markdown> }))} />
+
+        {started && hasStarter && (
+          <section className={styles.file} aria-label="Your file">
+            <header className={styles.fileHead}>
+              <h2 className="heading">Your file</h2>
+              <span className={`value ${styles.muted}`}>starter.py</span>
+              <span className={styles.spacer} />
+              <span className={`caption ${styles.muted}`}>read only here; edit it in your own editor</span>
+            </header>
+            {file.error ? (
+              <ProblemFromError error={file.error} />
+            ) : (
+              <pre className={`${styles.code} code`}>{file.data?.content ?? "Loading file…"}</pre>
+            )}
+          </section>
+        )}
 
         <EquivalentCommand cli={`nanoscope learn start ${d.id}\nnanoscope learn check ${d.id}`} />
       </div>
