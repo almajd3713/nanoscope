@@ -9,6 +9,7 @@ import { evalPoints, type Row } from "../curveData";
 import { EquivalentCommand } from "../components/EquivalentCommand";
 import { ProblemFromError } from "../components/ProblemView";
 import { Progress } from "../components/Progress";
+import { Samples } from "../components/Samples";
 import { Readout } from "../components/Readout";
 import { StateTag } from "../components/StateTag";
 import { clockText, countText, stampText } from "../format";
@@ -65,6 +66,10 @@ export function Run() {
     queryKey: ["run", ref, "metrics"],
     queryFn: () => unwrap(api.GET("/api/runs/{ref}/metrics", { params: { path: { ref } } })),
   });
+  const samples = useQuery({
+    queryKey: ["run", ref, "samples"],
+    queryFn: () => unwrap(api.GET("/api/runs/{ref}/samples", { params: { path: { ref } } })),
+  });
   const baselineInfo = detail.data?.baseline as Baseline | null | undefined;
   const seedRefs = baselineInfo ? Array.from({ length: baselineInfo.n_seeds }, (_, i) => `${baselineInfo.ref}/seed-${i}`) : [];
   const seeds = useQueries({
@@ -103,12 +108,13 @@ export function Run() {
         }
         return next;
       });
+      if (type === "sample") void queryClient.invalidateQueries({ queryKey: ["run", ref, "samples"] });
       if (type === "eval" || (type === "state" && TERMINAL.includes(d["state"] as string))) void refetch();
     },
-    [refetch],
+    [refetch, queryClient, ref],
   );
   const stream = useEvents(watching ? `/api/runs/${ref}/events` : null, {
-    events: ["state", "step", "eval"],
+    events: ["state", "step", "eval", "sample"],
     onEvent,
     onReset: () => {
       setLive({});
@@ -239,6 +245,19 @@ export function Run() {
                   : null
               }
               yLabel="Validation bpb (lower is better)"
+            />
+          </section>
+        )}
+
+        {samples.data && samples.data.length > 0 && (
+          <section className={styles.panel}>
+            <Samples
+              samples={samples.data}
+              caption={
+                typeof preset["sample_interval"] === "number"
+                  ? `every ${preset["sample_interval"]} steps, ${preset["sample_length"]} tokens, temperature ${preset["sample_temperature"]}`
+                  : undefined
+              }
             />
           </section>
         )}

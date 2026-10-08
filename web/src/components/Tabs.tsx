@@ -4,9 +4,19 @@ import styles from "./Tabs.module.css";
 
 type Item = { id: string; label: string; content: ReactNode };
 
-export function Tabs({ items, defaultId }: { items: Item[]; defaultId?: string }) {
+type Props = {
+  items: Item[];
+  defaultId?: string;
+  // controlled use: the selected id and its change handler
+  value?: string;
+  onValueChange?: (id: string) => void;
+};
+
+export function Tabs({ items, defaultId, value, onValueChange }: Props) {
   return (
-    <RadixTabs.Root defaultValue={defaultId ?? items[0]?.id}>
+    <RadixTabs.Root
+      {...(value !== undefined ? { value, onValueChange } : { defaultValue: defaultId ?? items[0]?.id })}
+    >
       <RadixTabs.List className={styles.list}>
         {items.map((item) => (
           <RadixTabs.Trigger key={item.id} value={item.id} className={`${styles.tab} body`}>
