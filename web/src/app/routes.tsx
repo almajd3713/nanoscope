@@ -1,4 +1,5 @@
 import { Navigate, Route, Routes } from "react-router-dom";
+import { Lesson } from "../pages/Lesson";
 import { Lessons } from "../pages/Lessons";
 import { Onboarding } from "../pages/Onboarding";
 import { BareLayout } from "./BareLayout";
@@ -18,6 +19,7 @@ export function AppRoutes() {
       <Route element={<Shell />}>
         <Route path="/" element={<Navigate to="/learn" replace />} />
         <Route path="/learn" element={<Lessons />} />
+        <Route path="/learn/:path/:lesson" element={<Lesson />} />
         <Route path="/runs" element={<Pending title="Runs" />} />
         <Route path="/compare" element={<Pending title="Compare" />} />
         <Route path="/studies" element={<Pending title="Studies" />} />

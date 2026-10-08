@@ -39,6 +39,10 @@ export default tseslint.config(
     files: ["**/*.{ts,tsx}"],
     languageOptions: { globals: globals.browser },
     plugins: { "react-hooks": reactHooks },
-    rules: reactHooks.configs.recommended.rules,
+    rules: {
+      ...reactHooks.configs.recommended.rules,
+      // react-markdown passes `node`; it is dropped from the props by destructuring
+      "@typescript-eslint/no-unused-vars": ["error", { ignoreRestSiblings: true }],
+    },
   },
 );
