@@ -1780,6 +1780,8 @@ export interface components {
             } | null;
             /** Max Steps */
             max_steps: number;
+            /** Model */
+            model?: string | null;
             /** Ref */
             ref: string;
             /**
@@ -1787,6 +1789,8 @@ export interface components {
              * @default false
              */
             stale: boolean;
+            /** Started At */
+            started_at?: string | null;
             /** State */
             state: string;
             /** Step */

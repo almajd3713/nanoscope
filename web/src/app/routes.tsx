@@ -1,6 +1,7 @@
 import { Navigate, Route, Routes } from "react-router-dom";
 import { Lesson } from "../pages/Lesson";
 import { Lessons } from "../pages/Lessons";
+import { Runs } from "../pages/Runs";
 import { RunForm } from "../pages/RunForm";
 import { Run } from "../pages/Run";
 import { Onboarding } from "../pages/Onboarding";
@@ -22,7 +23,7 @@ export function AppRoutes() {
         <Route path="/" element={<Navigate to="/learn" replace />} />
         <Route path="/learn" element={<Lessons />} />
         <Route path="/learn/:path/:lesson" element={<Lesson />} />
-        <Route path="/runs" element={<Pending title="Runs" />} />
+        <Route path="/runs" element={<Runs />} />
         <Route path="/runs/new" element={<RunForm />} />
         <Route path="/runs/*" element={<Run />} />
         <Route path="/compare" element={<Pending title="Compare" />} />

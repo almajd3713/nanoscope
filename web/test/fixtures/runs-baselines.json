@@ -1,0 +1,26 @@
+[
+ {
+  "ref": "baselines/tinystories-5min/bigram/seed-0",
+  "state": "done",
+  "step": 500,
+  "max_steps": 500,
+  "val_bpb": 1.7194336452262962,
+  "updated": 231234.05736470222,
+  "stale": false,
+  "error": null,
+  "model": "Bigram",
+  "started_at": null
+ },
+ {
+  "ref": "baselines/tinystories-5min/bigram/seed-1",
+  "state": "done",
+  "step": 500,
+  "max_steps": 500,
+  "val_bpb": 1.762044144125189,
+  "updated": 231234.05736470222,
+  "stale": false,
+  "error": null,
+  "model": "Bigram",
+  "started_at": null
+ }
+]

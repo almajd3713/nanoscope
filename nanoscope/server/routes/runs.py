@@ -33,6 +33,8 @@ class RunEntry(BaseModel):
     updated: float  # seconds since the last metrics row
     stale: bool = False  # says running, but nothing has refreshed status.json lately
     error: dict[str, Any] | None = None
+    model: str | None = None  # the model class, from config.json
+    started_at: str | None = None  # from status.json; runs without one have none
 
 
 class RunDetail(BaseModel):
@@ -45,10 +47,22 @@ class RunDetail(BaseModel):
     baseline: dict[str, Any] | None = None
 
 
+def _read(run_dir: Path, name: str, kind: str) -> dict[str, Any]:
+    path = run_dir / name
+    try:
+        return read_json(path, kind) if path.exists() else {}
+    except (OSError, ValueError):
+        return {}
+
+
 def entry(run: RunState) -> RunEntry:
+    config = _read(run.run_dir, "config.json", "config")
+    status = _read(run.run_dir, "status.json", "status")
     return RunEntry(ref=store.ref_of(run.run_dir), state=run.state, step=run.step,
                     max_steps=run.max_steps, val_bpb=run.val_bpb, updated=run.updated,
-                    stale=run.stale, error=run.error)
+                    stale=run.stale, error=run.error,
+                    model=(config.get("model") or {}).get("class"),
+                    started_at=status.get("started_at"))
 
 
 def read_metrics(run_dir: Path, since_step: int = 0) -> list[dict[str, Any]]:

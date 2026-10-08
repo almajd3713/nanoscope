@@ -1615,6 +1615,17 @@
             "title": "Max Steps",
             "type": "integer"
           },
+          "model": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Model"
+          },
           "ref": {
             "title": "Ref",
             "type": "string"
@@ -1623,6 +1634,17 @@
             "default": false,
             "title": "Stale",
             "type": "boolean"
+          },
+          "started_at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Started At"
           },
           "state": {
             "title": "State",

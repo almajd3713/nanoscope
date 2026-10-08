@@ -26,6 +26,7 @@ def test_list(client, finished):
     first = runs[0]
     assert (first["state"], first["step"], first["max_steps"]) == ("done", 20, 20)
     assert first["val_bpb"] > 0 and first["stale"] is False and first["error"] is None
+    assert first["model"] == "Bigram" and first["started_at"]
     assert client.get("/api/runs?state=running").json() == []
     assert len(client.get("/api/runs?state=done").json()) == 2
     assert len(client.get(f"/api/runs?prefix={finished.ref}").json()) == 2
