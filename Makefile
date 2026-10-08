@@ -1,4 +1,4 @@
-.PHONY: install test test-all test-blocks test-curricula test-curricula-full openapi lint typecheck check
+.PHONY: web-client install test test-all test-blocks test-curricula test-curricula-full openapi lint typecheck check
 
 install:  ## everything, including dev tools
 	uv sync --all-extras
@@ -17,6 +17,9 @@ test-curricula:  ## every lesson's starter fails and its solution passes (offlin
 
 test-curricula-full:  ## also train every lesson's solution on real TinyStories (minutes; needs network once)
 	uv run pytest tests/test_curricula.py
+
+web-client:  ## regenerate web/src/api/schema.d.ts from docs/openapi.json (commit the result)
+	pnpm -C web api
 
 openapi:  ## regenerate docs/openapi.json from the API (commit the result)
 	uv run python -m nanoscope.server.openapi docs/openapi.json

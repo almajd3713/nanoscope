@@ -5,7 +5,7 @@ import tseslint from "typescript-eslint";
 import noBannedCopy from "./eslint-rules/no-banned-copy.js";
 
 export default tseslint.config(
-  { ignores: ["dist"] },
+  { ignores: ["dist", "src/api/schema.d.ts"] },
   js.configs.recommended,
   ...tseslint.configs.recommended,
   {

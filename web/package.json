@@ -10,10 +10,12 @@
     "lint": "eslint .",
     "test": "vitest run --passWithNoTests",
     "tokens": "tsx scripts/tokens.ts",
-    "lint:css": "stylelint 'src/**/*.css'"
+    "lint:css": "stylelint 'src/**/*.css'",
+    "api": "openapi-typescript ../docs/openapi.json -o src/api/schema.d.ts"
   },
   "dependencies": {
     "@phosphor-icons/react": "^2.1.10",
+    "openapi-fetch": "^0.17.0",
     "react": "^19.3.0",
     "react-dom": "^19.3.0"
   },
@@ -27,6 +29,7 @@
     "eslint-plugin-react-hooks": "^7.1.1",
     "globals": "^17.13.0",
     "jsdom": "^30.1.2",
+    "openapi-typescript": "^7.13.0",
     "stylelint": "^17.16.0",
     "tsx": "^4.23.15",
     "typescript": "^6.0.3",

@@ -66,6 +66,7 @@ jobs:
           cache-dependency-path: web/pnpm-lock.yaml
       - run: pnpm install --frozen-lockfile
       - run: pnpm tokens --check
+      - run: pnpm api && git diff --exit-code src/api
       - run: pnpm lint
       - run: pnpm lint:css
       - run: pnpm typecheck
