@@ -4,7 +4,7 @@ The build list for [`plan-tool.md`](plan-tool.md), sections 4-10, with the decis
 2026-10-05 (plan section 11) applied. Phase numbers follow the plan's section 10. Every
 item is one line, so scripts and agents can grep and edit it.
 
-**Current focus:** P14 GUI MVP 2 (the model page). P13 is merged (PR #15). P14.01-P14.05 done. Next: P14.06 (web).
+**Current focus:** P14 GUI MVP 2 (the model page). P13 is merged (PR #15). P14.01-P14.05 done. Next: P14.07.
 
 ## Progress
 
@@ -18,7 +18,7 @@ item is one line, so scripts and agents can grep and edit it.
 | P11 | Release prep: PyPI + GHCR (2-3 d) | 17 / 17 | done |
 | P12 | docker-compose (3-4 d) | 20 / 20 | done |
 | P13 | GUI MVP 1: shell, Learn/Tinker screens (12-15 d) | 50 / 50 | done |
-| P14 | GUI MVP 2: model page, drag-and-drop (14-17 d) | 5 / 36 | in progress |
+| P14 | GUI MVP 2: model page, drag-and-drop (14-17 d) | 6 / 36 | in progress |
 | P15 | GUI Research (10-13 d) | 0 / 31 | not started |
 | P16 | Extend + depth (8-10 d) | 0 / 17 | not started |
 | P17 | Remaining curriculum paths (18-26 d) | 0 / 34 | not started |
@@ -563,7 +563,7 @@ Order: P13.01 and P13.02 first (these items live in `web/` and run in its CI job
 - [ ] P14.35 **USER ACTION** Mockup addendum: a new row on the mockups canvas for the P14 screens the approved boards leave out: the Research depth (code spans and equivalence status per node), opaque nodes and code-only classes with "edit in code", lock and certification badges on graph nodes, stack edits (add a layer, drag one out) and the pattern editor (`sliding:global 3:1`), nodes coloured from live `blockstats`; plus the smaller states: locked options disabled in the inspector's swap list, the server's 422 after a locked drop, a ruff problem in the editor, and Certify for a user block on the Models page. Same rules as P13.37 (design system only, real values from the library). The user approves before the items that depend on it start; P14.09, P14.16, P14.18 and P14.34 may start earlier and follow these boards for the states named here. · files: — · deps: P13.99 · done: the user approves; the approval is recorded in the Decisions log
 
 ### P14 · Code editor
-- [ ] P14.06 Monaco component that opens and saves through `/api/files` with the ETag, shows a dirty marker, and saves on Ctrl-S. · files: web/src/components/Editor.tsx (new) · deps: P13.99 · done: `pnpm -C web test -- Editor` passes
+- [x] P14.06 Monaco component that opens and saves through `/api/files` with the ETag, shows a dirty marker, and saves on Ctrl-S. · files: web/src/components/Editor.tsx (new) · deps: P13.99 · done: `pnpm -C web test -- Editor` passes · done 2026-10-08 (3863297)
 - [ ] P14.07 409 conflict dialog showing the server's diff, with "keep mine" and "take theirs". · files: web/src/components/ConflictDialog.tsx (new) · deps: P14.06 · done: `pnpm -C web test -- ConflictDialog` passes
 - [ ] P14.08 External edits from `/api/files/events` reload clean buffers and prompt for dirty ones. · files: web/src/components/Editor.tsx · deps: P14.06 · done: `pnpm -C web test -- Editor.external` passes
 - [ ] P14.09 ruff diagnostics on save, through `/api/files/{path}/lint`, shown as Monaco markers. · files: web/src/components/Editor.tsx · deps: P14.06, P10.21 · done: `pnpm -C web test -- Editor.ruff` passes
