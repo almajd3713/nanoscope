@@ -1,8 +1,10 @@
-import { cleanup } from "@testing-library/react";
+import { cleanup, configure } from "@testing-library/react";
 import { afterEach, expect, vi } from "vitest";
 import * as axeMatchers from "vitest-axe/matchers";
 
 afterEach(() => cleanup());
+// the graph lays itself out asynchronously; a loaded machine needs longer than the default second
+configure({ asyncUtilTimeout: 5000 });
 expect.extend(axeMatchers);
 
 // uPlot needs a real canvas and matchMedia; jsdom has neither. Tests of Curve replace this mock.

@@ -9,10 +9,12 @@ export const BOX_WIDTH = 232;
 const ROW = 18;
 const PAD = 14;
 
-export function boxHeight(box: Box, depth: Depth): number {
-  if (box.kind === "opaque") return 56;
+export function boxHeight(box: Box, depth: Depth, extraRows = 0): number {
   const shown = depth === "surface" ? 0 : Math.min(box.args.length, 4);
-  return 44 + (depth === "surface" ? 0 : ROW + shown * ROW);
+  const detail = depth === "surface" ? 0 : ROW + shown * ROW; // the trace row and the arguments
+  const research = depth === "research" ? 3 * ROW : 0; // span, equivalence, FLOPs
+  const opaque = box.kind === "opaque" ? 2 * ROW + 16 : 0; // the note and the Edit in code button
+  return 44 + detail + research + opaque + extraRows * ROW;
 }
 
 export type Placed = { x: number; y: number; width: number; height: number };
@@ -20,8 +22,9 @@ export type Layout = { boxes: Record<string, Placed>; groups: Record<string, Pla
 
 const elk = new ELK();
 
-export async function layout(flow: Flow, depth: Depth): Promise<Layout> {
-  const leaf = (b: Box) => ({ id: b.id, width: BOX_WIDTH, height: boxHeight(b, depth) });
+// `extra` is rows a box needs beyond its depth's (a locked block's note), by box id.
+export async function layout(flow: Flow, depth: Depth, extra: Record<string, number> = {}): Promise<Layout> {
+  const leaf = (b: Box) => ({ id: b.id, width: BOX_WIDTH, height: boxHeight(b, depth, extra[b.id] ?? 0) });
   const groupOf = new Map(flow.boxes.map((b) => [b.id, b.parent]));
   const root = {
     id: "root",

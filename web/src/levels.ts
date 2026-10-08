@@ -7,6 +7,8 @@ export const CONTROLS = {
   // Learn
   lessons: "Learn",
   "graph.surface": "Learn",
+  "graph.detailed": "Tinker",
+  "graph.research": "Research",
   palette: "Learn",
   train: "Learn",
   "run.live": "Learn",

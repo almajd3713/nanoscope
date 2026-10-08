@@ -34,6 +34,8 @@ export type Box = {
   args: [string, string][]; // the plain-value arguments, as written in code
   path: Path | null; // where it sits in the graph; null for the boxes nanoscope adds (embedding, head)
   line: number | null;
+  span: Span | null; // where its call sits in the file (1-based lines, 0-based columns)
+  module: string | null; // the module path describe reports for it ("blocks.0.attn")
   parent: string | null; // the layer group it sits in
 };
 export type Group = { id: string; label: string; path: Path | null };
@@ -63,16 +65,43 @@ export function valueText(node: GNode): string {
   }
 }
 
+const SLOT_MODULE: Record<string, string> = { norm: "norm1", attn: "attn", mlp: "mlp" };
+
+// The path of the module `describe` reports for a box: the first layer of a stack stands for the
+// stack, a pattern item for its own layer.
+export function modulePath(path: Path | null): string | null {
+  if (!path || path.length === 0) return null;
+  const [head, ...rest] = path;
+  if (head === "final_norm") return "norm";
+  if (head === "pos_emb") return "pos_emb";
+  let layer: number;
+  let slots: Path;
+  if (head === "block") {
+    layer = 0;
+    slots = rest;
+  } else if (head === "pattern" && typeof rest[0] === "number") {
+    layer = rest[0];
+    slots = rest.slice(1);
+  } else {
+    return null;
+  }
+  if (slots.length === 0) return `blocks.${layer}`;
+  const [first, ...more] = slots as string[];
+  return [`blocks.${layer}`, SLOT_MODULE[first!] ?? first, ...more].join(".");
+}
+
 function box(node: GNode, slot: string | null, path: Path, parent: string | null): Box {
   const line = node.span?.line ?? null;
+  const span = node.span ?? null;
+  const module = modulePath(path);
   if (node.kind === "block") {
     const args: [string, string][] = Object.entries(node.args)
       .filter(([, v]) => v.kind !== "block" && v.kind !== "list")
       .map(([k, v]) => [k, valueText(v)]);
-    return { id: pathId(path), kind: "block", name: node.block, slot, family: node.family ?? (node.local ? "custom" : null), args, path, line, parent };
+    return { id: pathId(path), kind: "block", name: node.block, slot, family: node.family ?? (node.local ? "custom" : null), args, path, line, span, module, parent };
   }
   const name = node.kind === "opaque" ? node.call : valueText(node);
-  return { id: pathId(path), kind: "opaque", name, slot, family: "custom", args: [], path, line, parent };
+  return { id: pathId(path), kind: "opaque", name, slot, family: "custom", args: [], path, line, span, module, parent };
 }
 
 const LAYER_BLOCKS = ["Block", "BlockTemplate"];
@@ -108,7 +137,7 @@ function addBlock(flow: Flow, node: GNode, slot: string | null, path: Path, pare
 }
 
 function fixed(id: string, name: string, slot: string, family: string, args: [string, string][]): Box {
-  return { id, kind: "fixed", name, slot, family, args, path: null, line: null, parent: null };
+  return { id, kind: "fixed", name, slot, family, args, path: null, line: null, span: null, module: id === "tok_emb" || id === "head" ? id : null, parent: null };
 }
 
 // A Decoder class: embedding, the layers, the final norm, the head.

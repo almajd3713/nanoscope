@@ -1,5 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import { api } from "../api/client";
 import { toProblem, unwrap } from "../api/problem";
 import { useEvents } from "../hooks/useEvents";
@@ -84,4 +84,48 @@ export function useBlocks() {
     queryKey: ["blocks"],
     queryFn: () => unwrap(api.GET("/api/blocks")) as unknown as Promise<{ blocks: PaletteBlock[]; policy: string }>,
   });
+}
+
+export type LayerStat = { name: string; grad_norm: number };
+type StatsLine = { step: number; blocks: LayerStat[] };
+
+// The newest block statistics of the newest run of this model class, kept live while that run
+// writes them (blockstats events). Null when no run of it recorded any (run(..., block_stats=True)).
+export function useLayerStats(className: string | null) {
+  const [live, setLive] = useState<{ ref: string; line: StatsLine } | null>(null);
+  const runs = useQuery({
+    queryKey: ["runs", "of-model", className],
+    enabled: className !== null,
+    queryFn: () => unwrap(api.GET("/api/runs")) as unknown as Promise<{ ref: string; model?: string | null; state: string }[]>,
+  });
+  const mine = (runs.data ?? []).filter((r) => r.model === className);
+  const run = mine.at(-1)?.ref ?? null; // the library lists oldest first
+  const stats = useQuery({
+    queryKey: ["blockstats", run],
+    enabled: run !== null,
+    queryFn: () => unwrap(api.GET("/api/runs/{ref}/blockstats", { params: { path: { ref: run! } } })) as unknown as Promise<StatsLine[]>,
+  });
+  const live_ = run ? `/api/runs/${run}/events` : null;
+  useEvents(live_, {
+    events: ["blockstats"],
+    onEvent: (_type, data) => run && setLive({ ref: run, line: data as StatsLine }),
+  });
+  const newest = live && live.ref === run ? live.line : (stats.data ?? []).at(-1);
+  return { run, step: newest?.step ?? null, blocks: newest?.blocks ?? null };
+}
+
+type DescribeJob = { state: string; payload: Record<string, unknown>; result: { modules?: import("./trace").TraceRow[] } | null };
+
+// The modules of the newest finished describe job for this model class (the trace its shapes,
+// parameters and FLOPs come from), or null when it has not been traced.
+export function useTrace(path: string, className: string | null) {
+  const jobs = useQuery({
+    queryKey: ["jobs", "describe"],
+    queryFn: () => unwrap(api.GET("/api/jobs", { params: { query: { kind: "describe", limit: 200 } } })) as unknown as Promise<DescribeJob[]>,
+    refetchInterval: (q) => ((q.state.data ?? []).some((j) => ["queued", "running"].includes(j.state)) ? 1000 : false),
+  });
+  if (!className) return null;
+  const ref = `${path}:${className}`;
+  const mine = (jobs.data ?? []).filter((j) => j.state === "done" && typeof j.payload["model"] === "string" && (j.payload["model"] as string).endsWith(ref));
+  return mine.at(-1)?.result?.modules ?? null;
 }

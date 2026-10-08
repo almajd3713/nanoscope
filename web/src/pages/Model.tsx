@@ -8,7 +8,11 @@ import { ProblemFromError, ProblemView } from "../components/ProblemView";
 import type { CatalogBlock } from "../editor/completions";
 import { fromChecks, useDescribeMarkers } from "../editor/diagnostics";
 import { useFileDoc } from "../editor/useFileBuffer";
-import { type Edit, useBlocks, useGraph, usePatchGraph } from "../graph/api";
+import { type Edit, useBlocks, useGraph, useLayerStats, usePatchGraph, useTrace } from "../graph/api";
+import { defaultDepth, DepthDial } from "../graph/DepthDial";
+import type { Depth } from "../graph/layout";
+import type { NodeInfo } from "../graph/nodes";
+import { StackPanel } from "../graph/StackPanel";
 import { planDrop } from "../graph/dnd";
 import type { Box } from "../graph/flow";
 import { GraphView } from "../graph/GraphView";
@@ -31,17 +35,27 @@ export function Model() {
   const blocks = useBlocks();
   const [selected, setSelected] = useState<Box | null>(null);
   const [note, setNote] = useState<string | null>(null);
+  const [chosenDepth, setDepth] = useState<Depth | null>(null);
+  const [reveal, setReveal] = useState<number | null>(null);
+  const depth = chosenDepth ?? defaultDepth(level);
   const patch = usePatchGraph(path, graph.data?.etag ?? null);
   const history = useHistory(path);
 
   const classes = graph.data?.classes ?? [];
   const cls = classes.find((c) => c.name === search.get("class")) ?? classes[0];
   const described = useDescribeMarkers(path, graph.data?.etag ?? null, cls ? `${path}:${cls.name}` : null);
+  const trace = useTrace(path, cls?.name ?? null);
+  const layerStats = useLayerStats(cls?.name ?? null);
   const lesson = useLessonOfFile(path);
   const source = useFileDoc(path).data?.content ?? "";
   // a failed equivalence check goes on its class, as the lesson names it
   const checked = lesson.check.result && lesson.detail ? fromChecks(lesson.check.result.checks, lesson.detail.checks, source) : [];
   const markers = [...described, ...checked];
+
+  const editInCode = (line: number) => {
+    setReveal(null);
+    queueMicrotask(() => setReveal(line));
+  };
 
   const apply = (edits: Edit[]) => {
     setNote(null);
@@ -70,6 +84,12 @@ export function Model() {
   }
 
   const catalog = (blocks.data?.blocks ?? []) as CatalogBlock[];
+  const infoOf = (name: string): NodeInfo | undefined => {
+    const b = (blocks.data?.blocks ?? []).find((x) => x.name === name);
+    if (!b) return undefined;
+    const extra = b as { reference?: string | null; user?: boolean; certification?: { state: string } };
+    return { reference: extra.reference ?? null, user: extra.user === true, certification: extra.certification?.state, locked: b.lock?.locked === true, lesson: b.lock?.lesson ?? null };
+  };
   const editor = shows("editor", level);
   return (
     <div className={styles.page}>
@@ -85,6 +105,7 @@ export function Model() {
           </select>
         )}
         <span className={`value ${styles.muted}`}>{path}</span>
+        <DepthDial value={depth} onChange={setDepth} />
         <Button size="sm" disabled={!history.canUndo} onClick={history.undo}>
           Undo
         </Button>
@@ -101,13 +122,20 @@ export function Model() {
           <Editor
             path={path}
             markers={markers}
-            revealLine={selected?.line ?? null}
+            revealLine={reveal ?? selected?.line ?? null}
           />
         )}
         <div className={styles.stage}>
           {cls && (
             <GraphView
               cls={cls}
+              depth={depth}
+              infoOf={infoOf}
+              trace={trace}
+              layerStats={layerStats.blocks}
+              onEditInCode={editInCode}
+              onAddLayer={() => apply([{ op: "add_layer", class: cls.name }])}
+              onRemoveLayer={() => apply([{ op: "remove_layer", class: cls.name }])}
               selected={selected?.id ?? null}
               onSelect={setSelected}
               onDropBlock={(box, name) => {
@@ -118,9 +146,13 @@ export function Model() {
             />
           )}
           <div>
+            {layerStats.run && layerStats.blocks && (
+              <p className="caption">Layer colours: gradient norm at step {layerStats.step} of <span className="value">{layerStats.run}</span></p>
+            )}
             {note && <ProblemView title="That block can't go there" detail={note} />}
             {cls && selected && selected.path && <Inspector cls={cls} box={selected} blocks={catalog} onEdit={apply} busy={patch.isPending} error={patch.error} />}
             {!(selected && selected.path) && patch.error ? <ProblemFromError error={patch.error} /> : null}
+            {cls && <StackPanel cls={cls} onEdit={apply} busy={patch.isPending} />}
             {cls && hasTemplate(cls) && <TemplateCanvas cls={cls} blocks={catalog} onEdit={apply} />}
           </div>
         </div>
