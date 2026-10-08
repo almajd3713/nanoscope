@@ -4,7 +4,7 @@ The build list for [`plan-tool.md`](plan-tool.md), sections 4-10, with the decis
 2026-10-05 (plan section 11) applied. Phase numbers follow the plan's section 10. Every
 item is one line, so scripts and agents can grep and edit it.
 
-**Current focus:** P14 GUI MVP 2 (the model page). P13 is merged (PR #15). P14.01-P14.05 done. Next: P14.11.
+**Current focus:** P14 GUI MVP 2 (the model page). P13 is merged (PR #15). P14.01-P14.05 done. Next: P14.12.
 
 ## Progress
 
@@ -18,7 +18,7 @@ item is one line, so scripts and agents can grep and edit it.
 | P11 | Release prep: PyPI + GHCR (2-3 d) | 17 / 17 | done |
 | P12 | docker-compose (3-4 d) | 20 / 20 | done |
 | P13 | GUI MVP 1: shell, Learn/Tinker screens (12-15 d) | 50 / 50 | done |
-| P14 | GUI MVP 2: model page, drag-and-drop (14-17 d) | 10 / 36 | in progress |
+| P14 | GUI MVP 2: model page, drag-and-drop (14-17 d) | 11 / 36 | in progress |
 | P15 | GUI Research (10-13 d) | 0 / 31 | not started |
 | P16 | Extend + depth (8-10 d) | 0 / 17 | not started |
 | P17 | Remaining curriculum paths (18-26 d) | 0 / 34 | not started |
@@ -568,7 +568,7 @@ Order: P13.01 and P13.02 first (these items live in `web/` and run in its CI job
 - [x] P14.08 External edits from `/api/files/events` reload clean buffers and prompt for dirty ones. · files: web/src/components/Editor.tsx · deps: P14.06 · done: `pnpm -C web test -- Editor.external` passes · done 2026-10-08 (363a8b1)
 - [x] P14.09 ruff diagnostics on save, through `/api/files/{path}/lint`, shown as Monaco markers. · files: web/src/components/Editor.tsx · deps: P14.06, P10.21 · done: `pnpm -C web test -- Editor.ruff` passes · done 2026-10-08 (363a8b1)
 - [x] P14.10 Completions for block names and kwargs from the `/api/blocks` and `/api/presets` catalogs. · files: web/src/editor/completions.ts (new) · deps: P14.06 · done: `pnpm -C web test -- completions` passes · done 2026-10-08 (4e3e314)
-- [ ] P14.11 nanoscope's own inline errors: validation problems, locked uses, describe shape errors (a describe job after save, over SSE) and failed equivalence results, each on its source line. · files: web/src/editor/diagnostics.ts (new) · deps: P14.09, P10.15, P10.22 · done: `pnpm -C web test -- diagnostics` passes
+- [x] P14.11 nanoscope's own inline errors: validation problems, locked uses, describe shape errors (a describe job after save, over SSE) and failed equivalence results, each on its source line. · files: web/src/editor/diagnostics.ts (new) · deps: P14.09, P10.15, P10.22 · done: `pnpm -C web test -- diagnostics` passes · done 2026-10-08 (ae0b2d5)
 
 ### P14 · Graph, palette and drag-and-drop
 - [ ] P14.12 Graph view with React Flow and elkjs built from `/graph` parse output, re-laid-out on every parse with no layout file. · files: web/src/graph/GraphView.tsx (new), web/src/graph/layout.ts (new) · deps: P13.99, P10.20 · done: `pnpm -C web test -- GraphView` passes
