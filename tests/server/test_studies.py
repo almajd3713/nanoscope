@@ -269,11 +269,18 @@ def test_preregister_card_and_push_go_through_jobs(client, tmp_path, monkeypatch
     monkeypatch.setattr("huggingface_hub.HfApi", FakeApi)
     bad = client.post("/api/studies/toy/card/push", json={"repo": "nonsense"})
     assert bad.status_code == 422 and uploads == []
-    pushed = client.post("/api/studies/toy/card/push", json={"repo": "me/cards"})
+    plan = client.get("/api/studies/toy/card/upload", params={"repo": "me/cards"}).json()
+    assert plan["path_in_repo"] == "cards/toy.json" and plan["commit_message"].startswith("nanoscope:")
+    assert client.get("/api/studies/toy/card/upload", params={"repo": "bad"}).status_code == 422
+    assert uploads == []  # a plan sends nothing
+    pushed = client.post("/api/studies/toy/card/push",
+                         json={"repo": "me/cards", "exported_at": plan["exported_at"]})
     assert pushed.status_code == 202, pushed.text
     assert pushed.json()["path_in_repo"] == "cards/toy.json" and uploads == []  # queued only
     work_off(pushed.json()["job"]["id"])
     assert len(uploads) == 1 and uploads[0]["repo_id"] == "me/cards"
+    # what uploads is the text that was shown, byte for byte
+    assert uploads[0]["path_or_fileobj"].decode() == plan["content"]
 
 
 def test_explore_studies_have_no_card_and_unknown_studies_404(client):

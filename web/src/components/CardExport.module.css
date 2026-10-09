@@ -1,0 +1,57 @@
+.file {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.content {
+  margin: 0;
+  padding: var(--space-2) var(--space-3);
+  max-height: 300px;
+  overflow: auto;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-1);
+  background: var(--surface-sunken);
+}
+
+.push {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  padding-top: var(--space-3);
+  border-top: 1px solid var(--line);
+}
+
+.toggle {
+  display: grid;
+  grid-template-columns: 20px minmax(0, 1fr);
+  gap: var(--space-2);
+  align-items: start;
+}
+
+.toggle input {
+  accent-color: var(--accent);
+  margin: 3px 0 0;
+}
+
+.toggle label {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.repo {
+  max-width: 420px;
+}
+
+.plan {
+  margin: 0;
+  display: grid;
+  grid-template-columns: max-content minmax(0, 1fr);
+  gap: var(--space-1) var(--space-4);
+}
+
+.plan dd {
+  margin: 0;
+}

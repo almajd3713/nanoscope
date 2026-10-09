@@ -108,4 +108,16 @@ describe("Study page", () => {
     await userEvent.click(await screen.findByRole("button", { name: "Stop study" }));
     await waitFor(() => expect(seen.some((s) => s.method === "POST" && s.path === "/api/studies/toy/stop")).toBe(true));
   });
+
+  it("offers the ablation card for a finished record study only", async () => {
+    open(allRuns("done"), { "GET /api/studies/toy/card/upload": { body: { repo: "a/b", repo_type: "dataset", path_in_repo: "cards/toy.json", content: "{}", commit_message: "m", exported_at: "t" } } });
+    await userEvent.click(await screen.findByRole("button", { name: "Export ablation card…" }));
+    expect(await screen.findByText("Ablation card for toy")).toBeTruthy();
+  });
+
+  it("has no card button while runs are still going", async () => {
+    open([run("small", 0, "running", null, 5)], { "GET /api/studies/toy/report": { status: 422, problem: true, body: { title: "x", detail: "y" } } });
+    await screen.findByRole("button", { name: "Stop study" });
+    expect(screen.queryByRole("button", { name: "Export ablation card…" })).toBeNull();
+  });
 });

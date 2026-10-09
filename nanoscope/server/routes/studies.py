@@ -301,8 +301,33 @@ def study_card(name: str, request: Request) -> Any:
         return problem(422, str(exc), request)
 
 
+class CardPlan(BaseModel):
+    repo: str
+    repo_type: str
+    path_in_repo: str
+    content: str  # the file's text, byte for byte
+    commit_message: str
+    exported_at: str  # send it back to push this exact card
+
+
+@router.get("/studies/{name}/card/upload", response_model=CardPlan)
+def card_upload_plan(name: str, request: Request, repo: str,
+                     exported_at: str | None = None) -> Any:
+    """Exactly what a push to `repo` would upload: the file, its text and the commit message.
+    Nothing is sent. Push with the same `exported_at` to upload these very bytes; ask with it to
+    see the same card again."""
+    if repo.count("/") != 1 or not all(repo.split("/")):
+        return problem(422, f"{repo!r} is not a Hub dataset id; use user/name", request)
+    try:
+        card = cards.card_from_files(_spec_or_404(name), exported_at)
+    except ValueError as exc:
+        return problem(422, str(exc), request)
+    return {**cards.push_plan(card, repo), "exported_at": card["exported_at"]}
+
+
 class CardPush(BaseModel):
     repo: str  # the public Hub dataset, user/name
+    exported_at: str | None = None  # the stamp of the plan the user read; the card keeps it
 
 
 class CardPushed(BaseModel):
@@ -320,7 +345,7 @@ def push_card(name: str, body: CardPush, request: Request) -> Any:
     if body.repo.count("/") != 1 or not all(body.repo.split("/")):
         return problem(422, f"{body.repo!r} is not a Hub dataset id; use user/name", request)
     try:
-        card = cards.card_from_files(_spec_or_404(name))
+        card = cards.card_from_files(_spec_or_404(name), body.exported_at)
     except ValueError as exc:
         return problem(422, str(exc), request)
     path = cards.write_card(card, paths.reports_dir() / name / "card.json")

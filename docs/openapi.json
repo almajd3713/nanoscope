@@ -112,8 +112,57 @@
         "title": "BlocksDoc",
         "type": "object"
       },
+      "CardPlan": {
+        "properties": {
+          "commit_message": {
+            "title": "Commit Message",
+            "type": "string"
+          },
+          "content": {
+            "title": "Content",
+            "type": "string"
+          },
+          "exported_at": {
+            "title": "Exported At",
+            "type": "string"
+          },
+          "path_in_repo": {
+            "title": "Path In Repo",
+            "type": "string"
+          },
+          "repo": {
+            "title": "Repo",
+            "type": "string"
+          },
+          "repo_type": {
+            "title": "Repo Type",
+            "type": "string"
+          }
+        },
+        "required": [
+          "repo",
+          "repo_type",
+          "path_in_repo",
+          "content",
+          "commit_message",
+          "exported_at"
+        ],
+        "title": "CardPlan",
+        "type": "object"
+      },
       "CardPush": {
         "properties": {
+          "exported_at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Exported At"
+          },
           "repo": {
             "title": "Repo",
             "type": "string"
@@ -5811,6 +5860,84 @@
           }
         },
         "summary": "Push Card",
+        "tags": [
+          "studies"
+        ]
+      }
+    },
+    "/api/studies/{name}/card/upload": {
+      "get": {
+        "description": "Exactly what a push to `repo` would upload: the file, its text and the commit message.\nNothing is sent. Push with the same `exported_at` to upload these very bytes; ask with it to\nsee the same card again.",
+        "operationId": "card_upload_plan_api_studies__name__card_upload_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "name",
+            "required": true,
+            "schema": {
+              "title": "Name",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "repo",
+            "required": true,
+            "schema": {
+              "title": "Repo",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "exported_at",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Exported At"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CardPlan"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "The request cannot be done as asked"
+          },
+          "4XX": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "An error (RFC 9457)"
+          }
+        },
+        "summary": "Card Upload Plan",
         "tags": [
           "studies"
         ]

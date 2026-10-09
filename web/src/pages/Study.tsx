@@ -4,6 +4,7 @@ import { Link, useParams } from "react-router-dom";
 import { api } from "../api/client";
 import { ApiProblem, unwrap } from "../api/problem";
 import { Button, ButtonLink } from "../components/Button";
+import { CardExport } from "../components/CardExport";
 import { EquivalentCommand } from "../components/EquivalentCommand";
 import { ForestPlot } from "../components/ForestPlot";
 import { Markdown } from "../components/Markdown";
@@ -54,6 +55,7 @@ export function Study() {
   const { name = "" } = useParams();
   const queryClient = useQueryClient();
   const [live, setLive] = useState<Record<string, Patch>>({});
+  const [cardOpen, setCardOpen] = useState(false);
 
   const spec = useQuery({
     queryKey: ["study-spec", name],
@@ -151,6 +153,7 @@ export function Study() {
               Stop study
             </Button>
           )}
+          {s.mode === "record" && state === "done" && <Button onClick={() => setCardOpen(true)}>Export ablation card…</Button>}
           <ButtonLink to={`/studies/${name}/edit`}>Open in builder</ButtonLink>
           {rep && (
             <a className={`${styles.link} body-strong`} href={`/api/studies/${encodeURIComponent(name)}/bundle.zip`} download>
@@ -350,6 +353,7 @@ export function Study() {
         </section>
       )}
 
+      <CardExport name={name} open={cardOpen} onOpenChange={setCardOpen} />
       <EquivalentCommand cli={`nanoscope status runs/studies/${name}\nnanoscope stop ${name}`} />
     </div>
   );

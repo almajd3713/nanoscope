@@ -1128,6 +1128,28 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/studies/{name}/card/upload": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Card Upload Plan
+         * @description Exactly what a push to `repo` would upload: the file, its text and the commit message.
+         *     Nothing is sent. Push with the same `exported_at` to upload these very bytes; ask with it to
+         *     see the same card again.
+         */
+        get: operations["card_upload_plan_api_studies__name__card_upload_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/studies/{name}/preregister/commit": {
         parameters: {
             query?: never;
@@ -1437,8 +1459,25 @@ export interface components {
         } & {
             [key: string]: unknown;
         };
+        /** CardPlan */
+        CardPlan: {
+            /** Commit Message */
+            commit_message: string;
+            /** Content */
+            content: string;
+            /** Exported At */
+            exported_at: string;
+            /** Path In Repo */
+            path_in_repo: string;
+            /** Repo */
+            repo: string;
+            /** Repo Type */
+            repo_type: string;
+        };
         /** CardPush */
         CardPush: {
+            /** Exported At */
+            exported_at?: string | null;
             /** Repo */
             repo: string;
         };
@@ -4770,6 +4809,49 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["CardPushed"];
+                };
+            };
+            /** @description The request cannot be done as asked */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description An error (RFC 9457) */
+            "4XX": {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    card_upload_plan_api_studies__name__card_upload_get: {
+        parameters: {
+            query: {
+                repo: string;
+                exported_at?: string | null;
+            };
+            header?: never;
+            path: {
+                name: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CardPlan"];
                 };
             };
             /** @description The request cannot be done as asked */

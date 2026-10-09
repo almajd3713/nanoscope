@@ -31,9 +31,10 @@ def export_card(study: Study) -> dict[str, Any]:
     return card_from_files(study.to_spec())
 
 
-def card_from_files(spec: StudySpec) -> dict[str, Any]:
+def card_from_files(spec: StudySpec, exported_at: str | None = None) -> dict[str, Any]:
     """The card for the study a spec describes, read from its run folders (no model is
-    imported, so the API can serve it)."""
+    imported, so the API can serve it). `exported_at` fixes the stamp, so a card pushed later
+    is the card that was shown."""
     if spec.mode != "record":
         raise ValueError("ablation cards are for record-mode studies only: explore results are "
                          "not preregistered, so they are not shared as claims")
@@ -59,7 +60,8 @@ def card_from_files(spec: StudySpec) -> dict[str, Any]:
         "baseline": spec.baseline,
         "finals": {v: done[v] for v in names},
         "provenance": read_json(manifest_path, "study"),
-        "exported_at": datetime.now(timezone.utc).isoformat(timespec="seconds"),
+        "exported_at": exported_at or datetime.now(timezone.utc).isoformat(
+            timespec="seconds"),
     }
 
 
