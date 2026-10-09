@@ -10,13 +10,19 @@ export function git(...args: string[]): string {
   return execFileSync("git", ["-C", WORKSPACE, ...args], { encoding: "utf8" }).trim();
 }
 
-// A repository in the workspace with an identity, writable by the container's user too.
+// A repository in the workspace with an identity. Host and container (another uid) both write into
+// it, so git shares it world-writable: whoever creates a file or folder in .git, the other can use it.
 export function initRepo(): void {
   if (!existsSync(`${WORKSPACE}/.git`)) git("init", "-q", "-b", "main");
   git("config", "user.email", "e2e@example.com");
   git("config", "user.name", "e2e");
   git("config", "commit.gpgsign", "false");
-  execFileSync("chmod", ["-R", "a+rwX", `${WORKSPACE}/.git`]);
+  git("config", "core.sharedRepository", "0666");
+  try {
+    execFileSync("chmod", ["-R", "a+rwX", `${WORKSPACE}/.git`], { stdio: "ignore" });
+  } catch {
+    /* files the container created belong to its uid; they were made shareable already */
+  }
   chmodSync(WORKSPACE, 0o777);
 }
 

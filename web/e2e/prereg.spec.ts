@@ -23,7 +23,10 @@ test("the preregistration dialog commits, and the hash appears in study.json", a
   await dialog.getByRole("button", { name: "Commit preregistration" }).click();
 
   const done = dialog.getByRole("status");
-  await expect(done).toContainText("Preregistration committed", { timeout: 120_000 });
+  const failed = dialog.getByRole("alert");
+  await expect(done.or(failed)).toBeVisible({ timeout: 120_000 });
+  if (await failed.count()) throw new Error(`the commit job failed: ${await failed.first().innerText()}`);
+  await expect(done).toContainText("Preregistration committed");
   const hash = (await done.locator("code").innerText()).trim();
   expect(hash).toMatch(/^[0-9a-f]{40}$/);
   expect(git("rev-parse", "HEAD")).toBe(hash);
