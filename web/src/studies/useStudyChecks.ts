@@ -38,6 +38,34 @@ export function useStudyValidation(spec: Record<string, unknown>, devices: strin
 
 const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
+// Follow a queued job until it is done and return its result (a worker did the work).
+export async function followJob<T>(id: number): Promise<T> {
+  for (;;) {
+    const job = (await unwrap(api.GET("/api/jobs/{job_id}", { params: { path: { job_id: id } } }))) as unknown as {
+      state: string;
+      result: T | null;
+      error: string | null;
+    };
+    if (job.state === "done" && job.result) return job.result;
+    if (["failed", "cancelled"].includes(job.state)) throw new Error(job.error ?? `the job ${job.state}`);
+    await sleep(400);
+  }
+}
+
+// A `.py` study read as a spec by a worker (it imports the file; this page never does).
+export function useStudyFromFile(file: string | null) {
+  return useQuery({
+    queryKey: ["study-from-file", file],
+    enabled: file !== null,
+    staleTime: Infinity,
+    retry: false,
+    queryFn: async () => {
+      const queued = await unwrap(api.POST("/api/studies/from-file", { body: { file: file ?? "" } }));
+      return followJob<{ spec: Record<string, unknown>; toml: string }>((queued as unknown as { id: number }).id);
+    },
+  });
+}
+
 // Parameter counts and FLOPs per variant. A worker builds the models (the API never runs the
 // learner's code), so this queues a sizes job and follows it until it is done.
 export function useSizes(spec: Record<string, unknown>, enabled: boolean) {
@@ -47,17 +75,7 @@ export function useSizes(spec: Record<string, unknown>, enabled: boolean) {
     enabled,
     queryFn: async (): Promise<SizeTable> => {
       const queued = await unwrap(api.POST("/api/studies/sizes", { body: JSON.parse(body) }));
-      const id = (queued as unknown as { id: number }).id;
-      for (;;) {
-        const job = (await unwrap(api.GET("/api/jobs/{job_id}", { params: { path: { job_id: id } } }))) as unknown as {
-          state: string;
-          result: SizeTable | null;
-          error: string | null;
-        };
-        if (job.state === "done" && job.result) return job.result;
-        if (["failed", "cancelled"].includes(job.state)) throw new Error(job.error ?? `the sizes job ${job.state}`);
-        await sleep(400);
-      }
+      return followJob<SizeTable>((queued as unknown as { id: number }).id);
     },
     placeholderData: keepPreviousData,
     staleTime: Infinity,

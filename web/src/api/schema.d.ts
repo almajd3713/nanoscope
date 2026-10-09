@@ -1022,6 +1022,27 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/studies/from-file": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Study From File
+         * @description Queue reading a `.py` study as a spec (what `nanoscope spec` prints). A worker imports the
+         *     file, so this process never does; the job's result is `{spec, toml}`.
+         */
+        post: operations["study_from_file_api_studies_from_file_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/studies/sizes": {
         parameters: {
             query?: never;
@@ -1604,6 +1625,13 @@ export interface components {
         FileWrite: {
             /** Content */
             content: string;
+        };
+        /** FromFile */
+        FromFile: {
+            /** File */
+            file: string;
+            /** Name */
+            name?: string | null;
         };
         /** GenerateRequest */
         GenerateRequest: {
@@ -4514,6 +4542,48 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["StudyEntry"];
+                };
+            };
+            /** @description The request cannot be done as asked */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description An error (RFC 9457) */
+            "4XX": {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    study_from_file_api_studies_from_file_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["FromFile"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            202: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
                 };
             };
             /** @description The request cannot be done as asked */

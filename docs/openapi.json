@@ -639,6 +639,30 @@
         "title": "FileWrite",
         "type": "object"
       },
+      "FromFile": {
+        "properties": {
+          "file": {
+            "title": "File",
+            "type": "string"
+          },
+          "name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Name"
+          }
+        },
+        "required": [
+          "file"
+        ],
+        "title": "FromFile",
+        "type": "object"
+      },
       "GenerateRequest": {
         "properties": {
           "max_new_tokens": {
@@ -5514,6 +5538,58 @@
           }
         },
         "summary": "Save Study",
+        "tags": [
+          "studies"
+        ]
+      }
+    },
+    "/api/studies/from-file": {
+      "post": {
+        "description": "Queue reading a `.py` study as a spec (what `nanoscope spec` prints). A worker imports the\nfile, so this process never does; the job's result is `{spec, toml}`.",
+        "operationId": "study_from_file_api_studies_from_file_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/FromFile"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "202": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "title": "Response Study From File Api Studies From File Post"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "The request cannot be done as asked"
+          },
+          "4XX": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "An error (RFC 9457)"
+          }
+        },
+        "summary": "Study From File",
         "tags": [
           "studies"
         ]

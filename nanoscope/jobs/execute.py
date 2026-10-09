@@ -114,6 +114,15 @@ def _sizes(job: Any, payload: dict[str, Any]) -> dict[str, Any]:
     return Study.from_spec(spec).size_table(spec.match_to)
 
 
+def _study_spec(job: Any, payload: dict[str, Any]) -> dict[str, Any]:
+    """A study written in Python as a spec (`nanoscope spec`): this imports the file, so it is a
+    worker's job."""
+    from nanoscope.study import load_study
+
+    spec = load_study(payload["file"], payload.get("name")).to_spec()
+    return {"spec": spec.to_dict(), "toml": spec.to_toml()}
+
+
 def _study(job: Any, payload: dict[str, Any]) -> dict[str, Any]:
     """Load a study spec (this imports its models: it runs in a worker, not the API) and put
     every unfinished run on the batch lane."""
@@ -176,7 +185,7 @@ def _sync_hub(job: Any, payload: dict[str, Any]) -> dict[str, Any]:
 
 HANDLERS: dict[str, Callable[[Any, dict[str, Any]], dict[str, Any]]] = {
     "run": _run, "prepare-data": _prepare_data, "bench": _bench, "check": _check,
-    "describe": _describe, "study": _study, "sync-hub": _sync_hub, "certify": _certify, "sizes": _sizes,
+    "describe": _describe, "study": _study, "sync-hub": _sync_hub, "certify": _certify, "sizes": _sizes, "study-spec": _study_spec,
     "prereg-preview": _prereg_preview, "commit": _commit, "card-push": _card_push,
 }
 

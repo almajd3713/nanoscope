@@ -1,7 +1,7 @@
 import { VisuallyHidden } from "@radix-ui/react-visually-hidden";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useMemo, useState } from "react";
-import { Link, useNavigate, useParams } from "react-router-dom";
+import { Link, useNavigate, useParams, useSearchParams } from "react-router-dom";
 import { api } from "../api/client";
 import { unwrap } from "../api/problem";
 import { Button } from "../components/Button";
@@ -12,7 +12,7 @@ import { ProblemFromError, ProblemView } from "../components/ProblemView";
 import { countText } from "../format";
 import { Plus, Trash } from "../icons";
 import { freshName, fromSpec, toSpec, type StudyDraft, type VariantDraft } from "../studyDraft";
-import { useSizes, useStudyValidation, type Problem, type SizeRow } from "../studies/useStudyChecks";
+import { useSizes, useStudyFromFile, useStudyValidation, type Problem, type SizeRow } from "../studies/useStudyChecks";
 import styles from "./StudyBuilder.module.css";
 
 type ModelDoc = { name: string; ref: string };
@@ -38,6 +38,9 @@ const gb = (bytes: number | null) => (bytes === null ? "" : `${(bytes / 1024 ** 
 // it saves is the committable `studies/<name>.toml`; the library judges every value.
 export function StudyBuilder() {
   const { name } = useParams();
+  // /studies/new?file=studies/mine.py opens a Python study (a worker reads it as a spec)
+  const file = useSearchParams()[0].get("file");
+  const fromFile = useStudyFromFile(file);
   const saved = useQuery({
     queryKey: ["study-spec", name],
     queryFn: () => unwrap(api.GET("/api/studies/{name}/spec", { params: { path: { name: name ?? "" } } })),
@@ -47,15 +50,15 @@ export function StudyBuilder() {
   const presets = useQuery({ queryKey: ["presets"], queryFn: () => unwrap(api.GET("/api/presets")) });
   const hardware = useQuery({ queryKey: ["hardware"], queryFn: () => unwrap(api.GET("/api/hardware")) });
 
-  const error = saved.error ?? models.error ?? presets.error ?? hardware.error;
+  const error = saved.error ?? fromFile.error ?? models.error ?? presets.error ?? hardware.error;
   if (error) return <ProblemFromError error={error} />;
-  if (!models.data || !presets.data || !hardware.data || (name !== undefined && !saved.data)) {
-    return <p className="body">Loading the builder…</p>;
+  if (!models.data || !presets.data || !hardware.data || (name !== undefined && !saved.data) || (file !== null && !fromFile.data)) {
+    return <p className="body">{file !== null ? `Reading ${file}…` : "Loading the builder…"}</p>;
   }
-  const start = saved.data ? fromSpec(saved.data.spec as Record<string, unknown>) : BLANK;
+  const start = saved.data ? fromSpec(saved.data.spec as Record<string, unknown>) : fromFile.data ? fromSpec(fromFile.data.spec) : BLANK;
   return (
     <Builder
-      key={name ?? "new"}
+      key={name ?? file ?? "new"}
       existing={name}
       start={start}
       savedToml={saved.data?.toml ?? null}
@@ -89,6 +92,7 @@ function Builder({
     return gpus.length > 0 ? gpus : ["cpu"];
   });
   const [perDevice, setPerDevice] = useState("1");
+  const [openPath, setOpenPath] = useState("");
   const set = <K extends keyof StudyDraft>(key: K, value: StudyDraft[K]) => setDraft((d) => ({ ...d, [key]: value }));
   const setVariant = (i: number, patch: Partial<VariantDraft>) =>
     setDraft((d) => ({ ...d, variants: d.variants.map((v, j) => (j === i ? { ...v, ...patch } : v)) }));
@@ -149,6 +153,21 @@ function Builder({
           </div>
         </header>
 
+        {existing === undefined && draft.variants.length === 0 && (
+          <form
+            className={styles.bar}
+            onSubmit={(e) => {
+              e.preventDefault();
+              if (openPath.trim()) navigate(`/studies/new?file=${encodeURIComponent(openPath.trim())}`);
+            }}
+          >
+            <label className={`small ${styles.inline}`}>
+              <span className={styles.muted}>Start from a Python study</span>
+              <input className={`${styles.cell} value`} style={{ width: 280 }} placeholder="studies/m1_ablation.py" value={openPath} onChange={(e) => setOpenPath(e.target.value)} />
+            </label>
+            <Button type="submit" size="sm" disabled={!openPath.trim()}>Open</Button>
+          </form>
+        )}
         {save.error && <ProblemFromError error={save.error} />}
         {wholeProblems.map((p) => (
           <ProblemView key={`${p.field}${p.message}`} title="Cannot be done as asked" detail={[p.message, p.hint].filter(Boolean).join("\n")} />

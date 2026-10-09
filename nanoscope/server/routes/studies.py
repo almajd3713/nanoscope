@@ -144,6 +144,25 @@ def study_sizes(body: StudyValidation, request: Request) -> Any:
     return job_doc(queue.get(job_id))
 
 
+class FromFile(BaseModel):
+    file: str  # a workspace .py file that defines a Study
+    name: str | None = None  # which Study, when it defines several
+
+
+@router.post("/studies/from-file", status_code=202)
+def study_from_file(body: FromFile, request: Request) -> Any:
+    """Queue reading a `.py` study as a spec (what `nanoscope spec` prints). A worker imports the
+    file, so this process never does; the job's result is `{spec, toml}`."""
+    if not body.file.endswith(".py"):
+        return problem(422, f"{body.file!r} is not a .py file; a .toml spec opens by its name",
+                       request)
+    target = workspace.safe_path(body.file)
+    job_id = queue.enqueue("study-spec", {"file": str(target), "name": body.name},
+                           lane="interactive")
+    assert job_id is not None
+    return job_doc(queue.get(job_id))
+
+
 class StudyRun(BaseModel):
     study: str
     job: JobDoc

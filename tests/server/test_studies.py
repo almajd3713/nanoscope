@@ -281,3 +281,25 @@ def test_validate_returns_the_toml_and_saved_specs_read_back(client):
     assert doc["path"] == "studies/toy.toml" and doc["spec"]["seeds"] == [0, 1]
     assert doc["toml"].startswith("schema = 1")
     assert client.get("/api/studies/nope/spec").status_code == 404
+
+
+PY_STUDY = '''\
+from nanoscope.study import Study
+from nanoscope.models import Bigram
+
+study = Study("from-py", preset="test-tiny", seeds=[0, 1], baseline="small")
+study.add("small", Bigram, d_model=8)
+study.add("wide", Bigram, d_model=32)
+'''
+
+
+def test_a_python_study_opens_as_a_spec_through_a_worker(client, tmp_path):
+    (tmp_path / "ws" / "mine.py").write_text(PY_STUDY)
+    queued = client.post("/api/studies/from-file", json={"file": "mine.py"})
+    assert queued.status_code == 202, queued.text
+    work_off(queued.json()["id"])
+    result = json.loads(queue.get(queued.json()["id"])["result"])
+    assert result["spec"]["name"] == "from-py" and [v["name"] for v in result["spec"]["variants"]] == ["small", "wide"]
+    assert 'name = "from-py"' in result["toml"]
+    assert client.post("/api/studies/from-file", json={"file": "x.toml"}).status_code == 422
+    assert client.post("/api/studies/from-file", json={"file": "../x.py"}).status_code in (400, 404)
