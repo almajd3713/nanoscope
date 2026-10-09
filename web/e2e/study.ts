@@ -18,18 +18,24 @@ export function initRepo(): void {
   git("config", "user.name", "e2e");
   git("config", "commit.gpgsign", "false");
   git("config", "core.sharedRepository", "0666");
+  share();
+  chmodSync(WORKSPACE, 0o777);
+}
+
+// Let the container's user write what this one made (COMMIT_EDITMSG, the index, new folders).
+export function share(): void {
   try {
     execFileSync("chmod", ["-R", "a+rwX", `${WORKSPACE}/.git`], { stdio: "ignore" });
   } catch {
-    /* files the container created belong to its uid; they were made shareable already */
+    /* what the container made belongs to its uid; it was created shareable */
   }
-  chmodSync(WORKSPACE, 0o777);
 }
 
 // Commit whatever other specs left behind, so a record study starts from a clean tree.
 export function tidy(): void {
   git("add", "-A");
   if (git("status", "--porcelain") !== "") git("commit", "-q", "-m", "e2e: tidy");
+  share();
 }
 
 // Two tiny variants, three seeds: 10 steps a run, so a whole study takes a couple of minutes on a CPU.

@@ -1,6 +1,6 @@
 import { expect, test } from "@playwright/test";
 import { unlinkSync, writeFileSync, mkdirSync } from "node:fs";
-import { git, initRepo, tidy, saveStudy, studyToml, WORKSPACE } from "./study";
+import { git, initRepo, share, tidy, saveStudy, studyToml, WORKSPACE } from "./study";
 
 const STAMP = Date.now().toString(36);
 const NAME = `e2e-dirty-${STAMP}`;
@@ -13,6 +13,7 @@ test("record mode is refused on a dirty tree, with the list of files", async ({ 
   await saveStudy(request, studyToml(NAME, "record"));
   git("add", `studies/${NAME}.toml`);
   git("commit", "-q", "-m", "spec");
+  share();
   mkdirSync(`${WORKSPACE}/notes`, { recursive: true });
   writeFileSync(`${WORKSPACE}/${NOTE}`, "an idea\n");
 
