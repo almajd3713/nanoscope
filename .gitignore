@@ -14,5 +14,5 @@ experiments/**/artifacts/
 .kaggle/
 .vscode/
 graphify-out/
-workspace/
+/workspace/
 nanoscope/server/static/
