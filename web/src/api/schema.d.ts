@@ -1193,6 +1193,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/studies/{name}/report.md": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Study Report Markdown
+         * @description The Markdown report that goes in the bundle, as text.
+         */
+        get: operations["study_report_markdown_api_studies__name__report_md_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/studies/{name}/run": {
         parameters: {
             query?: never;
@@ -1204,7 +1224,7 @@ export interface paths {
         put?: never;
         /**
          * Run Study
-         * @description Queue a study (explore mode). A worker loads the spec, which imports its models, and puts
+         * @description Queue a study. Record mode needs the spec committed and a clean tree. A worker loads the spec, which imports its models, and puts
          *     every unfinished run on the batch lane; watch them with `/jobs` or `/events?prefix=`.
          */
         post: operations["run_study_api_studies__name__run_post"];
@@ -4857,6 +4877,46 @@ export interface operations {
         };
     };
     study_report_api_studies__name__report_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                name: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+            /** @description The request cannot be done as asked */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description An error (RFC 9457) */
+            "4XX": {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    study_report_markdown_api_studies__name__report_md_get: {
         parameters: {
             query?: never;
             header?: never;

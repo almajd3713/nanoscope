@@ -17,6 +17,7 @@ export function mockApi(routes: Record<string, { status?: number | (() => number
       if (!hit) return new Response(JSON.stringify({ title: "Not found", detail: `no mock for ${pathname}` }), { status: 404 });
       const sent = text ? JSON.parse(text) : undefined;
       const body = typeof hit.body === "function" ? (hit.body as (sent: unknown) => unknown)(sent) : hit.body;
+      if (typeof body === "string") return new Response(body, { status: 200, headers: { "content-type": "text/markdown" } });
       return new Response(JSON.stringify(body), {
         status: typeof hit.status === "function" ? hit.status() : (hit.status ?? 200),
         headers: { "content-type": hit.problem ? "application/problem+json" : "application/json" },

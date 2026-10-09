@@ -119,6 +119,9 @@ def test_studies_run_report_stop(client, tmp_path):
     partial = client.get("/api/studies/toy/report").json()
     assert [len(r["seeds"]) for r in partial["rows"]] == [2, 1]
     status.write_text(json.dumps(doc))
+    markdown = client.get("/api/studies/toy/report.md")
+    assert markdown.status_code == 200 and markdown.headers["content-type"].startswith("text/markdown")
+    assert markdown.text.startswith("# Study: toy") and "## Results" in markdown.text
     assert client.get("/api/studies/toy").status_code in (404, 405)
     final = client.get("/api/studies").json()[0]
     assert final["runs_by_state"] == {"done": 4}

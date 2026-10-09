@@ -234,6 +234,32 @@ def study_report(name: str, request: Request) -> Any:
     return {**doc, "comparison": json.loads(json.dumps(comparison.to_dict(), default=str))}
 
 
+def _report_markdown(name: str, spec: StudySpec | None, comparison: Any,
+                     predictions: list[dict[str, Any]], manifest: dict[str, Any] | None) -> str:
+    budget = None
+    if spec and spec.budget:
+        (kind, n), = spec.budget.items()
+        budget = ("Tokens" if kind == "tokens" else "FLOPs", n)
+    return studyfiles.render_report(
+        name, spec.mode if spec else "explore", spec.preset if spec else "?",
+        list(spec.seeds) if spec else [], budget, manifest, comparison, predictions)
+
+
+@router.get("/studies/{name}/report.md")
+def study_report_markdown(name: str, request: Request) -> Any:
+    """The Markdown report that goes in the bundle, as text."""
+    if not study_dir(name).exists():
+        raise FileNotFoundError(f"no study {name!r} has run")
+    spec_file = workspace.root() / spec_path(name)
+    spec = StudySpec.load(spec_file) if spec_file.exists() else None
+    try:
+        comparison, predictions, manifest = studyfiles.results(name, spec)
+    except ValueError as exc:
+        return problem(422, str(exc), request)
+    return Response(_report_markdown(name, spec, comparison, predictions, manifest),
+                    media_type="text/markdown; charset=utf-8")
+
+
 @router.get("/studies/{name}/bundle.zip")
 def study_bundle(name: str, request: Request) -> Any:
     """Everything needed to check or re-run the study, as one zip: report.md, results.json, the
@@ -247,13 +273,7 @@ def study_bundle(name: str, request: Request) -> Any:
     except ValueError as exc:
         return problem(422, str(exc), request)
     mode = spec.mode if spec else "explore"
-    budget = None
-    if spec and spec.budget:
-        (kind, n), = spec.budget.items()
-        budget = ("Tokens" if kind == "tokens" else "FLOPs", n)
-    report = studyfiles.render_report(
-        name, mode, spec.preset if spec else "?", list(spec.seeds) if spec else [], budget,
-        manifest, comparison, predictions)
+    report = _report_markdown(name, spec, comparison, predictions, manifest)
     with tempfile.TemporaryDirectory() as tmp:
         zipped = studyfiles.write_bundle(
             Path(tmp) / f"{name}-bundle.zip", name, report,

@@ -5985,6 +5985,59 @@
         ]
       }
     },
+    "/api/studies/{name}/report.md": {
+      "get": {
+        "description": "The Markdown report that goes in the bundle, as text.",
+        "operationId": "study_report_markdown_api_studies__name__report_md_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "name",
+            "required": true,
+            "schema": {
+              "title": "Name",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "title": "Response Study Report Markdown Api Studies  Name  Report Md Get"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "The request cannot be done as asked"
+          },
+          "4XX": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "An error (RFC 9457)"
+          }
+        },
+        "summary": "Study Report Markdown",
+        "tags": [
+          "studies"
+        ]
+      }
+    },
     "/api/studies/{name}/run": {
       "post": {
         "description": "Queue a study. Record mode needs the spec committed and a clean tree. A worker loads the spec, which imports its models, and puts\nevery unfinished run on the batch lane; watch them with `/jobs` or `/events?prefix=`.",
