@@ -4,7 +4,7 @@ The build list for [`plan-tool.md`](plan-tool.md), sections 4-10, with the decis
 2026-10-05 (plan section 11) applied. Phase numbers follow the plan's section 10. Every
 item is one line, so scripts and agents can grep and edit it.
 
-**Current focus:** P15 library and API are done (P15.01-P15.11, P15.13-P15.15, 118cb13). Left for the user: P14.33 (tag v0.5.0). P15.30 mockups approved 2026-10-09 (row 7). Next: P15.16 study builder, then P15.18, P15.20, P15.22, P15.24.
+**Current focus:** P15.01-P15.30 are done (1155bf6). P15.99 gate: `make check`, the P15 test files and the first-notebook guard pass locally; left for the user: push the branch, let CI (incl. the e2e job) run, merge the PR; and P14.33 (tag v0.5.0).
 
 ## Progress
 
