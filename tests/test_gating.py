@@ -524,3 +524,63 @@ def test_level0_untouched(home):
     # and nothing about it was recorded
     assert not paths.learn_dir().exists() and not unlocks.exists()
     assert unlocks.policy() == "open"
+
+
+@pytest.fixture
+def window_curricula(tmp_path, monkeypatch):
+    """modern/02-window unlocks feature:sliding_window."""
+    from nanoscope.learn import gating
+
+    root = tmp_path / "curricula"
+    folder = root / "modern" / "02-window"
+    folder.mkdir(parents=True)
+    (root / "modern" / "path.toml").write_text('title = "modern"\nlevel = 0\n')
+    (folder / "lesson.toml").write_text(BASE.format(extra='unlocks = ["feature:sliding_window"]'))
+    (folder / "lesson.md").write_text("## Surface\nHi\n")
+    monkeypatch.setattr("nanoscope.learn.loader.curricula_dir", lambda: root)
+    gating.reload()
+    yield root
+    gating.reload()
+
+
+WINDOW_FILE = '''\
+from nanoscope.blocks import Attention, Block, Decoder, RMSNorm, SwiGLU
+
+
+class MyLM(Decoder):
+    def __init__(self, vocab_size: int):
+        local = Block(norm=RMSNorm(), mlp=SwiGLU(), attn=Attention(n_heads=4, window=4))
+        glob = Block(norm=RMSNorm(), mlp=SwiGLU(), attn=Attention(n_heads=4))
+        super().__init__(vocab_size, 8, d_model=16, n_layers=4, pattern=[local, local, glob])
+'''
+
+
+def test_sliding_window_is_a_feature_lock_in_a_layer_pattern(home, window_curricula, tmp_path):
+    from nanoscope.blocks.attention import Attention
+    from nanoscope.blocks.mlp import SwiGLU
+    from nanoscope.blocks.norm import RMSNorm
+    from nanoscope.blocks.structure import Block, Decoder
+    from nanoscope.learn import gating
+    from nanoscope.learn.gating import LockedBlockError
+
+    assert gating.lock_table() == {"feature:sliding_window": "modern/02-window"}
+
+    def block(**attn):
+        return Block(norm=RMSNorm(), mlp=SwiGLU(), attn=Attention(n_heads=4, **attn))
+
+    def decoder(pattern):
+        return Decoder(vocab_size=20, context_length=8, d_model=16, n_layers=4, pattern=pattern)
+
+    unlocks.set_policy("guided")
+    decoder([block(), block()])  # global attention only: nothing locked
+    with pytest.raises(LockedBlockError, match="feature:sliding_window is locked") as caught:
+        decoder([block(window=4), block(window=4), block()])  # local, local, global
+    assert caught.value.locked.lesson == "modern/02-window"
+    # the static scan finds the line of the window argument, inside the pattern's blocks
+    file = tmp_path / "mine.py"
+    file.write_text(WINDOW_FILE)
+    assert [(u.id, u.line) for u in gating.scan(file)] == [("feature:sliding_window", 6)]
+    unlocks.earn("modern/02-window", ["feature:sliding_window"], "learn/checks/c.json")
+    layers = decoder([block(window=4), block(window=4), block()])
+    assert [m.attn.window for m in layers.blocks] == [4, 4, None, 4]  # the pattern repeats
+    assert gating.scan(file) == []
