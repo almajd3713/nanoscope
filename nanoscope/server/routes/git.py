@@ -13,7 +13,7 @@ router = APIRouter(prefix="/api/git", tags=["git"])
 
 # Read-only commands only. fsmonitor can run a program named in the repository's config, so it is
 # turned off; GIT_OPTIONAL_LOCKS stops `status` from writing the index. Hooks do not run for any
-# of these. Anything that commits is a worker job (nanoscope.prereg), never this process.
+# of these. Anything that commits is a worker job (the prereg module), never this process.
 GIT = ["git", "-c", "core.fsmonitor=false", "--no-optional-locks"]
 
 
