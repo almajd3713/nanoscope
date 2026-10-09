@@ -845,3 +845,53 @@ def test_certify_job_runs_in_a_worker_process_and_records_the_cert(home, tmp_pat
     assert certs.state(file, "JobGate")["state"] == "certified"
     with pytest.raises(queue.InvalidJob):
         queue.enqueue("certify", {"file": str(file)})
+
+
+def test_alibi_slopes_follow_the_paper():
+    from nanoscope.blocks.positional import alibi_slopes
+
+    assert alibi_slopes(8) == pytest.approx([2.0 ** -(h + 1) for h in range(8)])
+    assert alibi_slopes(4) == pytest.approx([2.0 ** (-2 * (h + 1)) for h in range(4)])
+    for n in (1, 2, 3, 4, 6, 8, 12, 16):
+        assert alibi_slopes(n) == pytest.approx(R.alibi_slopes(n))
+        assert len(alibi_slopes(n)) == n
+    # 6 heads: the 4-head slopes, then every other slope of the 8-head sequence
+    assert alibi_slopes(6)[4:] == pytest.approx([2.0 ** -1, 2.0 ** -3])
+
+
+@pytest.mark.parametrize("heads", [2, 3, 4])
+@pytest.mark.parametrize("window", [None, 3])
+def test_alibi_attention_matches_loop_reference(heads, window):
+    from nanoscope.blocks.attention import Attention
+    from nanoscope.blocks.positional import ALiBi
+
+    torch.manual_seed(0)
+    d, T = heads * 4, 7
+    attn = Attention(n_heads=heads, window=window, pos=ALiBi()).build(d, 8)
+    x = torch.randn(2, T, d)
+    hd = d // heads
+
+    def split(y):
+        return y.view(2, T, heads, hd).transpose(1, 2)
+    q, k, v = split(attn.q(x)), split(attn.k(x)), split(attn.v(x))
+    y = R.naive_alibi_attention(q, k, v, window=window)
+    expected = attn.proj(y.transpose(1, 2).reshape(2, T, d))
+    torch.testing.assert_close(attn(x), expected, atol=ATOL, rtol=0)
+    # the weights the forward pass applies are the ones attention_weights shows
+    weights = attn.attention_weights(x)
+    torch.testing.assert_close(weights.sum(-1), torch.ones(2, heads, T), atol=ATOL, rtol=0)
+    assert (weights.triu(1) == 0).all()
+
+
+def test_alibi_prefers_nearby_keys_and_has_no_parameters():
+    from nanoscope.blocks.positional import ALiBi
+
+    alibi = ALiBi().build(8, 16)
+    q, k = torch.randn(1, 2, 5, 8), torch.randn(1, 2, 5, 8)
+    assert alibi(q, k)[0] is q and alibi(q, k)[1] is k
+    bias = alibi.score_bias(2, 5)
+    assert bias.shape == (2, 5, 5)
+    assert (bias.diagonal(dim1=-2, dim2=-1) == 0).all()
+    assert bias[0, 4, 3] > bias[0, 4, 0]  # a nearer key is penalised less
+    assert bias[1, 4, 0] > bias[0, 4, 0]  # head 0 has the steeper slope
+    assert not list(alibi.state_dict()) and alibi.flops_per_token(16) == 0

@@ -27,6 +27,7 @@ _EXPORTS: dict[str, str] = {
     "RMSNorm": "nanoscope.blocks.norm",
     "RoPE": "nanoscope.blocks.positional",
     "NoPE": "nanoscope.blocks.positional",
+    "ALiBi": "nanoscope.blocks.positional",
     "Attention": "nanoscope.blocks.attention",
     "Block": "nanoscope.blocks.structure",
     "AttentionTemplate": "nanoscope.blocks.templates.attention",

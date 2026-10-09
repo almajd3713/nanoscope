@@ -80,7 +80,7 @@ that its test compares it with. The references import only `torch` and `math`.
 | Family | Blocks | Reference |
 |---|---|---|
 | embedding | `TokenEmbedding`, `LearnedPosition`, `Head` (tied or untied) | `embed_one_hot`, `add_learned_position`, `tied_head` |
-| positional | `RoPE`, `NoPE` | `naive_rope` (complex rotation; scores depend only on distance) |
+| positional | `RoPE`, `NoPE`, `ALiBi` | `naive_rope` (complex rotation; scores depend only on distance), `naive_alibi_attention` (a per-head penalty on distance, added to the scores) |
 | norm | `LayerNorm`, `RMSNorm` | `layer_norm`, `rms_norm` |
 | attention | `Attention(n_heads, n_kv_heads, pos, qk_norm, window, bias)`: MHA, GQA, MQA and sliding window | `naive_causal_attention` (loops over heads and positions) |
 | mlp | `GELUMLP(hidden, bias)`, `SwiGLU(hidden)` | `gelu`, `swiglu` |

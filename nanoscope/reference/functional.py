@@ -22,6 +22,36 @@ def naive_causal_attention(q, k, v, window=None):
     return out
 
 
+def alibi_slopes(n_heads):
+    """Head h (0-based) subtracts slope_h per position of distance. For a power-of-two head
+    count the slopes are 2^(-8 (h+1) / n_heads); otherwise take the sequence for the next lower
+    power of two and add every other slope of the next higher power's sequence."""
+    def power_of_two(n):
+        return [2.0 ** (-8.0 * (h + 1) / n) for h in range(n)]
+
+    if n_heads & (n_heads - 1) == 0:
+        return power_of_two(n_heads)
+    lower = 1 << (n_heads.bit_length() - 1)
+    extra = power_of_two(2 * lower)[0::2]
+    return power_of_two(lower) + extra[: n_heads - lower]
+
+
+def naive_alibi_attention(q, k, v, window=None):
+    """Causal attention where the score of key s for query t is q.k / sqrt(D) - slope * (t - s),
+    each head with its own slope; no position is added to q or k."""
+    B, H, T, D = q.shape
+    slopes = alibi_slopes(H)
+    out = torch.zeros_like(q)
+    for h in range(H):
+        for t in range(T):
+            start = 0 if window is None else max(0, t - window + 1)
+            keys = k[:, h, start : t + 1]
+            scores = torch.einsum("bd,bsd->bs", q[:, h, t], keys) / math.sqrt(D)
+            scores = scores - slopes[h] * (t - torch.arange(start, t + 1))
+            out[:, h, t] = torch.einsum("bs,bsd->bd", scores.softmax(-1), v[:, h, start : t + 1])
+    return out
+
+
 def naive_rope(x, base=10000.0):
     """Treat (x[i], x[i + D/2]) as a complex number and multiply by e^(i * m * theta_i)."""
     B, H, T, D = x.shape

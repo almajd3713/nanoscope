@@ -66,10 +66,24 @@ class Attention(BlockModule):
         groups = self.n_heads // self.n_kv_heads
         return q, k.repeat_interleave(groups, dim=1), v.repeat_interleave(groups, dim=1)
 
+    def _score_bias(self, T: int) -> torch.Tensor | None:
+        """A bias the positional scheme adds to the scores (ALiBi), or None."""
+        bias = getattr(self.pos, "score_bias", None)
+        return None if bias is None else bias(self.n_heads, T)
+
+    def _allowed(self, T: int, device: torch.device) -> torch.Tensor:
+        if self.mask is None:
+            return torch.ones(T, T, dtype=torch.bool, device=device).tril()
+        return self.mask[:T, :T]
+
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         B, T, _ = x.shape
         q, k, v = self._qkv(x)
-        if self.mask is None:
+        bias = self._score_bias(T)
+        if bias is not None:
+            mask = bias.masked_fill(~self._allowed(T, x.device), float("-inf"))
+            y = F.scaled_dot_product_attention(q, k, v, attn_mask=mask.to(q.dtype))
+        elif self.mask is None:
             y = F.scaled_dot_product_attention(q, k, v, is_causal=True)
         else:
             y = F.scaled_dot_product_attention(q, k, v, attn_mask=self.mask[:T, :T])
@@ -81,9 +95,10 @@ class Attention(BlockModule):
         q, k, _ = self._qkv(x)
         T = x.size(1)
         scores = q @ k.transpose(-2, -1) / math.sqrt(self.head_dim)
-        mask = torch.ones(T, T, dtype=torch.bool, device=x.device).tril() \
-            if self.mask is None else self.mask[:T, :T]
-        return scores.masked_fill(~mask, float("-inf")).softmax(-1)
+        bias = self._score_bias(T)
+        if bias is not None:
+            scores = scores + bias
+        return scores.masked_fill(~self._allowed(T, x.device), float("-inf")).softmax(-1)
 
     def flops_per_token(self, context_length: int) -> int:
         span = context_length if self.window is None else min(self.window, context_length)
