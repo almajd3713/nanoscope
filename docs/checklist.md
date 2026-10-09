@@ -4,7 +4,7 @@ The build list for [`plan-tool.md`](plan-tool.md), sections 4-10, with the decis
 2026-10-05 (plan section 11) applied. Phase numbers follow the plan's section 10. Every
 item is one line, so scripts and agents can grep and edit it.
 
-**Current focus:** P16. P16.04-P16.06 built; P16.16 mockups approved (row 8). P16.01-P16.03 done. P16.07, P16.13, P16.14, P16.15 done. Next: P16.10-P16.12 (blocks), P16.17, P16.08-P16.09 (LSP); P16.08/P16.09 (LSP), P16.17 (typed blocks). (checkpoint_steps CLI flag, job payload, API field and run-form field done.) Left for the user: P14.33 (tag v0.5.0).
+**Current focus:** P16 gate: `make check` (616 passed) and the first-notebook test pass locally 2026-10-09; left: push, CI e2e green, the user merges. P16. P16.04-P16.06 built; P16.16 mockups approved (row 8). P16.01-P16.03 done. P16.07, P16.13, P16.14, P16.15 done. Next: P16.10-P16.12 (blocks), P16.17, P16.08-P16.09 (LSP); P16.08/P16.09 (LSP), P16.17 (typed blocks). (checkpoint_steps CLI flag, job payload, API field and run-form field done.) Left for the user: P14.33 (tag v0.5.0).
 
 ## Progress
 
