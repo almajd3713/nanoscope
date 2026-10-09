@@ -5,13 +5,14 @@ import { Link } from "react-router-dom";
 import { api } from "../api/client";
 import { unwrap } from "../api/problem";
 import { LEVELS, type Level, setLevel, useLevel } from "../app/level";
-import { setShowCommands, useShowCommands } from "../app/settings";
+import { setShowCommands, setUseLsp, useShowCommands, useUseLsp } from "../app/settings";
+import { useLspService } from "../editor/lspService";
 import { Button } from "../components/Button";
 import { EquivalentCommand } from "../components/EquivalentCommand";
 import { ProblemFromError } from "../components/ProblemView";
 import { Tag } from "../components/Tag";
 import { shows } from "../levels";
-import { Check } from "../icons";
+import { Check, Warning } from "../icons";
 import { getChoice, setChoice, subscribe, type ThemeChoice } from "../styles/theme";
 import styles from "./Settings.module.css";
 
@@ -45,6 +46,64 @@ type ServerSettings = {
   jobs_offline: boolean;
   workers: { worker_id: string; device: string; secrets: Record<string, boolean> }[];
 };
+
+// "Use the Python language server": the choice is this browser's; the service is the lsp compose
+// profile. Without it the editor checks with ruff alone, and says so.
+function EditorSetting() {
+  const wanted = useUseLsp();
+  const service = useLspService();
+  const showCommands = useShowCommands();
+  return (
+    <fieldset className={styles.group}>
+      <legend className="label">Editor</legend>
+      <label className={styles.check}>
+        <input type="checkbox" checked={wanted} onChange={(e) => setUseLsp(e.target.checked)} />
+        <span className={styles.stack}>
+          <span className="body-strong">Use the Python language server</span>
+          <span className={`small ${styles.muted}`}>
+            Hovers, signatures and type errors from basedpyright, next to ruff&apos;s problems. It reads the workspace and never writes to it.
+          </span>
+        </span>
+      </label>
+      {wanted && service.status === "connected" && (
+        <dl className={`small ${styles.facts}`}>
+          <dt className={styles.muted}>Service</dt>
+          <dd>
+            <Check size={14} aria-hidden="true" /> connected{" "}
+            <span className="value">
+              {service.server?.name ?? "language server"}
+              {service.server?.version ? ` ${service.server.version}` : ""}
+            </span>{" "}
+            <span className={styles.muted}>
+              · profile <span className="value">editor-lsp</span>
+            </span>
+          </dd>
+          <dt className={styles.muted}>Checks</dt>
+          <dd>
+            <span className="value">typeCheckingMode = &quot;standard&quot;</span>
+          </dd>
+          <dt className={styles.muted}>Workspace</dt>
+          <dd>
+            <span className="value">{service.root}</span> <span className={styles.muted}>read only</span>
+          </dd>
+        </dl>
+      )}
+      {wanted && service.status === "unavailable" && (
+        <>
+          <span className={`small ${styles.warn}`}>
+            <Warning size={14} aria-hidden="true" /> The lsp service is not running, so the editor checks with ruff only.
+          </span>
+          <span className={`small ${styles.muted}`}>Start it next to the others, then reload this page:</span>
+          {showCommands ? (
+            <code className="code-small">docker compose --profile editor-lsp up -d lsp</code>
+          ) : (
+            <span className={`caption ${styles.muted}`}>The command is shown when command-line equivalents are on.</span>
+          )}
+        </>
+      )}
+    </fieldset>
+  );
+}
 
 export function Settings() {
   const queryClient = useQueryClient();
@@ -115,6 +174,7 @@ export function Settings() {
               </span>
             </span>
           </label>
+          {shows("editor", level) && <EditorSetting />}
         </div>
       </section>
 

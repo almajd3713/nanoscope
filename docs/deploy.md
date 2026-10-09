@@ -11,6 +11,7 @@ in the home volume on first start and logs the sign-in URL: `docker compose logs
 | `api` | `docker compose up` | the HTTP API and the GUI, on `127.0.0.1:8765` |
 | `worker` | `docker compose up` | one CPU worker: runs every job (training, checks, generation) |
 | `notebook` | `--profile notebook` | marimo editing `workspace/notebooks`, on `127.0.0.1:8766` (`NANOSCOPE_NOTEBOOK_PORT`) |
+| `lsp` | `--profile editor-lsp` | the code editor's language server (basedpyright), on `127.0.0.1:8767` (`NANOSCOPE_LSP_PORT`) |
 | `worker-gpu` | `--profile gpu` | a CUDA worker, see below |
 
 The API never runs your code; workers and the notebook do. All of them run as uid 1000 with no
@@ -22,6 +23,20 @@ at once instead of reaching out.
 `docker compose down` and `up` again keep everything: runs, the queue and the token live in
 volumes. A run that was training when you stopped carries on from its last checkpoint once the
 worker is back.
+
+## The editor's language server
+
+The code editor checks files with ruff. For hovers, signatures and type errors (a misspelled
+keyword, a wrong argument name) start the `lsp` service next to the others and reload the page:
+
+    docker compose build api && docker compose --profile editor-lsp up -d lsp
+
+It is basedpyright behind a WebSocket bridge (`nanoscope.server.lsp_bridge`), built on the
+nanoscope image so it sees the same torch and nanoscope your code runs against. It mounts the
+workspace read only and never writes to it, and it only talks to pages served from this machine;
+`NANOSCOPE_LSP_ORIGINS` (comma separated origins) lets another page use it, for example behind
+a proxy. Without the service the editor checks with ruff alone and says so in its status bar;
+Settings > This browser > Editor turns the language server off for this browser.
 
 ## Signing in from another machine
 

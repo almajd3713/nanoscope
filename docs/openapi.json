@@ -2342,6 +2342,10 @@
           "listening": {
             "$ref": "#/components/schemas/Listening"
           },
+          "lsp_port": {
+            "title": "Lsp Port",
+            "type": "integer"
+          },
           "runs": {
             "title": "Runs",
             "type": "string"
@@ -2370,6 +2374,7 @@
           "runs",
           "listening",
           "jobs_offline",
+          "lsp_port",
           "workers"
         ],
         "title": "SettingsDoc",

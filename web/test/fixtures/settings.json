@@ -1,1 +1,25 @@
-{"version":"0.4.0","home":"/tmp/claude-1000/-home-reeler-nanoscope/2a56eeb8-26f2-43ba-9168-e26fc875ddf2/scratchpad/nshome","workspace":"/tmp/claude-1000/-home-reeler-nanoscope/2a56eeb8-26f2-43ba-9168-e26fc875ddf2/scratchpad/nshome/workspace","data":"/tmp/claude-1000/-home-reeler-nanoscope/2a56eeb8-26f2-43ba-9168-e26fc875ddf2/scratchpad/nshome/data","runs":"/tmp/claude-1000/-home-reeler-nanoscope/2a56eeb8-26f2-43ba-9168-e26fc875ddf2/scratchpad/nshome/runs","listening":{"host":"127.0.0.1","port":8800,"loopback":true,"token_required":false},"jobs_offline":false,"workers":[{"worker_id":"almajd3713-993098-cpu","device":"cpu","secrets":{"HF_TOKEN":true,"WANDB_API_KEY":true}}]}
+{
+  "version": "0.4.0",
+  "home": "/tmp/claude-1000/-home-reeler-nanoscope/2a56eeb8-26f2-43ba-9168-e26fc875ddf2/scratchpad/nshome",
+  "workspace": "/tmp/claude-1000/-home-reeler-nanoscope/2a56eeb8-26f2-43ba-9168-e26fc875ddf2/scratchpad/nshome/workspace",
+  "data": "/tmp/claude-1000/-home-reeler-nanoscope/2a56eeb8-26f2-43ba-9168-e26fc875ddf2/scratchpad/nshome/data",
+  "runs": "/tmp/claude-1000/-home-reeler-nanoscope/2a56eeb8-26f2-43ba-9168-e26fc875ddf2/scratchpad/nshome/runs",
+  "listening": {
+    "host": "127.0.0.1",
+    "port": 8800,
+    "loopback": true,
+    "token_required": false
+  },
+  "jobs_offline": false,
+  "workers": [
+    {
+      "worker_id": "almajd3713-993098-cpu",
+      "device": "cpu",
+      "secrets": {
+        "HF_TOKEN": true,
+        "WANDB_API_KEY": true
+      }
+    }
+  ],
+  "lsp_port": 8767
+}

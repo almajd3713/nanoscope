@@ -52,6 +52,7 @@ services:
       <<: *env
       NANOSCOPE_TOKEN: ${NANOSCOPE_TOKEN:-}          # empty: one is made in the home volume
       NANOSCOPE_PUBLIC_PORT: ${NANOSCOPE_PORT:-8765}  # so the logged login URL is the one that works
+      NANOSCOPE_LSP_PORT: ${NANOSCOPE_LSP_PORT:-8767}  # where the editor looks for the lsp service
     volumes: *volumes
     restart: unless-stopped
 
@@ -82,6 +83,30 @@ services:
     healthcheck: { disable: true }
     depends_on:
       api: { condition: service_healthy }
+    restart: unless-stopped
+
+  lsp:
+    <<: *hardened
+    # The code editor's language server (basedpyright): hovers, signatures and type errors next
+    # to ruff's. It reads the workspace and never writes to it; the editor falls back to ruff
+    # only when this service is not running.
+    image: ghcr.io/almajd3713/nanoscope:lsp
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.lsp
+      args: { BASE: "${NANOSCOPE_LSP_BASE:-ghcr.io/almajd3713/nanoscope:cpu}" }
+    profiles: [editor-lsp]
+    ports:
+      - "127.0.0.1:${NANOSCOPE_LSP_PORT:-8767}:3000"
+    environment:
+      NANOSCOPE_LSP_ORIGINS: ${NANOSCOPE_LSP_ORIGINS:-}   # pages besides this machine's that may connect
+      XDG_CACHE_HOME: /tmp/xdg
+      HOME: /tmp
+    volumes:
+      - ${NANOSCOPE_WORKSPACE:-./workspace}:/nanoscope/workspace:ro
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request as u; u.urlopen('http://127.0.0.1:3000/health', timeout=4)"]
+      interval: 30s
     restart: unless-stopped
 
   worker-gpu:

@@ -150,3 +150,10 @@
 .link {
   color: var(--accent);
 }
+
+.warn {
+  display: inline-flex;
+  gap: var(--space-1);
+  align-items: center;
+  color: var(--warn);
+}

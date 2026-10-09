@@ -2436,6 +2436,8 @@ export interface components {
             /** Jobs Offline */
             jobs_offline: boolean;
             listening: components["schemas"]["Listening"];
+            /** Lsp Port */
+            lsp_port: number;
             /** Runs */
             runs: string;
             /** Version */
