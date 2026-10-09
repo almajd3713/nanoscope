@@ -428,3 +428,100 @@ def test_check_job(curricula, home, capsys, monkeypatch):
     assert progress.state("foundations/01-bigram") == "passed"
     with pytest.raises(queue.InvalidJob, match="variant"):
         queue.enqueue("check", {"lesson": "x", "variant": "tpu"})
+
+
+AUTHOR_TOML = """\
+title = "My layer"
+level = 1
+summary = "Build a thing."
+
+[experiment]
+kind = "check"
+
+[[checks]]
+id = "built"
+kind = "defines"
+class = "MyThing"
+
+[compute.cpu]
+preset = "tinystories-5min"
+estimate_minutes = 0.2
+"""
+STARTER = "import torch.nn as nn\n\n\nclass Other(nn.Module):\n    pass\n"
+SOLUTION = (
+    "import torch\nimport torch.nn as nn\n\n\nclass MyThing(nn.Module):\n"
+    "    def __init__(self):\n        super().__init__()\n"
+    "        self.w = nn.Parameter(torch.ones(2))\n")
+
+
+def author_folder(tmp_path, toml=AUTHOR_TOML, starter=STARTER, solution=SOLUTION):
+    folder = tmp_path / "my-course" / "01-thing"
+    folder.mkdir(parents=True)
+    (folder / "lesson.toml").write_text(toml)
+    (folder / "lesson.md").write_text("## Surface\nBuild it.\n")
+    (folder / "starter.py").write_text(starter)
+    if solution is not None:
+        (folder / "solution.py").write_text(solution)
+    return folder
+
+
+def test_author_check_ready_when_the_starter_fails_and_the_solution_passes(tmp_path, home):
+    from nanoscope.learn.authoring import author_check, format_author_check
+    from nanoscope.learn.authorstate import last_check
+
+    folder = author_folder(tmp_path)
+    doc = author_check(folder)
+    assert_valid("author-check", doc)
+    assert doc["state"] == "ready" and doc["lesson"] == "my-course/01-thing"
+    assert doc["summary"] == ("The folder loads, starter.py fails its check "
+                              "and solution.py passes it.")
+    [row] = doc["checks"]
+    assert not row["starter"]["passed"] and row["solution"]["passed"]
+    assert "MyThing" in row["starter"]["reason"]
+    assert "[FAIL] built (defines) on starter.py" in format_author_check(doc)
+
+    assert last_check(folder)["fresh"] is True
+    (folder / "starter.py").write_text(STARTER + "\n# edited\n")
+    assert last_check(folder)["fresh"] is False
+
+
+def test_author_check_lists_every_problem_when_the_folder_does_not_load(tmp_path, home):
+    from nanoscope.learn.authoring import author_check
+
+    bad = AUTHOR_TOML.replace('level = 1', 'level = 1\nunlocks = ["LayerNorm"]') \
+        .replace('kind = "defines"', 'kind = "definez"').replace("[compute.cpu]", "[compute.gpu]")
+    doc = author_check(author_folder(tmp_path, toml=bad))
+    assert_valid("author-check", doc)
+    assert doc["state"] == "does not load" and doc["title"] is None and doc["checks"] == []
+    where = [p["where"] for p in doc["problems"]]
+    assert "lesson.toml: unlocks[0]" in where and "lesson.toml: checks[0].kind" in where
+    assert doc["summary"].startswith(f"The curriculum loader found {len(where)} problems.")
+
+
+def test_author_check_says_when_the_solution_fails_or_the_starter_passes(tmp_path, home):
+    from nanoscope.learn.authoring import author_check
+
+    both_fail = author_check(author_folder(tmp_path, solution=STARTER))
+    assert both_fail["state"] == "solution fails"
+    assert both_fail["summary"].startswith("The folder loads, but solution.py fails its check")
+    tmp2 = tmp_path / "again"
+    tmp2.mkdir()
+    both_pass = author_check(author_folder(tmp2, starter=SOLUTION))
+    assert both_pass["state"] == "starter passes"
+    tmp3 = tmp_path / "third"
+    tmp3.mkdir()
+    gone = author_check(author_folder(tmp3, solution=None))
+    assert gone["state"] == "files missing" and "solution.py is missing" in gone["summary"]
+
+
+def test_author_check_cli(tmp_path, home, capsys):
+    from nanoscope.cli import main
+
+    folder = author_folder(tmp_path)
+    main(["learn", "author-check", str(folder)])  # exit code 0: it returns
+    out = capsys.readouterr().out
+    assert "my-course/01-thing: ready" in out and "on solution.py" in out
+    (folder / "solution.py").write_text(STARTER)
+    with pytest.raises(SystemExit) as failed:
+        main(["learn", "author-check", str(folder)])
+    assert failed.value.code == 1

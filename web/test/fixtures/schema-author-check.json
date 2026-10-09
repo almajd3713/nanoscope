@@ -1,0 +1,152 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://nanoscope.dev/schemas/author-check.v1.json",
+  "title": "author-check.v1",
+  "description": "learn/authoring/<path>-<lesson>.json: what `nanoscope learn author-check <dir>` found for a lesson folder an author wrote. The folder is loaded as the curriculum loader does; every check then runs on starter.py (which should fail) and solution.py (which should pass). `state` and `summary` are the words the authoring page shows.",
+  "type": "object",
+  "required": [
+    "schema",
+    "nanoscope",
+    "folder",
+    "lesson",
+    "title",
+    "at",
+    "variant",
+    "files",
+    "problems",
+    "checks",
+    "state",
+    "summary",
+    "seconds"
+  ],
+  "additionalProperties": false,
+  "properties": {
+    "schema": {
+      "const": 1
+    },
+    "nanoscope": {
+      "type": "string"
+    },
+    "folder": {
+      "type": "string",
+      "description": "The folder that was checked."
+    },
+    "lesson": {
+      "type": "string",
+      "description": "path/slug, taken from the folder."
+    },
+    "title": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "description": "From lesson.toml; null when it does not load."
+    },
+    "at": {
+      "type": "string"
+    },
+    "variant": {
+      "enum": [
+        "cpu",
+        "gpu"
+      ]
+    },
+    "files": {
+      "type": "object",
+      "description": "sha256 of each lesson file (null when absent), to tell whether the files changed since.",
+      "additionalProperties": {
+        "type": [
+          "string",
+          "null"
+        ]
+      }
+    },
+    "problems": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": [
+          "where",
+          "message"
+        ],
+        "additionalProperties": false,
+        "properties": {
+          "where": {
+            "type": "string"
+          },
+          "message": {
+            "type": "string"
+          },
+          "hint": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    "checks": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": [
+          "id",
+          "kind",
+          "starter",
+          "solution"
+        ],
+        "additionalProperties": false,
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "kind": {
+            "type": "string"
+          },
+          "starter": {
+            "$ref": "#/$defs/outcome"
+          },
+          "solution": {
+            "$ref": "#/$defs/outcome"
+          }
+        }
+      }
+    },
+    "state": {
+      "enum": [
+        "ready",
+        "does not load",
+        "solution fails",
+        "starter passes",
+        "files missing"
+      ]
+    },
+    "summary": {
+      "type": "string"
+    },
+    "seconds": {
+      "type": "number",
+      "minimum": 0
+    }
+  },
+  "$defs": {
+    "outcome": {
+      "type": "object",
+      "required": [
+        "passed",
+        "skipped",
+        "reason"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "passed": {
+          "type": "boolean"
+        },
+        "skipped": {
+          "type": "boolean"
+        },
+        "reason": {
+          "type": "string"
+        }
+      }
+    }
+  }
+}

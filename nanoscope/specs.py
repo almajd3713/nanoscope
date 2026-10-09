@@ -168,9 +168,26 @@ def validate_run_request(
                              locked=_locked_problems(model))
 
 
+def _checkpoint_step_problems(steps: list[int], preset: str | Preset,
+                              kwargs: dict[str, Any]) -> list[Problem]:
+    try:
+        base = preset if isinstance(preset, Preset) else get_preset(preset)
+    except KeyError:
+        return []  # the unknown preset is reported already
+    max_steps = kwargs.get("max_steps", base.max_steps)
+    if not isinstance(max_steps, int):
+        return []
+    late = [s for s in steps if not 1 <= s <= max_steps]
+    if not late:
+        return []
+    return [Problem("bad_checkpoint_steps", "checkpoint_steps",
+                    f"checkpoint_steps {late} fall outside 1..{max_steps} "
+                    "(the number of training steps)", "for example [100, 500]")]
+
+
 def validate_run_spec(
     spec: ModelSpec, preset: str | Preset, kwargs: dict[str, Any], seeds: Any = None,
-    locked: list[Problem] | None = None,
+    locked: list[Problem] | None = None, checkpoint_steps: list[int] | None = None,
 ) -> list[Problem]:
     """The same checks from a model's *spec* (its constructor parameters), so a service can
     validate a request for a model it has only read, not imported. `locked` are problems the
@@ -215,4 +232,6 @@ def validate_run_spec(
             problems.append(Problem(
                 "bad_seeds", "seeds", f"seeds must be a positive count or a list of integers, "
                 f"got {seeds!r}", "for example seeds=3 or seeds=[0, 1, 2]"))
+    if checkpoint_steps:
+        problems += _checkpoint_step_problems(checkpoint_steps, preset, kwargs)
     return problems

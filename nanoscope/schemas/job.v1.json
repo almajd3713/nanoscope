@@ -61,6 +61,13 @@
             "custom_preset": {
               "type": "object"
             },
+            "checkpoint_steps": {
+              "type": "array",
+              "items": {
+                "type": "integer",
+                "minimum": 1
+              }
+            },
             "compile": {
               "type": [
                 "boolean",
@@ -171,6 +178,36 @@
           },
           "required": [
             "lesson"
+          ],
+          "additionalProperties": false
+        }
+      }
+    },
+    {
+      "properties": {
+        "kind": {
+          "const": "author-check"
+        },
+        "payload": {
+          "type": "object",
+          "properties": {
+            "folder": {
+              "type": "string",
+              "minLength": 1
+            },
+            "variant": {
+              "enum": [
+                "cpu",
+                "gpu"
+              ]
+            },
+            "timeout": {
+              "type": "number",
+              "exclusiveMinimum": 0
+            }
+          },
+          "required": [
+            "folder"
           ],
           "additionalProperties": false
         }
@@ -462,6 +499,45 @@
           "required": [
             "card",
             "repo"
+          ],
+          "additionalProperties": false
+        }
+      }
+    },
+    {
+      "properties": {
+        "kind": {
+          "const": "inspect"
+        },
+        "payload": {
+          "type": "object",
+          "properties": {
+            "ref": {
+              "type": "string",
+              "minLength": 1
+            },
+            "prompt": {
+              "type": "string"
+            },
+            "step": {
+              "type": [
+                "integer",
+                "null"
+              ],
+              "minimum": 0
+            },
+            "top_k": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 50
+            },
+            "timeout": {
+              "type": "number",
+              "exclusiveMinimum": 0
+            }
+          },
+          "required": [
+            "ref"
           ],
           "additionalProperties": false
         }

@@ -123,8 +123,31 @@ class LoadedRun:
                         self.preset.context_length, seed)
 
 
-def load_run(ref: str | Path, device: str = "cpu") -> LoadedRun:
-    """Rebuild a trained run from its ref: import its model class, load the latest checkpoint."""
+def saved_steps(run_dir: Path) -> list[int]:
+    """The steps a run has a checkpoint for: the kept ones and the archived ones."""
+    folder = Path(run_dir) / "checkpoints"
+    return sorted({int(p.stem.removeprefix("step_")) for p in folder.glob("**/step_*.pt")})
+
+
+def no_checkpoint(ref: str, step: int, steps: list[int]) -> FileNotFoundError:
+    return FileNotFoundError(
+        f"{ref} has no checkpoint at step {step}; it has {', '.join(map(str, steps)) or 'none'}. "
+        "Keep more with run(..., checkpoint_steps=[...])")
+
+
+def _checkpoint_at(run_dir: Path, step: int, device: Any) -> dict[str, Any]:
+    import torch
+
+    name = f"step_{step:08d}.pt"
+    for path in (run_dir / "checkpoints" / name, run_dir / "checkpoints" / "archive" / name):
+        if path.exists():
+            return torch.load(path, map_location=device, weights_only=False)
+    raise no_checkpoint(ref_of(run_dir), step, saved_steps(run_dir))
+
+
+def load_run(ref: str | Path, device: str = "cpu", step: int | None = None) -> LoadedRun:
+    """Rebuild a trained run from its ref: import its model class, load the latest checkpoint
+    (or the one at `step`, kept or archived)."""
     import torch
 
     from nanoscope.dataset import load_tokenizer
@@ -156,7 +179,8 @@ def load_run(ref: str | Path, device: str = "cpu") -> LoadedRun:
             f"{ref} was trained from a class defined in a notebook or script, so it can't be "
             f"imported again. Its source is saved in {run_dir / 'model_source.py'}: define the "
             f"class from that, then build it with config['model']['kwargs'].")
-    state = _load_checkpoint(run_dir, torch.device(device))
+    state = (_load_checkpoint(run_dir, torch.device(device)) if step is None
+             else _checkpoint_at(run_dir, step, torch.device(device)))
     if state is None:
         raise FileNotFoundError(f"{ref} has no checkpoint to load yet")
     cls = load_class(model_info["ref"])

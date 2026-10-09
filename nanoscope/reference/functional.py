@@ -22,6 +22,36 @@ def naive_causal_attention(q, k, v, window=None):
     return out
 
 
+def alibi_slopes(n_heads):
+    """Head h (0-based) subtracts slope_h per position of distance. For a power-of-two head
+    count the slopes are 2^(-8 (h+1) / n_heads); otherwise take the sequence for the next lower
+    power of two and add every other slope of the next higher power's sequence."""
+    def power_of_two(n):
+        return [2.0 ** (-8.0 * (h + 1) / n) for h in range(n)]
+
+    if n_heads & (n_heads - 1) == 0:
+        return power_of_two(n_heads)
+    lower = 1 << (n_heads.bit_length() - 1)
+    extra = power_of_two(2 * lower)[0::2]
+    return power_of_two(lower) + extra[: n_heads - lower]
+
+
+def naive_alibi_attention(q, k, v, window=None):
+    """Causal attention where the score of key s for query t is q.k / sqrt(D) - slope * (t - s),
+    each head with its own slope; no position is added to q or k."""
+    B, H, T, D = q.shape
+    slopes = alibi_slopes(H)
+    out = torch.zeros_like(q)
+    for h in range(H):
+        for t in range(T):
+            start = 0 if window is None else max(0, t - window + 1)
+            keys = k[:, h, start : t + 1]
+            scores = torch.einsum("bd,bsd->bs", q[:, h, t], keys) / math.sqrt(D)
+            scores = scores - slopes[h] * (t - torch.arange(start, t + 1))
+            out[:, h, t] = torch.einsum("bs,bsd->bd", scores.softmax(-1), v[:, h, start : t + 1])
+    return out
+
+
 def naive_rope(x, base=10000.0):
     """Treat (x[i], x[i + D/2]) as a complex number and multiply by e^(i * m * theta_i)."""
     B, H, T, D = x.shape
@@ -57,6 +87,33 @@ def silu(x):
 def swiglu(x, w1, w3, w2):
     """silu(x W1) * (x W3), then W2. Weights are laid out (out_features, in_features)."""
     return (silu(x @ w1.T) * (x @ w3.T)) @ w2.T
+
+
+def naive_moe(x, gate_weight, experts, top_k, aux_coef=0.0):
+    """Mixture of experts, one token and one expert at a time. `experts` is a list of
+    (w1, w3, w2) SwiGLU weights. A token goes to its top_k experts by router probability, the
+    chosen probabilities rescaled to sum to 1. Returns (output, load_balance): load_balance is
+    aux_coef * E * sum_e share_e * meanprob_e, where share_e is the fraction of all
+    (token, slot) assignments that went to expert e."""
+    shape = x.shape
+    tokens = x.reshape(-1, shape[-1])
+    n, n_experts = tokens.size(0), len(experts)
+    out = torch.zeros_like(tokens)
+    assigned = [0] * n_experts
+    prob_sum = torch.zeros(n_experts)
+    for i in range(n):
+        logits = gate_weight @ tokens[i]
+        probs = (torch.exp(logits - logits.max())) / torch.exp(logits - logits.max()).sum()
+        prob_sum = prob_sum + probs
+        best = sorted(range(n_experts), key=lambda e: (-float(probs[e].detach()), e))[:top_k]
+        total = sum(probs[e] for e in best)
+        for e in best:
+            w1, w3, w2 = experts[e]
+            out[i] = out[i] + (probs[e] / total) * swiglu(tokens[i][None], w1, w3, w2)[0]
+            assigned[e] += 1
+    share = torch.tensor(assigned, dtype=torch.float) / (n * top_k)
+    balance = aux_coef * n_experts * (share * prob_sum / n).sum()
+    return out.reshape(shape), balance
 
 
 def count_params(model: nn.Module) -> tuple[int, int]:

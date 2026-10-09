@@ -11,6 +11,10 @@ import { Study } from "../pages/Study";
 import { StudyBuilder } from "../pages/StudyBuilder";
 import { Runs } from "../pages/Runs";
 import { RunForm } from "../pages/RunForm";
+import { Authoring } from "../pages/Authoring";
+import { Schemas } from "../pages/Schemas";
+import { Workspace } from "../pages/Workspace";
+import { Inspect } from "../pages/Inspect";
 import { Run } from "../pages/Run";
 import { Models } from "../pages/Models";
 import { Onboarding } from "../pages/Onboarding";
@@ -35,6 +39,11 @@ export function AppRoutes() {
         <Route path="/runs" element={<Runs />} />
         <Route path="/runs/new" element={<RunForm />} />
         <Route path="/runs/*" element={<Run />} />
+        <Route path="/inspect/*" element={<Inspect />} />
+        <Route path="/authoring/*" element={<Authoring />} />
+        <Route path="/workspace" element={<Workspace />} />
+        <Route path="/schemas" element={<Schemas />} />
+        <Route path="/schemas/:name" element={<Schemas />} />
         <Route path="/compare" element={<Compare />} />
         <Route path="/studies" element={<Studies />} />
         <Route path="/studies/:name" element={<Study />} />

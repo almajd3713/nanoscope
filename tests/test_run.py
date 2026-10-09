@@ -327,3 +327,51 @@ def test_checkpoint_steps_are_archived_and_never_pruned():
 
     with pytest.raises(ValueError, match=r"checkpoint_steps \[99\] fall outside 1\.\.20"):
         run(Bigram, tiny(), device="cpu", checkpoint_steps=[99], progress=False)
+
+
+def sgd(param_groups, preset):
+    return torch.optim.SGD(param_groups, lr=preset.learning_rate, momentum=0.9)
+
+
+def test_optimizer_factory_is_used_and_part_of_the_identity():
+    default = run(Bigram, tiny(max_steps=3), device="cpu")
+    custom = run(Bigram, tiny(max_steps=3), device="cpu", optimizer=sgd)
+
+    assert default.run_dir != custom.run_dir
+    config = json.loads((custom.run_dir / "config.json").read_text())
+    assert config["optimizer"]["ref"].endswith(":sgd")
+    assert "optimizer" not in json.loads((default.run_dir / "config.json").read_text())
+    latest = json.loads((custom.run_dir / "latest.json").read_text())["checkpoint"]
+    state = torch.load(custom.run_dir / "checkpoints" / latest, weights_only=False)
+    assert "momentum_buffer" in next(iter(state["optimizer"]["state"].values()))
+
+
+def test_optimizer_resume():
+    straight = run(Bigram, tiny(), device="cpu", output_dir=out("opt_straight"), optimizer=sgd)
+
+    def interrupt(step, row):
+        if step == 7:
+            os.kill(os.getpid(), signal.SIGINT)
+
+    stopped = run(Bigram, tiny(), device="cpu", output_dir=out("opt_resumed"),
+                  optimizer=sgd, on_step=interrupt)
+    assert stopped.train_result.stopped_early
+    resumed = run(Bigram, tiny(), device="cpu", output_dir=out("opt_resumed"), optimizer=sgd)
+
+    assert [r["loss"] for r in resumed.metrics] == [r["loss"] for r in straight.metrics]
+    with pytest.raises(ValueError, match="optimizer"):
+        run(Bigram, tiny(), device="cpu", output_dir=out("opt_resumed"))
+
+
+def test_cli_checkpoint_steps(monkeypatch):
+    from learn_helpers import set_preset
+
+    from nanoscope.cli import main
+
+    set_preset(monkeypatch, tiny())
+    base = ["run", "nanoscope/models/bigram.py:Bigram", "--preset", "test-tiny"]
+    main([*base, "--checkpoint-steps", "4,8"])
+    archive = paths.runs_dir() / "test-tiny" / "bigram" / "seed-0" / "checkpoints" / "archive"
+    assert len(list(archive.iterdir())) == 2
+    with pytest.raises(SystemExit, match="comma-separated"):
+        main([*base, "--checkpoint-steps", "a"])

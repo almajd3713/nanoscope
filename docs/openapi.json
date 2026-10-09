@@ -1,6 +1,176 @@
 {
   "components": {
     "schemas": {
+      "AuthoredLesson": {
+        "description": "What a learner would see: from lesson.toml and lesson.md.",
+        "properties": {
+          "checks": {
+            "items": {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            "title": "Checks",
+            "type": "array"
+          },
+          "compute": {
+            "additionalProperties": {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            "title": "Compute",
+            "type": "object"
+          },
+          "experiment": {
+            "additionalProperties": true,
+            "title": "Experiment",
+            "type": "object"
+          },
+          "forbid": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Forbid",
+            "type": "array"
+          },
+          "level": {
+            "title": "Level",
+            "type": "integer"
+          },
+          "prerequisites": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Prerequisites",
+            "type": "array"
+          },
+          "summary": {
+            "title": "Summary",
+            "type": "string"
+          },
+          "text": {
+            "additionalProperties": {
+              "type": "string"
+            },
+            "title": "Text",
+            "type": "object"
+          },
+          "title": {
+            "title": "Title",
+            "type": "string"
+          },
+          "unlocks": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Unlocks",
+            "type": "array"
+          }
+        },
+        "required": [
+          "title",
+          "summary",
+          "level",
+          "prerequisites",
+          "unlocks",
+          "forbid",
+          "experiment",
+          "checks",
+          "compute",
+          "text"
+        ],
+        "title": "AuthoredLesson",
+        "type": "object"
+      },
+      "AuthoredProblem": {
+        "properties": {
+          "hint": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Hint"
+          },
+          "message": {
+            "title": "Message",
+            "type": "string"
+          },
+          "where": {
+            "title": "Where",
+            "type": "string"
+          }
+        },
+        "required": [
+          "where",
+          "message"
+        ],
+        "title": "AuthoredProblem",
+        "type": "object"
+      },
+      "AuthoringDoc": {
+        "properties": {
+          "files": {
+            "additionalProperties": {
+              "type": "boolean"
+            },
+            "title": "Files",
+            "type": "object"
+          },
+          "folder": {
+            "title": "Folder",
+            "type": "string"
+          },
+          "id": {
+            "title": "Id",
+            "type": "string"
+          },
+          "lesson": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/AuthoredLesson"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "loads": {
+            "title": "Loads",
+            "type": "boolean"
+          },
+          "problems": {
+            "items": {
+              "$ref": "#/components/schemas/AuthoredProblem"
+            },
+            "title": "Problems",
+            "type": "array"
+          },
+          "result": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Result"
+          }
+        },
+        "required": [
+          "folder",
+          "id",
+          "files",
+          "loads",
+          "problems"
+        ],
+        "title": "AuthoringDoc",
+        "type": "object"
+      },
       "BenchDoc": {
         "additionalProperties": true,
         "description": "One bench result (bench.v1).",
@@ -983,6 +1153,36 @@
         "title": "HubSync",
         "type": "object"
       },
+      "InspectRequest": {
+        "properties": {
+          "prompt": {
+            "default": "Once upon a time",
+            "title": "Prompt",
+            "type": "string"
+          },
+          "step": {
+            "anyOf": [
+              {
+                "minimum": 0.0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Step"
+          },
+          "top_k": {
+            "default": 5,
+            "maximum": 50.0,
+            "minimum": 1.0,
+            "title": "Top K",
+            "type": "integer"
+          }
+        },
+        "title": "InspectRequest",
+        "type": "object"
+      },
       "JobDoc": {
         "description": "A queue job: what to do, where it stands, and what came of it.",
         "properties": {
@@ -1232,6 +1432,32 @@
           "workspace"
         ],
         "title": "LessonDetail",
+        "type": "object"
+      },
+      "LessonFolder": {
+        "properties": {
+          "files": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Files",
+            "type": "array"
+          },
+          "folder": {
+            "title": "Folder",
+            "type": "string"
+          },
+          "id": {
+            "title": "Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "folder",
+          "id",
+          "files"
+        ],
+        "title": "LessonFolder",
         "type": "object"
       },
       "LessonSummary": {
@@ -1975,6 +2201,14 @@
       "RunRequest": {
         "description": "Train one seed of a model on a preset. Every field but `model` has the library's\ndefault, so `{\"model\": \"bigram\"}` is the level-0 request.",
         "properties": {
+          "checkpoint_steps": {
+            "default": [],
+            "items": {
+              "type": "integer"
+            },
+            "title": "Checkpoint Steps",
+            "type": "array"
+          },
           "compile": {
             "anyOf": [
               {
@@ -2039,6 +2273,14 @@
       },
       "RunValidation": {
         "properties": {
+          "checkpoint_steps": {
+            "default": [],
+            "items": {
+              "type": "integer"
+            },
+            "title": "Checkpoint Steps",
+            "type": "array"
+          },
           "kwargs": {
             "additionalProperties": true,
             "default": {},
@@ -2100,6 +2342,10 @@
           "listening": {
             "$ref": "#/components/schemas/Listening"
           },
+          "lsp_port": {
+            "title": "Lsp Port",
+            "type": "integer"
+          },
           "runs": {
             "title": "Runs",
             "type": "string"
@@ -2128,6 +2374,7 @@
           "runs",
           "listening",
           "jobs_offline",
+          "lsp_port",
           "workers"
         ],
         "title": "SettingsDoc",
@@ -2748,6 +2995,175 @@
   },
   "openapi": "3.1.0",
   "paths": {
+    "/api/authoring": {
+      "get": {
+        "description": "Lesson folders under `curricula/<path>/<lesson>/` in the workspace.",
+        "operationId": "lessons_api_authoring_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/LessonFolder"
+                  },
+                  "title": "Response Lessons Api Authoring Get",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "The request cannot be done as asked"
+          },
+          "4XX": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "An error (RFC 9457)"
+          }
+        },
+        "summary": "Lessons",
+        "tags": [
+          "authoring"
+        ]
+      }
+    },
+    "/api/authoring/{folder}": {
+      "get": {
+        "description": "One lesson folder: whether it loads (every problem if not), the lesson as a learner\nwould read it, and the last author-check.",
+        "operationId": "authoring_api_authoring__folder__get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "folder",
+            "required": true,
+            "schema": {
+              "title": "Folder",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AuthoringDoc"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "The request cannot be done as asked"
+          },
+          "4XX": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "An error (RFC 9457)"
+          }
+        },
+        "summary": "Authoring",
+        "tags": [
+          "authoring"
+        ]
+      }
+    },
+    "/api/authoring/{folder}/check": {
+      "post": {
+        "description": "Run `nanoscope learn author-check` on the folder as a job: the checks on starter.py\n(should fail) and on solution.py (should pass).",
+        "operationId": "check_api_authoring__folder__check_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "folder",
+            "required": true,
+            "schema": {
+              "title": "Folder",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "anyOf": [
+                  {
+                    "$ref": "#/components/schemas/CheckRequest"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "title": "Body"
+              }
+            }
+          }
+        },
+        "responses": {
+          "202": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/JobDoc"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "The request cannot be done as asked"
+          },
+          "4XX": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "An error (RFC 9457)"
+          }
+        },
+        "summary": "Check",
+        "tags": [
+          "authoring"
+        ]
+      }
+    },
     "/api/bench": {
       "post": {
         "description": "Measure training speed on a worker's device (a job: it trains for real). The result is\nsaved to the bench history, as `nanoscope bench --save` does.",
@@ -5140,6 +5556,76 @@
           }
         },
         "summary": "Generate Text",
+        "tags": [
+          "runs"
+        ]
+      }
+    },
+    "/api/runs/{ref}/inspect": {
+      "post": {
+        "description": "Attention maps and a logit lens (`inspect.v1`) for a prompt at one checkpoint. Loading\nthe model runs the learner's code, so it is a job; its result is the report.",
+        "operationId": "inspect_run_api_runs__ref__inspect_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "ref",
+            "required": true,
+            "schema": {
+              "title": "Ref",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "anyOf": [
+                  {
+                    "$ref": "#/components/schemas/InspectRequest"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "title": "Body"
+              }
+            }
+          }
+        },
+        "responses": {
+          "202": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/JobDoc"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "The request cannot be done as asked"
+          },
+          "4XX": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "An error (RFC 9457)"
+          }
+        },
+        "summary": "Inspect Run",
         "tags": [
           "runs"
         ]

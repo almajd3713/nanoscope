@@ -4,6 +4,68 @@
  */
 
 export interface paths {
+    "/api/authoring": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Lessons
+         * @description Lesson folders under `curricula/<path>/<lesson>/` in the workspace.
+         */
+        get: operations["lessons_api_authoring_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/authoring/{folder}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Authoring
+         * @description One lesson folder: whether it loads (every problem if not), the lesson as a learner
+         *     would read it, and the last author-check.
+         */
+        get: operations["authoring_api_authoring__folder__get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/authoring/{folder}/check": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Check
+         * @description Run `nanoscope learn author-check` on the folder as a job: the checks on starter.py
+         *     (should fail) and on solution.py (should pass).
+         */
+        post: operations["check_api_authoring__folder__check_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/bench": {
         parameters: {
             query?: never;
@@ -854,6 +916,27 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/runs/{ref}/inspect": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Inspect Run
+         * @description Attention maps and a logit lens (`inspect.v1`) for a prompt at one checkpoint. Loading
+         *     the model runs the learner's code, so it is a job; its result is the report.
+         */
+        post: operations["inspect_run_api_runs__ref__inspect_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/runs/{ref}/metrics": {
         parameters: {
             query?: never;
@@ -1403,6 +1486,71 @@ export type webhooks = Record<string, never>;
 export interface components {
     schemas: {
         /**
+         * AuthoredLesson
+         * @description What a learner would see: from lesson.toml and lesson.md.
+         */
+        AuthoredLesson: {
+            /** Checks */
+            checks: {
+                [key: string]: unknown;
+            }[];
+            /** Compute */
+            compute: {
+                [key: string]: {
+                    [key: string]: unknown;
+                };
+            };
+            /** Experiment */
+            experiment: {
+                [key: string]: unknown;
+            };
+            /** Forbid */
+            forbid: string[];
+            /** Level */
+            level: number;
+            /** Prerequisites */
+            prerequisites: string[];
+            /** Summary */
+            summary: string;
+            /** Text */
+            text: {
+                [key: string]: string;
+            };
+            /** Title */
+            title: string;
+            /** Unlocks */
+            unlocks: string[];
+        };
+        /** AuthoredProblem */
+        AuthoredProblem: {
+            /** Hint */
+            hint?: string | null;
+            /** Message */
+            message: string;
+            /** Where */
+            where: string;
+        };
+        /** AuthoringDoc */
+        AuthoringDoc: {
+            /** Files */
+            files: {
+                [key: string]: boolean;
+            };
+            /** Folder */
+            folder: string;
+            /** Id */
+            id: string;
+            lesson?: components["schemas"]["AuthoredLesson"] | null;
+            /** Loads */
+            loads: boolean;
+            /** Problems */
+            problems: components["schemas"]["AuthoredProblem"][];
+            /** Result */
+            result?: {
+                [key: string]: unknown;
+            } | null;
+        };
+        /**
          * BenchDoc
          * @description One bench result (bench.v1).
          */
@@ -1804,6 +1952,21 @@ export interface components {
             /** Repo */
             repo: string;
         };
+        /** InspectRequest */
+        InspectRequest: {
+            /**
+             * Prompt
+             * @default Once upon a time
+             */
+            prompt: string;
+            /** Step */
+            step?: number | null;
+            /**
+             * Top K
+             * @default 5
+             */
+            top_k: number;
+        };
         /**
          * JobDoc
          * @description A queue job: what to do, where it stands, and what came of it.
@@ -1898,6 +2061,15 @@ export interface components {
             unlocks: string[];
             /** Workspace */
             workspace: string;
+        };
+        /** LessonFolder */
+        LessonFolder: {
+            /** Files */
+            files: string[];
+            /** Folder */
+            folder: string;
+            /** Id */
+            id: string;
         };
         /** LessonSummary */
         LessonSummary: {
@@ -2185,6 +2357,11 @@ export interface components {
          */
         RunRequest: {
             /**
+             * Checkpoint Steps
+             * @default []
+             */
+            checkpoint_steps: number[];
+            /**
              * Compile
              * @default false
              */
@@ -2218,6 +2395,11 @@ export interface components {
         };
         /** RunValidation */
         RunValidation: {
+            /**
+             * Checkpoint Steps
+             * @default []
+             */
+            checkpoint_steps: number[];
             /**
              * Kwargs
              * @default {}
@@ -2254,6 +2436,8 @@ export interface components {
             /** Jobs Offline */
             jobs_offline: boolean;
             listening: components["schemas"]["Listening"];
+            /** Lsp Port */
+            lsp_port: number;
             /** Runs */
             runs: string;
             /** Version */
@@ -2520,6 +2704,128 @@ export interface components {
 }
 export type $defs = Record<string, never>;
 export interface operations {
+    lessons_api_authoring_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["LessonFolder"][];
+                };
+            };
+            /** @description The request cannot be done as asked */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description An error (RFC 9457) */
+            "4XX": {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    authoring_api_authoring__folder__get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                folder: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AuthoringDoc"];
+                };
+            };
+            /** @description The request cannot be done as asked */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description An error (RFC 9457) */
+            "4XX": {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    check_api_authoring__folder__check_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                folder: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: {
+            content: {
+                "application/json": components["schemas"]["CheckRequest"] | null;
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            202: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["JobDoc"];
+                };
+            };
+            /** @description The request cannot be done as asked */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description An error (RFC 9457) */
+            "4XX": {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
     bench_api_bench_post: {
         parameters: {
             query?: never;
@@ -4247,6 +4553,50 @@ export interface operations {
                 };
                 content: {
                     "application/json": unknown;
+                };
+            };
+            /** @description The request cannot be done as asked */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description An error (RFC 9457) */
+            "4XX": {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    inspect_run_api_runs__ref__inspect_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                ref: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: {
+            content: {
+                "application/json": components["schemas"]["InspectRequest"] | null;
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            202: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["JobDoc"];
                 };
             };
             /** @description The request cannot be done as asked */

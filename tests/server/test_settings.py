@@ -26,6 +26,7 @@ def test_settings_says_where_things_are_and_how_it_listens(client, home, monkeyp
     assert body["listening"] == {"host": "127.0.0.1", "port": 8123, "loopback": True,
                                  "token_required": False}
     assert body["jobs_offline"] is False and body["workers"] == []
+    assert body["lsp_port"] == 8767
 
 
 def test_offline_mode_and_a_non_loopback_address_show(home, monkeypatch):

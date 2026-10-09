@@ -37,7 +37,15 @@ class SettingsDoc(BaseModel):
     runs: str
     listening: Listening
     jobs_offline: bool  # NANOSCOPE_JOBS_OFFLINE: workers refuse jobs that need the network
+    lsp_port: int  # where the editor looks for the language server (NANOSCOPE_LSP_PORT)
     workers: list[WorkerSecrets]
+
+
+def lsp_port() -> int:
+    try:
+        return int(os.environ.get("NANOSCOPE_LSP_PORT", "") or 8767)
+    except ValueError:
+        return 8767
 
 
 @router.get("/settings")
@@ -54,5 +62,6 @@ def settings(request: Request) -> SettingsDoc:
         listening=Listening(host=served.host, port=served.port, loopback=served.loopback,
                             token_required=not served.loopback),
         jobs_offline=os.environ.get("NANOSCOPE_JOBS_OFFLINE", "") not in ("", "0"),
+        lsp_port=lsp_port(),
         workers=[WorkerSecrets(worker_id=w["worker_id"], device=w["device"],
                                secrets=w.get("secrets", {})) for w in workers])

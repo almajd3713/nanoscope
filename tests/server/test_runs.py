@@ -80,6 +80,40 @@ def test_run_files(client, home):
         assert client.get(f"/api/runs/nope/seed-0/{suffix}").status_code == 404
 
 
+def test_inspect_is_a_job_whose_result_is_the_report(client, home):
+    import json
+
+    from helpers import assert_valid
+
+    from nanoscope import queue
+    from nanoscope.cli import main
+    from nanoscope.models import Modern
+
+    trained = run(Modern, tiny(), device="cpu", progress=False, checkpoint_steps=[5],
+                  n_layers=1, d_model=32, n_heads=2)
+    response = client.post(f"/api/runs/{trained.ref}/inspect",
+                           json={"prompt": "Once upon", "step": 5, "top_k": 3})
+    assert response.status_code == 202, response.text
+    job = response.json()
+    assert (job["kind"], job["lane"], job["state"]) == ("inspect", "interactive", "queued")
+    assert job["payload"] == {"ref": trained.ref, "prompt": "Once upon", "step": 5, "top_k": 3}
+    queue.claim("w", "cpu")
+    with pytest.raises(SystemExit) as stopped:
+        main(["run-job", str(job["id"])])
+    assert stopped.value.code == 0
+    report = json.loads(queue.get(job["id"])["result"])
+    assert_valid("inspect", report)
+    assert (report["step"], report["steps"], report["lens"]["top_k"]) == (5, [5, 10, 20], 3)
+    assert client.get(f"/api/jobs/{job['id']}").json()["result"]["step"] == 5
+
+    missing = client.post(f"/api/runs/{trained.ref}/inspect", json={"step": 7})
+    assert missing.status_code == 404
+    assert "no checkpoint at step 7; it has 5, 10, 20" in missing.json()["detail"]
+    assert client.post("/api/runs/nope/seed-0/inspect").status_code == 404
+    assert client.post(f"/api/runs/{trained.ref}/inspect", json={"top_k": 0}).status_code == 422
+    assert client.post(f"/api/runs/{trained.ref}/inspect").json()["payload"]["step"] is None
+
+
 def test_submit(client, monkeypatch, tmp_path):
     from learn_helpers import set_preset
 
@@ -394,3 +428,29 @@ def test_baseline_range(client, finished, home):
     (mine / "metrics.jsonl").write_text("\n".join(rows) + "\n")
     outside = client.get("/api/runs/tinystories-5min/gpt2/seed-0").json()["baseline"]
     assert outside["inside"] is False and outside["value"] == pytest.approx(high + 1.0)
+
+
+def test_submit_with_checkpoint_steps(client, monkeypatch):
+    from learn_helpers import set_preset
+
+    from nanoscope import paths, queue
+    from nanoscope.cli import main
+
+    set_preset(monkeypatch, tiny())
+    sent = client.post("/api/runs", json={"model": "bigram", "preset": "test-tiny",
+                                          "checkpoint_steps": [10, 5, 5]})
+    assert sent.status_code == 202
+    job = sent.json()["job"]
+    assert job["payload"]["checkpoint_steps"] == [5, 10]
+    queue.claim("w", "cpu")
+    with pytest.raises(SystemExit):
+        main(["run-job", str(job["id"])])
+    archive = paths.runs_dir() / "test-tiny" / "bigram" / "seed-0" / "checkpoints" / "archive"
+    assert len(list(archive.iterdir())) == 2
+
+    late = client.post("/api/runs", json={"model": "bigram", "preset": "test-tiny",
+                                          "checkpoint_steps": [500]})
+    assert late.status_code == 422 and "fall outside 1..20" in late.json()["detail"]
+    checked = client.post("/api/validate/run", json={"model": "bigram", "preset": "test-tiny",
+                                                     "checkpoint_steps": [0]})
+    assert [p["field"] for p in checked.json()["problems"]] == ["checkpoint_steps"]

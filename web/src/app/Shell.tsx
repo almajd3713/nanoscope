@@ -3,6 +3,7 @@ import { LevelSwitch } from "../components/LevelSwitch";
 import { Mark } from "../components/Mark";
 import { QueuePanel } from "../components/QueuePanel";
 import { ThemeToggle } from "../components/ThemeToggle";
+import { shows } from "../levels";
 import { setLevel, useLevel, type Level } from "./level";
 import { useUnlockOffer } from "./unlockOffer";
 import styles from "./Shell.module.css";
@@ -37,6 +38,11 @@ export function Shell() {
               {item.label}
             </NavLink>
           ))}
+          {shows("workspaceTree", level) && (
+            <NavLink to="/workspace" className={styles.link}>
+              Workspace
+            </NavLink>
+          )}
         </nav>
         <div className={`${styles.right} body`}>
           <LevelSwitch value={level} onChange={choose} />

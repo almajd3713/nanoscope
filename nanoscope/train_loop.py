@@ -202,6 +202,16 @@ def clear_run(run_dir: Path) -> None:
         (run_dir / name).unlink(missing_ok=True)
 
 
+OptimizerFactory = Callable[[list[dict[str, Any]], Preset], torch.optim.Optimizer]
+
+
+def adamw(param_groups: list[dict[str, Any]], preset: Preset) -> torch.optim.Optimizer:
+    """The default optimizer factory."""
+    return torch.optim.AdamW(
+        param_groups, lr=preset.learning_rate, betas=preset.betas, eps=preset.eps,
+    )
+
+
 def train(
     model: nn.Module,
     data: Data,
@@ -216,6 +226,7 @@ def train(
     compile: bool | str = False,
     should_stop: Callable[[], bool] | None = None,
     checkpoint_steps: Iterable[int] | None = None,
+    make_optimizer: OptimizerFactory | None = None,
 ) -> TrainResult:
     """compile=True runs the training forward and backward through torch.compile;
     compile="reduce-overhead" also records them as CUDA graphs, which helps most when small
@@ -226,7 +237,11 @@ def train(
     is never pruned (for looking at a model across training time).
 
     should_stop is asked after every step; when it returns True the run saves a checkpoint and
-    returns early, like Ctrl-C (`stopped_early` is set). `nanoscope stop` uses it."""
+    returns early, like Ctrl-C (`stopped_early` is set). `nanoscope stop` uses it.
+
+    make_optimizer is a factory `(param_groups, preset) -> torch.optim.Optimizer`; the default
+    builds AdamW from the preset. The learning-rate schedule wraps whatever it returns, and the
+    optimizer's state_dict goes into the checkpoint, so a run resumes exactly."""
     torch.manual_seed(seed)
     if device.type == "cuda":
         torch.cuda.manual_seed_all(seed)
@@ -234,10 +249,7 @@ def train(
 
     model.to(device)
     model.train()
-    optimizer = torch.optim.AdamW(
-        _param_groups(model, preset.weight_decay),
-        lr=preset.learning_rate, betas=preset.betas, eps=preset.eps,
-    )
+    optimizer = (make_optimizer or adamw)(_param_groups(model, preset.weight_decay), preset)
     scheduler = torch.optim.lr_scheduler.LambdaLR(
         optimizer, lambda step: _cosine_lr(step, preset.warmup_steps, preset.max_steps, 1.0)
     )

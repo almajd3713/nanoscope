@@ -8,7 +8,7 @@ import { EquivalentCommand } from "../components/EquivalentCommand";
 import { Field } from "../components/Field";
 import { ProblemFromError, ProblemView } from "../components/ProblemView";
 import { CaretDown, CaretRight, Play, X } from "../icons";
-import { buildKwargs, commands, parseSeeds, seedList, showValue } from "../runRequest";
+import { buildKwargs, commands, parseSeeds, parseSteps, seedList, showValue } from "../runRequest";
 import styles from "./RunForm.module.css";
 
 type ModelDoc = {
@@ -127,12 +127,14 @@ function Form({ models, presets, origin }: { models: ModelDoc[]; presets: Preset
   // the keys above carry a prefix to keep model and preset fields apart; the request does not
   const request = Object.fromEntries(Object.entries(kwargs).map(([k, v]) => [k.replace(/^[mp]:/, ""), v]));
   const seeds = parseSeeds(seedsText);
+  const [stepsText, setStepsText] = useState("");
+  const steps = parseSteps(stepsText);
 
   const changes = [...modelFields.map((p) => `m:${p.name}`), ...presetFields.map((f) => `p:${f.name}`)]
     .filter((key) => key in edits && edits[key] !== originText(key))
     .map((key) => ({ key, name: key.slice(2), from: originText(key), to: edits[key] as string }));
 
-  const body = useDebounced(JSON.stringify({ model: modelRef, preset, kwargs: request, seeds }), 300);
+  const body = useDebounced(JSON.stringify({ model: modelRef, preset, kwargs: request, seeds, checkpoint_steps: steps ?? [] }), 300);
   const validation = useQuery({
     queryKey: ["validate", "run", body],
     queryFn: () => unwrap(api.POST("/api/validate/run", { body: JSON.parse(body) })),
@@ -153,7 +155,7 @@ function Form({ models, presets, origin }: { models: ModelDoc[]; presets: Preset
         list.map((seed) =>
           unwrap(
             api.POST("/api/runs", {
-              body: { model: modelRef, preset, seed, kwargs: request, compile: false, wandb: false },
+              body: { model: modelRef, preset, seed, kwargs: request, compile: false, wandb: false, checkpoint_steps: steps ?? [] },
             }),
           ) as Promise<{ ref: string }>,
         ),
@@ -173,6 +175,7 @@ function Form({ models, presets, origin }: { models: ModelDoc[]; presets: Preset
     preset,
     seeds,
     kwargs: request,
+    checkpointSteps: steps ?? [],
   });
 
   const field = (key: string, label: string, help: string | undefined, disabled = false) => (
@@ -312,6 +315,17 @@ function Form({ models, presets, origin }: { models: ModelDoc[]; presets: Preset
             help={typeof seeds === "number" ? `Trains seeds ${seedList(seeds).join(", ")}. Three is the fewest that gives a confidence interval.` : undefined}
             problem={problems.find((p) => p.field === "seeds")?.message}
           />
+          <Field
+            label="Keep checkpoints at steps"
+            value={stepsText}
+            onChange={setStepsText}
+            help="Optional, for example 100, 500, 2000. These are kept for good, so the Inspect page can look at the model at each one."
+            problem={
+              steps === null
+                ? "Write step numbers separated by commas."
+                : problems.find((p) => p.field === "checkpoint_steps")?.message
+            }
+          />
           <div className={styles.panel} style={{ padding: 0, border: 0, gap: "var(--space-2)" }}>
             <span className="label">Other keywords</span>
             {extra.map((row, i) => (
@@ -345,7 +359,7 @@ function Form({ models, presets, origin }: { models: ModelDoc[]; presets: Preset
 
         {train.error && <ProblemFromError error={train.error} />}
         <div className={styles.submit}>
-          <Button variant="primary" disabled={problems.length > 0 || train.isPending || count === 0} onClick={() => train.mutate()}>
+          <Button variant="primary" disabled={problems.length > 0 || train.isPending || count === 0 || steps === null} onClick={() => train.mutate()}>
             <Play size={16} aria-hidden="true" />
             {count > 1 ? `Train ${count} seeds` : "Train"}
           </Button>

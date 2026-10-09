@@ -6,8 +6,15 @@ traces one forward pass on the `meta` device, so nothing is allocated and nothin
 downloaded, however large the model. The result is a JSON-ready dict (`describe.v1`) with one
 row per module, in the order `named_modules` lists them.
 
-It builds the model class, which runs the user's code: the API calls it from a worker, never
-in its own process (plan 8.1).
+And what a trained model does with a prompt, at any checkpoint it kept:
+
+    inspect_checkpoint("my-runs/modern/seed-0", "Once upon a time", step=500)
+
+returns the attention weights of every head and a logit lens (the next-token guess read off
+the residual stream after each block) as an `inspect.v1` dict.
+
+Both build the model class, which runs the user's code: the API calls them from a worker,
+never in its own process (plan 8.1).
 """
 
 from __future__ import annotations
@@ -277,4 +284,141 @@ def format_describe(report: dict[str, Any]) -> str:
     for row in [header, *rows]:
         lines.append("  ".join(str(c).ljust(w) for c, w in zip(row, widths, strict=True)).rstrip())
     lines += ["", "* FLOPs/token estimated as 6 x non-embedding parameters"]
+    return "\n".join(lines)
+
+
+DEFAULT_PROMPT = "Once upon a time"
+MAX_PROMPT_TOKENS = 64  # attention maps are T x T per head, so the result grows with T squared
+LENS_DIGITS = 4
+
+
+def inspect_checkpoint(ref: str, prompt: str = DEFAULT_PROMPT, step: int | None = None,
+                       top_k: int = 5, device: str = "cpu") -> dict[str, Any]:
+    """Attention weights and a logit lens for `prompt` at the checkpoint of `step` (the latest
+    if None). Archived steps (`run(..., checkpoint_steps=[...])`) are never pruned, so they are
+    the ones to look at over training."""
+    from nanoscope.blocks.attention import Attention
+    from nanoscope.store import load_run, saved_steps
+    from nanoscope.train_loop import _split_output
+
+    loaded = load_run(ref, device=device, step=step)
+    model, tokenizer = loaded.model, loaded.tokenizer
+    ids = tokenizer.encode(prompt) if prompt else [tokenizer.eos_token_id]
+    limit = min(MAX_PROMPT_TOKENS, loaded.preset.context_length)
+    if len(ids) > limit:
+        raise ValueError(f"the prompt is {len(ids)} tokens; inspect takes at most {limit} "
+                         f"(attention maps grow with the square of the length)")
+
+    attention: list[tuple[str, Attention, torch.Tensor]] = []
+    residual: list[tuple[str, torch.Tensor]] = []
+    handles = []
+    for name, module in model.named_modules():
+        if isinstance(module, Attention):
+            def grab(m: nn.Module, args: tuple[Any, ...], name: str = name) -> None:
+                attention.append((name, m, args[0].detach()))  # type: ignore[arg-type]
+            handles.append(module.register_forward_pre_hook(grab))
+    layers = getattr(model, "blocks", None)
+    lens_ready = (isinstance(layers, nn.ModuleList) and isinstance(getattr(model, "norm", None),
+                  nn.Module) and isinstance(getattr(model, "head", None), nn.Module))
+    if lens_ready:
+        assert isinstance(layers, nn.ModuleList)
+        def first_input(_m: nn.Module, args: tuple[Any, ...]) -> None:
+            residual.append(("embeddings", args[0].detach()))
+        handles.append(layers[0].register_forward_pre_hook(first_input))
+        for i, layer in enumerate(layers):
+            def keep(_m: nn.Module, _a: Any, out: Any, name: str = f"blocks.{i}") -> None:
+                residual.append((name, (out[0] if isinstance(out, tuple) else out).detach()))
+            handles.append(layer.register_forward_hook(keep))
+
+    x = torch.tensor([ids], dtype=torch.long, device=next(model.parameters()).device)
+    try:
+        with torch.no_grad():
+            logits, _ = _split_output(model(x))
+            maps = [(name, module.attention_weights(inp)[0]) for name, module, inp in attention]
+            lens_logits = ([(name, model.head(model.norm(h))[0]) for name, h in residual]  # type: ignore[operator]
+                           if lens_ready else [("output", logits[0])])
+    finally:
+        for h in handles:
+            h.remove()
+
+    def text(i: int) -> str:
+        return "<eos>" if i == tokenizer.eos_token_id else tokenizer.decode([i])
+
+    def lens_row(name: str, layer_logits: torch.Tensor) -> dict[str, Any]:
+        probs = layer_logits.float().softmax(-1)
+        top = probs.topk(min(top_k, probs.size(-1)), dim=-1)
+        positions = []
+        for t in range(len(ids)):
+            nxt = None
+            if t + 1 < len(ids):
+                target = ids[t + 1]
+                nxt = {"id": target, "text": text(target),
+                       "p": round(float(probs[t, target]), LENS_DIGITS),
+                       "rank": int((probs[t] > probs[t, target]).sum()) + 1}
+            positions.append({
+                "top": [{"id": int(i), "text": text(int(i)), "p": round(float(p), LENS_DIGITS)}
+                        for p, i in zip(top.values[t], top.indices[t], strict=True)],
+                "next": nxt})
+        return {"name": name, "positions": positions}
+
+    notes = []
+    if not maps:
+        notes.append(f"{type(model).__name__} has no Attention blocks, so there are no maps")
+    if not lens_ready:
+        notes.append(f"{type(model).__name__} has no blocks/norm/head, so the lens shows only "
+                     "the model's output")
+    return {
+        "schema": 1, "nanoscope": __version__, "ref": str(ref), "model": type(model).__name__,
+        "step": loaded.step, "steps": saved_steps(loaded.run_dir), "prompt": prompt,
+        "tokens": [{"id": i, "text": text(i)} for i in ids],
+        "attention": [{"module": name, "layer": n, "heads": int(w.size(0)),
+                       "weights": [[[round(float(v), LENS_DIGITS) for v in row[: r + 1]]
+                                    for r, row in enumerate(head)] for head in w]}
+                      for n, (name, w) in enumerate(maps)],
+        "lens": {"top_k": top_k, "layers": [lens_row(n, lg) for n, lg in lens_logits]},
+        "notes": notes,
+    }
+
+
+def _quoted(text: str) -> str:
+    import json
+
+    return json.dumps(text, ensure_ascii=False)
+
+
+def format_inspect(report: dict[str, Any]) -> str:
+    """The logit lens as a table (the top guess after each layer, per position) and, for the
+    last token, the position each head attends to most."""
+    tokens = report["tokens"]
+    steps = ", ".join(map(str, report["steps"]))
+    lines = [f"{report['ref']} at step {report['step']} (checkpoints: {steps}); "
+             f"prompt of {len(tokens)} tokens", ""]
+    layers = report["lens"]["layers"]
+    header = ["pos", "token", *(layer["name"] for layer in layers), "actual next (p, rank)"]
+    rows = []
+    for t, tok in enumerate(tokens):
+        cells = [str(t), _quoted(tok["text"])]
+        for layer in layers:
+            best = layer["positions"][t]["top"][0]
+            cells.append(f"{_quoted(best['text'])} {best['p']:.3f}")
+        nxt = layers[-1]["positions"][t]["next"]
+        cells.append("" if nxt is None
+                     else f"{_quoted(nxt['text'])} {nxt['p']:.3f}, #{nxt['rank']}")
+        rows.append(cells)
+    widths = [max(len(r[i]) for r in [header, *rows]) for i in range(len(header))]
+    lines.append("logit lens: the top next-token guess after each layer (p)")
+    for r in [header, *rows]:
+        lines.append("  ".join(c.ljust(w) for c, w in zip(r, widths, strict=True)).rstrip())
+    if report["attention"]:
+        last = len(tokens) - 1
+        lines += ["", f"attention from the last token {_quoted(tokens[last]['text'])}: "
+                      "the position each head weights most"]
+        for entry in report["attention"]:
+            cells = []
+            for h, head in enumerate(entry["weights"]):
+                row = head[last]
+                pos = max(range(len(row)), key=row.__getitem__)
+                cells.append(f"h{h} {pos} {_quoted(tokens[pos]['text'])} {row[pos]:.2f}")
+            lines.append(f"{entry['module']}  " + "  ".join(cells))
+    lines += [f"note: {n}" for n in report["notes"]]
     return "\n".join(lines)

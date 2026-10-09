@@ -7,9 +7,19 @@ import { CodeSurface } from "../editor/CodeSurface";
 import type { Marker } from "../editor/types";
 import { useFileBuffer } from "../editor/useFileBuffer";
 import { useCatalog } from "../editor/useCatalog";
+import { documentUri } from "../editor/lsp";
+import { useLspService } from "../editor/lspService";
+import { useLspMarkers } from "../editor/useLspMarkers";
 import { useLint } from "../editor/useLint";
-import { Check, Circle, Warning } from "../icons";
+import { useUseLsp } from "../app/settings";
+import { Check, Circle, Minus, Warning, X } from "../icons";
 import styles from "./Editor.module.css";
+
+const problems = (found: Marker[]): string => {
+  const errors = found.filter((m) => m.severity === "error").length;
+  if (found.length === 0) return "no problems";
+  return errors === found.length ? `${errors} ${errors === 1 ? "error" : "errors"}` : `${found.length} ${found.length === 1 ? "problem" : "problems"}`;
+};
 
 type Props = {
   path: string;
@@ -25,7 +35,11 @@ export function Editor({ path, markers = [], revealLine }: Props) {
   const [putOff, setPutOff] = useState<string | null>(null);
   const complete = useCatalog();
   const lint = useLint(path, buffer.etag);
-  const shown = [...lint, ...markers];
+  const service = useLspService();
+  const wantsLsp = useUseLsp();
+  const typed = useLspMarkers(path, service);
+  const shown = [...lint, ...typed, ...markers];
+  const lsp = service.status === "connected" ? { client: service.client, uri: documentUri(service.root, path) } : null;
   const conflictId = buffer.conflict?.currentEtag ?? null;
   if (buffer.error) return <div className={styles.problem}><ProblemFromError error={buffer.error} /></div>;
   return (
@@ -49,9 +63,31 @@ export function Editor({ path, markers = [], revealLine }: Props) {
             markers={shown}
             revealLine={revealLine}
             complete={complete}
+            lsp={lsp}
           />
         )}
       </div>
+      <footer className={`caption ${styles.checkers}`} aria-label="Checkers">
+        <span className={lint.length ? styles.found : styles.clean}>
+          {lint.length ? <X size={14} aria-hidden="true" /> : <Check size={14} aria-hidden="true" />}
+          ruff: {problems(lint)}
+        </span>
+        {service.status === "connected" ? (
+          <span className={typed.length ? styles.found : styles.clean}>
+            {typed.length ? <X size={14} aria-hidden="true" /> : <Check size={14} aria-hidden="true" />}
+            {service.server?.name ?? "language server"}: {problems(typed)}
+          </span>
+        ) : (
+          <span className={styles.muted}>
+            <Minus size={14} aria-hidden="true" />{" "}
+            {!wantsLsp
+              ? "no type checks: the language server is turned off in Settings"
+              : service.status === "unavailable"
+                ? "no type checks: the language server is not running"
+                : "connecting to the language server"}
+          </span>
+        )}
+      </footer>
       {buffer.external && (
         <div className={styles.problem} role="status">
           <Tag tone="warn" icon={Warning}>{buffer.external.kind === "deleted" ? "deleted on disk" : "changed on disk"}</Tag>

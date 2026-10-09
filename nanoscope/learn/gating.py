@@ -11,6 +11,8 @@ security: Python cannot stop determined code (see docs/learn.md).
 
 from __future__ import annotations
 
+import ast
+from collections.abc import Callable
 from dataclasses import dataclass
 from functools import cache
 from pathlib import Path
@@ -104,8 +106,6 @@ def scan(path: str | Path, owner: str = "local") -> list[LockedUse]:
     imports of locked names from `nanoscope.blocks`, locked block calls in a composition, and
     locked features (GQA, QK-norm, sliding window, z-loss). The editor shows these on save;
     `validate_run_request` refuses a run that has them."""
-    import ast
-
     if unlocks.policy(owner) == "open":
         return []
     table = lock_table()
@@ -147,14 +147,48 @@ def scan(path: str | Path, owner: str = "local") -> list[LockedUse]:
             for child in args.values():
                 walk(child)
 
+    tree = ast.parse(source, filename=str(path))
     for cls in parse(path)["classes"]:
-        if not cls["representable"] or cls["kind"] != "decoder":
+        if cls["kind"] != "decoder":
+            continue
+        if not cls["representable"]:
+            # the graph cannot show this class (it assigns locals, say), but its calls can
+            # still be read: look for the features by name
+            for node in ast.walk(tree):
+                if isinstance(node, ast.ClassDef) and node.lineno == cls["line"]:
+                    _scan_calls(node, note)
             continue
         for name, node in cls["args"].items():
             walk(node)
             if name == "z_loss" and node["kind"] == "literal" and node["value"]:
                 note("feature:z_loss", node["span"]["line"])
     return sorted(found.values(), key=lambda u: (u.line, u.id))
+
+
+def _literal(node: ast.expr | None) -> Any:
+    return node.value if isinstance(node, ast.Constant) else ...
+
+
+def _scan_calls(cls: ast.ClassDef, note: Callable[[str, int], None]) -> None:
+    """Locked features in a class the graph cannot represent: keyword arguments of `Attention(...)`
+    and `z_loss=` read straight from the syntax tree (literals only, as everywhere else)."""
+    for node in ast.walk(cls):
+        if not isinstance(node, ast.Call):
+            continue
+        name = node.func.id if isinstance(node.func, ast.Name) else getattr(node.func, "attr", "")
+        keywords = {k.arg: k for k in node.keywords if k.arg}
+        if name == "Attention":
+            window = keywords.get("window")
+            if window is not None and _literal(window.value) is not None:
+                note("feature:sliding_window", window.value.lineno)
+            if "qk_norm" in keywords and _literal(keywords["qk_norm"].value) is True:
+                note("feature:qk_norm", keywords["qk_norm"].value.lineno)
+            heads, kv = _literal(getattr(keywords.get("n_heads"), "value", None)), \
+                _literal(getattr(keywords.get("n_kv_heads"), "value", None))
+            if isinstance(heads, int) and isinstance(kv, int) and kv < heads:
+                note("feature:gqa", keywords["n_kv_heads"].value.lineno)
+        if "z_loss" in keywords and _literal(keywords["z_loss"].value) not in (0, 0.0, None, ...):
+            note("feature:z_loss", keywords["z_loss"].value.lineno)
 
 
 def refuse(model_cls: type, owner: str = "local") -> None:

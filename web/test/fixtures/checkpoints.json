@@ -1,0 +1,30 @@
+[
+ {
+  "name": "archive/step_00000005.pt",
+  "step": 5,
+  "bytes": 459568,
+  "archived": true,
+  "latest": false
+ },
+ {
+  "name": "archive/step_00000010.pt",
+  "step": 10,
+  "bytes": 459568,
+  "archived": true,
+  "latest": false
+ },
+ {
+  "name": "step_00000010.pt",
+  "step": 10,
+  "bytes": 459568,
+  "archived": false,
+  "latest": false
+ },
+ {
+  "name": "step_00000020.pt",
+  "step": 20,
+  "bytes": 459568,
+  "archived": false,
+  "latest": true
+ }
+]

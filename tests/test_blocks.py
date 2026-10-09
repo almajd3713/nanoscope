@@ -845,3 +845,182 @@ def test_certify_job_runs_in_a_worker_process_and_records_the_cert(home, tmp_pat
     assert certs.state(file, "JobGate")["state"] == "certified"
     with pytest.raises(queue.InvalidJob):
         queue.enqueue("certify", {"file": str(file)})
+
+
+def test_alibi_slopes_follow_the_paper():
+    from nanoscope.blocks.positional import alibi_slopes
+
+    assert alibi_slopes(8) == pytest.approx([2.0 ** -(h + 1) for h in range(8)])
+    assert alibi_slopes(4) == pytest.approx([2.0 ** (-2 * (h + 1)) for h in range(4)])
+    for n in (1, 2, 3, 4, 6, 8, 12, 16):
+        assert alibi_slopes(n) == pytest.approx(R.alibi_slopes(n))
+        assert len(alibi_slopes(n)) == n
+    # 6 heads: the 4-head slopes, then every other slope of the 8-head sequence
+    assert alibi_slopes(6)[4:] == pytest.approx([2.0 ** -1, 2.0 ** -3])
+
+
+@pytest.mark.parametrize("heads", [2, 3, 4])
+@pytest.mark.parametrize("window", [None, 3])
+def test_alibi_attention_matches_loop_reference(heads, window):
+    from nanoscope.blocks.attention import Attention
+    from nanoscope.blocks.positional import ALiBi
+
+    torch.manual_seed(0)
+    d, T = heads * 4, 7
+    attn = Attention(n_heads=heads, window=window, pos=ALiBi()).build(d, 8)
+    x = torch.randn(2, T, d)
+    hd = d // heads
+
+    def split(y):
+        return y.view(2, T, heads, hd).transpose(1, 2)
+    q, k, v = split(attn.q(x)), split(attn.k(x)), split(attn.v(x))
+    y = R.naive_alibi_attention(q, k, v, window=window)
+    expected = attn.proj(y.transpose(1, 2).reshape(2, T, d))
+    torch.testing.assert_close(attn(x), expected, atol=ATOL, rtol=0)
+    # the weights the forward pass applies are the ones attention_weights shows
+    weights = attn.attention_weights(x)
+    torch.testing.assert_close(weights.sum(-1), torch.ones(2, heads, T), atol=ATOL, rtol=0)
+    assert (weights.triu(1) == 0).all()
+
+
+def test_alibi_prefers_nearby_keys_and_has_no_parameters():
+    from nanoscope.blocks.positional import ALiBi
+
+    alibi = ALiBi().build(8, 16)
+    q, k = torch.randn(1, 2, 5, 8), torch.randn(1, 2, 5, 8)
+    assert alibi(q, k)[0] is q and alibi(q, k)[1] is k
+    bias = alibi.score_bias(2, 5)
+    assert bias.shape == (2, 5, 5)
+    assert (bias.diagonal(dim1=-2, dim2=-1) == 0).all()
+    assert bias[0, 4, 3] > bias[0, 4, 0]  # a nearer key is penalised less
+    assert bias[1, 4, 0] > bias[0, 4, 0]  # head 0 has the steeper slope
+    assert not list(alibi.state_dict()) and alibi.flops_per_token(16) == 0
+
+
+@pytest.mark.parametrize("experts,top_k", [(4, 1), (4, 2), (3, 3)])
+def test_moe_matches_loop_reference_and_balance_loss(experts, top_k):
+    from nanoscope.blocks.moe import MoE
+
+    torch.manual_seed(0)
+    moe = MoE(experts=experts, top_k=top_k, aux_loss=0.5).build(8, 16)
+    moe.train()
+    x = torch.randn(2, 5, 8)
+    y = moe(x)
+    weights = [(e.w1.weight, e.w3.weight, e.proj.weight) for e in moe.experts]
+    expected, balance = R.naive_moe(x, moe.gate.weight, weights, top_k, aux_coef=0.5)
+    torch.testing.assert_close(y, expected, atol=ATOL, rtol=0)
+    torch.testing.assert_close(moe.aux_loss_value, balance, atol=ATOL, rtol=0)
+    assert moe.aux_loss_value > 0
+    moe.eval()
+    moe(x)
+    assert moe.aux_loss_value is None  # nothing to train on at evaluation
+
+
+def test_moe_uses_only_top_k_experts_per_token_and_counts_active_flops():
+    from nanoscope.blocks.moe import MoE
+
+    moe = MoE(experts=4, top_k=1).build(8, 16)
+    x = torch.randn(1, 6, 8)
+    calls = []
+    for i, e in enumerate(moe.experts):
+        e.register_forward_hook(lambda m, a, o, i=i: calls.append((i, a[0].size(0))))
+    moe(x)
+    assert sum(n for _, n in calls) == 6  # each token went through exactly one expert
+    expert = sum(p.numel() for p in moe.experts[0].parameters())
+    assert moe.flops_per_token(16) == 6 * (4 * 8 + expert)
+    with pytest.raises(ValueError, match="top_k"):
+        MoE(experts=2, top_k=3).build(8, 16)
+
+
+def test_decoder_with_moe_returns_the_balance_loss_and_trains():
+    from nanoscope.blocks.attention import Attention
+    from nanoscope.blocks.mlp import SwiGLU
+    from nanoscope.blocks.moe import MoE
+    from nanoscope.blocks.norm import RMSNorm
+    from nanoscope.blocks.structure import Block, Decoder
+
+    torch.manual_seed(0)
+    model = Decoder(50, 16, 16, 2, block=Block(norm=RMSNorm(), attn=Attention(n_heads=2),
+                                               mlp=MoE(experts=4, top_k=2, aux_loss=0.01)))
+    idx = torch.randint(0, 50, (2, 8))
+    logits, aux = model(idx)
+    assert logits.shape == (2, 8, 50) and aux.ndim == 0 and aux > 0
+    (logits.sum() + aux).backward()
+    assert model.blocks[0].mlp.gate.weight.grad is not None
+    model.eval()
+    assert not isinstance(model(idx), tuple)  # no auxiliary loss at evaluation
+    plain = Decoder(50, 16, 16, 2, block=Block(norm=RMSNorm(), attn=Attention(n_heads=2),
+                                               mlp=SwiGLU()))
+    assert not isinstance(plain(idx), tuple)
+
+
+@pytest.mark.usefixtures("fake_data")
+def test_a_moe_model_trains_and_describes(monkeypatch):
+    from fakes import tiny
+    from learn_helpers import set_preset
+
+    from nanoscope import run
+    from nanoscope.blocks.attention import Attention
+    from nanoscope.blocks.moe import MoE
+    from nanoscope.blocks.norm import RMSNorm
+    from nanoscope.blocks.structure import Block, Decoder
+    from nanoscope.inspect import describe
+
+    class MoELM(Decoder):
+        def __init__(self, vocab_size: int, context_length: int):
+            super().__init__(vocab_size, context_length, 16, 2,
+                             block=Block(norm=RMSNorm(), attn=Attention(n_heads=2),
+                                         mlp=MoE(experts=4, top_k=2)))
+
+    set_preset(monkeypatch, tiny(max_steps=6))
+    result = run(MoELM, tiny(max_steps=6), device="cpu")
+    assert result.final_step == 6 and result.train_losses[-1] == result.train_losses[-1]
+    report = describe(MoELM, "test-tiny")
+    assert "MoE" in str(report)
+
+
+TYPED_MODEL = '''\
+from nanoscope.blocks import Attention, Block, Decoder, RMSNorm, RoPE, SwiGLU
+
+
+class MyLM(Decoder):
+    def __init__(self, vocab_size: int):
+        super().__init__(
+            vocab_size, 8, d_model=16, n_layers=2,
+            block=Block(norm=RMSNorm(), mlp=SwiGLU(hidden=32),
+                        attn=Attention({options}, pos=RoPE())),
+        )
+'''
+
+
+def _pyright(tmp_path, source):
+    import json
+    import subprocess
+    import sys
+
+    file = tmp_path / "model.py"
+    file.write_text(source)
+    done = subprocess.run(
+        [sys.executable, "-m", "pyright", "--outputjson", "--pythonpath", sys.executable,
+         str(file)], capture_output=True, text=True, cwd=tmp_path, timeout=300)
+    report = json.loads(done.stdout)
+    return [d["message"] for d in report["generalDiagnostics"] if d["severity"] == "error"]
+
+
+def test_the_blocks_stub_is_current():
+    from nanoscope.blocks import stubs
+
+    assert stubs.main(["--check"]) == 0, "run `python -m nanoscope.blocks.stubs`"
+    text = stubs.stub_path().read_text()
+    assert "class Attention(_Attention):" in text and "def __new__(cls, *, n_heads: int" in text
+
+
+def test_typed_blocks_a_type_checker_reports_a_misspelled_option(tmp_path):
+    pytest.importorskip("pyright")
+    errors = _pyright(tmp_path, TYPED_MODEL.format(options="n_head=4"))
+    assert any('No parameter named "n_head"' in e for e in errors), errors
+    assert _pyright(tmp_path, TYPED_MODEL.format(options="n_heads=4")) == []
+    # nothing changes at run time: the same call still builds a spec
+    from nanoscope.blocks.attention import Attention
+
+    assert Attention(n_heads=4).options == {"n_heads": 4}

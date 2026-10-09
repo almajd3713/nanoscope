@@ -35,6 +35,7 @@ class RunValidation(BaseModel):
     preset: str = "tinystories-5min"
     kwargs: dict[str, Any] = {}
     seeds: Any = None
+    checkpoint_steps: list[int] = []
 
 
 class StudyValidation(BaseModel):
@@ -92,7 +93,8 @@ def validate_run(body: RunValidation) -> Validation:
         spec, locked = model_spec(body.model)
     except KeyError as exc:
         return _result([Problem("unknown_model", "model", str(exc.args[0]))])
-    problems = validate_run_spec(spec, body.preset, body.kwargs, body.seeds, locked)
+    problems = validate_run_spec(spec, body.preset, body.kwargs, body.seeds, locked,
+                              body.checkpoint_steps)
     if problems:
         return _result(problems)
     seeds = body.seeds

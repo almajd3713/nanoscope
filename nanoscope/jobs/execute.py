@@ -39,7 +39,8 @@ def _run(job: Any, payload: dict[str, Any]) -> dict[str, Any]:
         model_class(payload["model"]), build_preset(payload), seed=payload.get("seed", 0),
         device=job["device"], output_dir=out, push_to_hub=payload.get("push_to_hub"),
         wandb=payload.get("wandb", False), compile=payload.get("compile", False),
-        study=payload.get("study"), progress=False, **payload.get("kwargs", {}))
+        study=payload.get("study"), progress=False,
+        checkpoint_steps=payload.get("checkpoint_steps") or None, **payload.get("kwargs", {}))
     assert isinstance(result, RunResult)
     state = read_json(result.run_dir / "status.json", "status")["state"]
     summary = result.summary()
@@ -75,11 +76,25 @@ def _check(job: Any, payload: dict[str, Any]) -> dict[str, Any]:
                        for c in doc["checks"]]}
 
 
+def _author_check(job: Any, payload: dict[str, Any]) -> dict[str, Any]:
+    from nanoscope.learn.authoring import author_check
+
+    return author_check(payload["folder"], payload.get("variant", "cpu"))
+
+
 def _describe(job: Any, payload: dict[str, Any]) -> dict[str, Any]:
     from nanoscope.inspect import describe
 
     return describe(model_class(payload["model"]), payload.get("preset", "tinystories-5min"),
                     **payload.get("kwargs", {}))
+
+
+def _inspect(job: Any, payload: dict[str, Any]) -> dict[str, Any]:
+    from nanoscope.inspect import DEFAULT_PROMPT, inspect_checkpoint
+
+    return inspect_checkpoint(payload["ref"], payload.get("prompt", DEFAULT_PROMPT),
+                              step=payload.get("step"), top_k=payload.get("top_k", 5),
+                              device=job["device"])
 
 
 def _certify(job: Any, payload: dict[str, Any]) -> dict[str, Any]:
@@ -186,8 +201,9 @@ def _sync_hub(job: Any, payload: dict[str, Any]) -> dict[str, Any]:
 HANDLERS: dict[str, Callable[[Any, dict[str, Any]], dict[str, Any]]] = {
     "run": _run, "prepare-data": _prepare_data, "bench": _bench, "check": _check,
     "describe": _describe, "study": _study, "sync-hub": _sync_hub, "certify": _certify,
-    "sizes": _sizes, "study-spec": _study_spec,
-    "prereg-preview": _prereg_preview, "commit": _commit, "card-push": _card_push,
+    "sizes": _sizes, "study-spec": _study_spec, "inspect": _inspect,
+    "author-check": _author_check, "prereg-preview": _prereg_preview, "commit": _commit,
+    "card-push": _card_push,
 }
 
 

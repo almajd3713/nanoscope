@@ -4,7 +4,7 @@ import { MemoryRouter, Route, Routes } from "react-router-dom";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { mockApi } from "../../test/fetch";
 import { Providers } from "./providers";
-import { resetLevelCache } from "./level";
+import { resetLevelCache, setLevel } from "./level";
 import { Shell } from "./Shell";
 
 function renderShell(path = "/runs") {
@@ -43,6 +43,16 @@ describe("Shell", () => {
     expect(within(nav).getByRole("link", { name: "Runs" }).getAttribute("aria-current")).toBe("page");
     expect(within(nav).getByRole("link", { name: "Learn" }).getAttribute("aria-current")).toBeNull();
     expect(screen.getByText("runs page")).toBeTruthy();
+  });
+
+  it("adds Workspace to the nav at Extend and only there", async () => {
+    renderShell();
+    const nav = screen.getByRole("navigation", { name: "Main" });
+    expect(within(nav).queryByRole("link", { name: "Workspace" })).toBeNull();
+    act(() => setLevel("Extend"));
+    expect(within(nav).getAllByRole("link").map((a) => a.textContent).at(-1)).toBe("Workspace");
+    act(() => setLevel("Research"));
+    expect(within(nav).queryByRole("link", { name: "Workspace" })).toBeNull();
   });
 
   it("has the Settings link and a theme toggle", () => {

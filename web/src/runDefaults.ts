@@ -6,4 +6,5 @@ export const RUN_DEFAULTS = {
   kwargs: {},
   compile: false,
   wandb: false,
+  checkpoint_steps: [] as number[],
 } as const;

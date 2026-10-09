@@ -1,0 +1,22 @@
+[
+ {
+  "folder": "curricula/my-course/01-thing",
+  "id": "my-course/01-thing",
+  "files": [
+   "lesson.toml",
+   "lesson.md",
+   "starter.py",
+   "solution.py"
+  ]
+ },
+ {
+  "folder": "curricula/other/01-thing",
+  "id": "other/01-thing",
+  "files": [
+   "lesson.toml",
+   "lesson.md",
+   "starter.py",
+   "solution.py"
+  ]
+ }
+]

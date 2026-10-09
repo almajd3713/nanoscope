@@ -46,6 +46,16 @@ def _parse_set(items: list[str]) -> dict:
     return result
 
 
+def _parse_steps(value: str | None) -> list[int] | None:
+    if not value:
+        return None
+    try:
+        return [int(part) for part in value.split(",") if part.strip()]
+    except ValueError:
+        raise SystemExit(
+            f"--checkpoint-steps takes comma-separated step numbers, got {value!r}") from None
+
+
 def _parse_compile(value: str | None) -> bool | str:
     return False if value is None else (True if value == "true" else value)
 
@@ -64,6 +74,8 @@ def build_parser() -> argparse.ArgumentParser:
     run_parser.add_argument("--set", nargs="*", default=[], dest="overrides")
     run_parser.add_argument("--compile", nargs="?", const="true", default=None,
                             help="torch.compile; or --compile reduce-overhead for CUDA graphs")
+    run_parser.add_argument("--checkpoint-steps", default=None, metavar="N,N,...",
+                            help="keep a full checkpoint at these steps (never pruned)")
     run_parser.add_argument("--no-resume", action="store_true")
 
     sub.add_parser("presets", help="List available presets")
@@ -190,6 +202,15 @@ def build_parser() -> argparse.ArgumentParser:
     describe_parser.add_argument(
         "--set", nargs="*", default=[], dest="overrides", metavar="key=value",
         help="model keywords or preset fields, e.g. n_layers=6 context_length=512")
+
+    inspect_parser = sub.add_parser(
+        "inspect", help="Attention maps and a logit lens for a prompt at a run's checkpoint")
+    inspect_parser.add_argument("ref", help="a run ref (one seed)")
+    inspect_parser.add_argument("--step", type=int, default=None,
+                                help="a kept or archived checkpoint step (default: the latest)")
+    inspect_parser.add_argument("--prompt", default=None, help='default: "Once upon a time"')
+    inspect_parser.add_argument("--top-k", type=int, default=5)
+    inspect_parser.add_argument("--json", action="store_true", help="print inspect.v1 JSON")
 
     stop_parser = sub.add_parser(
         "stop", help="Ask running runs to stop: they save a checkpoint and can be resumed")
@@ -464,6 +485,19 @@ def _main(argv: list[str] | None = None) -> None:
         print(json_.dumps(report, indent=2) if args.json else format_describe(report))
         return
 
+    if args.command == "inspect":
+        import json as json_
+
+        from nanoscope.inspect import DEFAULT_PROMPT, format_inspect, inspect_checkpoint
+        try:
+            report = inspect_checkpoint(
+                args.ref, DEFAULT_PROMPT if args.prompt is None else args.prompt,
+                step=args.step, top_k=args.top_k)
+        except (FileNotFoundError, ValueError) as exc:
+            raise SystemExit(str(exc)) from exc
+        print(json_.dumps(report, indent=2) if args.json else format_inspect(report))
+        return
+
     if args.command == "stop":
         from nanoscope.store import request_stop
 
@@ -514,6 +548,7 @@ def _main(argv: list[str] | None = None) -> None:
             output_dir=args.output_dir,
             resume=not args.no_resume,
             compile=_parse_compile(args.compile),
+            checkpoint_steps=_parse_steps(args.checkpoint_steps),
             **kwargs,
         )
 

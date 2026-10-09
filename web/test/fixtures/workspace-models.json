@@ -1,0 +1,224 @@
+[
+ {
+  "name": "Bigram",
+  "ref": "nanoscope.models.bigram:Bigram",
+  "doc": "Predicts the next token from the current token alone.",
+  "params": [
+   {
+    "name": "vocab_size",
+    "annotation": "int",
+    "default": null,
+    "required": true,
+    "from_data": true
+   },
+   {
+    "name": "d_model",
+    "annotation": "int",
+    "default": 32,
+    "required": false,
+    "from_data": false
+   }
+  ],
+  "shipped": true,
+  "source": null
+ },
+ {
+  "name": "GPT2",
+  "ref": "nanoscope.models.gpt2:GPT2",
+  "doc": "A GPT-2 style decoder: learned positions, LayerNorm, GELU MLP, multi-head attention.",
+  "params": [
+   {
+    "name": "vocab_size",
+    "annotation": "int",
+    "default": null,
+    "required": true,
+    "from_data": true
+   },
+   {
+    "name": "context_length",
+    "annotation": "int",
+    "default": 256,
+    "required": false,
+    "from_data": true
+   },
+   {
+    "name": "d_model",
+    "annotation": "int",
+    "default": 128,
+    "required": false,
+    "from_data": false
+   },
+   {
+    "name": "n_layers",
+    "annotation": "int",
+    "default": 4,
+    "required": false,
+    "from_data": false
+   },
+   {
+    "name": "n_heads",
+    "annotation": "int",
+    "default": 4,
+    "required": false,
+    "from_data": false
+   }
+  ],
+  "shipped": true,
+  "source": null
+ },
+ {
+  "name": "Modern",
+  "ref": "nanoscope.models.modern:Modern",
+  "doc": "The 2024-26 consensus decoder: RoPE, RMSNorm, SwiGLU, GQA, QK-norm, z-loss.",
+  "params": [
+   {
+    "name": "vocab_size",
+    "annotation": "int",
+    "default": null,
+    "required": true,
+    "from_data": true
+   },
+   {
+    "name": "context_length",
+    "annotation": "int",
+    "default": 256,
+    "required": false,
+    "from_data": true
+   },
+   {
+    "name": "d_model",
+    "annotation": "int",
+    "default": 128,
+    "required": false,
+    "from_data": false
+   },
+   {
+    "name": "n_layers",
+    "annotation": "int",
+    "default": 4,
+    "required": false,
+    "from_data": false
+   },
+   {
+    "name": "n_heads",
+    "annotation": "int",
+    "default": 4,
+    "required": false,
+    "from_data": false
+   },
+   {
+    "name": "n_kv_heads",
+    "annotation": "int",
+    "default": 2,
+    "required": false,
+    "from_data": false
+   },
+   {
+    "name": "rope",
+    "annotation": "bool",
+    "default": true,
+    "required": false,
+    "from_data": false
+   },
+   {
+    "name": "swiglu",
+    "annotation": "bool",
+    "default": true,
+    "required": false,
+    "from_data": false
+   },
+   {
+    "name": "rmsnorm",
+    "annotation": "bool",
+    "default": true,
+    "required": false,
+    "from_data": false
+   },
+   {
+    "name": "qk_norm",
+    "annotation": "bool",
+    "default": true,
+    "required": false,
+    "from_data": false
+   },
+   {
+    "name": "z_loss",
+    "annotation": "float",
+    "default": 0.0001,
+    "required": false,
+    "from_data": false
+   },
+   {
+    "name": "tie_weights",
+    "annotation": "bool",
+    "default": true,
+    "required": false,
+    "from_data": false
+   },
+   {
+    "name": "ffn_hidden",
+    "annotation": "int | None",
+    "default": null,
+    "required": false,
+    "from_data": false
+   }
+  ],
+  "shipped": true,
+  "source": null
+ },
+ {
+  "name": "MyThing",
+  "ref": "curricula/my-course/01-thing/solution.py:MyThing",
+  "doc": "",
+  "params": [],
+  "shipped": false,
+  "source": "curricula/my-course/01-thing/solution.py"
+ },
+ {
+  "name": "Other",
+  "ref": "curricula/my-course/01-thing/starter.py:Other",
+  "doc": "",
+  "params": [],
+  "shipped": false,
+  "source": "curricula/my-course/01-thing/starter.py"
+ },
+ {
+  "name": "MyThing",
+  "ref": "curricula/other/01-thing/solution.py:MyThing",
+  "doc": "",
+  "params": [],
+  "shipped": false,
+  "source": "curricula/other/01-thing/solution.py"
+ },
+ {
+  "name": "Other",
+  "ref": "curricula/other/01-thing/starter.py:Other",
+  "doc": "",
+  "params": [],
+  "shipped": false,
+  "source": "curricula/other/01-thing/starter.py"
+ },
+ {
+  "name": "MyLM",
+  "ref": "models/my_lm.py:MyLM",
+  "doc": "",
+  "params": [
+   {
+    "name": "vocab_size",
+    "annotation": "int",
+    "default": null,
+    "required": true,
+    "from_data": true
+   },
+   {
+    "name": "context_length",
+    "annotation": "int",
+    "default": 256,
+    "required": false,
+    "from_data": true
+   }
+  ],
+  "shipped": false,
+  "source": "models/my_lm.py"
+ }
+]
