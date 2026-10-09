@@ -2,9 +2,11 @@ import { act, render, screen } from "@testing-library/react";
 import { axe } from "vitest-axe";
 import { MemoryRouter } from "react-router-dom";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import checkpoints from "../test/fixtures/checkpoints.json";
 import compare from "../test/fixtures/compare.json";
 import curricula from "../test/fixtures/curricula.json";
 import failed from "../test/fixtures/run-failed.json";
+import inspectReport from "../test/fixtures/inspect-latest.json";
 import jobs from "../test/fixtures/jobs.json";
 import lesson04 from "../test/fixtures/lesson-04.json";
 import models from "../test/fixtures/models.json";
@@ -37,6 +39,10 @@ const API = {
   [`GET /api/runs/${REF}`]: { body: failed },
   [`GET /api/runs/${REF}/metrics`]: { body: { rows: [], last_step: 0 } },
   [`GET /api/runs/${REF}/samples`]: { body: samples },
+  [`GET /api/runs/${inspectReport.ref}`]: { body: failed },
+  [`GET /api/runs/${inspectReport.ref}/checkpoints`]: { body: checkpoints },
+  [`POST /api/runs/${inspectReport.ref}/inspect`]: { status: 202, body: { id: 1 } },
+  "GET /api/jobs/1": { body: { id: 1, kind: "inspect", state: "done", result: inspectReport, error: null } },
   "GET /api/models": { body: models },
   "GET /api/presets": { body: presets },
   "POST /api/validate/run": { body: { ok: true, problems: [], refs: [`${REF}`] } },
@@ -87,6 +93,11 @@ describe("accessibility (axe)", () => {
 
   it("a run", async () => {
     const { container } = await page(`/runs/${REF}`, REF);
+    await check(container);
+  });
+
+  it("inspect", async () => {
+    const { container } = await page(`/inspect/${inspectReport.ref}`, "Attention");
     await check(container);
   });
 

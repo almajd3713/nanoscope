@@ -1,0 +1,238 @@
+.page {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-5);
+  align-items: flex-start;
+}
+
+.main {
+  flex: 999 1 640px;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-5);
+}
+
+.aside {
+  flex: 0 1 var(--inspector);
+  min-width: 280px;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+}
+
+.head {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.head h1,
+.panel h2 {
+  margin: 0;
+}
+
+.titleRow {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-3);
+}
+
+.muted {
+  color: var(--ink-muted);
+}
+
+.link {
+  color: var(--accent);
+}
+
+.good {
+  color: var(--good);
+}
+
+.panel {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  padding: var(--space-4);
+  background: var(--surface-raised);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-2);
+}
+
+.promptRow {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-3);
+  align-items: flex-start;
+}
+
+.promptField {
+  flex: 1 1 420px;
+  min-width: 0;
+}
+
+.promptRow > button {
+  margin-top: 22px;
+}
+
+.group {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.sectionHead {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: var(--space-3);
+}
+
+.mapsRow {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-6);
+  align-items: flex-start;
+}
+
+.maps {
+  display: grid;
+  gap: 10px;
+  align-items: center;
+}
+
+.center {
+  text-align: center;
+}
+
+.map {
+  display: grid;
+  width: max-content;
+}
+
+.mapButton {
+  padding: 2px;
+  border: 2px solid transparent;
+  border-radius: var(--radius-1);
+  background: var(--surface-raised);
+  cursor: pointer;
+  line-height: 0;
+}
+
+.mapOn {
+  border-color: var(--accent);
+}
+
+.mapButton:focus-visible,
+.rowLabel:focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: 2px;
+}
+
+.figure {
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.big,
+.cols {
+  display: grid;
+}
+
+.rowLabel {
+  border: 0;
+  background: transparent;
+  padding: 0 6px 0 0;
+  text-align: right;
+  white-space: pre;
+  font-family: var(--font-mono);
+  color: var(--ink-muted);
+  cursor: pointer;
+}
+
+.rowOn {
+  color: var(--accent-strong);
+  font-weight: 600;
+}
+
+.colLabel {
+  writing-mode: vertical-rl;
+  transform: rotate(180deg);
+  white-space: pre;
+  font-family: var(--font-mono);
+  text-align: right;
+}
+
+.cols {
+  min-height: 58px;
+}
+
+.tableWrap {
+  overflow-x: auto;
+}
+
+.table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.table th,
+.table td {
+  padding: 4px var(--space-3);
+  text-align: left;
+  border-bottom: 1px solid var(--line);
+}
+
+.table tbody tr {
+  cursor: default;
+}
+
+.selectedRow {
+  background: var(--accent-soft);
+}
+
+.nowrap {
+  white-space: nowrap;
+}
+
+.guess {
+  display: inline-flex;
+  gap: 4px;
+  align-items: center;
+}
+
+.legend {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.legend > span {
+  display: flex;
+  gap: var(--space-2);
+  align-items: center;
+}
+
+.swatch {
+  width: 16px;
+  height: 16px;
+  border: 1px solid var(--line);
+}
+
+.across {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-5);
+}
+
+.stepFigure {
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  width: 160px;
+}

@@ -16,7 +16,7 @@ import { Samples } from "../components/Samples";
 import { Readout } from "../components/Readout";
 import { StateTag } from "../components/StateTag";
 import { clockText, countText, stampText } from "../format";
-import { ArrowClockwise, Copy, CopySimple, Stop, X } from "../icons";
+import { ArrowClockwise, Copy, CopySimple, MagnifyingGlass, Stop, X } from "../icons";
 import { useEvents } from "../hooks/useEvents";
 import styles from "./Run.module.css";
 
@@ -229,6 +229,12 @@ export function Run() {
                 <ArrowClockwise size={16} aria-hidden="true" />
                 Resume
               </Button>
+            )}
+            {["done", "stopped", "cancelled"].includes(state ?? "") && !ref.startsWith("baselines/") && (
+              <ButtonLink to={`/inspect/${ref}`}>
+                <MagnifyingGlass size={16} aria-hidden="true" />
+                Inspect
+              </ButtonLink>
             )}
             {shows("duplicate", level) && (
               <ButtonLink to={`/runs/new?from=${encodeURIComponent(ref)}`}>

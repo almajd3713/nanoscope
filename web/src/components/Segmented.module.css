@@ -1,0 +1,31 @@
+.seg {
+  display: inline-flex;
+  flex-wrap: wrap;
+  padding: 2px;
+  gap: 2px;
+  background: var(--surface-sunken);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-2);
+  align-self: flex-start;
+}
+
+.seg button {
+  height: 22px;
+  padding: 0 var(--space-2);
+  border: 1px solid transparent;
+  border-radius: var(--radius-1);
+  background: transparent;
+  color: var(--ink);
+  cursor: pointer;
+}
+
+.seg button[aria-checked="true"] {
+  background: var(--surface-raised);
+  border-color: var(--line-strong);
+  font-weight: 500;
+}
+
+.seg button:focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: 2px;
+}

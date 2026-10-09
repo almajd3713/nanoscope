@@ -4,7 +4,7 @@ The build list for [`plan-tool.md`](plan-tool.md), sections 4-10, with the decis
 2026-10-05 (plan section 11) applied. Phase numbers follow the plan's section 10. Every
 item is one line, so scripts and agents can grep and edit it.
 
-**Current focus:** P16. P16.04-P16.06 built; P16.16 mockups approved (row 8). P16.01-P16.03 done. Next: the screen items P16.07, P16.13, P16.14; P16.08/P16.09 (LSP), P16.17 (typed blocks). (checkpoint_steps CLI flag, job payload, API field and run-form field done.) Left for the user: P14.33 (tag v0.5.0).
+**Current focus:** P16. P16.04-P16.06 built; P16.16 mockups approved (row 8). P16.01-P16.03 done. P16.07 done. Next: P16.13, P16.14, then P16.15 (e2e); P16.08/P16.09 (LSP), P16.17 (typed blocks). (checkpoint_steps CLI flag, job payload, API field and run-form field done.) Left for the user: P14.33 (tag v0.5.0).
 
 ## Progress
 
@@ -20,7 +20,7 @@ item is one line, so scripts and agents can grep and edit it.
 | P13 | GUI MVP 1: shell, Learn/Tinker screens (12-15 d) | 50 / 50 | done |
 | P14 | GUI MVP 2: model page, drag-and-drop (14-17 d) | 35 / 36 | merged; P14.33 (tag v0.5.0) is the user's |
 | P15 | GUI Research (10-13 d) | 31 / 31 | done |
-| P16 | Extend + depth (8-10 d) | 7 / 18 | in progress |
+| P16 | Extend + depth (8-10 d) | 8 / 18 | in progress |
 | P17 | Remaining curriculum paths (18-26 d) | 0 / 34 | not started |
 
 MVP = P6-P14 (about 77-96 focused days). Recount a row with
@@ -652,7 +652,7 @@ Order: P13.01 and P13.02 first (these items live in `web/` and run in its CI job
 - [x] P16.05 Add `nanoscope inspect <ref> --step N --prompt TEXT`. · files: nanoscope/cli.py · deps: P16.04 · done: `uv run pytest tests/test_describe.py -k inspect_cli` asserts the output ✓ 2026-10-09 8700307: prints the lens (top guess per layer, actual next with p and rank) and where each head looks from the last token; `--json`, `--top-k`
 - [x] P16.06 Add `POST /api/runs/{ref}/inspect` (job). · files: nanoscope/server/routes/runs.py, tests/server/test_runs.py · deps: P16.04 · done: `uv run pytest tests/server/test_runs.py -k inspect` passes ✓ 2026-10-09 8700307: 202 + JobDoc on the interactive lane; the result is the report; an unkept step is a 404 naming the kept ones
 - [x] P16.16 **USER ACTION** Mockups for the P16 screens, on the mockups canvas (https://claude.ai/artifact/VDJ45sFJB44bqg82gZcrGR): the inspect page (checkpoint scrubber, attention heatmaps per layer and head, logit-lens table), the language-server setting and its ruff-only fallback, the lesson-authoring preview (Extend), and the workspace tree and schema browser (Extend). Same rules as P13.37; heatmaps and lens values come from a real `inspect.v1` result (P16.04). · files: — · deps: P14.99 · done: the user approves; the approval is recorded in the Decisions log ✓ 2026-10-09 (user approved, no open complaints): https://claude.ai/artifact/VDJ45sFJB44bqg82gZcrGR (row 8)
-- [ ] P16.07 Inspect page: a checkpoint scrubber, attention heatmaps per layer and head, and a logit-lens table. · files: web/src/pages/Inspect.tsx (new) · deps: P16.06, P16.16 · done: `pnpm -C web test -- Inspect` passes
+- [x] P16.07 Inspect page: a checkpoint scrubber, attention heatmaps per layer and head, and a logit-lens table. · files: web/src/pages/Inspect.tsx (new) · deps: P16.06, P16.16 · done: `pnpm -C web test -- Inspect` passes ✓ 2026-10-09 COMMIT: `/inspect/<ref>` (src/pages/Inspect.tsx, src/inspect/{report,useInspect}.ts, components/Segmented); one inspect job per prompt and step, last good result kept on a failure, Across steps = one job per archived step; fixtures are a real 2-layer Modern report (`test/fixtures/inspect-*.json`, `checkpoints.json`); Inspect button on the run page
 - [ ] P16.08 Add the `lsp` service (node + basedpyright over WebSocket, workspace read-only, profile `editor-lsp`). · files: compose.yaml, docker/Dockerfile.lsp (new) · deps: P14.99 · done: `docker compose --profile editor-lsp config -q` exits 0
 - [ ] P16.09 Integrate `monaco-languageclient` behind a setting, falling back to ruff-only when the LSP service is absent. · files: web/src/editor/lsp.ts (new) · deps: P16.08, P16.16 · done: `pnpm -C web test -- lsp.fallback` passes
 - [ ] P16.10 Add `ALiBi` with a naive reference (relative-position bias), locked as `block:ALiBi`. · files: nanoscope/blocks/positional.py, nanoscope/reference/functional.py, tests/test_blocks.py · deps: P14.99 · done: `uv run pytest tests/test_blocks.py -k alibi` passes
