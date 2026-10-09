@@ -4,7 +4,7 @@ The build list for [`plan-tool.md`](plan-tool.md), sections 4-10, with the decis
 2026-10-05 (plan section 11) applied. Phase numbers follow the plan's section 10. Every
 item is one line, so scripts and agents can grep and edit it.
 
-**Current focus:** P15.01-P15.30 are done (1155bf6). P15.99 gate: `make check`, the P15 test files and the first-notebook guard pass locally; left for the user: push the branch, let CI (incl. the e2e job) run, merge the PR; and P14.33 (tag v0.5.0).
+**Current focus:** P15 is merged (PR #17). Left for the user: P14.33 (tag v0.5.0). Next: P16 (needs the P16.16 mockups first, user approves).
 
 ## Progress
 
@@ -19,7 +19,7 @@ item is one line, so scripts and agents can grep and edit it.
 | P12 | docker-compose (3-4 d) | 20 / 20 | done |
 | P13 | GUI MVP 1: shell, Learn/Tinker screens (12-15 d) | 50 / 50 | done |
 | P14 | GUI MVP 2: model page, drag-and-drop (14-17 d) | 35 / 36 | merged; P14.33 (tag v0.5.0) is the user's |
-| P15 | GUI Research (10-13 d) | 20 / 31 | library + API + Hub dataset done; mockups approved; GUI items next |
+| P15 | GUI Research (10-13 d) | 31 / 31 | done |
 | P16 | Extend + depth (8-10 d) | 0 / 17 | not started |
 | P17 | Remaining curriculum paths (18-26 d) | 0 / 34 | not started |
 
@@ -639,7 +639,7 @@ Order: P13.01 and P13.02 first (these items live in `web/` and run in its CI job
 - [x] P15.27 Plan done-when: the forest plot values equal `results.json`. · files: web/e2e/study.spec.ts (new) · deps: P15.20 · done: `pnpm -C web exec playwright test study` passes ✓ 2026-10-09 0523cdd (web/e2e specs pass against a local stack; docs/research.md)
 - [x] P15.28 The preregistration dialog commits, and the hash appears in `study.json`. · files: web/e2e/prereg.spec.ts (new) · deps: P15.19 · done: `pnpm -C web exec playwright test prereg` passes ✓ 2026-10-09 0523cdd (web/e2e specs pass against a local stack; docs/research.md)
 - [x] P15.29 Document the study builder, the preregistration commit with its evidence caveat (11.8), ablation cards, the noise floor and the seed-peeking guard in `docs/research.md`. · files: docs/research.md · deps: P15.28 · done: `grep -c 'committed_via' docs/research.md` prints at least 1 ✓ 2026-10-09 0523cdd (web/e2e specs pass against a local stack; docs/research.md)
-- [ ] P15.99 PHASE GATE P15. Exit criteria: plan section 10 phase 15. · files: — · deps: P15.* · done: `make check` passes; `uv run pytest tests/test_prereg.py tests/test_cards.py tests/server` passes; the e2e job is green (P15.25-P15.28); `uv run pytest tests/test_first_model_notebook.py` passes; **USER ACTION** merge the PR
+- [x] P15.99 PHASE GATE P15. Exit criteria: plan section 10 phase 15. · files: — · deps: P15.* · done: `make check` passes; `uv run pytest tests/test_prereg.py tests/test_cards.py tests/server` passes; the e2e job is green (P15.25-P15.28); `uv run pytest tests/test_first_model_notebook.py` passes; **USER ACTION** merge the PR ✓ 2026-10-09 67469a9 (PR #17 merged by the user; CI incl. e2e green)
 
 ---
 
