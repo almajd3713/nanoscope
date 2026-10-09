@@ -20,7 +20,7 @@ item is one line, so scripts and agents can grep and edit it.
 | P13 | GUI MVP 1: shell, Learn/Tinker screens (12-15 d) | 50 / 50 | done |
 | P14 | GUI MVP 2: model page, drag-and-drop (14-17 d) | 35 / 36 | merged; P14.33 (tag v0.5.0) is the user's |
 | P15 | GUI Research (10-13 d) | 31 / 31 | done |
-| P16 | Extend + depth (8-10 d) | 4 / 18 | in progress |
+| P16 | Extend + depth (8-10 d) | 7 / 18 | in progress |
 | P17 | Remaining curriculum paths (18-26 d) | 0 / 34 | not started |
 
 MVP = P6-P14 (about 77-96 focused days). Recount a row with
