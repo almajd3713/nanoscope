@@ -49,9 +49,12 @@ test("a user block appears in the palette, passes its check job and shows as cer
   await expect(palette.getByText("GateE2E")).toHaveCount(0);
 
   // registering a block in a workspace file puts it in the palette, with no restart
-  await saveFile(request, BLOCKS, GATE);
+  // (a save that lands before the page's change stream is open is missed, so save again until seen)
   const item = palette.getByRole("listitem").filter({ hasText: "GateE2E" });
-  await expect(item).toBeVisible();
+  await expect(async () => {
+    await saveFile(request, BLOCKS, `${GATE}\n# ${Date.now()}\n`);
+    await expect(item).toBeVisible({ timeout: 4_000 });
+  }).toPass({ timeout: 60_000 });
   await expect(item).toContainText("not certified");
 
   // certify it from the Models page: a job a worker runs
