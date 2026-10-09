@@ -1,0 +1,225 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://nanoscope.dev/schemas/inspect.v1.json",
+  "title": "inspect.v1",
+  "description": "What `nanoscope inspect` reports for a prompt at one checkpoint of a trained run: the attention weights of every head and a logit lens (the next-token guess read off the residual stream after each block, through the final norm and head). Probabilities are rounded to 4 decimals.",
+  "type": "object",
+  "required": [
+    "schema",
+    "nanoscope",
+    "ref",
+    "model",
+    "step",
+    "steps",
+    "prompt",
+    "tokens",
+    "attention",
+    "lens",
+    "notes"
+  ],
+  "additionalProperties": false,
+  "properties": {
+    "schema": {
+      "const": 1
+    },
+    "nanoscope": {
+      "type": "string"
+    },
+    "ref": {
+      "type": "string",
+      "description": "The run inspected."
+    },
+    "model": {
+      "type": "string"
+    },
+    "step": {
+      "type": "integer",
+      "minimum": 0,
+      "description": "The checkpoint's step."
+    },
+    "steps": {
+      "type": "array",
+      "items": {
+        "type": "integer"
+      },
+      "description": "Every step the run has a checkpoint for (kept and archived), for a scrubber."
+    },
+    "prompt": {
+      "type": "string"
+    },
+    "tokens": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": [
+          "id",
+          "text"
+        ],
+        "additionalProperties": false,
+        "properties": {
+          "id": {
+            "type": "integer"
+          },
+          "text": {
+            "type": "string"
+          }
+        }
+      },
+      "description": "The prompt's tokens, each decoded on its own."
+    },
+    "attention": {
+      "type": "array",
+      "description": "One entry per Attention module, in model order.",
+      "items": {
+        "type": "object",
+        "required": [
+          "module",
+          "layer",
+          "heads",
+          "weights"
+        ],
+        "additionalProperties": false,
+        "properties": {
+          "module": {
+            "type": "string",
+            "description": "Its path in the model, e.g. blocks.0.attn."
+          },
+          "layer": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "heads": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "weights": {
+            "type": "array",
+            "description": "Per head, per query position t, the weights over key positions 0..t (causal, so row t has t+1 values).",
+            "items": {
+              "type": "array",
+              "items": {
+                "type": "array",
+                "items": {
+                  "type": "number",
+                  "minimum": 0,
+                  "maximum": 1
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "lens": {
+      "type": "object",
+      "required": [
+        "top_k",
+        "layers"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "top_k": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "layers": {
+          "type": "array",
+          "description": "embeddings, then blocks.0 ... blocks.N-1 (the last equals the model's output); a model without blocks/norm/head has one layer, output.",
+          "items": {
+            "type": "object",
+            "required": [
+              "name",
+              "positions"
+            ],
+            "additionalProperties": false,
+            "properties": {
+              "name": {
+                "type": "string"
+              },
+              "positions": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "required": [
+                    "top",
+                    "next"
+                  ],
+                  "additionalProperties": false,
+                  "properties": {
+                    "top": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "required": [
+                          "id",
+                          "text",
+                          "p"
+                        ],
+                        "additionalProperties": false,
+                        "properties": {
+                          "id": {
+                            "type": "integer"
+                          },
+                          "text": {
+                            "type": "string"
+                          },
+                          "p": {
+                            "type": "number",
+                            "minimum": 0,
+                            "maximum": 1
+                          }
+                        }
+                      }
+                    },
+                    "next": {
+                      "description": "The prompt's actual next token, its probability and rank (null at the last position).",
+                      "oneOf": [
+                        {
+                          "type": "null"
+                        },
+                        {
+                          "type": "object",
+                          "required": [
+                            "id",
+                            "text",
+                            "p",
+                            "rank"
+                          ],
+                          "additionalProperties": false,
+                          "properties": {
+                            "id": {
+                              "type": "integer"
+                            },
+                            "text": {
+                              "type": "string"
+                            },
+                            "p": {
+                              "type": "number",
+                              "minimum": 0,
+                              "maximum": 1
+                            },
+                            "rank": {
+                              "type": "integer",
+                              "minimum": 1
+                            }
+                          }
+                        }
+                      ]
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "notes": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "description": "What the model lacks for a full view (no attention, no lens)."
+    }
+  }
+}

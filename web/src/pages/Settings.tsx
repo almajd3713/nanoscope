@@ -10,6 +10,7 @@ import { Button } from "../components/Button";
 import { EquivalentCommand } from "../components/EquivalentCommand";
 import { ProblemFromError } from "../components/ProblemView";
 import { Tag } from "../components/Tag";
+import { shows } from "../levels";
 import { Check } from "../icons";
 import { getChoice, setChoice, subscribe, type ThemeChoice } from "../styles/theme";
 import styles from "./Settings.module.css";
@@ -252,7 +253,12 @@ export function Settings() {
         <span className={`small ${styles.muted}`}>
           Change these in <span className="value">compose.yaml</span> and its <span className="value">.env</span>, then restart (see{" "}
           <span className="value">docs/deploy.md</span>). Secrets are never shown or sent to the browser. API reference:{" "}
-          <a href="/api/docs" className={styles.link}>/api/docs</a>.
+          <a href="/api/docs" className={styles.link}>/api/docs</a>.{shows("schemasDocs", level) && (
+            <>
+              {" "}
+              <Link to="/schemas" className={styles.link}>Schemas</Link>: every file format and API document.
+            </>
+          )}
         </span>
       </section>
       <EquivalentCommand cli={"nanoscope learn status\nnanoscope learn unlock --all\nnanoscope prepare-data tinystories-30min"} />

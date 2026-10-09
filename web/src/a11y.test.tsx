@@ -2,11 +2,16 @@ import { act, render, screen } from "@testing-library/react";
 import { axe } from "vitest-axe";
 import { MemoryRouter } from "react-router-dom";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import authoringReady from "../test/fixtures/authoring-ready.json";
+import authoringList from "../test/fixtures/authoring-list.json";
 import checkpoints from "../test/fixtures/checkpoints.json";
 import compare from "../test/fixtures/compare.json";
 import curricula from "../test/fixtures/curricula.json";
 import failed from "../test/fixtures/run-failed.json";
 import inspectReport from "../test/fixtures/inspect-latest.json";
+import workspaceFiles from "../test/fixtures/workspace-files.json";
+import schemasInspect from "../test/fixtures/schemas-inspect.json";
+import schemasList from "../test/fixtures/schemas-list.json";
 import jobs from "../test/fixtures/jobs.json";
 import lesson04 from "../test/fixtures/lesson-04.json";
 import models from "../test/fixtures/models.json";
@@ -43,6 +48,15 @@ const API = {
   [`GET /api/runs/${inspectReport.ref}/checkpoints`]: { body: checkpoints },
   [`POST /api/runs/${inspectReport.ref}/inspect`]: { status: 202, body: { id: 1 } },
   "GET /api/jobs/1": { body: { id: 1, kind: "inspect", state: "done", result: inspectReport, error: null } },
+  "GET /api/authoring/curricula/my-course/01-thing": { body: authoringReady },
+  "GET /api/authoring": { body: authoringList },
+  "GET /api/files": { body: workspaceFiles },
+  "GET /api/studies": { body: [] },
+  "GET /api/blocks": { body: { blocks: [], errors: [] } },
+  "GET /api/git/status": { body: { repo: false, root: null, branch: null, head: null, clean: true, changed: [], identity: false, path: null, path_committed: null } },
+  "GET /api/schemas": { body: schemasList },
+  "GET /api/version": { body: { nanoscope: "0.5.0", schemas: schemasList } },
+  "GET /api/schemas/inspect": { body: schemasInspect },
   "GET /api/models": { body: models },
   "GET /api/presets": { body: presets },
   "POST /api/validate/run": { body: { ok: true, problems: [], refs: [`${REF}`] } },
@@ -98,6 +112,23 @@ describe("accessibility (axe)", () => {
 
   it("inspect", async () => {
     const { container } = await page(`/inspect/${inspectReport.ref}`, "Attention");
+    await check(container);
+  });
+
+  it("authoring", async () => {
+    const { container } = await page("/authoring/curricula/my-course/01-thing", "My layer");
+    await check(container);
+  });
+
+  it("the workspace", async () => {
+    const { container } = await page("/workspace", "Workspace");
+    await screen.findByRole("region", { name: "Files" });
+    await check(container);
+  });
+
+  it("schemas", async () => {
+    const { container } = await page("/schemas/inspect", "Schemas");
+    await screen.findByRole("table", { name: "Fields of inspect" });
     await check(container);
   });
 

@@ -1,0 +1,56 @@
+[
+ {
+  "path": "curricula/my-course/01-thing/lesson.md",
+  "size": 21,
+  "modified": 1791552301.1713781,
+  "etag": "\"18dcdf536bda8801-64e5beecd5531bb1\""
+ },
+ {
+  "path": "curricula/my-course/01-thing/lesson.toml",
+  "size": 211,
+  "modified": 1791552301.1713781,
+  "etag": "\"18dcdf536bda8801-1b025ad984f468ef\""
+ },
+ {
+  "path": "curricula/my-course/01-thing/solution.py",
+  "size": 159,
+  "modified": 1791552301.1713781,
+  "etag": "\"18dcdf536bda8801-fb46eb07ae369894\""
+ },
+ {
+  "path": "curricula/my-course/01-thing/starter.py",
+  "size": 57,
+  "modified": 1791552301.1713781,
+  "etag": "\"18dcdf536bda8801-db78f96a9542895a\""
+ },
+ {
+  "path": "curricula/other/01-thing/lesson.md",
+  "size": 21,
+  "modified": 1791552301.175607,
+  "etag": "\"18dcdf536c1b0e78-64e5beecd5531bb1\""
+ },
+ {
+  "path": "curricula/other/01-thing/lesson.toml",
+  "size": 235,
+  "modified": 1791552301.175607,
+  "etag": "\"18dcdf536c1b0e78-54aa4b61f3933f78\""
+ },
+ {
+  "path": "curricula/other/01-thing/solution.py",
+  "size": 159,
+  "modified": 1791552301.175607,
+  "etag": "\"18dcdf536c1b0e78-fb46eb07ae369894\""
+ },
+ {
+  "path": "curricula/other/01-thing/starter.py",
+  "size": 57,
+  "modified": 1791552301.175607,
+  "etag": "\"18dcdf536c1b0e78-db78f96a9542895a\""
+ },
+ {
+  "path": "models/my_lm.py",
+  "size": 456,
+  "modified": 1791552706.3523295,
+  "etag": "\"18dcdfb1c2853382-9bbfe4f757b62a36\""
+ }
+]

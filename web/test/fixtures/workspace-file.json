@@ -1,0 +1,5 @@
+{
+ "path": "models/my_lm.py",
+ "content": "from nanoscope.blocks import Attention, Block, Decoder, RMSNorm, RoPE, SwiGLU\n\n\nclass MyLM(Decoder):\n    def __init__(self, vocab_size: int, context_length: int = 256):\n        super().__init__(\n            vocab_size, context_length, d_model=128, n_layers=6,\n            block=Block(norm=RMSNorm(), mlp=SwiGLU(hidden=344),\n                        attn=Attention(n_heads=4, n_kv_heads=2, pos=RoPE(), qk_norm=True)),\n            tie_weights=True,\n        )\n",
+ "etag": "\"18dcdfb1c2853382-9bbfe4f757b62a36\""
+}
