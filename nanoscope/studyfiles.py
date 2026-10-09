@@ -13,7 +13,7 @@ from pathlib import Path
 from typing import Any
 
 from nanoscope import __version__, paths, store
-from nanoscope.compare import METRICS, Comparison, RunSet, compare, load_runs
+from nanoscope.compare import METRICS, Comparison, RunSet, SeedRun, compare
 from nanoscope.schemas.upgrade import read_json
 from nanoscope.statistics import summarize
 from nanoscope.studyspec import StudySpec
@@ -31,6 +31,21 @@ def variant_dirs(folder: Path) -> list[Path]:
         any(p.glob("seed-*/config.json")) or (p / "config.json").exists()))
 
 
+def finished_runs(variant: Path) -> list[SeedRun]:
+    """The variant's runs that are done. A running, stopped or failed run has a partial curve,
+    and its last value is not a result, so a report never counts it. A run folder without a
+    status.json (written before status files existed) is taken as finished."""
+    runs = []
+    for seed in sorted(variant.glob("seed-*")) or [variant]:
+        if not (seed / "config.json").exists():
+            continue
+        status = seed / "status.json"
+        if status.exists() and read_json(status, "status")["state"] != "done":
+            continue
+        runs.append(SeedRun.load(seed))
+    return runs
+
+
 def finals(folder: Path, variants: list[str] | None = None) -> dict[str, Any]:
     """Every finished run's final metrics: {variant: {seed: {metric: value}}}."""
     out: dict[str, Any] = {}
@@ -38,7 +53,7 @@ def finals(folder: Path, variants: list[str] | None = None) -> dict[str, Any]:
         if variants is not None and v.name not in variants:
             continue
         out[v.name] = {str(r.seed): {m: r.final(m) for m in METRICS if r.curve(m)}
-                       for r in load_runs(v)}
+                       for r in finished_runs(v)}
     return out
 
 
@@ -47,14 +62,15 @@ def results(name: str, spec: StudySpec | None) -> tuple[Comparison, list[dict[st
     """The comparison of the study's variants against its baseline, its scored predictions and
     its study.json. Raises ValueError when fewer than two variants have runs."""
     folder = study_dir(name)
-    variants = variant_dirs(folder)
+    finished = {v: finished_runs(v) for v in variant_dirs(folder)}
+    variants = [v for v, runs in finished.items() if runs]
     if len(variants) < 2:
         raise ValueError(f"study {name!r} needs finished runs of at least 2 variants "
                          f"(it has {len(variants)})")
     baseline = None
     if spec and spec.baseline:
         baseline = next((v for v in variants if v.name == spec.baseline), None)
-    by_name = {v.name: RunSet(store.ref_of(v), load_runs(v), label=v.name) for v in variants}
+    by_name = {v.name: RunSet(store.ref_of(v), finished[v], label=v.name) for v in variants}
     base = by_name.get(baseline.name) if baseline else None
     comparison = compare(*by_name.values(), baseline=base or next(iter(by_name.values())))
     predictions: list[dict[str, Any]] = []
@@ -63,7 +79,7 @@ def results(name: str, spec: StudySpec | None) -> tuple[Comparison, list[dict[st
         if match is None:
             continue
         for metric, value in expected.items():
-            actual = summarize([r.final(metric) for r in load_runs(match)])
+            actual = summarize([r.final(metric) for r in finished[match]])
             predictions.append({"variant": variant, "metric": metric, "predicted": value,
                                 "actual": actual, "error": (actual["mean"] - value) / value})
     manifest_path = folder / "study.json"

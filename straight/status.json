@@ -1,0 +1,30 @@
+{
+  "schema": 1,
+  "state": "failed",
+  "error": {
+    "type": "RuntimeError",
+    "message": "Error(s) in loading state_dict for GPT2:\n\tMissing key(s) in state_dict: \"blocks.0.norm1.weight\", \"blocks.0.norm1.bias\", \"blocks.0.attn.q.weight\", \"blocks.0.attn.q.bias\", \"blocks.0.attn.k.weight\", \"blocks.0.attn.k.bias\", \"blocks.0.attn.v.weight\", \"blocks.0.attn.v.bias\", \"blocks.0.norm2.weight\", \"blocks.0.norm2.bias\", \"norm.weight\", \"norm.bias\". \n\tUnexpected key(s) in state_dict: \"ln_f.weight\", \"ln_f.bias\", \"blocks.0.ln1.weight\", \"blocks.0.ln1.bias\", \"blocks.0.ln2.weight\", \"blocks.0.ln2.bias\", \"blocks.0.attn.qkv.weight\", \"blocks.0.attn.qkv.bias\". ",
+    "traceback": [
+      "Traceback (most recent call last):",
+      "  File \"/home/reeler/nanoscope/nanoscope/run.py\", line 447, in run",
+      "    result = train(",
+      "             ^^^^^^",
+      "  File \"/home/reeler/nanoscope/nanoscope/train_loop.py\", line 256, in train",
+      "    model.load_state_dict(state[\"model\"])",
+      "  File \"/home/reeler/nanoscope/.venv/lib/python3.11/site-packages/torch/nn/modules/module.py\", line 2643, in load_state_dict",
+      "    raise RuntimeError(",
+      "RuntimeError: Error(s) in loading state_dict for GPT2:",
+      "\tMissing key(s) in state_dict: \"blocks.0.norm1.weight\", \"blocks.0.norm1.bias\", \"blocks.0.attn.q.weight\", \"blocks.0.attn.q.bias\", \"blocks.0.attn.k.weight\", \"blocks.0.attn.k.bias\", \"blocks.0.attn.v.weight\", \"blocks.0.attn.v.bias\", \"blocks.0.norm2.weight\", \"blocks.0.norm2.bias\", \"norm.weight\", \"norm.bias\". ",
+      "\tUnexpected key(s) in state_dict: \"ln_f.weight\", \"ln_f.bias\", \"blocks.0.ln1.weight\", \"blocks.0.ln1.bias\", \"blocks.0.ln2.weight\", \"blocks.0.ln2.bias\", \"blocks.0.attn.qkv.weight\", \"blocks.0.attn.qkv.bias\". "
+    ]
+  },
+  "pid": 2026181,
+  "host": "almajd3713",
+  "device": "cuda",
+  "job_id": null,
+  "step": 0,
+  "max_steps": 20,
+  "started_at": "2026-10-09T05:56:51+00:00",
+  "updated_at": "2026-10-09T05:56:52+00:00",
+  "heartbeat_at": "2026-10-09T05:56:52+00:00"
+}
