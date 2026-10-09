@@ -89,6 +89,33 @@ def swiglu(x, w1, w3, w2):
     return (silu(x @ w1.T) * (x @ w3.T)) @ w2.T
 
 
+def naive_moe(x, gate_weight, experts, top_k, aux_coef=0.0):
+    """Mixture of experts, one token and one expert at a time. `experts` is a list of
+    (w1, w3, w2) SwiGLU weights. A token goes to its top_k experts by router probability, the
+    chosen probabilities rescaled to sum to 1. Returns (output, load_balance): load_balance is
+    aux_coef * E * sum_e share_e * meanprob_e, where share_e is the fraction of all
+    (token, slot) assignments that went to expert e."""
+    shape = x.shape
+    tokens = x.reshape(-1, shape[-1])
+    n, n_experts = tokens.size(0), len(experts)
+    out = torch.zeros_like(tokens)
+    assigned = [0] * n_experts
+    prob_sum = torch.zeros(n_experts)
+    for i in range(n):
+        logits = gate_weight @ tokens[i]
+        probs = (torch.exp(logits - logits.max())) / torch.exp(logits - logits.max()).sum()
+        prob_sum = prob_sum + probs
+        best = sorted(range(n_experts), key=lambda e: (-float(probs[e].detach()), e))[:top_k]
+        total = sum(probs[e] for e in best)
+        for e in best:
+            w1, w3, w2 = experts[e]
+            out[i] = out[i] + (probs[e] / total) * swiglu(tokens[i][None], w1, w3, w2)[0]
+            assigned[e] += 1
+    share = torch.tensor(assigned, dtype=torch.float) / (n * top_k)
+    balance = aux_coef * n_experts * (share * prob_sum / n).sum()
+    return out.reshape(shape), balance
+
+
 def count_params(model: nn.Module) -> tuple[int, int]:
     """(total, non-embedding) parameter counts; shared tensors are counted once."""
     params = {id(p): p for p in model.parameters()}

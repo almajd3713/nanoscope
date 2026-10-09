@@ -56,7 +56,8 @@ class Decoder(nn.Module):
     (a, b, a, b, ...), e.g. sliding-window and global attention layers.
     `pos_emb` (e.g. LearnedPosition()) is added after the token embedding; leave it out when
     attention carries the positions (RoPE). Like every model it returns logits, or
-    `(logits, aux_loss)` when `z_loss` is set: the z-loss keeps the softmax normaliser near 1.
+    `(logits, aux_loss)` when `z_loss` is set (it keeps the softmax normaliser near 1) or a
+    block has an auxiliary loss of its own to train with (MoE's load balancing).
     Biases start at zero and matrices at N(0, 0.02), and each layer's output projections at
     0.02 / sqrt(2 * n_layers) so the residual stream does not grow with depth.
     """
@@ -101,10 +102,18 @@ class Decoder(nn.Module):
         for layer in self.blocks:
             x = layer(x)
         logits = self.head(self.norm(x))
-        if not self.z_loss:
+        # a block can leave a training loss behind (MoE's load balancing): add them up
+        aux_terms = [t for layer in self.blocks for m in layer.modules()
+                     if (t := getattr(m, "aux_loss_value", None)) is not None]
+        if not self.z_loss and not aux_terms:
             return logits
-        z = torch.logsumexp(logits.float(), dim=-1)
-        return logits, self.z_loss * z.pow(2).mean()
+        aux: torch.Tensor = logits.new_zeros((), dtype=torch.float32)
+        for term in aux_terms:
+            aux = aux + term
+        if self.z_loss:
+            z = torch.logsumexp(logits.float(), dim=-1)
+            aux = aux + self.z_loss * z.pow(2).mean()
+        return logits, aux
 
     def flops_per_token(self, context_length: int) -> int:
         """Training FLOPs per token: the sum of every block's own formula."""

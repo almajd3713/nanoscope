@@ -895,3 +895,85 @@ def test_alibi_prefers_nearby_keys_and_has_no_parameters():
     assert bias[0, 4, 3] > bias[0, 4, 0]  # a nearer key is penalised less
     assert bias[1, 4, 0] > bias[0, 4, 0]  # head 0 has the steeper slope
     assert not list(alibi.state_dict()) and alibi.flops_per_token(16) == 0
+
+
+@pytest.mark.parametrize("experts,top_k", [(4, 1), (4, 2), (3, 3)])
+def test_moe_matches_loop_reference_and_balance_loss(experts, top_k):
+    from nanoscope.blocks.moe import MoE
+
+    torch.manual_seed(0)
+    moe = MoE(experts=experts, top_k=top_k, aux_loss=0.5).build(8, 16)
+    moe.train()
+    x = torch.randn(2, 5, 8)
+    y = moe(x)
+    weights = [(e.w1.weight, e.w3.weight, e.proj.weight) for e in moe.experts]
+    expected, balance = R.naive_moe(x, moe.gate.weight, weights, top_k, aux_coef=0.5)
+    torch.testing.assert_close(y, expected, atol=ATOL, rtol=0)
+    torch.testing.assert_close(moe.aux_loss_value, balance, atol=ATOL, rtol=0)
+    assert moe.aux_loss_value > 0
+    moe.eval()
+    moe(x)
+    assert moe.aux_loss_value is None  # nothing to train on at evaluation
+
+
+def test_moe_uses_only_top_k_experts_per_token_and_counts_active_flops():
+    from nanoscope.blocks.moe import MoE
+
+    moe = MoE(experts=4, top_k=1).build(8, 16)
+    x = torch.randn(1, 6, 8)
+    calls = []
+    for i, e in enumerate(moe.experts):
+        e.register_forward_hook(lambda m, a, o, i=i: calls.append((i, a[0].size(0))))
+    moe(x)
+    assert sum(n for _, n in calls) == 6  # each token went through exactly one expert
+    expert = sum(p.numel() for p in moe.experts[0].parameters())
+    assert moe.flops_per_token(16) == 6 * (4 * 8 + expert)
+    with pytest.raises(ValueError, match="top_k"):
+        MoE(experts=2, top_k=3).build(8, 16)
+
+
+def test_decoder_with_moe_returns_the_balance_loss_and_trains():
+    from nanoscope.blocks.attention import Attention
+    from nanoscope.blocks.mlp import SwiGLU
+    from nanoscope.blocks.moe import MoE
+    from nanoscope.blocks.norm import RMSNorm
+    from nanoscope.blocks.structure import Block, Decoder
+
+    torch.manual_seed(0)
+    model = Decoder(50, 16, 16, 2, block=Block(norm=RMSNorm(), attn=Attention(n_heads=2),
+                                               mlp=MoE(experts=4, top_k=2, aux_loss=0.01)))
+    idx = torch.randint(0, 50, (2, 8))
+    logits, aux = model(idx)
+    assert logits.shape == (2, 8, 50) and aux.ndim == 0 and aux > 0
+    (logits.sum() + aux).backward()
+    assert model.blocks[0].mlp.gate.weight.grad is not None
+    model.eval()
+    assert not isinstance(model(idx), tuple)  # no auxiliary loss at evaluation
+    plain = Decoder(50, 16, 16, 2, block=Block(norm=RMSNorm(), attn=Attention(n_heads=2),
+                                               mlp=SwiGLU()))
+    assert not isinstance(plain(idx), tuple)
+
+
+@pytest.mark.usefixtures("fake_data")
+def test_a_moe_model_trains_and_describes(monkeypatch):
+    from fakes import tiny
+    from learn_helpers import set_preset
+
+    from nanoscope import run
+    from nanoscope.blocks.attention import Attention
+    from nanoscope.blocks.moe import MoE
+    from nanoscope.blocks.norm import RMSNorm
+    from nanoscope.blocks.structure import Block, Decoder
+    from nanoscope.inspect import describe
+
+    class MoELM(Decoder):
+        def __init__(self, vocab_size: int, context_length: int):
+            super().__init__(vocab_size, context_length, 16, 2,
+                             block=Block(norm=RMSNorm(), attn=Attention(n_heads=2),
+                                         mlp=MoE(experts=4, top_k=2)))
+
+    set_preset(monkeypatch, tiny(max_steps=6))
+    result = run(MoELM, tiny(max_steps=6), device="cpu")
+    assert result.final_step == 6 and result.train_losses[-1] == result.train_losses[-1]
+    report = describe(MoELM, "test-tiny")
+    assert "MoE" in str(report)
