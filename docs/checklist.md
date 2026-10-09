@@ -4,7 +4,7 @@ The build list for [`plan-tool.md`](plan-tool.md), sections 4-10, with the decis
 2026-10-05 (plan section 11) applied. Phase numbers follow the plan's section 10. Every
 item is one line, so scripts and agents can grep and edit it.
 
-**Current focus:** P16. P16.04-P16.06 built; P16.16 mockups approved (row 8). P16.01-P16.03 done. P16.07 done. Next: P16.13, P16.14, then P16.15 (e2e); P16.08/P16.09 (LSP), P16.17 (typed blocks). (checkpoint_steps CLI flag, job payload, API field and run-form field done.) Left for the user: P14.33 (tag v0.5.0).
+**Current focus:** P16. P16.04-P16.06 built; P16.16 mockups approved (row 8). P16.01-P16.03 done. P16.07, P16.13 done. Next: P16.14, then P16.15 (e2e); P16.08/P16.09 (LSP), P16.17 (typed blocks). (checkpoint_steps CLI flag, job payload, API field and run-form field done.) Left for the user: P14.33 (tag v0.5.0).
 
 ## Progress
 
@@ -20,7 +20,7 @@ item is one line, so scripts and agents can grep and edit it.
 | P13 | GUI MVP 1: shell, Learn/Tinker screens (12-15 d) | 50 / 50 | done |
 | P14 | GUI MVP 2: model page, drag-and-drop (14-17 d) | 35 / 36 | merged; P14.33 (tag v0.5.0) is the user's |
 | P15 | GUI Research (10-13 d) | 31 / 31 | done |
-| P16 | Extend + depth (8-10 d) | 8 / 18 | in progress |
+| P16 | Extend + depth (8-10 d) | 9 / 18 | in progress |
 | P17 | Remaining curriculum paths (18-26 d) | 0 / 34 | not started |
 
 MVP = P6-P14 (about 77-96 focused days). Recount a row with
@@ -658,7 +658,7 @@ Order: P13.01 and P13.02 first (these items live in `web/` and run in its CI job
 - [ ] P16.10 Add `ALiBi` with a naive reference (relative-position bias), locked as `block:ALiBi`. · files: nanoscope/blocks/positional.py, nanoscope/reference/functional.py, tests/test_blocks.py · deps: P14.99 · done: `uv run pytest tests/test_blocks.py -k alibi` passes
 - [ ] P16.11 Add `MoE(experts, top_k, aux_loss)` with a loop-over-tokens-and-experts reference and the aux loss through `(logits, aux)`, locked as `block:MoE`. · files: nanoscope/blocks/moe.py (new), nanoscope/reference/functional.py, tests/test_blocks.py · deps: P14.99 · done: `uv run pytest tests/test_blocks.py -k moe` passes
 - [ ] P16.12 Gate the sliding window as `feature:sliding_window` and test it with a layer pattern. · files: nanoscope/learn/gating.py, tests/test_gating.py · deps: P14.99 · done: `uv run pytest tests/test_gating.py -k sliding_window` passes
-- [ ] P16.13 Curriculum authoring check: `nanoscope learn author-check <dir>` validates a lesson directory and runs its starter and solution checks as jobs; the Extend level previews it in the GUI. · files: nanoscope/learn/cli.py, web/src/pages/Authoring.tsx (new) · deps: P14.99, P16.16 · done: `uv run pytest tests/test_learn.py -k author_check` passes
+- [x] P16.13 Curriculum authoring check: `nanoscope learn author-check <dir>` validates a lesson directory and runs its starter and solution checks as jobs; the Extend level previews it in the GUI. · files: nanoscope/learn/cli.py, web/src/pages/Authoring.tsx (new) · deps: P14.99, P16.16 · done: `uv run pytest tests/test_learn.py -k author_check` passes ✓ 2026-10-09 COMMIT: `learn/authoring.py` (`author_check`, `author-check.v1`, job kind `author-check`, `learn author-check [--json] [--queue]`), torch-free `learn/authorstate.py` (last result + `fresh` from file hashes), `GET /api/authoring[/{folder}]`, `POST /api/authoring/{folder}/check`, page `/authoring/*` (src/pages/Authoring.tsx; fixtures are real output of tests' lesson folder); states: ready, does not load, solution fails, starter passes, files missing
 - [ ] P16.14 Workspace tree view and schema browser (Extend level). · files: web/src/pages/Workspace.tsx (new), web/src/pages/Schemas.tsx (new) · deps: P14.99, P16.16 · done: `pnpm -C web test -- Workspace` passes
 - [ ] P16.15 Plan done-when: the inspect page shows attention maps from the learner's own run at any archived step. · files: web/e2e/inspect.spec.ts (new) · deps: P16.07 · done: `pnpm -C web exec playwright test inspect` passes
 - [ ] P16.17 Make blocks visible to a type checker, so the language server (P16.09) helps in model files: `nanoscope.blocks` exports through `__getattr__` (gating), so basedpyright types every block as `Any`, and `BlockModule.__new__` returns `Any`, so an options-only call like `Attention(n_head=4)` is never checked. Add static imports under `TYPE_CHECKING` and typed option calls (overloads or generated stubs) without changing gating at run time. · files: nanoscope/blocks/__init__.py, nanoscope/blocks/spec.py, tests/test_blocks.py · deps: P14.99 · done: `uv run pytest tests/test_blocks.py -k typed` runs basedpyright on a model file and asserts it reports `No parameter named "n_head"` and no error for the correct call
@@ -764,7 +764,7 @@ right phase, then tick it here as `[x] → P<n>.<id>`.
 - [ ] (P16.16 drawing) Authored lessons can only name references nanoscope ships (`nanoscope.reference.functional`); a lesson folder cannot bring its own `reference.py`. Decide with P16.13.
 - [ ] (P16.16 drawing) Curricula in the workspace (`curricula/<path>/`) are not listed for learners: the loader reads only the package's `curricula/`. P16.13 previews them; publishing an authored path is a separate decision.
 - [ ] (P16.16 drawing) `GET /api/models` lists lesson classes (`MyLayerNorm`, `MyRMSNorm`) as models: any `nn.Module` subclass in the workspace counts. The workspace tree labels files by what the API says.
-- [ ] (P16.16 drawing) The authoring page's summary words ("ready", "does not load", "starter.py fails 1 of 2 checks and solution.py passes both") are not library output yet: `learn author-check` (P16.13) should print them so the page shows them verbatim.
+- [x] (P16.16 drawing) The authoring page's summary words ("ready", "does not load", "starter.py fails 1 of 2 checks and solution.py passes both") are not library output yet: `learn author-check` (P16.13) should print them so the page shows them verbatim.
 - [x] (P16.16 drawing) `checkpoint_steps` can be set only from Python: `nanoscope run` has no flag and the run form no field, so a learner cannot keep the steps the inspect page's Across steps view and P16.15 need. Add both (the field at Tinker) before P16.15.
 - [ ] After P17: a "Prehistory" curriculum path of pre-transformer language models (MLP LM, RNN, LSTM/GRU, seq2seq attention): recurrent blocks, recurrence-aware `flops_per_token`, stateful sampling. General classical ML/vision is a later, separate call. See plan 14.1.
 - 2026-10-06 (agent): P8.25 dropped. The rebuilt GPT2 has different `state_dict` keys from the old one

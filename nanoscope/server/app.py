@@ -17,6 +17,7 @@ from nanoscope.server.errors import install as install_errors
 from nanoscope.server.errors import problem
 from nanoscope.server.models import Health, ProblemDetails, Version
 from nanoscope.server.routes import (
+    authoring,
     blocks,
     compare,
     events,
@@ -38,8 +39,8 @@ from nanoscope.server.routes import settings as settings_routes
 from nanoscope.server.settings import Settings, check
 
 # every resource module adds its `router` here
-ROUTES = [presets, models, blocks, files, graph, validate, events, runs, compare, studies,
-          learn, hardware, jobs, hub, meta, settings_routes, git_routes]
+ROUTES = [authoring, presets, models, blocks, files, graph, validate, events, runs, compare,
+          studies, learn, hardware, jobs, hub, meta, settings_routes, git_routes]
 
 
 @asynccontextmanager

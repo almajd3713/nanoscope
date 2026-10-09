@@ -1,0 +1,65 @@
+{
+ "folder": "curricula/other/01-thing",
+ "id": "other/01-thing",
+ "files": {
+  "lesson.toml": true,
+  "lesson.md": true,
+  "starter.py": true,
+  "solution.py": true,
+  "notebook.py": false
+ },
+ "loads": false,
+ "problems": [
+  {
+   "where": "lesson.toml: unlocks[0]",
+   "message": "'LayerNorm' must look like block:Attention or feature:gqa",
+   "hint": null
+  },
+  {
+   "where": "lesson.toml: checks[0].kind",
+   "message": "must be one of defines, equivalent, forbid, trains, verdict, predicted, reproduces",
+   "hint": null
+  },
+  {
+   "where": "lesson.toml: compute.gpu",
+   "message": "a gpu variant needs a cpu variant too (CI and laptops run the cpu one)",
+   "hint": null
+  }
+ ],
+ "lesson": null,
+ "result": {
+  "schema": 1,
+  "nanoscope": "0.5.0",
+  "folder": "/tmp/claude-1000/-home-reeler-nanoscope/a520ab3a-5799-4326-96bd-561acd7d3651/scratchpad/ws/curricula/other/01-thing",
+  "lesson": "other/01-thing",
+  "title": null,
+  "at": "2026-10-09T13:25:01.251638+00:00",
+  "variant": "cpu",
+  "files": {
+   "lesson.toml": "54aa4b61f3933f7848269a1314d453e3b57ae882882b722bbe1fe62be19525bc",
+   "lesson.md": "64e5beecd5531bb1247bfc6008e608388dd30cad49f20ad134ab8f77729ef959",
+   "starter.py": "db78f96a9542895ad802cbbe7cc0cfc95c6b2c2e3d52cf5f7866b90ca4dd5db0",
+   "solution.py": "fb46eb07ae369894cdaceff86070ab4dd8780fc25e735ab434021971450e761c",
+   "notebook.py": null
+  },
+  "problems": [
+   {
+    "where": "lesson.toml: unlocks[0]",
+    "message": "'LayerNorm' must look like block:Attention or feature:gqa"
+   },
+   {
+    "where": "lesson.toml: checks[0].kind",
+    "message": "must be one of defines, equivalent, forbid, trains, verdict, predicted, reproduces"
+   },
+   {
+    "where": "lesson.toml: compute.gpu",
+    "message": "a gpu variant needs a cpu variant too (CI and laptops run the cpu one)"
+   }
+  ],
+  "checks": [],
+  "state": "does not load",
+  "summary": "The curriculum loader found 3 problems. Every one is listed; fix them and check again.",
+  "seconds": 0.001,
+  "fresh": true
+ }
+}

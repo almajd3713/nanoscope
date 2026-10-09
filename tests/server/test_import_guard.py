@@ -25,7 +25,8 @@ PUBLIC_MODULES = {
 FORBIDDEN = {"nanoscope.inspect", "nanoscope.modelref", "nanoscope.run", "nanoscope.train_loop",
              "nanoscope.blockstats", "nanoscope.bench", "nanoscope.jobs.execute",
              "nanoscope.jobs.runner", "nanoscope.jobs.worker", "nanoscope.blocks.certify",
-             "nanoscope.prereg"}  # prereg runs git, so repository hooks run: worker only
+             "nanoscope.prereg",  # prereg runs git, so repository hooks run: worker only
+             "nanoscope.learn.authoring"}  # imports a lesson's starter and solution
 
 
 def imported_names(path: Path):

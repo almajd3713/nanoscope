@@ -186,6 +186,36 @@
     {
       "properties": {
         "kind": {
+          "const": "author-check"
+        },
+        "payload": {
+          "type": "object",
+          "properties": {
+            "folder": {
+              "type": "string",
+              "minLength": 1
+            },
+            "variant": {
+              "enum": [
+                "cpu",
+                "gpu"
+              ]
+            },
+            "timeout": {
+              "type": "number",
+              "exclusiveMinimum": 0
+            }
+          },
+          "required": [
+            "folder"
+          ],
+          "additionalProperties": false
+        }
+      }
+    },
+    {
+      "properties": {
+        "kind": {
           "const": "describe"
         },
         "payload": {

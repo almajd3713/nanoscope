@@ -1,0 +1,45 @@
+{
+ "folder": "curricula/my-course/01-thing",
+ "id": "my-course/01-thing",
+ "files": {
+  "lesson.toml": true,
+  "lesson.md": true,
+  "starter.py": true,
+  "solution.py": true,
+  "notebook.py": false
+ },
+ "loads": true,
+ "problems": [],
+ "lesson": {
+  "title": "My layer",
+  "summary": "Build a thing.",
+  "level": 1,
+  "prerequisites": [],
+  "unlocks": [],
+  "forbid": [],
+  "experiment": {
+   "kind": "check"
+  },
+  "checks": [
+   {
+    "id": "built",
+    "kind": "defines",
+    "class": "MyThing"
+   }
+  ],
+  "compute": {
+   "cpu": {
+    "preset": "tinystories-5min",
+    "budget": null,
+    "estimate_minutes": 0.2
+   }
+  },
+  "text": {
+   "intro": "",
+   "surface": "Build it.",
+   "deep": "",
+   "reading": ""
+  }
+ },
+ "result": null
+}

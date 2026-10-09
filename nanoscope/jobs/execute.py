@@ -76,6 +76,12 @@ def _check(job: Any, payload: dict[str, Any]) -> dict[str, Any]:
                        for c in doc["checks"]]}
 
 
+def _author_check(job: Any, payload: dict[str, Any]) -> dict[str, Any]:
+    from nanoscope.learn.authoring import author_check
+
+    return author_check(payload["folder"], payload.get("variant", "cpu"))
+
+
 def _describe(job: Any, payload: dict[str, Any]) -> dict[str, Any]:
     from nanoscope.inspect import describe
 
@@ -196,7 +202,8 @@ HANDLERS: dict[str, Callable[[Any, dict[str, Any]], dict[str, Any]]] = {
     "run": _run, "prepare-data": _prepare_data, "bench": _bench, "check": _check,
     "describe": _describe, "study": _study, "sync-hub": _sync_hub, "certify": _certify,
     "sizes": _sizes, "study-spec": _study_spec, "inspect": _inspect,
-    "prereg-preview": _prereg_preview, "commit": _commit, "card-push": _card_push,
+    "author-check": _author_check, "prereg-preview": _prereg_preview, "commit": _commit,
+    "card-push": _card_push,
 }
 
 

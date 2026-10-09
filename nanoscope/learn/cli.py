@@ -25,6 +25,15 @@ def add_parsers(sub: argparse._SubParsersAction) -> None:  # type: ignore[type-a
     check.add_argument("--variant", choices=["cpu", "gpu"], default="cpu",
                        help="which compute variant to run (default cpu)")
 
+    author = commands.add_parser(
+        "author-check", help="Check a lesson folder you wrote: it loads, the starter fails, "
+        "the solution passes")
+    author.add_argument("folder", help="e.g. curricula/my-course/01-layernorm")
+    author.add_argument("--variant", choices=["cpu", "gpu"], default="cpu")
+    author.add_argument("--json", action="store_true", help="print the author-check.v1 document")
+    author.add_argument("--queue", action="store_true",
+                        help="run it as a worker job (interactive lane) instead of here")
+
     unlock = commands.add_parser("unlock", help="Open locked blocks (everything, or one)")
     unlock.add_argument("id", nargs="?", help="e.g. block:Attention or feature:gqa")
     unlock.add_argument("--all", action="store_true", help="unlock everything (policy open)")
@@ -216,6 +225,31 @@ def _predict(args: argparse.Namespace) -> int:
     return 0
 
 
+def _author_check(args: argparse.Namespace) -> int:
+    folder = Path(args.folder).resolve()
+    if not folder.is_dir():
+        print(f"{args.folder} is not a folder")
+        return 2
+    if args.queue:
+        from nanoscope import queue
+
+        job = queue.enqueue("author-check", {"folder": str(folder), "variant": args.variant},
+                            lane="interactive")
+        print(f"queued author-check job #{job} for {folder}")
+        print("  watch it: nanoscope jobs    (needs a worker: nanoscope worker)")
+        return 0
+    from nanoscope.learn.authoring import author_check, format_author_check
+
+    doc = author_check(folder, args.variant)
+    if args.json:
+        import json
+
+        print(json.dumps(doc, indent=2))
+    else:
+        print(format_author_check(doc))
+    return 0 if doc["state"] == "ready" else 1
+
+
 def run(args: argparse.Namespace) -> int:
     try:
         return _run(args)
@@ -257,6 +291,8 @@ def _run(args: argparse.Namespace) -> int:
                   "everything now: nanoscope learn unlock --all" if not args.open else
                   "  gating is off (--open); turn it on any time: nanoscope learn lock --reset")
         return 0
+    if command == "author-check":
+        return _author_check(args)
     if command == "predict":
         return _predict(args)
     if command == "unlock":
