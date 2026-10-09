@@ -1247,7 +1247,8 @@ export interface paths {
         put?: never;
         /**
          * Run Study
-         * @description Queue a study. Record mode needs the spec committed and a clean tree. A worker loads the spec, which imports its models, and puts
+         * @description Queue a study. Record mode needs the spec committed and a clean tree. A worker loads the
+         *     spec, which imports its models, and puts
          *     every unfinished run on the batch lane; watch them with `/jobs` or `/events?prefix=`.
          */
         post: operations["run_study_api_studies__name__run_post"];
