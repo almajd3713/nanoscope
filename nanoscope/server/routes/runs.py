@@ -15,7 +15,7 @@ from nanoscope.compare import baseline_range
 from nanoscope.progress import RunState
 from nanoscope.schemas.upgrade import read_json
 from nanoscope.server.errors import problem
-from nanoscope.server.jobs import job_doc
+from nanoscope.server.jobs import job_doc, submit
 from nanoscope.server.models import ConfigDoc, JobDoc, StatusDoc
 from nanoscope.server.routes.models import resolve_ref
 from nanoscope.server.routes.validate import model_spec, planned_ref
@@ -281,6 +281,24 @@ async def generate_text(ref: str, body: GenerateRequest, request: Request) -> An
             queue.cancel(job_id)
             return problem(504, "the job is taking too long; it was cancelled", request)
         await asyncio.sleep(0.1)
+
+
+class InspectRequest(BaseModel):
+    prompt: str = "Once upon a time"  # nanoscope.inspect.DEFAULT_PROMPT (that module imports torch)
+    step: int | None = Field(default=None, ge=0)  # a kept or archived step; None: the latest
+    top_k: int = Field(default=5, ge=1, le=50)
+
+
+@router.post("/runs/{ref:path}/inspect", status_code=202)
+def inspect_run(ref: str, body: InspectRequest | None = None) -> JobDoc:
+    """Attention maps and a logit lens (`inspect.v1`) for a prompt at one checkpoint. Loading
+    the model runs the learner's code, so it is a job; its result is the report."""
+    body = body or InspectRequest()
+    run_dir = store.resolve(ref)
+    steps = store.saved_steps(run_dir)
+    if body.step is not None and body.step not in steps:
+        raise store.no_checkpoint(ref, body.step, steps)
+    return submit("inspect", {"ref": store.ref_of(run_dir), **body.model_dump()})
 
 
 @router.get("/runs/{ref:path}/metrics")

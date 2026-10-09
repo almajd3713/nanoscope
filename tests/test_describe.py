@@ -175,3 +175,96 @@ def test_describe_json_validates_for_every_shipped_model():
 
     for cls, kw in [(Bigram, {}), (GPT2, SMALL), (Modern, SMALL)]:
         assert_valid("describe", describe(cls, tiny(), **kw))
+
+
+@pytest.fixture
+def trained(fake_data):
+    """A 2-layer Modern trained 20 steps, with steps 3 and 10 archived."""
+    from nanoscope import run
+    from nanoscope.store import ref_of
+
+    preset = tiny(checkpoint_interval=5, keep_checkpoints=1)
+    result = run(Modern, preset, device="cpu", checkpoint_steps=[3, 10], progress=False,
+                 n_layers=2, d_model=32, n_heads=4)
+    return ref_of(result.run_dir)
+
+
+def test_inspect_checkpoint_maps_and_lens_at_any_archived_step(trained):
+    import torch
+    from helpers import assert_valid
+
+    from nanoscope.inspect import inspect_checkpoint
+    from nanoscope.store import load_run
+    from nanoscope.train_loop import _split_output
+
+    report = inspect_checkpoint(trained, "Once upon a time", step=3)
+    assert_valid("inspect", report)
+    assert (report["step"], report["steps"], report["model"]) == (3, [3, 10, 20], "Modern")
+    n = len(report["tokens"])
+    assert [a["module"] for a in report["attention"]] == ["blocks.0.attn", "blocks.1.attn"]
+    for entry in report["attention"]:
+        assert entry["heads"] == 4 and len(entry["weights"]) == 4
+        for head in entry["weights"]:
+            assert [len(row) for row in head] == list(range(1, n + 1))  # causal rows
+            assert all(abs(sum(row) - 1) < 1e-3 for row in head)
+    names = [layer["name"] for layer in report["lens"]["layers"]]
+    assert names == ["embeddings", "blocks.0", "blocks.1"]
+    positions = report["lens"]["layers"][-1]["positions"]
+    assert positions[-1]["next"] is None
+    assert positions[0]["next"]["id"] == report["tokens"][1]["id"]
+    assert len(positions[0]["top"]) == 5
+
+    # The last lens layer is the model's own output at that checkpoint, which differs by step.
+    loaded = load_run(trained, step=3)
+    with torch.no_grad():
+        logits, _ = _split_output(loaded.model(torch.tensor([[t["id"] for t in report["tokens"]]])))
+    assert [p["top"][0]["id"] for p in positions] == logits[0].argmax(-1).tolist()
+    latest = inspect_checkpoint(trained, "Once upon a time")
+    assert latest["step"] == 20 and latest["attention"] != report["attention"]
+
+    with pytest.raises(FileNotFoundError, match=r"no checkpoint at step 7; it has 3, 10, 20"):
+        inspect_checkpoint(trained, step=7)
+    with pytest.raises(ValueError, match=r"the prompt is \d+ tokens; inspect takes at most 32"):
+        inspect_checkpoint(trained, "once upon a time " * 20)
+
+
+def test_inspect_checkpoint_of_a_model_without_attention(fake_data):
+    from helpers import assert_valid
+
+    from nanoscope import run
+    from nanoscope.inspect import inspect_checkpoint
+    from nanoscope.store import ref_of
+
+    ref = ref_of(run(Bigram, tiny(), device="cpu", progress=False).run_dir)
+    report = inspect_checkpoint(ref, "Once")
+    assert_valid("inspect", report)
+    assert report["attention"] == [] and [x["name"] for x in report["lens"]["layers"]] == ["output"]
+    assert report["notes"] == ["Bigram has no Attention blocks, so there are no maps",
+                               "Bigram has no blocks/norm/head, so the lens shows only the "
+                               "model's output"]
+
+
+def test_inspect_cli_prints_the_lens_and_where_heads_look(trained, capsys):
+    import json
+
+    from helpers import assert_valid
+
+    from nanoscope.cli import main
+
+    main(["inspect", trained, "--step", "10", "--prompt", "Once upon a time"])
+    lines = capsys.readouterr().out.splitlines()
+    assert lines[0].startswith(f"{trained} at step 10 (checkpoints: 3, 10, 20); prompt of ")
+    assert lines[2] == "logit lens: the top next-token guess after each layer (p)"
+    assert lines[3].split()[:2] == ["pos", "token"] and "blocks.1" in lines[3]
+    assert lines[3].endswith("actual next (p, rank)")
+    assert any(line.startswith("attention from the last token ") for line in lines)
+    head_line = next(line for line in lines if line.startswith("blocks.1.attn  h0 "))
+    assert head_line.count(" h") == 4
+
+    main(["inspect", trained, "--json", "--top-k", "2"])
+    report = json.loads(capsys.readouterr().out)
+    assert_valid("inspect", report)
+    assert report["step"] == 20 and len(report["lens"]["layers"][0]["positions"][0]["top"]) == 2
+
+    with pytest.raises(SystemExit, match="no checkpoint at step 4"):
+        main(["inspect", trained, "--step", "4"])

@@ -191,6 +191,15 @@ def build_parser() -> argparse.ArgumentParser:
         "--set", nargs="*", default=[], dest="overrides", metavar="key=value",
         help="model keywords or preset fields, e.g. n_layers=6 context_length=512")
 
+    inspect_parser = sub.add_parser(
+        "inspect", help="Attention maps and a logit lens for a prompt at a run's checkpoint")
+    inspect_parser.add_argument("ref", help="a run ref (one seed)")
+    inspect_parser.add_argument("--step", type=int, default=None,
+                                help="a kept or archived checkpoint step (default: the latest)")
+    inspect_parser.add_argument("--prompt", default=None, help='default: "Once upon a time"')
+    inspect_parser.add_argument("--top-k", type=int, default=5)
+    inspect_parser.add_argument("--json", action="store_true", help="print inspect.v1 JSON")
+
     stop_parser = sub.add_parser(
         "stop", help="Ask running runs to stop: they save a checkpoint and can be resumed")
     stop_parser.add_argument("target", help="a run ref, a study name, or a folder")
@@ -462,6 +471,19 @@ def _main(argv: list[str] | None = None) -> None:
         except ShapeError as exc:
             raise SystemExit(f"shape error in {exc}") from exc
         print(json_.dumps(report, indent=2) if args.json else format_describe(report))
+        return
+
+    if args.command == "inspect":
+        import json as json_
+
+        from nanoscope.inspect import DEFAULT_PROMPT, format_inspect, inspect_checkpoint
+        try:
+            report = inspect_checkpoint(
+                args.ref, DEFAULT_PROMPT if args.prompt is None else args.prompt,
+                step=args.step, top_k=args.top_k)
+        except (FileNotFoundError, ValueError) as exc:
+            raise SystemExit(str(exc)) from exc
+        print(json_.dumps(report, indent=2) if args.json else format_inspect(report))
         return
 
     if args.command == "stop":

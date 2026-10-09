@@ -983,6 +983,36 @@
         "title": "HubSync",
         "type": "object"
       },
+      "InspectRequest": {
+        "properties": {
+          "prompt": {
+            "default": "Once upon a time",
+            "title": "Prompt",
+            "type": "string"
+          },
+          "step": {
+            "anyOf": [
+              {
+                "minimum": 0.0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Step"
+          },
+          "top_k": {
+            "default": 5,
+            "maximum": 50.0,
+            "minimum": 1.0,
+            "title": "Top K",
+            "type": "integer"
+          }
+        },
+        "title": "InspectRequest",
+        "type": "object"
+      },
       "JobDoc": {
         "description": "A queue job: what to do, where it stands, and what came of it.",
         "properties": {
@@ -5140,6 +5170,76 @@
           }
         },
         "summary": "Generate Text",
+        "tags": [
+          "runs"
+        ]
+      }
+    },
+    "/api/runs/{ref}/inspect": {
+      "post": {
+        "description": "Attention maps and a logit lens (`inspect.v1`) for a prompt at one checkpoint. Loading\nthe model runs the learner's code, so it is a job; its result is the report.",
+        "operationId": "inspect_run_api_runs__ref__inspect_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "ref",
+            "required": true,
+            "schema": {
+              "title": "Ref",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "anyOf": [
+                  {
+                    "$ref": "#/components/schemas/InspectRequest"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "title": "Body"
+              }
+            }
+          }
+        },
+        "responses": {
+          "202": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/JobDoc"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "The request cannot be done as asked"
+          },
+          "4XX": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "An error (RFC 9457)"
+          }
+        },
+        "summary": "Inspect Run",
         "tags": [
           "runs"
         ]
