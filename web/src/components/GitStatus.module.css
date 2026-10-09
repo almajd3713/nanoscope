@@ -1,0 +1,42 @@
+.line {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2) var(--space-3);
+  padding: var(--space-2) var(--space-3);
+  border: 1px solid var(--line-strong);
+  border-radius: var(--radius-2);
+}
+
+.warn {
+  background: var(--warn-soft);
+  border-color: var(--warn);
+}
+
+.good {
+  background: var(--good-soft);
+  border-color: var(--good);
+}
+
+.state {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  font-weight: 500;
+}
+
+.warn .state {
+  color: var(--warn);
+}
+
+.good .state {
+  color: var(--good);
+}
+
+.muted {
+  color: var(--ink-muted);
+}
+
+.spacer {
+  flex: 1;
+}

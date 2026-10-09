@@ -1,0 +1,116 @@
+.scrim {
+  position: fixed;
+  inset: 0;
+  background: var(--scrim);
+}
+
+.dialog {
+  position: fixed;
+  top: 72px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: calc(100% - 2 * var(--space-4));
+  max-width: 760px;
+  max-height: calc(100vh - 96px);
+  overflow: auto;
+  display: grid;
+  gap: var(--space-4);
+  padding: var(--space-5);
+  background: var(--surface-raised);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-3);
+  box-shadow: var(--shadow-pop);
+  color: var(--ink);
+}
+
+.dialog:focus-visible {
+  outline: none;
+}
+
+.dialog h2,
+.dialog p {
+  margin: 0;
+}
+
+.block {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+}
+
+.legend {
+  display: flex;
+  align-items: baseline;
+  gap: var(--space-2);
+}
+
+.muted {
+  color: var(--ink-muted);
+}
+
+.diff {
+  max-height: 400px;
+  overflow: auto;
+  padding: var(--space-1) 0;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-1);
+  background: var(--surface-raised);
+}
+
+.line {
+  display: flex;
+  white-space: pre;
+}
+
+.sign {
+  display: inline-block;
+  flex: none;
+  width: 20px;
+  text-align: center;
+}
+
+.add {
+  background: var(--diff-add-soft);
+}
+
+.add .sign {
+  color: var(--diff-add);
+}
+
+.del {
+  background: var(--diff-del-soft);
+}
+
+.del .sign {
+  color: var(--diff-del);
+}
+
+.head {
+  color: var(--ink-muted);
+}
+
+.message {
+  margin: 0;
+  padding: var(--space-2) var(--space-3);
+  white-space: pre-wrap;
+  background: var(--surface-sunken);
+  border-radius: var(--radius-1);
+}
+
+.foot {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.spacer {
+  flex: 1;
+}
+
+.done {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2) var(--space-3);
+}

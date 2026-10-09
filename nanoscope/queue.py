@@ -150,6 +150,14 @@ def get(job_id: int, *, path: Path | None = None) -> sqlite3.Row:
     return row
 
 
+def _fits_device(row: sqlite3.Row, device: str) -> bool:
+    """A bench job may name the device it measures; only that device's worker takes it."""
+    if row["kind"] != "bench":
+        return True
+    wanted = json.loads(row["payload"]).get("device")
+    return wanted is None or wanted == device
+
+
 def claim(
     worker_id: str, device: str, lanes: tuple[str, ...] = LANES,
     *, lease_seconds: float = LEASE_SECONDS, path: Path | None = None,
@@ -163,10 +171,10 @@ def claim(
         conn.execute("BEGIN IMMEDIATE")
         try:
             while True:
-                row = conn.execute(
+                row = next((r for r in conn.execute(
                     f"SELECT * FROM jobs WHERE state = 'queued' AND lane IN ({marks}) "
-                    "ORDER BY CASE lane WHEN 'interactive' THEN 0 ELSE 1 END, id LIMIT 1",
-                    lanes).fetchone()
+                    "ORDER BY CASE lane WHEN 'interactive' THEN 0 ELSE 1 END, id",
+                    lanes) if _fits_device(r, device)), None)
                 if row is None:
                     conn.execute("COMMIT")
                     return None

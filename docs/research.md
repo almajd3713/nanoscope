@@ -93,6 +93,82 @@ file is the thing that gets preregistered, so it must be committed first. In Pyt
   expected outcomes with `study.predict("variant", ...)`. Record-mode results refuse
   `resume=False`, so they can't be silently rerun.
 
+## The study builder (GUI)
+
+With the stack running (`docker compose up`, or `nanoscope serve`), **Studies** lists every spec in
+`studies/` and every study that has run. **New study** opens the builder; **Open in builder** on a
+study opens a saved one. The builder is a form over the same TOML spec as above:
+
+- **Plan**: name, preset, budget (tokens), seeds (a count `3` or a list `0, 4, 7`), baseline,
+  `match = params` with its tolerance, and the mode.
+- **Variants**: one row per variant (model, keywords such as `ffn_hidden = 384, rope = false`, and an
+  optional predicted `val_bpb`). Parameter counts and FLOPs per token come from a *sizes job*: a worker
+  builds each model on the meta device and returns the table, so the API never imports your code. A
+  variant outside the tolerance is red, with its distance from the reference variant.
+- **Compute**: the devices and runs per device that the estimate assumes (from your `nanoscope bench
+  --save` results; a model with no measurement is left out and says so).
+- **What Save writes** is the exact file `Save as TOML` puts in `studies/<name>.toml`; a study written
+  in Python opens through a worker (`Start from a Python study`) and saves as the same spec
+  `nanoscope spec` prints. Keys the form has no field for (`overrides`, `match_knob`, a FLOPs budget)
+  are kept as they were.
+
+**Train N runs** queues the study (a worker loads the spec and queues the runs on the batch lane); the
+**study page** then shows the variants x seeds grid filling in live, the comparison and forest plot from
+*finished* runs only, the predictions scored, `report.md` and the evidence **bundle** (a zip with
+`report.md`, `results.json`, the spec, `study.json`, `plan.json` and every seed's finals).
+
+## Preregistration
+
+`mode = "record"` makes the study a claim. The read-only git line on the builder says whether it can
+run: the spec must be committed and the tree clean, and the page lists the files if it is not
+(`POST /api/studies/<name>/run` answers 422 with them). nanoscope never stages, stashes or discards.
+
+**Commit preregistration** makes the commit for you, as a worker job so your repository's hooks run
+there: it first shows the exact diff and the message, you confirm, and the commit is refused if the
+file or the repository changed in between (the preview carries a hash). From the command line it is
+`nanoscope study preregister studies/<name>.toml`.
+
+The evidence is weaker than a commit you make yourself. A reader cannot tell how carefully the diff was
+read, so a commit made by nanoscope is recorded as `committed_via: nanoscope` (with
+`preregistration_commit`) in `study.json`, in every run's `config.json` and in the report; a commit made
+with `git commit` carries no such line. A record study's **seeds are fixed when it starts**: adding seeds
+after seeing results is seed peeking, and a changed seed list is refused (as are changed predictions).
+
+## Noise and many comparisons
+
+`compare()` and the study page print the preset's **noise floor**: the seed-to-seed standard deviation of
+the shipped baselines (`statistics.noise_floor`), so a difference much smaller than it is not worth
+reading, next to what your number of seeds can resolve (the precision plan). Comparing more than three
+variants with one baseline adds a note: each 95% interval is separate, so the chance that at least one
+excludes zero by luck alone is `1 - 0.95^n`.
+
+## Ablation cards
+
+A finished record-mode study exports an **ablation card** (`card.v1`): the spec, every seed's final
+metrics, the evaluation text and the provenance (the preregistration commit, when it started). No run
+folders, checkpoints, samples or paths from this machine. Cards from different people compare directly
+(unpaired, with an interval) because the evaluation text is fixed per preset.
+
+```bash
+nanoscope card export studies/m1_ablation.toml          # writes card.json, uploads nothing
+nanoscope card push experiments/m1-ablation/card.json --repo you/nanoscope-ablation-cards  # prints the file, asks first
+nanoscope card compare a.json b.json
+```
+
+In the GUI, **Export ablation card...** on a finished record study shows the whole file and offers it as
+a download. Pushing to a public Hugging Face dataset is a separate checkbox, off every time, and the
+dialog names the dataset, the one file (`cards/<study>.json`), its commit message and that it runs as a
+`card-push` job on a worker that has `HF_TOKEN`. The pushed file is the text shown, byte for byte. Anyone
+can read a public dataset, and a pushed card may be copied or indexed even if you delete it later.
+
+## Hardware, workers and bench
+
+The **Hardware** page lists the devices (with the GPU's name and free memory), the workers (their slots,
+jobs and the credentials they have, by name only), every job with Cancel, and the bench history. **Run
+bench** queues a bench job on the device you pick (it waits for that device's worker) and saves the
+result like `nanoscope bench --save`; study estimates use these numbers. A bench on a device that is
+training measures a shared device, and the page says so.
+
 ## Comparing
 
 `compare` uses a paired t-interval when the seeds match and Welch's otherwise. It refuses to

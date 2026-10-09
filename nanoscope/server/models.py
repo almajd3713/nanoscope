@@ -57,6 +57,7 @@ class ComparisonDoc(Doc):
     notes: list[str]
     curves: list[dict[str, Any]] | None = None
     precision_plan: dict[str, Any] | None = None
+    noise_floor: dict[str, Any] | None = None
 
 
 class DescribeDoc(Doc):

@@ -170,6 +170,9 @@ def test_to_dict_curves(fake_data):
     plan = doc["precision_plan"]
     assert (plan["metric"], plan["preset"], plan["n_seeds"]) == ("val_bpb", "test-tiny", 3)
     assert plan["half_width"] is None and "no shipped baselines" in plan["note"]
+    floor = doc["noise_floor"]  # no shipped baselines for test-tiny, so no number and the reason
+    assert (floor["metric"], floor["preset"], floor["sd"]) == ("val_bpb", "test-tiny", None)
+    assert "no shipped baselines" in floor["note"]
 
 
 def test_params_kind_says_which_count_the_column_holds(tmp_path):
@@ -216,3 +219,11 @@ def test_rows_carry_the_text_the_table_prints(capsys):
         assert row["text"]["value"] in printed and row["text"]["delta"] in printed
     assert "With 3 seeds per model, a difference on this preset is known to about ±0.0" in (
         doc["precision_plan"]["text"])
+
+
+def test_many_variants_against_one_baseline_get_a_multiple_comparison_note():
+    runs = [run(Modern, tiny(max_steps=2), device="cpu", n_kv_heads=1, rope=r, qk_norm=q, **SMALL)
+            for r in (True, False) for q in (True, False)]
+    base = run(GPT2, tiny(max_steps=2), device="cpu", **SMALL)
+    assert not any("by luck" in n for n in compare(*runs[:3], base).notes)
+    assert any("4 variants" in n and "by luck" in n for n in compare(*runs, base).notes)

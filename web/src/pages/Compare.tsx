@@ -31,6 +31,7 @@ type Doc = {
   notes: string[];
   curves: { label: string; seeds: { seed: number; points: [number, number][] }[] }[];
   precision_plan: { text?: string; note?: string };
+  noise_floor?: { text?: string; note?: string } | null;
 };
 
 const UNIT: Record<string, string> = { val_bpb: "bpb", val_loss: "nats per token" };
@@ -158,6 +159,9 @@ export function Compare() {
               {n}
             </Note>
           ))}
+          {(doc.noise_floor?.text ?? doc.noise_floor?.note) && (
+            <span className={`small ${styles.muted}`}>{doc.noise_floor?.text ?? doc.noise_floor?.note}</span>
+          )}
           <span className={`small ${styles.muted}`}>{doc.precision_plan.text ?? doc.precision_plan.note}</span>
         </div>
         <div className={`${styles.panel} ${styles.plotCol}`}>

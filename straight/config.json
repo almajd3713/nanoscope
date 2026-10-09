@@ -1,6 +1,6 @@
 {
   "schema": 1,
-  "nanoscope": "0.2.0",
+  "nanoscope": "0.5.0",
   "model": {
     "class": "GPT2",
     "kwargs": {
@@ -9,7 +9,10 @@
       "n_layers": 1,
       "n_heads": 2,
       "vocab_size": 300
-    }
+    },
+    "ref": "nanoscope.models.gpt2:GPT2",
+    "rebuildable": true,
+    "source_sha256": "9277851579ab5be8338702ef060bef1c6472acbd4d04c592e56c787b1c3f3070"
   },
   "preset": {
     "name": "test-tiny",

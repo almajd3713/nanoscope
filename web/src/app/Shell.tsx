@@ -3,7 +3,8 @@ import { LevelSwitch } from "../components/LevelSwitch";
 import { Mark } from "../components/Mark";
 import { QueuePanel } from "../components/QueuePanel";
 import { ThemeToggle } from "../components/ThemeToggle";
-import { setLevel, useLevel } from "./level";
+import { setLevel, useLevel, type Level } from "./level";
+import { useUnlockOffer } from "./unlockOffer";
 import styles from "./Shell.module.css";
 
 export const NAV = [
@@ -18,6 +19,11 @@ export const NAV = [
 
 export function Shell() {
   const level = useLevel();
+  const offer = useUnlockOffer();
+  const choose = (next: Level) => {
+    setLevel(next);
+    void offer.onSwitch(next);
+  };
   return (
     <div className={styles.shell}>
       <header className={styles.bar}>
@@ -33,7 +39,7 @@ export function Shell() {
           ))}
         </nav>
         <div className={`${styles.right} body`}>
-          <LevelSwitch value={level} onChange={setLevel} />
+          <LevelSwitch value={level} onChange={choose} />
           <NavLink to="/settings" className={styles.link}>
             Settings
           </NavLink>
@@ -44,6 +50,7 @@ export function Shell() {
         <Outlet />
       </main>
       <QueuePanel />
+      {offer.dialog}
     </div>
   );
 }

@@ -1,0 +1,81 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://nanoscope.dev/schemas/card.v1.json",
+  "title": "card.v1",
+  "description": "An ablation card: a finished record-mode study's spec, every seed's final metrics and its provenance, small enough to share and compare.",
+  "type": "object",
+  "properties": {
+    "schema": {
+      "const": 1
+    },
+    "nanoscope": {
+      "type": "string"
+    },
+    "study": {
+      "type": "string"
+    },
+    "mode": {
+      "const": "record"
+    },
+    "spec": {
+      "type": "object"
+    },
+    "eval": {
+      "type": "object",
+      "properties": {
+        "preset": {
+          "type": "string"
+        },
+        "dataset": {
+          "type": "string"
+        },
+        "eval_docs": {
+          "type": "integer"
+        },
+        "tokenizer": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "preset",
+        "dataset",
+        "eval_docs",
+        "tokenizer"
+      ]
+    },
+    "baseline": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "finals": {
+      "type": "object",
+      "additionalProperties": {
+        "type": "object",
+        "additionalProperties": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "number"
+          }
+        }
+      }
+    },
+    "provenance": {
+      "type": "object"
+    },
+    "exported_at": {
+      "type": "string"
+    }
+  },
+  "required": [
+    "schema",
+    "nanoscope",
+    "study",
+    "mode",
+    "spec",
+    "eval",
+    "finals",
+    "provenance"
+  ]
+}

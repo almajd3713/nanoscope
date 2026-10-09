@@ -42,3 +42,20 @@ def test_bench_command_saves_with_the_flag(monkeypatch, capsys):
     (row,) = (json.loads(line) for line in
               (paths.hardware_dir() / "bench.jsonl").read_text().splitlines())
     assert_valid("bench", row)
+
+
+def test_a_bench_job_saves_its_result_to_the_history(monkeypatch):
+    from learn_helpers import set_preset
+
+    from nanoscope import queue
+
+    set_preset(monkeypatch, tiny())
+    job_id = queue.enqueue("bench", {"model": "bigram", "preset": "test-tiny", "steps": 5,
+                                     "device": "cpu"}, lane="interactive")
+    queue.claim("w", "cpu")
+    with pytest.raises(SystemExit) as stopped:
+        main(["run-job", str(job_id)])
+    assert stopped.value.code == 0
+    rows = [json.loads(line) for line in
+            (paths.hardware_dir() / "bench.jsonl").read_text().splitlines()]
+    assert len(rows) == 1 and rows[0]["model"] == "Bigram" and rows[0]["device"] == "cpu"

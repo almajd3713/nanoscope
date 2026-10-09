@@ -24,6 +24,12 @@ class Validation(BaseModel):
     refs: list[str] = []
 
 
+class StudyValidationResult(Validation):
+    # how long the study would take on `devices` (nanoscope.estimate.estimate_study)
+    estimate: dict[str, Any] | None = None
+    toml: str | None = None  # the file Save would write (valid specs only)
+
+
 class RunValidation(BaseModel):
     model: str
     preset: str = "tinystories-5min"
@@ -34,6 +40,8 @@ class RunValidation(BaseModel):
 class StudyValidation(BaseModel):
     toml: str | None = None
     spec: dict[str, Any] | None = None
+    devices: list[str] = []  # where it would run, for the estimate (default: cpu)
+    workers_per_device: int = 1  # runs sharing a device, for the estimate
 
 
 def model_spec(ref: str) -> tuple[ModelSpec, list[Problem]]:
@@ -92,7 +100,7 @@ def validate_run(body: RunValidation) -> Validation:
     return _result(problems, [planned_ref(spec, body.preset, body.kwargs, n) for n in chosen])
 
 
-@router.post("/study")
+@router.post("/study", response_model=StudyValidationResult)
 def validate_study(body: StudyValidation) -> Validation:
     """Every problem with a study spec: its preset, seeds, baseline and each variant's model
     and keywords (named by their place in the spec, e.g. `variants[1].kwargs.n_kv_heads`)."""
@@ -154,4 +162,11 @@ def validate_study(body: StudyValidation) -> Validation:
                 "invalid_spec", "match_knob",
                 f"{variant.name} has no parameter {spec.match_knob!r} to match on",
                 f"its parameters: {', '.join(sorted(known)) or 'none'}"))
-    return _result(problems)
+    if problems:
+        return _result(problems)
+    from nanoscope.estimate import estimate_study, spec_runs
+
+    return StudyValidationResult(
+        ok=True, problems=[], estimate=estimate_study(spec_runs(spec), body.devices or None,
+                                body.workers_per_device),
+        toml=spec.to_toml())

@@ -60,7 +60,7 @@ def _bench(job: Any, payload: dict[str, Any]) -> dict[str, Any]:
     from nanoscope.bench import bench
 
     result = bench(model_class(payload["model"]), payload.get("preset", "tinystories-5min"),
-                   steps=payload.get("steps", 60), device=job["device"])
+                   steps=payload.get("steps", 60), device=job["device"], save=True)
     return {"report": str(result), **result.to_dict()}
 
 
@@ -88,6 +88,41 @@ def _certify(job: Any, payload: dict[str, Any]) -> dict[str, Any]:
     return certify(payload["file"], payload["block"])
 
 
+def _load_workspace_spec(spec: Any) -> Any:
+    """A StudySpec from a path or a dict; a relative file ref is relative to the workspace."""
+    from pathlib import Path
+
+    from nanoscope import paths
+    from nanoscope.studyspec import StudySpec
+
+    spec = StudySpec.load(spec) if isinstance(spec, str) else StudySpec.from_dict(spec)
+    for variant in spec.variants:
+        file, sep, name = variant.model.rpartition(":")
+        if sep and file.endswith(".py") and not Path(file).is_absolute():
+            candidate = paths.workspace_dir() / file
+            if candidate.exists():
+                variant.model = f"{candidate.resolve()}:{name}"
+    return spec
+
+
+def _sizes(job: Any, payload: dict[str, Any]) -> dict[str, Any]:
+    """Parameters and FLOPs per variant of a (maybe unsaved) study spec, with `match_knob`
+    resolved. It builds the models on the meta device, so it is a worker's job."""
+    from nanoscope.study import Study
+
+    spec = _load_workspace_spec(payload["spec"])
+    return Study.from_spec(spec).size_table(spec.match_to)
+
+
+def _study_spec(job: Any, payload: dict[str, Any]) -> dict[str, Any]:
+    """A study written in Python as a spec (`nanoscope spec`): this imports the file, so it is a
+    worker's job."""
+    from nanoscope.study import load_study
+
+    spec = load_study(payload["file"], payload.get("name")).to_spec()
+    return {"spec": spec.to_dict(), "toml": spec.to_toml()}
+
+
 def _study(job: Any, payload: dict[str, Any]) -> dict[str, Any]:
     """Load a study spec (this imports its models: it runs in a worker, not the API) and put
     every unfinished run on the batch lane."""
@@ -109,6 +144,33 @@ def _study(job: Any, payload: dict[str, Any]) -> dict[str, Any]:
     return {"study": spec.name, "runs": len(study.jobs()), "jobs": ids}
 
 
+def _load_spec_study(payload: dict[str, Any]) -> Any:
+    from nanoscope.study import load_study
+
+    return load_study(payload["spec"])
+
+
+def _prereg_preview(job: Any, payload: dict[str, Any]) -> dict[str, Any]:
+    """What a preregistration commit of this study's spec would hold (changes nothing)."""
+    from nanoscope.prereg import preview
+
+    return preview(_load_spec_study(payload)).to_dict()
+
+
+def _commit(job: Any, payload: dict[str, Any]) -> dict[str, Any]:
+    """Make the preregistration commit the user previewed; refused if the preview changed."""
+    from nanoscope.prereg import commit
+
+    return {"commit": commit(_load_spec_study(payload), payload["preview_hash"])}
+
+
+def _card_push(job: Any, payload: dict[str, Any]) -> dict[str, Any]:
+    """Upload an exported ablation card to a Hub dataset. Only ever queued on request."""
+    from nanoscope import cards
+
+    return cards.push(cards.read_card(payload["card"]), payload["repo"])
+
+
 def _sync_hub(job: Any, payload: dict[str, Any]) -> dict[str, Any]:
     """Pull a run that was trained elsewhere (Kaggle, Colab) from its private Hub repo, so
     it can be listed, compared and resumed here."""
@@ -124,6 +186,8 @@ def _sync_hub(job: Any, payload: dict[str, Any]) -> dict[str, Any]:
 HANDLERS: dict[str, Callable[[Any, dict[str, Any]], dict[str, Any]]] = {
     "run": _run, "prepare-data": _prepare_data, "bench": _bench, "check": _check,
     "describe": _describe, "study": _study, "sync-hub": _sync_hub, "certify": _certify,
+    "sizes": _sizes, "study-spec": _study_spec,
+    "prereg-preview": _prereg_preview, "commit": _commit, "card-push": _card_push,
 }
 
 
@@ -131,6 +195,8 @@ def offline_refusal(kind: str, payload: dict[str, Any]) -> str | None:
     """Why a job cannot run under NANOSCOPE_JOBS_OFFLINE=1, or None if it can."""
     if kind == "sync-hub":
         return "it pulls a run from the Hugging Face Hub"
+    if kind == "card-push":
+        return f"it uploads a card to the Hub dataset {payload['repo']}"
     if kind == "run" and payload.get("push_to_hub"):
         return f"it pushes to the Hub repo {payload['push_to_hub']}"
     if kind == "run" and payload.get("wandb"):
