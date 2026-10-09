@@ -9,6 +9,7 @@ import { EquivalentCommand } from "../components/EquivalentCommand";
 import { Field } from "../components/Field";
 import { Note } from "../components/Note";
 import { GitStatus, recordReady, useGitStatus } from "../components/GitStatus";
+import { PreregDialog } from "../components/PreregDialog";
 import { ProblemFromError, ProblemView } from "../components/ProblemView";
 import { countText } from "../format";
 import { Play, Plus, Trash } from "../icons";
@@ -124,6 +125,7 @@ function Builder({
       navigate(`/studies/${draft.name}`);
     },
   });
+  const [preregOpen, setPreregOpen] = useState(false);
   const trainBlocked = !savedSame || verdict?.ok !== true || needsCommit || train.isPending;
   const trainLabel = `Train ${total} runs`;
 
@@ -165,6 +167,9 @@ function Builder({
             >
               Save as TOML
             </Button>
+            {record && savedSame && !recordReady(git.data) && git.data?.repo && (
+              <Button onClick={() => setPreregOpen(true)}>Commit preregistration…</Button>
+            )}
             <Button variant="primary" onClick={() => train.mutate()} disabled={trainBlocked}>
               <Play size={16} aria-hidden="true" />
               {trainLabel}
@@ -410,6 +415,8 @@ function Builder({
           )}
         </div>
       </main>
+
+      {existing !== undefined && <PreregDialog name={existing} open={preregOpen} onOpenChange={setPreregOpen} />}
 
       <aside className={styles.aside}>
         <section className={styles.panel} aria-label="Compute">

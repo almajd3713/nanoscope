@@ -162,4 +162,11 @@ describe("StudyBuilder", () => {
     await waitFor(() => expect(button.disabled).toBe(false));
     expect(screen.getByText(/Every run records the preregistration commit/)).toBeTruthy();
   });
+
+  it("offers the preregistration commit for a record study whose spec is not committed", async () => {
+    open("/studies/toy/edit", { ...spec(record), "POST /api/validate/study": { body: ok }, "GET /api/git/status": { body: git({ clean: false, changed: ["studies/toy.toml"], path_committed: false }) } });
+    await screen.findByDisplayValue("wide");
+    const button = await screen.findByRole("button", { name: "Commit preregistration…" });
+    expect(button).toBeTruthy();
+  });
 });
