@@ -977,3 +977,50 @@ def test_a_moe_model_trains_and_describes(monkeypatch):
     assert result.final_step == 6 and result.train_losses[-1] == result.train_losses[-1]
     report = describe(MoELM, "test-tiny")
     assert "MoE" in str(report)
+
+
+TYPED_MODEL = '''\
+from nanoscope.blocks import Attention, Block, Decoder, RMSNorm, RoPE, SwiGLU
+
+
+class MyLM(Decoder):
+    def __init__(self, vocab_size: int):
+        super().__init__(
+            vocab_size, 8, d_model=16, n_layers=2,
+            block=Block(norm=RMSNorm(), mlp=SwiGLU(hidden=32),
+                        attn=Attention({options}, pos=RoPE())),
+        )
+'''
+
+
+def _pyright(tmp_path, source):
+    import json
+    import subprocess
+    import sys
+
+    file = tmp_path / "model.py"
+    file.write_text(source)
+    done = subprocess.run(
+        [sys.executable, "-m", "pyright", "--outputjson", "--pythonpath", sys.executable,
+         str(file)], capture_output=True, text=True, cwd=tmp_path, timeout=300)
+    report = json.loads(done.stdout)
+    return [d["message"] for d in report["generalDiagnostics"] if d["severity"] == "error"]
+
+
+def test_the_blocks_stub_is_current():
+    from nanoscope.blocks import stubs
+
+    assert stubs.main(["--check"]) == 0, "run `python -m nanoscope.blocks.stubs`"
+    text = stubs.stub_path().read_text()
+    assert "class Attention(_Attention):" in text and "def __new__(cls, *, n_heads: int" in text
+
+
+def test_typed_blocks_a_type_checker_reports_a_misspelled_option(tmp_path):
+    pytest.importorskip("pyright")
+    errors = _pyright(tmp_path, TYPED_MODEL.format(options="n_head=4"))
+    assert any('No parameter named "n_head"' in e for e in errors), errors
+    assert _pyright(tmp_path, TYPED_MODEL.format(options="n_heads=4")) == []
+    # nothing changes at run time: the same call still builds a spec
+    from nanoscope.blocks.attention import Attention
+
+    assert Attention(n_heads=4).options == {"n_heads": 4}
