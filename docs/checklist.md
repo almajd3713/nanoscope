@@ -4,7 +4,7 @@ The build list for [`plan-tool.md`](plan-tool.md), sections 4-10, with the decis
 2026-10-05 (plan section 11) applied. Phase numbers follow the plan's section 10. Every
 item is one line, so scripts and agents can grep and edit it.
 
-**Current focus:** P16. P16.04-P16.06 built; P16.16 mockups approved (row 8). P16.01-P16.03 done. P16.07, P16.13, P16.14 done. Next: P16.15 (e2e); P16.08/P16.09 (LSP), P16.17 (typed blocks). (checkpoint_steps CLI flag, job payload, API field and run-form field done.) Left for the user: P14.33 (tag v0.5.0).
+**Current focus:** P16. P16.04-P16.06 built; P16.16 mockups approved (row 8). P16.01-P16.03 done. P16.07, P16.13, P16.14, P16.15 done. Next: P16.10-P16.12 (blocks), P16.17, P16.08-P16.09 (LSP); P16.08/P16.09 (LSP), P16.17 (typed blocks). (checkpoint_steps CLI flag, job payload, API field and run-form field done.) Left for the user: P14.33 (tag v0.5.0).
 
 ## Progress
 
@@ -20,7 +20,7 @@ item is one line, so scripts and agents can grep and edit it.
 | P13 | GUI MVP 1: shell, Learn/Tinker screens (12-15 d) | 50 / 50 | done |
 | P14 | GUI MVP 2: model page, drag-and-drop (14-17 d) | 35 / 36 | merged; P14.33 (tag v0.5.0) is the user's |
 | P15 | GUI Research (10-13 d) | 31 / 31 | done |
-| P16 | Extend + depth (8-10 d) | 10 / 18 | in progress |
+| P16 | Extend + depth (8-10 d) | 11 / 18 | in progress |
 | P17 | Remaining curriculum paths (18-26 d) | 0 / 34 | not started |
 
 MVP = P6-P14 (about 77-96 focused days). Recount a row with
@@ -660,7 +660,7 @@ Order: P13.01 and P13.02 first (these items live in `web/` and run in its CI job
 - [ ] P16.12 Gate the sliding window as `feature:sliding_window` and test it with a layer pattern. · files: nanoscope/learn/gating.py, tests/test_gating.py · deps: P14.99 · done: `uv run pytest tests/test_gating.py -k sliding_window` passes
 - [x] P16.13 Curriculum authoring check: `nanoscope learn author-check <dir>` validates a lesson directory and runs its starter and solution checks as jobs; the Extend level previews it in the GUI. · files: nanoscope/learn/cli.py, web/src/pages/Authoring.tsx (new) · deps: P14.99, P16.16 · done: `uv run pytest tests/test_learn.py -k author_check` passes ✓ 2026-10-09 840e6d1: `learn/authoring.py` (`author_check`, `author-check.v1`, job kind `author-check`, `learn author-check [--json] [--queue]`), torch-free `learn/authorstate.py` (last result + `fresh` from file hashes), `GET /api/authoring[/{folder}]`, `POST /api/authoring/{folder}/check`, page `/authoring/*` (src/pages/Authoring.tsx; fixtures are real output of tests' lesson folder); states: ready, does not load, solution fails, starter passes, files missing
 - [x] P16.14 Workspace tree view and schema browser (Extend level). · files: web/src/pages/Workspace.tsx (new), web/src/pages/Schemas.tsx (new) · deps: P14.99, P16.16 · done: `pnpm -C web test -- Workspace` passes ✓ 2026-10-09 fd1c581: `/workspace` (pages/Workspace.tsx, pure rows in workspace/tree.ts; classifies from /api/files, models, blocks, studies, authoring and git; curricula/ files are not shown as models) and `/schemas[/name]` (pages/Schemas.tsx, schemas/rows.ts: JSON Schema -> field rows incl. $defs/oneOf); Workspace nav item at Extend only, Schemas link in Settings › This server; fixtures are real API output
-- [ ] P16.15 Plan done-when: the inspect page shows attention maps from the learner's own run at any archived step. · files: web/e2e/inspect.spec.ts (new) · deps: P16.07 · done: `pnpm -C web exec playwright test inspect` passes
+- [x] P16.15 Plan done-when: the inspect page shows attention maps from the learner's own run at any archived step. · files: web/e2e/inspect.spec.ts (new) · deps: P16.07 · done: `pnpm -C web exec playwright test inspect` passes ✓ 2026-10-09 COMMIT: trains a 2-layer Modern with archived steps 4 and 8 through POST /api/runs, opens Inspect from the run page, reads the latest and an archived step, then Across steps (ran locally against `nanoscope serve`, 1.3 min; CI runs it in the e2e job)
 - [ ] P16.17 Make blocks visible to a type checker, so the language server (P16.09) helps in model files: `nanoscope.blocks` exports through `__getattr__` (gating), so basedpyright types every block as `Any`, and `BlockModule.__new__` returns `Any`, so an options-only call like `Attention(n_head=4)` is never checked. Add static imports under `TYPE_CHECKING` and typed option calls (overloads or generated stubs) without changing gating at run time. · files: nanoscope/blocks/__init__.py, nanoscope/blocks/spec.py, tests/test_blocks.py · deps: P14.99 · done: `uv run pytest tests/test_blocks.py -k typed` runs basedpyright on a model file and asserts it reports `No parameter named "n_head"` and no error for the correct call
 - [ ] P16.99 PHASE GATE P16. Exit criteria: plan section 10 phase 16. · files: — · deps: P16.* · done: `make check` passes; `uv run pytest tests/test_run.py -k optimizer_resume` passes; the e2e job is green; `uv run pytest tests/test_first_model_notebook.py` passes; **USER ACTION** merge the PR
 
