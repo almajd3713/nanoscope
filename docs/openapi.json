@@ -5987,7 +5987,7 @@
     },
     "/api/studies/{name}/run": {
       "post": {
-        "description": "Queue a study (explore mode). A worker loads the spec, which imports its models, and puts\nevery unfinished run on the batch lane; watch them with `/jobs` or `/events?prefix=`.",
+        "description": "Queue a study. Record mode needs the spec committed and a clean tree. A worker loads the spec, which imports its models, and puts\nevery unfinished run on the batch lane; watch them with `/jobs` or `/events?prefix=`.",
         "operationId": "run_study_api_studies__name__run_post",
         "parameters": [
           {

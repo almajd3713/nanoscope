@@ -8,9 +8,10 @@ import { Button } from "../components/Button";
 import { EquivalentCommand } from "../components/EquivalentCommand";
 import { Field } from "../components/Field";
 import { Note } from "../components/Note";
+import { GitStatus, recordReady, useGitStatus } from "../components/GitStatus";
 import { ProblemFromError, ProblemView } from "../components/ProblemView";
 import { countText } from "../format";
-import { Plus, Trash } from "../icons";
+import { Play, Plus, Trash } from "../icons";
 import { freshName, fromSpec, toSpec, type StudyDraft, type VariantDraft } from "../studyDraft";
 import { useSizes, useStudyFromFile, useStudyValidation, type Problem, type SizeRow } from "../studies/useStudyChecks";
 import styles from "./StudyBuilder.module.css";
@@ -111,6 +112,21 @@ function Builder({
   const wholeProblems = problems.filter((p) => !p.field || !p.field.startsWith("variants["));
   const total = draft.variants.length * (Array.isArray(spec["seeds"]) ? (spec["seeds"] as unknown[]).length : 0);
 
+  const file = `studies/${draft.name || "name"}.toml`;
+  const git = useGitStatus(existing !== undefined ? file : null);
+  const record = draft.mode === "record";
+  const needsCommit = record && !recordReady(git.data);
+  const savedSame = existing !== undefined && !dirty;
+  const train = useMutation({
+    mutationFn: () => unwrap(api.POST("/api/studies/{name}/run", { params: { path: { name: draft.name } } })),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: ["jobs"] });
+      navigate(`/studies/${draft.name}`);
+    },
+  });
+  const trainBlocked = !savedSame || verdict?.ok !== true || needsCommit || train.isPending;
+  const trainLabel = `Train ${total} runs`;
+
   const save = useMutation({
     mutationFn: () => unwrap(api.POST("/api/studies", { body: { spec, overwrite: existing !== undefined, devices: [], workers_per_device: 1 } })),
     onSuccess: (entry) => {
@@ -127,7 +143,6 @@ function Builder({
   const toggleDevice = (device: string, on: boolean) =>
     setPicked((p) => (on ? [...p, device] : p.filter((d) => d !== device)));
 
-  const file = `studies/${draft.name || "name"}.toml`;
   const commandDevices = picked.join(",") || "cpu";
 
   return (
@@ -150,6 +165,10 @@ function Builder({
             >
               Save as TOML
             </Button>
+            <Button variant="primary" onClick={() => train.mutate()} disabled={trainBlocked}>
+              <Play size={16} aria-hidden="true" />
+              {trainLabel}
+            </Button>
           </div>
         </header>
 
@@ -168,7 +187,9 @@ function Builder({
             <Button type="submit" size="sm" disabled={!openPath.trim()}>Open</Button>
           </form>
         )}
+        {existing !== undefined && <GitStatus git={git.data} path={file} />}
         {save.error && <ProblemFromError error={save.error} />}
+        {train.error && <ProblemFromError error={train.error} />}
         {wholeProblems.map((p) => (
           <ProblemView key={`${p.field}${p.message}`} title="Cannot be done as asked" detail={[p.message, p.hint].filter(Boolean).join("\n")} />
         ))}
@@ -370,6 +391,24 @@ function Builder({
             </Note>
           )}
         </section>
+        <div className={styles.field}>
+          <span className="small">
+            {!savedSame
+              ? "Save the study to train it"
+              : verdict?.ok !== true
+                ? `Fix ${problems.length || 1} ${problems.length === 1 ? "problem" : "problems"} to train`
+                : needsCommit
+                  ? "Commit the preregistration to train in record mode"
+                  : record
+                    ? `Record mode · ${total} runs on ${commandDevices}, ${per} at a time${verdict?.estimate ? ` · ${verdict.estimate.text}` : ""}`
+                    : `Explore mode · ${verdict?.estimate?.text ?? ""}`}
+          </span>
+          {record && (
+            <span className={`small ${styles.muted}`}>
+              Every run records the preregistration commit. Changing the spec or the seeds after the first run is refused.
+            </span>
+          )}
+        </div>
       </main>
 
       <aside className={styles.aside}>

@@ -129,4 +129,37 @@ describe("StudyBuilder", () => {
     const plan = screen.getByRole("region", { name: "Plan" });
     expect((within(plan).getByLabelText("Name") as HTMLInputElement).disabled).toBe(false);
   });
+
+  const git = (over: object = {}) => ({
+    repo: true, root: "/ws", branch: "main", head: "a99fe9aa0e70b58a5d011120093e0935157b4f35", clean: true, changed: [],
+    identity: true, path: "studies/toy.toml", path_committed: true, ...over,
+  });
+  const record = { ...SPEC, mode: "record" };
+  const spec = (mode: object) => ({ "GET /api/studies/toy/spec": { body: { name: "toy", path: "studies/toy.toml", spec: mode, toml: TOML } } });
+
+  it("trains an explore study from the saved file", async () => {
+    const seen = open("/studies/toy/edit", { "GET /api/git/status": { body: git({ clean: false, changed: ["x"] }) }, "POST /api/studies/toy/run": { status: 202, body: { study: "toy", job: job("queued") } } });
+    await screen.findByDisplayValue("wide");
+    const button = await screen.findByRole("button", { name: "Train 4 runs" }) as HTMLButtonElement;
+    await waitFor(() => expect(button.disabled).toBe(false));
+    await userEvent.click(button);
+    await waitFor(() => expect(seen.some((s) => s.method === "POST" && s.path === "/api/studies/toy/run")).toBe(true));
+  });
+
+  it("will not train in record mode until the spec is committed in a clean tree, and says which files", async () => {
+    open("/studies/toy/edit", { ...spec(record), "POST /api/validate/study": { body: ok }, "GET /api/git/status": { body: git({ clean: false, changed: ["studies/toy.toml", "notes/ideas.md"], path_committed: false }) } });
+    await screen.findByDisplayValue("wide");
+    expect(await screen.findByText("2 uncommitted changes")).toBeTruthy();
+    expect((screen.getByRole("button", { name: "Train 4 runs" }) as HTMLButtonElement).disabled).toBe(true);
+    expect(screen.getByText("Commit the preregistration to train in record mode")).toBeTruthy();
+  });
+
+  it("enables record mode for a committed spec in a clean tree", async () => {
+    open("/studies/toy/edit", { ...spec(record), "POST /api/validate/study": { body: ok }, "GET /api/git/status": { body: git() } });
+    await screen.findByDisplayValue("wide");
+    await screen.findByText("clean");
+    const button = screen.getByRole("button", { name: "Train 4 runs" }) as HTMLButtonElement;
+    await waitFor(() => expect(button.disabled).toBe(false));
+    expect(screen.getByText(/Every run records the preregistration commit/)).toBeTruthy();
+  });
 });

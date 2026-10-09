@@ -120,12 +120,33 @@ def test_studies_run_report_stop(client, tmp_path):
     assert client.get("/api/studies/nope/report").status_code == 404
 
 
-def test_record_mode_studies_are_not_run_here(client):
+def test_record_mode_runs_only_from_a_committed_spec_in_a_clean_tree(client, tmp_path):
+    ws = tmp_path / "ws"
     record = SPEC.replace("seeds = [0, 1]", 'seeds = [0, 1]\nmode = "record"')
     client.post("/api/studies", json={"toml": record})
-    refused = client.post("/api/studies/toy/run")
-    assert refused.status_code == 422
-    assert "preregistered with a commit" in refused.json()["detail"]
+    outside = client.post("/api/studies/toy/run")
+    assert outside.status_code == 422 and "git repository" in outside.json()["detail"]
+
+    git(ws, "init", "-q", "-b", "main")
+    git(ws, "config", "user.email", "t@example.com")
+    git(ws, "config", "user.name", "t")
+    uncommitted = client.post("/api/studies/toy/run")
+    assert uncommitted.status_code == 422 and "commit studies/toy.toml first" in uncommitted.json()["detail"]
+
+    git(ws, "add", "."), git(ws, "commit", "-qm", "spec")
+    (ws / "notes.txt").write_text("x")
+    dirty = client.post("/api/studies/toy/run")
+    assert dirty.status_code == 422 and "clean git tree" in dirty.json()["detail"]
+    assert dirty.json()["changed"] == ["notes.txt"]  # the files, for the page to list
+
+    (ws / "notes.txt").unlink()
+    queued = client.post("/api/studies/toy/run")
+    assert queued.status_code == 202, queued.text
+    work_off(queued.json()["job"]["id"])
+    result = json.loads(queue.get(queued.json()["job"]["id"])["result"])
+    assert result["study"] == "toy" and result["runs"] == 4
+    manifest = json.loads((tmp_path / "home" / "runs" / "studies" / "toy" / "study.json").read_text())
+    assert manifest["study_file"] == "studies/toy.toml" and len(manifest["commit"]) == 40
 
 
 def run_cli_study(tmp_path):

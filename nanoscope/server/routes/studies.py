@@ -14,6 +14,7 @@ from nanoscope.server import workspace
 from nanoscope.server.errors import problem
 from nanoscope.server.jobs import job_doc
 from nanoscope.server.models import JobDoc
+from nanoscope.server.routes.git import git_status
 from nanoscope.server.routes.models import find_model, resolve_ref
 from nanoscope.server.routes.validate import StudyValidation, validate_study
 from nanoscope.studyspec import StudySpec
@@ -170,16 +171,24 @@ class StudyRun(BaseModel):
 
 @router.post("/studies/{name}/run", status_code=202, response_model=StudyRun)
 def run_study(name: str, request: Request) -> Any:
-    """Queue a study (explore mode). A worker loads the spec, which imports its models, and puts
+    """Queue a study. Record mode needs the spec committed and a clean tree. A worker loads the spec, which imports its models, and puts
     every unfinished run on the batch lane; watch them with `/jobs` or `/events?prefix=`."""
     path = workspace.root() / spec_path(name)
     if not path.exists():
         raise FileNotFoundError(f"no study spec {spec_path(name)} in the workspace")
     spec = StudySpec.load(path)
     if spec.mode == "record":
-        return problem(422, "record-mode studies are preregistered with a commit and run from "
-                       "the command line (`nanoscope study`); this endpoint runs explore "
-                       "studies", request)
+        # The worker checks again when it queues the runs; this refuses early, with the files.
+        git = git_status(spec_path(name))
+        if not git.repo:
+            return problem(422, "record mode needs the workspace inside a git repository", request)
+        if not git.path_committed:
+            return problem(422, f"commit {spec_path(name)} first: record mode runs from a "
+                           "committed spec (Commit preregistration)", request)
+        if not git.clean:
+            return problem(422, "record mode needs a clean git tree, so every result maps to one "
+                           "commit. Uncommitted changes:\n" + "\n".join(git.changed[:10]),
+                           request, changed=git.changed)
     verdict = validate_study(StudyValidation(spec=spec.to_dict()))
     if not verdict.ok:
         return problem(422, verdict.problems[0].message, request,
