@@ -5,6 +5,7 @@ import { Lessons } from "../pages/Lessons";
 import { Components } from "../pages/Components";
 import { Compare } from "../pages/Compare";
 import { Settings } from "../pages/Settings";
+import { Hardware } from "../pages/Hardware";
 import { Studies } from "../pages/Studies";
 import { Study } from "../pages/Study";
 import { StudyBuilder } from "../pages/StudyBuilder";
@@ -18,11 +19,6 @@ import { Shell } from "./Shell";
 
 // The model page carries the graph layout engine and the code editor: loaded when it is opened.
 const Model = lazy(() => import("../pages/Model").then((m) => ({ default: m.Model })));
-
-// Each screen replaces its title here as its checklist item lands.
-function Pending({ title }: { title: string }) {
-  return <h1 className="title">{title}</h1>;
-}
 
 export function AppRoutes() {
   return (
@@ -44,7 +40,7 @@ export function AppRoutes() {
         <Route path="/studies/:name" element={<Study />} />
         <Route path="/studies/new" element={<StudyBuilder />} />
         <Route path="/studies/:name/edit" element={<StudyBuilder />} />
-        <Route path="/hardware" element={<Pending title="Hardware" />} />
+        <Route path="/hardware" element={<Hardware />} />
         <Route path="/components" element={<Components />} />
         <Route path="/settings" element={<Settings />} />
       </Route>

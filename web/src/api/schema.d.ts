@@ -15,7 +15,8 @@ export interface paths {
         put?: never;
         /**
          * Bench
-         * @description Measure training speed on a worker's device (a job: it trains for real).
+         * @description Measure training speed on a worker's device (a job: it trains for real). The result is
+         *     saved to the bench history, as `nanoscope bench --save` does.
          */
         post: operations["bench_api_bench_post"];
         delete?: never;
@@ -1426,6 +1427,8 @@ export interface components {
         };
         /** BenchRequest */
         BenchRequest: {
+            /** Device */
+            device?: string | null;
             /** Model */
             model: string;
             /**
@@ -1620,6 +1623,8 @@ export interface components {
         Device: {
             /** Kind */
             kind: string;
+            /** Label */
+            label?: string | null;
             /** Memory Free */
             memory_free?: number | null;
             /** Memory Total */
