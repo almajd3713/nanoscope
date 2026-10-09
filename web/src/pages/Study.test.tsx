@@ -122,4 +122,11 @@ describe("Study page", () => {
     await screen.findByRole("button", { name: "Stop study" });
     expect(screen.queryByRole("button", { name: "Export ablation card…" })).toBeNull();
   });
+
+  it("shows the plan's grid for a study that is queued and has no run folder yet", async () => {
+    open([], { "GET /api/studies/toy/report": { status: 404, problem: true, body: { title: "Not found", detail: "no study 'toy' has run" } } });
+    expect(await screen.findByText("Variants × seeds")).toBeTruthy();
+    expect(screen.getAllByText("queued").length).toBeGreaterThanOrEqual(6);
+    expect(screen.queryByText(/no study 'toy' has run/)).toBeNull();
+  });
 });

@@ -65,15 +65,17 @@ export function Study() {
   const runs = useQuery({
     queryKey: ["runs", `studies/${name}`],
     queryFn: () => unwrap(api.GET("/api/runs", { params: { query: { prefix: `studies/${name}` } } })) as unknown as Promise<RunLine[]>,
+    // runs get a folder when they start: list again so new cells appear (the stream patches known ones)
+    refetchInterval: 3000,
   });
   const report = useQuery({
     queryKey: ["study-report", name],
-    // 422 until two variants each have a finished run: that is "not yet", not an error
+    // 404 until a run has started, 422 until two variants each have a finished run: "not yet", not an error
     queryFn: async () => {
       try {
         return (await unwrap(api.GET("/api/studies/{name}/report", { params: { path: { name } } }))) as unknown as Report;
       } catch (e) {
-        if (e instanceof ApiProblem && e.status === 422) return null;
+        if (e instanceof ApiProblem && (e.status === 422 || e.status === 404)) return null;
         throw e;
       }
     },
