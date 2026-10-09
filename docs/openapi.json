@@ -2026,6 +2026,35 @@
         "title": "SettingsDoc",
         "type": "object"
       },
+      "SpecDoc": {
+        "properties": {
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "path": {
+            "title": "Path",
+            "type": "string"
+          },
+          "spec": {
+            "additionalProperties": true,
+            "title": "Spec",
+            "type": "object"
+          },
+          "toml": {
+            "title": "Toml",
+            "type": "string"
+          }
+        },
+        "required": [
+          "name",
+          "path",
+          "spec",
+          "toml"
+        ],
+        "title": "SpecDoc",
+        "type": "object"
+      },
       "StartRequest": {
         "properties": {
           "gating": {
@@ -2281,6 +2310,11 @@
               }
             ],
             "title": "Toml"
+          },
+          "workers_per_device": {
+            "default": 1,
+            "title": "Workers Per Device",
+            "type": "integer"
           }
         },
         "title": "StudyUpload",
@@ -2318,6 +2352,11 @@
               }
             ],
             "title": "Toml"
+          },
+          "workers_per_device": {
+            "default": 1,
+            "title": "Workers Per Device",
+            "type": "integer"
           }
         },
         "title": "StudyValidation",
@@ -2355,6 +2394,17 @@
             },
             "title": "Refs",
             "type": "array"
+          },
+          "toml": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Toml"
           }
         },
         "required": [
@@ -5907,6 +5957,59 @@
           }
         },
         "summary": "Run Study",
+        "tags": [
+          "studies"
+        ]
+      }
+    },
+    "/api/studies/{name}/spec": {
+      "get": {
+        "description": "A saved study spec, as data and as the file text.",
+        "operationId": "study_spec_api_studies__name__spec_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "name",
+            "required": true,
+            "schema": {
+              "title": "Name",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SpecDoc"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "The request cannot be done as asked"
+          },
+          "4XX": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "An error (RFC 9457)"
+          }
+        },
+        "summary": "Study Spec",
         "tags": [
           "studies"
         ]

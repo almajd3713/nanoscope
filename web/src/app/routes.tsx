@@ -5,6 +5,7 @@ import { Lessons } from "../pages/Lessons";
 import { Components } from "../pages/Components";
 import { Compare } from "../pages/Compare";
 import { Settings } from "../pages/Settings";
+import { StudyBuilder } from "../pages/StudyBuilder";
 import { Runs } from "../pages/Runs";
 import { RunForm } from "../pages/RunForm";
 import { Run } from "../pages/Run";
@@ -38,6 +39,8 @@ export function AppRoutes() {
         <Route path="/runs/*" element={<Run />} />
         <Route path="/compare" element={<Compare />} />
         <Route path="/studies" element={<Pending title="Studies" />} />
+        <Route path="/studies/new" element={<StudyBuilder />} />
+        <Route path="/studies/:name/edit" element={<StudyBuilder />} />
         <Route path="/hardware" element={<Pending title="Hardware" />} />
         <Route path="/components" element={<Components />} />
         <Route path="/settings" element={<Settings />} />

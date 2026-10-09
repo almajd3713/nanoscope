@@ -84,6 +84,20 @@ def list_studies() -> list[StudyEntry]:
     return [entry(n) for n in names()]
 
 
+class SpecDoc(BaseModel):
+    name: str
+    path: str  # the workspace file
+    spec: dict[str, Any]
+    toml: str
+
+
+@router.get("/studies/{name}/spec", response_model=SpecDoc)
+def study_spec(name: str) -> Any:
+    """A saved study spec, as data and as the file text."""
+    spec = _spec_or_404(name)
+    return SpecDoc(name=name, path=spec_path(name), spec=spec.to_dict(), toml=spec.to_toml())
+
+
 class StudyUpload(StudyValidation):
     overwrite: bool = False
 

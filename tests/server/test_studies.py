@@ -270,3 +270,14 @@ def test_sizes_job_resolves_the_match_and_flags_outliers(client):
 def test_sizes_refuses_an_invalid_spec(client):
     bad = client.post("/api/studies/sizes", json={"toml": SPEC.replace('baseline = "small"', 'baseline = "nope"')})
     assert bad.status_code == 422
+
+
+def test_validate_returns_the_toml_and_saved_specs_read_back(client):
+    verdict = client.post("/api/validate/study", json={"toml": SPEC, "workers_per_device": 2})
+    assert verdict.status_code == 200 and verdict.json()["ok"]
+    assert 'name = "toy"' in verdict.json()["toml"]
+    client.post("/api/studies", json={"toml": SPEC})
+    doc = client.get("/api/studies/toy/spec").json()
+    assert doc["path"] == "studies/toy.toml" and doc["spec"]["seeds"] == [0, 1]
+    assert doc["toml"].startswith("schema = 1")
+    assert client.get("/api/studies/nope/spec").status_code == 404

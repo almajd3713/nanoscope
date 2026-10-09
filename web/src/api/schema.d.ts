@@ -1022,6 +1022,28 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/studies/sizes": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Study Sizes
+         * @description Queue a sizes job for a spec that need not be saved: each variant's non-embedding
+         *     parameters and FLOPs per token with `match_knob` resolved, and its distance from the
+         *     reference variant. The job's result is the table (a worker builds the models).
+         */
+        post: operations["study_sizes_api_studies_sizes_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/studies/{name}/bundle.zip": {
         parameters: {
             query?: never;
@@ -1165,6 +1187,26 @@ export interface paths {
          *     every unfinished run on the batch lane; watch them with `/jobs` or `/events?prefix=`.
          */
         post: operations["run_study_api_studies__name__run_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/studies/{name}/spec": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Study Spec
+         * @description A saved study spec, as data and as the file text.
+         */
+        get: operations["study_spec_api_studies__name__spec_get"];
+        put?: never;
+        post?: never;
         delete?: never;
         options?: never;
         head?: never;
@@ -2124,6 +2166,19 @@ export interface components {
             /** Workspace */
             workspace: string;
         };
+        /** SpecDoc */
+        SpecDoc: {
+            /** Name */
+            name: string;
+            /** Path */
+            path: string;
+            /** Spec */
+            spec: {
+                [key: string]: unknown;
+            };
+            /** Toml */
+            toml: string;
+        };
         /** StartRequest */
         StartRequest: {
             /** Gating */
@@ -2225,6 +2280,11 @@ export interface components {
             } | null;
             /** Toml */
             toml?: string | null;
+            /**
+             * Workers Per Device
+             * @default 1
+             */
+            workers_per_device: number;
         };
         /** StudyValidation */
         StudyValidation: {
@@ -2239,6 +2299,11 @@ export interface components {
             } | null;
             /** Toml */
             toml?: string | null;
+            /**
+             * Workers Per Device
+             * @default 1
+             */
+            workers_per_device: number;
         };
         /** StudyValidationResult */
         StudyValidationResult: {
@@ -2255,6 +2320,8 @@ export interface components {
              * @default []
              */
             refs: string[];
+            /** Toml */
+            toml?: string | null;
         };
         /** UnlockRequest */
         UnlockRequest: {
@@ -4469,6 +4536,48 @@ export interface operations {
             };
         };
     };
+    study_sizes_api_studies_sizes_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["StudyValidation"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            202: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+            /** @description The request cannot be done as asked */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description An error (RFC 9457) */
+            "4XX": {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
     study_bundle_api_studies__name__bundle_zip_get: {
         parameters: {
             query?: never;
@@ -4735,6 +4844,46 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["StudyRun"];
+                };
+            };
+            /** @description The request cannot be done as asked */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description An error (RFC 9457) */
+            "4XX": {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    study_spec_api_studies__name__spec_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                name: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SpecDoc"];
                 };
             };
             /** @description The request cannot be done as asked */

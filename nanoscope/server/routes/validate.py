@@ -27,6 +27,7 @@ class Validation(BaseModel):
 class StudyValidationResult(Validation):
     # how long the study would take on `devices` (nanoscope.estimate.estimate_study)
     estimate: dict[str, Any] | None = None
+    toml: str | None = None  # the file Save would write (valid specs only)
 
 
 class RunValidation(BaseModel):
@@ -40,6 +41,7 @@ class StudyValidation(BaseModel):
     toml: str | None = None
     spec: dict[str, Any] | None = None
     devices: list[str] = []  # where it would run, for the estimate (default: cpu)
+    workers_per_device: int = 1  # runs sharing a device, for the estimate
 
 
 def model_spec(ref: str) -> tuple[ModelSpec, list[Problem]]:
@@ -165,4 +167,6 @@ def validate_study(body: StudyValidation) -> Validation:
     from nanoscope.estimate import estimate_study, spec_runs
 
     return StudyValidationResult(
-        ok=True, problems=[], estimate=estimate_study(spec_runs(spec), body.devices or None))
+        ok=True, problems=[], estimate=estimate_study(spec_runs(spec), body.devices or None,
+                                body.workers_per_device),
+        toml=spec.to_toml())
