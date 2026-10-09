@@ -19,7 +19,7 @@ item is one line, so scripts and agents can grep and edit it.
 | P12 | docker-compose (3-4 d) | 20 / 20 | done |
 | P13 | GUI MVP 1: shell, Learn/Tinker screens (12-15 d) | 50 / 50 | done |
 | P14 | GUI MVP 2: model page, drag-and-drop (14-17 d) | 35 / 36 | merged; P14.33 (tag v0.5.0) is the user's |
-| P15 | GUI Research (10-13 d) | 16 / 31 | library + API + Hub dataset done; mockups approved; GUI items next |
+| P15 | GUI Research (10-13 d) | 17 / 31 | library + API + Hub dataset done; mockups approved; GUI items next |
 | P16 | Extend + depth (8-10 d) | 0 / 17 | not started |
 | P17 | Remaining curriculum paths (18-26 d) | 0 / 34 | not started |
 
@@ -623,7 +623,7 @@ Order: P13.01 and P13.02 first (these items live in `web/` and run in its CI job
 
 ### P15 · GUI
 - [x] P15.30 **USER ACTION** Mockups for the P15 screens, on the mockups canvas (https://claude.ai/artifact/VDJ45sFJB44bqg82gZcrGR): the study builder (variant table, budget, seeds, live size matching outside the tolerance, the read-only git status line, record disabled on a dirty tree), the preregistration commit dialog (diff, message, confirm, resulting hash), the study page (variant × seed grid filling in live, forest plot as seeds complete, report, bundle download), ablation card export with the opt-in push showing exactly what uploads, the Hardware page (workers, devices, slots, jobs, bench history), the noise floor on the compare and study pages, and the one-time "Unlock all" offer on switching to Research or Extend. Same rules as P13.37; values come from real P15.01-P15.13 output, so draw them once those exist. · files: — · deps: P14.99 · done: the user approves; the approval is recorded in the Decisions log ✓ 2026-10-09 (user approved, no open complaints): https://claude.ai/artifact/VDJ45sFJB44bqg82gZcrGR (row 7)
-- [ ] P15.16 Study builder: a variant table (model and kwargs per variant), budget, seeds and match, with live matching from a sizes job (red outside the tolerance), and Save as TOML. · files: web/src/pages/StudyBuilder.tsx (new) · deps: P15.15, P15.30 · done: `pnpm -C web test -- StudyBuilder` passes
+- [x] P15.16 Study builder: a variant table (model and kwargs per variant), budget, seeds and match, with live matching from a sizes job (red outside the tolerance), and Save as TOML. · files: web/src/pages/StudyBuilder.tsx (new) · deps: P15.15, P15.30 · done: `pnpm -C web test -- StudyBuilder` passes ✓ 2026-10-09 83fa769 (builder at /studies/new and /studies/<name>/edit; sizes job + validate toml; no auto-fix button for out-of-tolerance variants yet)
 - [ ] P15.17 Open an existing study (TOML, or `.py` through `nanoscope spec`) in the builder and save it back unchanged. · files: web/src/pages/StudyBuilder.tsx · deps: P15.16 · done: `pnpm -C web test -- StudyBuilder.roundtrip` passes
 - [ ] P15.18 Run (explore) from the builder; the record button is enabled only for a committed spec in a clean tree, as shown by the read-only git status line. · files: web/src/pages/StudyBuilder.tsx, web/src/components/GitStatus.tsx (new) · deps: P15.16 · done: `pnpm -C web test -- GitStatus` passes
 - [ ] P15.19 Preregistration commit dialog: the exact diff and message, a confirm step, and the resulting hash. · files: web/src/components/PreregDialog.tsx (new) · deps: P15.18 · done: `pnpm -C web test -- PreregDialog` passes
