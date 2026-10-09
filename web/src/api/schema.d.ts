@@ -1546,6 +1546,10 @@ export interface components {
             }[] | null;
             /** Metric */
             metric: string;
+            /** Noise Floor */
+            noise_floor?: {
+                [key: string]: unknown;
+            } | null;
             /** Notes */
             notes: string[];
             /** Precision Plan */

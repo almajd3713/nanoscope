@@ -35,6 +35,7 @@ type Comparison = {
   rows: Row[];
   notes: string[];
   precision_plan: { text?: string; note?: string };
+  noise_floor?: { text?: string; note?: string } | null;
 };
 type Prediction = {
   variant: string;
@@ -279,6 +280,9 @@ export function Study() {
                 </tbody>
               </table>
             </div>
+            {(rep.comparison.noise_floor?.text ?? rep.comparison.noise_floor?.note) && (
+              <span className={`small ${styles.muted}`}>{rep.comparison.noise_floor?.text ?? rep.comparison.noise_floor?.note}</span>
+            )}
             <span className={`small ${styles.muted}`}>{rep.comparison.precision_plan.text ?? rep.comparison.precision_plan.note}</span>
             {rep.comparison.notes.map((n) => (
               <Note key={n} tone="warn">{n}</Note>

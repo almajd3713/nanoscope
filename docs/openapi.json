@@ -334,6 +334,18 @@
             "title": "Metric",
             "type": "string"
           },
+          "noise_floor": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Noise Floor"
+          },
           "notes": {
             "items": {
               "type": "string"

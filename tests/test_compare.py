@@ -170,6 +170,9 @@ def test_to_dict_curves(fake_data):
     plan = doc["precision_plan"]
     assert (plan["metric"], plan["preset"], plan["n_seeds"]) == ("val_bpb", "test-tiny", 3)
     assert plan["half_width"] is None and "no shipped baselines" in plan["note"]
+    floor = doc["noise_floor"]  # no shipped baselines for test-tiny, so no number and the reason
+    assert (floor["metric"], floor["preset"], floor["sd"]) == ("val_bpb", "test-tiny", None)
+    assert "no shipped baselines" in floor["note"]
 
 
 def test_params_kind_says_which_count_the_column_holds(tmp_path):

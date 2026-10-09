@@ -299,7 +299,7 @@ class Comparison:
         if self.sets:
             out["title"], out["params_header"] = self.title, self.params_header
         if self.sets:
-            from nanoscope.statistics import precision_plan
+            from nanoscope.statistics import noise_floor, precision_plan
 
             out["curves"] = [
                 {"label": s.label, "source": s.source,
@@ -309,6 +309,7 @@ class Comparison:
             first = self.sets[0]
             out["precision_plan"] = precision_plan(
                 self.metric, first.config["preset"]["name"], min(len(s.runs) for s in self.sets))
+            out["noise_floor"] = noise_floor(first.config["preset"]["name"], self.metric)
         return out
 
     def plot(self, save: str | Path | None = None) -> Any:

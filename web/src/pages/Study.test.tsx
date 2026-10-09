@@ -32,6 +32,7 @@ const report = {
   comparison: {
     metric: "val_bpb", baseline: "small", title: "bits per byte on the first 200 validation documents", params_header: "Non-emb params",
     notes: ["1 variant is compared with one baseline."], curves: [], precision_plan: { text: "With 3 seeds per model, a difference is known to about ±0.034 bpb." },
+    noise_floor: { text: "Seed noise on this preset is about 0.014 bpb (standard deviation between seeds of the same model, from the shipped baselines)." },
     rows: [
       row("small", "baseline", null, {}),
       row("no-rope", "worse", { mean: 0.124, ci95_low: 0.113, ci95_high: 0.136, n: 3, paired: true }, { value: "1.009 ± 0.010", delta: "+0.124 [+0.113, +0.136]", verdict: "worse", params: "787,840" }),
@@ -88,6 +89,7 @@ describe("Study page", () => {
     const comparison = await screen.findByRole("region", { name: "Comparison" });
     expect(within(comparison).getByText("+0.124 [+0.113, +0.136]")).toBeTruthy();
     expect(within(comparison).getByText("1 variant is compared with one baseline.")).toBeTruthy();
+    expect(within(comparison).getByText(/Seed noise on this preset is about 0\.014 bpb/)).toBeTruthy();
     expect(within(comparison).getByRole("img", { name: /Δ val_bpb vs small, 95% CI/ })).toBeTruthy();
     const predictions = screen.getByRole("region", { name: "Predictions" });
     expect(within(predictions).getByText("1.090")).toBeTruthy();

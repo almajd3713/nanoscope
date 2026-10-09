@@ -186,6 +186,47 @@
     },
     "params_header": {
       "type": "string"
+    },
+    "noise_floor": {
+      "type": "object",
+      "required": [
+        "metric",
+        "preset",
+        "sd",
+        "source"
+      ],
+      "properties": {
+        "metric": {
+          "type": "string"
+        },
+        "preset": {
+          "type": "string"
+        },
+        "sd": {
+          "type": [
+            "number",
+            "null"
+          ]
+        },
+        "source": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "models": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "text": {
+          "type": "string"
+        },
+        "note": {
+          "type": "string"
+        }
+      }
     }
   },
   "required": [
