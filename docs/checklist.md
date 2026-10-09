@@ -21,7 +21,7 @@ item is one line, so scripts and agents can grep and edit it.
 | P14 | GUI MVP 2: model page, drag-and-drop (14-17 d) | 35 / 36 | merged; P14.33 (tag v0.5.0) is the user's |
 | P15 | GUI Research (10-13 d) | 31 / 31 | done |
 | P16 | Extend + depth (8-10 d) | 18 / 18 | done |
-| P17 | Remaining curriculum paths (18-26 d) | 0 / 34 | not started |
+| P17 | Remaining curriculum paths (18-26 d) | 2 / 34 | in progress |
 
 MVP = P6-P14 (about 77-96 focused days). Recount a row with
 `grep -c '^- \[x\] P6\.' docs/checklist.md` (done) and `grep -c '^- \[.\] P6\.' docs/checklist.md`
@@ -678,7 +678,7 @@ Order: P13.01 and P13.02 first (these items live in `web/` and run in its CI job
 - [ ] P17.07 Add the CI tests for HA01-HA05 (solutions pass and starters fail, with `fake_data`). · files: tests/test_curricula.py · deps: P17.06 · done: `uv run pytest tests/test_curricula.py -k ha` passes
 
 ### P17 · Evaluation (level 2)
-- [ ] P17.08 Add separate `run(init_seed=, data_seed=)` keywords (both default to `seed`) so seed variance can be decomposed. · files: nanoscope/run.py, nanoscope/train_loop.py, tests/test_run.py · deps: P15.99 · done: `uv run pytest tests/test_run.py -k split_seeds` passes, and the default run dirs are unchanged
+- [x] P17.08 Add separate `run(init_seed=, data_seed=)` keywords (both default to `seed`) so seed variance can be decomposed. · files: nanoscope/run.py, nanoscope/train_loop.py, tests/test_run.py · deps: P15.99 · done: `uv run pytest tests/test_run.py -k split_seeds` passes, and the default run dirs are unchanged ✓ 2026-10-09 161623c: `seed` stays the single knob; `init_seed` decides the weights and `data_seed` the batch order and dropout, each defaulting to `seed`. Giving either puts the run in `seed-i<init>-d<data>` and records both in config.json (`config.v1` gained two optional keys); with `seeds=N` the other seed follows each `s`, so `run(M, seeds=5, init_seed=0)` is one initialisation, five data orders. `train()` is unchanged (its `seed` is the data seed). CLI `--init-seed/--data-seed`. Not wired into job payloads, Study or the run form yet
 - [ ] P17.09 Write `evaluation/path.toml` and lesson EV01, eval noise: `eval_docs` size versus CI width. CPU only. · files: nanoscope/curricula/evaluation/* (new), tests/solutions/evaluation/01-eval-noise.py (new) · deps: P17.01 · done: `uv run nanoscope learn list --path evaluation` lists it
 - [ ] P17.10 Write lesson EV02: init-seed versus data-order variance. CPU variant: 3×3 seeds on tinystories-5min (about 15 min). GPU variant: 5×5 seeds on tinystories-30min (about 1 GPU-hour). · files: nanoscope/curricula/evaluation/02-variance/*, tests/solutions/evaluation/02-variance.py · deps: P17.08, P17.09 · done: listed with both variants
 - [ ] P17.11 Add the CI tests for EV01-EV02. · files: tests/test_curricula.py · deps: P17.10 · done: `uv run pytest tests/test_curricula.py -k ev` passes
@@ -696,7 +696,7 @@ Order: P13.01 and P13.02 first (these items live in `web/` and run in its CI job
 - [ ] P17.19 Plan done-when: the induction-heads lesson shows a curve over checkpoints from the learner's own run (a CI test of the CPU variant with `fake_data`, plus a Playwright check of the inspect page). · files: tests/test_curricula.py, web/e2e/induction.spec.ts (new) · deps: P17.18 · done: `uv run pytest tests/test_curricula.py -k "in01 or in02"` passes and `pnpm -C web exec playwright test induction` passes
 
 ### P17 · Scaling-lite (level 2)
-- [ ] P17.20 Create `nanoscope/scaling.py` with `fit_power_law(points)`, which returns the exponent with a CI, tested on synthetic data. · files: nanoscope/scaling.py (new), tests/test_scaling.py (new) · deps: P15.99 · done: `uv run pytest tests/test_scaling.py` passes
+- [x] P17.20 Create `nanoscope/scaling.py` with `fit_power_law(points)`, which returns the exponent with a CI, tested on synthetic data. · files: nanoscope/scaling.py (new), tests/test_scaling.py (new) · deps: P15.99 · done: `uv run pytest tests/test_scaling.py` passes ✓ 2026-10-09 10063d5: `PowerLawFit` (OLS in log space, t-interval on n-2 df, `predict()` with a prediction interval, `to_dict()`); the interval covers the true exponent 92-98% of 300 simulated ladders; three points give a wide interval and the status says so
 - [ ] P17.21 Write `scaling-lite/path.toml` and lesson SC01, FLOP budgets. · files: nanoscope/curricula/scaling-lite/* (new), tests/solutions/scaling-lite/01-flops.py (new) · deps: P17.01 · done: `uv run nanoscope learn list --path scaling-lite` lists it
 - [ ] P17.22 Write lesson SC02, a ladder with a preregistered prediction and the DataDecide caveat. CPU variant: a 3-point ladder on tinystories-5min (about 45-90 min CPU). GPU variant: a 4-point ladder on fineweb-edu (about 6-12 GPU-hours). · files: nanoscope/curricula/scaling-lite/02-ladder/*, tests/solutions/scaling-lite/02-ladder.py · deps: P17.20, P17.21 · done: listed with both variants
 - [ ] P17.23 Add the CI tests for SC01-SC02 (CPU variant at `fake_data` scale). · files: tests/test_curricula.py · deps: P17.22 · done: `uv run pytest tests/test_curricula.py -k sc` passes
