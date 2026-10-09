@@ -171,7 +171,8 @@ class StudyRun(BaseModel):
 
 @router.post("/studies/{name}/run", status_code=202, response_model=StudyRun)
 def run_study(name: str, request: Request) -> Any:
-    """Queue a study. Record mode needs the spec committed and a clean tree. A worker loads the spec, which imports its models, and puts
+    """Queue a study. Record mode needs the spec committed and a clean tree. A worker loads the
+    spec, which imports its models, and puts
     every unfinished run on the batch lane; watch them with `/jobs` or `/events?prefix=`."""
     path = workspace.root() / spec_path(name)
     if not path.exists():

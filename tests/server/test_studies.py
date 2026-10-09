@@ -1,4 +1,5 @@
 import json
+
 import pytest
 from fakes import tiny
 from fastapi.testclient import TestClient
@@ -120,7 +121,8 @@ def test_studies_run_report_stop(client, tmp_path):
     assert [len(r["seeds"]) for r in partial["rows"]] == [2, 1]
     status.write_text(json.dumps(doc))
     markdown = client.get("/api/studies/toy/report.md")
-    assert markdown.status_code == 200 and markdown.headers["content-type"].startswith("text/markdown")
+    assert markdown.status_code == 200
+    assert markdown.headers["content-type"].startswith("text/markdown")
     assert markdown.text.startswith("# Study: toy") and "## Results" in markdown.text
     assert client.get("/api/studies/toy").status_code in (404, 405)
     final = client.get("/api/studies").json()[0]
@@ -141,7 +143,8 @@ def test_record_mode_runs_only_from_a_committed_spec_in_a_clean_tree(client, tmp
     git(ws, "config", "user.email", "t@example.com")
     git(ws, "config", "user.name", "t")
     uncommitted = client.post("/api/studies/toy/run")
-    assert uncommitted.status_code == 422 and "commit studies/toy.toml first" in uncommitted.json()["detail"]
+    assert uncommitted.status_code == 422
+    assert "commit studies/toy.toml first" in uncommitted.json()["detail"]
 
     git(ws, "add", "."), git(ws, "commit", "-qm", "spec")
     (ws / "notes.txt").write_text("x")
@@ -155,7 +158,8 @@ def test_record_mode_runs_only_from_a_committed_spec_in_a_clean_tree(client, tmp
     work_off(queued.json()["job"]["id"])
     result = json.loads(queue.get(queued.json()["job"]["id"])["result"])
     assert result["study"] == "toy" and result["runs"] == 4
-    manifest = json.loads((tmp_path / "home" / "runs" / "studies" / "toy" / "study.json").read_text())
+    folder = tmp_path / "home" / "runs" / "studies" / "toy"
+    manifest = json.loads((folder / "study.json").read_text())
     assert manifest["study_file"] == "studies/toy.toml" and len(manifest["commit"]) == 40
 
 
@@ -270,7 +274,8 @@ def test_preregister_card_and_push_go_through_jobs(client, tmp_path, monkeypatch
     bad = client.post("/api/studies/toy/card/push", json={"repo": "nonsense"})
     assert bad.status_code == 422 and uploads == []
     plan = client.get("/api/studies/toy/card/upload", params={"repo": "me/cards"}).json()
-    assert plan["path_in_repo"] == "cards/toy.json" and plan["commit_message"].startswith("nanoscope:")
+    assert plan["path_in_repo"] == "cards/toy.json"
+    assert plan["commit_message"].startswith("nanoscope:")
     assert client.get("/api/studies/toy/card/upload", params={"repo": "bad"}).status_code == 422
     assert uploads == []  # a plan sends nothing
     pushed = client.post("/api/studies/toy/card/push",
@@ -306,7 +311,8 @@ def test_sizes_job_resolves_the_match_and_flags_outliers(client):
 
 
 def test_sizes_refuses_an_invalid_spec(client):
-    bad = client.post("/api/studies/sizes", json={"toml": SPEC.replace('baseline = "small"', 'baseline = "nope"')})
+    broken = SPEC.replace('baseline = "small"', 'baseline = "nope"')
+    bad = client.post("/api/studies/sizes", json={"toml": broken})
     assert bad.status_code == 422
 
 
@@ -337,7 +343,8 @@ def test_a_python_study_opens_as_a_spec_through_a_worker(client, tmp_path):
     assert queued.status_code == 202, queued.text
     work_off(queued.json()["id"])
     result = json.loads(queue.get(queued.json()["id"])["result"])
-    assert result["spec"]["name"] == "from-py" and [v["name"] for v in result["spec"]["variants"]] == ["small", "wide"]
+    assert result["spec"]["name"] == "from-py"
+    assert [v["name"] for v in result["spec"]["variants"]] == ["small", "wide"]
     assert 'name = "from-py"' in result["toml"]
     assert client.post("/api/studies/from-file", json={"file": "x.toml"}).status_code == 422
     assert client.post("/api/studies/from-file", json={"file": "../x.py"}).status_code in (400, 404)
