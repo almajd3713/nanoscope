@@ -255,3 +255,49 @@ def naive_block(x, ln1_weight, ln1_bias, wq, wk, wv, wo, ln2_weight, ln2_bias, w
     x = x + naive_multi_head_attention(layer_norm(x, ln1_weight, ln1_bias), wq, wk, wv, wo,
                                        n_heads)
     return x + gelu(layer_norm(x, ln2_weight, ln2_bias) @ w_fc.T) @ w_proj.T
+
+
+def t_quantile(p, df):
+    """The Student-t value below which a fraction p of the distribution lies, found by
+    integrating the density (Simpson's rule) and bisecting. Slow and exact enough to check
+    a learner's use of a library routine."""
+    def density(x):
+        return math.exp(math.lgamma((df + 1) / 2) - math.lgamma(df / 2)
+                        - 0.5 * math.log(df * math.pi)
+                        - (df + 1) / 2 * math.log1p(x * x / df))
+
+    def cdf(x):  # P(T <= x) for x >= 0
+        n = 2000
+        h = x / n
+        total = density(0.0) + density(x)
+        total += sum((4 if i % 2 else 2) * density(i * h) for i in range(1, n))
+        return 0.5 + total * h / 3
+
+    low, high = 0.0, 1000.0
+    for _ in range(80):
+        mid = (low + high) / 2
+        low, high = (mid, high) if cdf(mid) < p else (low, mid)
+    return (low + high) / 2
+
+
+def naive_paired_ci(a, b):
+    """(mean, low, high): the 95% interval for the average of a[i] - b[i], from the n - 1
+    degrees of freedom of the differences."""
+    d = [x - y for x, y in zip(a, b, strict=True)]
+    n = len(d)
+    mean = sum(d) / n
+    sd = math.sqrt(sum((x - mean) ** 2 for x in d) / (n - 1))
+    margin = t_quantile(0.975, n - 1) * sd / math.sqrt(n)
+    return mean, mean - margin, mean + margin
+
+
+def naive_unpaired_ci(a, b):
+    """(mean, low, high): the 95% Welch interval for mean(a) - mean(b) when the two groups
+    have no pairing and may have different spreads."""
+    na, nb = len(a), len(b)
+    ma, mb = sum(a) / na, sum(b) / nb
+    va = sum((x - ma) ** 2 for x in a) / (na - 1) / na
+    vb = sum((x - mb) ** 2 for x in b) / (nb - 1) / nb
+    df = (va + vb) ** 2 / (va**2 / (na - 1) + vb**2 / (nb - 1))
+    margin = t_quantile(0.975, df) * math.sqrt(va + vb)
+    return ma - mb, ma - mb - margin, ma - mb + margin

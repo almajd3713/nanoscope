@@ -378,6 +378,67 @@ def check_equivalent(ctx: Context, check: Check) -> Result:
                    "reference": name})
 
 
+# -- function --------------------------------------------------------------------------------
+
+@checker("function")
+def check_function(ctx: Context, check: Check) -> Result:
+    """A plain function in the learner's file gives the same numbers as a naive reference on
+    the lesson's fixed cases. Each case is the list of arguments; the result is a number or a
+    tuple of numbers, and `labels` names the parts of a tuple in the failure message."""
+    import copy
+    import math
+
+    from nanoscope.reference import functional
+
+    name = check.args["name"]
+    reference = getattr(functional, check.args["reference"], None)
+    if reference is None:
+        return Result(check.id, check.kind, False,
+                      f"the lesson names reference {check.args['reference']!r}, which "
+                      "nanoscope.reference doesn't have: this is a bug in the lesson")
+    try:
+        function = getattr(load_user_module(ctx), name, None)
+    except (FileNotFoundError, ValueError) as exc:
+        return Result(check.id, check.kind, False, str(exc))
+    if not callable(function):
+        return Result(check.id, check.kind, False,
+                      f"function {name} is not defined in {ctx.user_file.name}")
+    tolerance = float(check.args.get("tolerance", 1e-6))
+    labels = check.args.get("labels", [])
+    worst = 0.0
+
+    def numbers(value: Any) -> list[float]:
+        return [float(x) for x in value] if isinstance(value, (tuple, list)) else [float(value)]
+
+    for i, case in enumerate(check.args["cases"], 1):
+        shown = ", ".join(f"{[round(x, 4) for x in a]}" if isinstance(a, list) else f"{a}"
+                          for a in case)
+        want = numbers(reference(*copy.deepcopy(case)))
+        try:
+            got = numbers(function(*copy.deepcopy(case)))
+        except Exception as exc:
+            return Result(check.id, check.kind, False,
+                          f"{name}({shown}) raised {type(exc).__name__}: {exc}")
+        if len(got) != len(want):
+            return Result(check.id, check.kind, False,
+                          f"{name}({shown}) returned {len(got)} value(s); the lesson expects "
+                          f"{len(want)}" + (f" ({', '.join(labels)})" if labels else ""))
+        for k, (g, w) in enumerate(zip(got, want, strict=True)):
+            diff = abs(g - w) if math.isfinite(g) else math.inf
+            worst = max(worst, diff)
+            if not diff <= tolerance:
+                part = labels[k] if k < len(labels) else f"value {k + 1}"
+                return Result(
+                    check.id, check.kind, False,
+                    f"case {i}, {name}({shown}): {part} is {g:.6g} but the reference gives "
+                    f"{w:.6g} (off by {diff:.3g}; tolerance {tolerance:g})",
+                    {"case": i, "part": part, "got": g, "want": w, "tolerance": tolerance})
+    return Result(check.id, check.kind, True,
+                  f"{name} matches the reference {check.args['reference']} on "
+                  f"{len(check.args['cases'])} cases: largest difference {worst:.3g}",
+                  {"max_abs_diff": worst, "cases": len(check.args["cases"])})
+
+
 # -- forbid ----------------------------------------------------------------------------------
 
 ALIASES = {"F.": "torch.nn.functional.", "nn.": "torch.nn."}
@@ -524,6 +585,8 @@ def check_trains(ctx: Context, check: Check) -> Result:
 
 SHIPPED = ("bigram", "gpt2", "modern")
 VERDICTS = ("better", "worse", "within noise")
+PAIRINGS = ("paired", "unpaired")
+UNPAIRED_OFFSET = 1000
 
 
 def find_model(ctx: Context, name: str) -> type:
@@ -559,12 +622,24 @@ def check_verdict(ctx: Context, check: Check) -> Result:
         classes = {side: find_model(ctx, check.args[side]) for side in ("a", "b")}
     except (AttributeError, FileNotFoundError, ValueError) as exc:
         return Result(check.id, check.kind, False, str(exc))
+    pairing = check.args.get("pairing", "paired")
+    if pairing not in PAIRINGS:
+        return Result(check.id, check.kind, False,
+                      f"the lesson asks for pairing {pairing!r}; it is one of "
+                      f"{', '.join(PAIRINGS)}: this is a bug in the lesson")
+    # Unpaired: B gets other seeds, so no seed of A has a partner and compare() cannot pair.
+    # They go in their own folder, so a paired check in the same lesson reuses A's finished
+    # runs and neither check sees the other's seeds.
+    unpaired = pairing == "unpaired"
+    b_folder = "b-unpaired" if unpaired else "b"
     for side, cls in classes.items():
+        offset = UNPAIRED_OFFSET if side == "b" and unpaired else 0
+        folder = b_folder if side == "b" else "a"
         for seed in range(seeds):
-            run(cls, preset, seed=seed, device="cpu" if ctx.variant == "cpu" else None,
-                output_dir=ctx.runs_dir / side / f"seed-{seed}", progress=False,
+            run(cls, preset, seed=offset + seed, device="cpu" if ctx.variant == "cpu" else None,
+                output_dir=ctx.runs_dir / folder / f"seed-{offset + seed}", progress=False,
                 **check.args.get(f"{side}_kwargs", {}))
-    comparison = compare(ctx.runs_dir / "a", ctx.runs_dir / "b", metric=metric)
+    comparison = compare(ctx.runs_dir / "a", ctx.runs_dir / b_folder, metric=metric)
     row = comparison.rows[0]
     delta = row["delta"]
     label = f"{check.args['a']} vs {check.args['b']}"
@@ -587,13 +662,168 @@ def check_verdict(ctx: Context, check: Check) -> Result:
         return Result(check.id, check.kind, False, f"{label}: {why}", {"seeds": seeds})
     interval = f"{delta['mean']:+.3f} [{delta['ci95_low']:+.3f}, {delta['ci95_high']:+.3f}]"
     evidence = {"verdict": row["verdict"], "expected": expect, "metric": metric, "seeds": seeds,
-                "delta": delta["mean"], "ci95": [delta["ci95_low"], delta["ci95_high"]]}
-    said = f"{label}: {row['verdict']} ({metric} difference {interval}, {seeds} seeds)"
+                "delta": delta["mean"], "ci95": [delta["ci95_low"], delta["ci95_high"]],
+                "paired": delta["paired"]}
+    how = "" if delta["paired"] else ", unpaired"
+    said = f"{label}: {row['verdict']} ({metric} difference {interval}, {seeds} seeds{how})"
     if row["verdict"] == expect:
         return Result(check.id, check.kind, True, f"{said}, as the lesson expects", evidence)
     return Result(check.id, check.kind, False,
                   f"{said}; the lesson expects '{expect}'. Look at what differs between the two "
                   "models, and at the interval: is zero inside it?", evidence)
+
+
+# -- matches ---------------------------------------------------------------------------------
+
+QUANTITIES = ("params", "flops")
+
+
+def _size_of(cls: type, kwargs: dict[str, Any], quantity: str, context_length: int) -> int:
+    """Non-embedding parameters, or training FLOPs per token, of a class built on the meta
+    device (no memory): the same numbers a Study matches on."""
+    import inspect
+
+    from nanoscope.sizing import build_on_meta, count_params, flops_per_token
+
+    accepted = inspect.signature(cls).parameters
+    sized = {"vocab_size": 4096, "context_length": context_length}
+    given = {k: v for k, v in sized.items() if k in accepted} | kwargs
+    model = build_on_meta(cls, **constructor_args(cls, given))
+    return count_params(model)[1] if quantity == "params" else flops_per_token(
+        model, context_length)
+
+
+@checker("matches")
+def check_matches(ctx: Context, check: Check) -> Result:
+    """The learner's class is the same size as another model: non-embedding parameters or
+    training FLOPs per token within `tolerance` (default 3%). Sizing a comparison fairly is
+    most of an honest ablation."""
+    quantity = check.args["quantity"]
+    if quantity not in QUANTITIES:
+        return Result(check.id, check.kind, False,
+                      f"the lesson asks to match {quantity!r}; this check knows "
+                      f"{', '.join(QUANTITIES)}: this is a bug in the lesson")
+    tolerance = float(check.args.get("tolerance", 0.03))
+    context_length = int(check.args.get("context_length", 256))
+    try:
+        mine = user_class(ctx, check)
+        other = find_model(ctx, check.args["against"])
+        a = _size_of(mine, check.args.get("kwargs", {}), quantity, context_length)
+        b = _size_of(other, check.args.get("against_kwargs", {}), quantity, context_length)
+    except (AttributeError, FileNotFoundError, ValueError, TypeError) as exc:
+        return Result(check.id, check.kind, False, str(exc))
+    what = "non-embedding parameters" if quantity == "params" else "training FLOPs per token"
+    gap = (a - b) / b
+    evidence = {"quantity": quantity, "mine": a, "other": b, "gap": gap, "tolerance": tolerance}
+    said = (f"{mine.__name__} has {a:,} {what}, {other.__name__} has {b:,} "
+            f"({gap:+.1%}; the lesson allows {tolerance:.0%})")
+    if abs(gap) <= tolerance:
+        return Result(check.id, check.kind, True, f"{said}: matched", evidence)
+    side = "more" if gap > 0 else "fewer"
+    return Result(check.id, check.kind, False,
+                  f"{said}: {mine.__name__} has {side}, so any difference in the results could "
+                  "be size, not the idea. Adjust a width until they match", evidence)
+
+
+# -- ablation --------------------------------------------------------------------------------
+
+@checker("ablation")
+def check_ablation(ctx: Context, check: Check) -> Result:
+    """The capstone. Train the full model, a baseline and one variant per `drops` entry (the
+    full model with one component removed) on the lesson's preset, compare them with seed-level
+    intervals, then hold the learner's file against the result. It must define
+
+        GAP = (low, high)          the interval for full - baseline, in the lesson's metric
+        NULL_COMPONENT = "name"    a drop whose removal changed nothing detectable
+
+    GAP must contain the measured difference and not be far wider than the run's own interval
+    (the same rule as a prediction). NULL_COMPONENT must be a drop whose verdict is 'within
+    noise'. Naming a component that really matters, or claiming none is null when one is,
+    fails with the numbers."""
+    from nanoscope.compare import compare
+    from nanoscope.run import run
+    from nanoscope.statistics import score_prediction
+
+    seeds = int(check.args.get("gpu_seeds", check.args.get("seeds", 3))
+                if ctx.variant == "gpu" else check.args.get("seeds", 3))
+    metric = check.args.get("metric", "val_bpb")
+    drops: list[dict[str, Any]] = check.args["drops"]
+    try:
+        preset = lesson_preset(ctx)
+        module = load_user_module(ctx)
+        full = find_model(ctx, check.args["model"])
+        base = find_model(ctx, check.args["baseline"])
+    except (AttributeError, FileNotFoundError, ValueError) as exc:
+        return Result(check.id, check.kind, False, str(exc))
+    gap, null = getattr(module, "GAP", None), getattr(module, "NULL_COMPONENT", "<unset>")
+    names = [d["name"] for d in drops]
+    problems = []
+    if not (isinstance(gap, (tuple, list)) and len(gap) == 2
+            and all(isinstance(x, (int, float)) for x in gap) and gap[0] < gap[1]):
+        problems.append("GAP is not set: write GAP = (low, high), your interval for the "
+                        "difference between the full model and the baseline (negative is "
+                        "better for val_bpb)")
+    if null == "<unset>" or not (null is None or null in names):
+        problems.append(f"NULL_COMPONENT must be one of {', '.join(names)}, or None if you "
+                        "think every component matters")
+    if problems:  # no point training for an hour before the file says anything
+        return Result(check.id, check.kind, False, "; ".join(problems))
+    assert isinstance(gap, (tuple, list))
+    low, high = float(gap[0]), float(gap[1])
+
+    common = check.args.get("kwargs", {})
+    runs = ctx.runs_dir
+    jobs = [("full", full, common), ("baseline", base, {**common, **check.args.get(
+        "baseline_kwargs", {})})] + [(d["name"], full, {**common, **d.get("kwargs", {})})
+                                     for d in drops]
+    for label, cls, kwargs in jobs:
+        for seed in range(seeds):
+            run(cls, preset, seed=seed, device="cpu" if ctx.variant == "cpu" else None,
+                output_dir=runs / label / f"seed-{seed}", progress=False, **kwargs)
+    against = compare(runs / "full", runs / "baseline", metric=metric).rows[0]
+    delta = against["delta"]
+    if delta is None or delta["ci95_low"] is None:
+        return Result(check.id, check.kind, False,
+                      f"with {seeds} seeds there is no interval for the gap; the lesson needs 3")
+    ci = (delta["ci95_low"], delta["ci95_high"])
+    score = score_prediction(delta["mean"], ci, low=low, high=high)
+    measured = f"full vs baseline: {delta['mean']:+.3f} [{ci[0]:+.3f}, {ci[1]:+.3f}] {metric}"
+    verdicts: dict[str, str] = {}
+    table = []
+    for d in drops:
+        row = compare(runs / d["name"], runs / "full", metric=metric).rows[0]
+        dd = row["delta"]
+        identical = (dd is not None and dd["ci95_low"] is None and dd["mean"] == 0
+                     and "no observed seed variation" in dd.get("status", ""))
+        verdicts[d["name"]] = "within noise" if identical else row["verdict"]
+        shown = ("no interval" if dd is None or dd["ci95_low"] is None else
+                 f"{dd['mean']:+.3f} [{dd['ci95_low']:+.3f}, {dd['ci95_high']:+.3f}]")
+        table.append(f"{d['name']}: {row['verdict']} ({shown})")
+    evidence = {"delta": delta["mean"], "ci95": list(ci), "gap": [low, high],
+                "verdict": against["verdict"], "drops": verdicts, "seeds": seeds,
+                "null_component": null, "score": score}
+    detail = "; ".join(table)
+    fails = []
+    if not score["passed"]:
+        if score.get("hit") is False:
+            fails.append(f"your GAP ({low:+g}, {high:+g}) does not contain the measured "
+                         f"difference ({measured})")
+        if score.get("sharp") is False:
+            fails.append("your GAP is far wider than the run's own interval, so it says almost "
+                         "nothing")
+    nulls = [n for n, v in verdicts.items() if v == "within noise"]
+    if null is None and nulls:
+        fails.append(f"you said every component matters, but removing {', '.join(nulls)} was "
+                     "within noise")
+    elif null is not None and verdicts[null] != "within noise":
+        fails.append(f"{null} is not null: removing it was {verdicts[null]}")
+    if fails:
+        return Result(check.id, check.kind, False,
+                      f"{'; '.join(fails)}. Measured {measured}. Removing each component: "
+                      f"{detail}", evidence)
+    return Result(check.id, check.kind, True,
+                  f"your gap holds ({measured}) and {null or 'no component'} is null as you "
+                  f"said. Removing each component: {detail}", evidence)
 
 
 # -- predicted -------------------------------------------------------------------------------

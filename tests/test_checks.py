@@ -455,3 +455,174 @@ def test_visible_reasons(make, tmp_path, monkeypatch):
             assert any(word in reason for word in (
                 "not", "differs", "above", "outside", "no ", "uses", "expects", "worse",
                 "failed")), (kind, reason)
+
+
+TWO_SIZES = '''\
+import torch.nn as nn
+
+
+class Wide(nn.Module):
+    def __init__(self, vocab_size, d_model=16, hidden=64):
+        super().__init__()
+        self.a = nn.Linear(d_model, hidden)
+        self.b = nn.Linear(hidden, d_model)
+
+
+class Narrow(nn.Module):
+    def __init__(self, vocab_size, d_model=16, hidden=64):
+        super().__init__()
+        self.a = nn.Linear(d_model, hidden)
+        self.b = nn.Linear(hidden, d_model)
+'''
+
+
+def test_matches(make):
+    toml = ('\n[[checks]]\nid = "same-size"\nkind = "matches"\nclass = "Wide"\n'
+            'against = "Narrow"\nquantity = "{q}"\n{extra}')
+    ok = run(make(toml.format(q="params", extra=""), TWO_SIZES))
+    assert ok.passed and ok.reason.endswith("(+0.0%; the lesson allows 3%): matched")
+    assert ok.evidence["mine"] == ok.evidence["other"] and ok.evidence["quantity"] == "params"
+
+    off = run(make(toml.format(q="params", extra="kwargs = { hidden = 80 }\n"), TWO_SIZES))
+    assert not off.passed and "Wide has more" in off.reason and "(+24.8%" in off.reason
+    assert "could be size, not the idea" in off.reason
+    assert off.evidence["gap"] == pytest.approx(0.25, abs=0.01)
+
+    loose = run(make(toml.format(q="params", extra="kwargs = { hidden = 80 }\ntolerance = 0.3\n"),
+                     TWO_SIZES))
+    assert loose.passed
+
+    flops = run(make(toml.format(q="flops", extra=""), TWO_SIZES))
+    assert flops.passed and "training FLOPs per token" in flops.reason
+
+    shipped = run(make(toml.replace("Narrow", "gpt2").format(q="params", extra=""), TWO_SIZES))
+    assert not shipped.passed and "GPT2" in shipped.reason
+
+    bad = run(make(toml.format(q="memory", extra=""), TWO_SIZES))
+    assert "bug in the lesson" in bad.reason
+    missing = run(make(toml.replace("Narrow", "Nope").format(q="params", extra=""), TWO_SIZES))
+    assert "class Nope is not defined" in missing.reason
+
+
+@pytest.mark.usefixtures("fake_data")
+def test_verdict_pairing(make, monkeypatch):
+    from fakes import tiny
+
+    set_preset(monkeypatch, tiny(name="tinystories-5min", max_steps=30))
+    toml = ('\n[[checks]]\nid = "gap"\nkind = "verdict"\na = "Bigram"\nb = "Dumb"\n'
+            'expect = "better"\nseeds = 3\n')
+    paired = run(make(toml, DUMB))
+    assert paired.passed and paired.evidence["paired"] is True
+    assert "unpaired" not in paired.reason
+    unpaired = run(make(toml + 'pairing = "unpaired"\n', DUMB))
+    assert unpaired.passed and unpaired.evidence["paired"] is False
+    assert unpaired.reason.endswith("3 seeds, unpaired), as the lesson expects")
+    bad = run(make(toml + 'pairing = "sideways"\n', DUMB))
+    assert not bad.passed and "bug in the lesson" in bad.reason
+
+
+ABLATION = DUMB + '''
+
+GAP = ({low}, {high})
+NULL_COMPONENT = {null}
+'''
+
+
+@pytest.mark.usefixtures("fake_data")
+def test_ablation(make, monkeypatch):
+    from fakes import tiny
+
+    set_preset(monkeypatch, tiny(name="tinystories-5min", max_steps=30))
+    toml = ('\n[[checks]]\nid = "capstone"\nkind = "ablation"\nmodel = "Bigram"\n'
+            'baseline = "Dumb"\nseeds = 3\n'
+            'drops = [{ name = "tiny-width", kwargs = { d_model = 2 } },'
+            ' { name = "a-bit-wider", kwargs = { d_model = 33 } }]\n')
+
+    def attempt(low, high, null):
+        code = ABLATION.format(low=low, high=high, null=null)
+        return run(make(toml, code))
+
+    unset = run(make(toml, DUMB))
+    assert not unset.passed and "GAP is not set" in unset.reason
+    assert "NULL_COMPONENT must be one of tiny-width, a-bit-wider" in unset.reason
+
+    good = attempt(-2.1, -1.65, '"a-bit-wider"')
+    assert good.passed, good.reason
+    assert "a-bit-wider is null as you said" in good.reason
+    assert good.evidence["drops"]["a-bit-wider"] == "within noise"
+    assert good.evidence["drops"]["tiny-width"] == "worse"
+
+    wrong_null = attempt(-2.1, -1.65, '"tiny-width"')
+    assert not wrong_null.passed and "tiny-width is not null: removing it was worse" \
+        in wrong_null.reason
+    assert "Removing each component: tiny-width: worse" in wrong_null.reason
+
+    none_null = attempt(-2.1, -1.65, "None")
+    assert not none_null.passed and "you said every component matters" in none_null.reason
+
+    miss = attempt(0.5, 1.0, '"a-bit-wider"')
+    assert not miss.passed and "does not contain the measured difference" in miss.reason
+
+    vague = attempt(-1000.0, 1000.0, '"a-bit-wider"')
+    assert not vague.passed and "far wider than the run's own interval" in vague.reason
+
+    odd = attempt(-2.1, -1.65, '"nonsense"')
+    assert not odd.passed and "NULL_COMPONENT must be one of" in odd.reason
+
+
+@pytest.mark.usefixtures("fake_data")
+def test_a_paired_and_an_unpaired_verdict_in_one_lesson_keep_their_seeds_apart(
+        make, monkeypatch):
+    from fakes import tiny
+
+    set_preset(monkeypatch, tiny(name="tinystories-5min", max_steps=20))
+    toml = ('\n[[checks]]\nid = "p"\nkind = "verdict"\na = "Bigram"\nb = "Dumb"\n'
+            'expect = "better"\nseeds = 3\n'
+            '[[checks]]\nid = "u"\nkind = "verdict"\na = "Bigram"\nb = "Dumb"\n'
+            'expect = "better"\nseeds = 3\npairing = "unpaired"\n')
+    ctx = make(toml, DUMB)
+    first, second = run(ctx, 0), run(ctx, 1)
+    assert first.evidence["paired"] is True and second.evidence["paired"] is False
+    assert sorted(p.name for p in (ctx.runs_dir / "a").iterdir()) == [
+        "seed-0", "seed-1", "seed-2"]  # A is trained once and shared
+    assert sorted(p.name for p in (ctx.runs_dir / "b").iterdir()) == [
+        "seed-0", "seed-1", "seed-2"]
+    assert sorted(p.name for p in (ctx.runs_dir / "b-unpaired").iterdir()) == [
+        "seed-1000", "seed-1001", "seed-1002"]
+
+
+FUNCS = '''\
+def mean_gap(a, b):
+    return sum(x - y for x, y in zip(a, b)) / len(a)
+
+
+def interval(a, b):
+    m = mean_gap(a, b)
+    return m, m - 1.0, m + 1.0
+'''
+
+
+def test_function(make):
+    toml = ('\n[[checks]]\nid = "gap"\nkind = "function"\nname = "mean_gap"\n'
+            'reference = "naive_paired_ci"\ncases = [[[1.0, 2.0, 4.0], [0.5, 2.5, 3.0]]]\n'
+            'labels = ["mean", "low", "high"]\n')
+    wrong_shape = run(make(toml, FUNCS))
+    assert not wrong_shape.passed
+    assert wrong_shape.reason.startswith(
+        "mean_gap([1.0, 2.0, 4.0], [0.5, 2.5, 3.0]) returned 1 value(s)")
+    assert "(mean, low, high)" in wrong_shape.reason
+
+    off = run(make(toml.replace("mean_gap", "interval"), FUNCS))
+    assert not off.passed and "low is" in off.reason and "but the reference gives" in off.reason
+    assert off.evidence["part"] == "low"
+
+    close = FUNCS.replace("m - 1.0, m + 1.0", "m - 6.5099, m + 6.5099")
+    # a hand-made interval is not the reference: close is not good enough
+    assert not run(make(toml.replace("mean_gap", "interval"), close)).passed
+
+    missing = run(make(toml.replace("mean_gap", "nope"), FUNCS))
+    assert missing.reason == "function nope is not defined in starter.py"
+    unknown = run(make(toml.replace("naive_paired_ci", "naive_nothing"), FUNCS))
+    assert "bug in the lesson" in unknown.reason
+    crash = run(make(toml, "def mean_gap(a, b):\n    return a / b\n"))
+    assert "raised TypeError" in crash.reason

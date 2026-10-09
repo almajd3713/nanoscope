@@ -1,0 +1,12 @@
+title = "Honest ablations"
+level = 2
+summary = "Learn to tell a real improvement from luck: measure seed noise, compare runs the right way, size a comparison fairly, commit to a prediction first, and finish with a full ablation you can defend."
+prerequisites = ["foundations", "modern-block"]
+
+[compute.cpu]
+preset = "tinystories-5min"
+estimate_minutes = 95
+
+[compute.gpu]
+preset = "tinystories-30min"
+estimate_minutes = 60
