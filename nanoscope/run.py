@@ -297,6 +297,8 @@ def run(
     *,
     seed: int = 0,
     seeds: int | list[int] | None = None,
+    init_seed: int | None = None,
+    data_seed: int | None = None,
     device: str | torch.device | None = None,
     output_dir: str | Path | None = None,
     resume: bool = True,
@@ -319,6 +321,11 @@ def run(
     push_to_hub="user/repo" mirrors the run (checkpoints included) in a private Hub repo and
     resumes from it when the local folder is empty, e.g. in a new Kaggle session.
     `study` is set by nanoscope.Study and recorded in config.json.
+    init_seed and data_seed split `seed` in two: the first decides the initial weights, the second
+    the order of the training batches (and dropout). Each defaults to `seed`, so leaving both out
+    changes nothing. Pass one with seeds=N to vary the other: `run(M, seeds=5, init_seed=0)` trains
+    five data orders from one initialisation. When either is given the run lives in
+    `seed-i<init>-d<data>` instead of `seed-<seed>`.
     block_stats=True records, at each eval step, every block's activation size, gradient norm,
     update-to-weight ratio and attention entropy in <run>/blockstats.jsonl
     (`nanoscope status --blocks <ref>` shows the latest).
@@ -337,7 +344,8 @@ def run(
         seed_list = list(range(seeds)) if isinstance(seeds, int) else list(seeds)
         return RunGroup([
             cast(RunResult, run(
-                model_cls, preset, seed=s, device=device, resume=resume, on_step=on_step,
+                model_cls, preset, seed=s, init_seed=init_seed, data_seed=data_seed,
+                device=device, resume=resume, on_step=on_step,
                 on_eval=on_eval, wandb=wandb, push_to_hub=push_to_hub, progress=progress,
                 study=study, compile=compile, block_stats=block_stats,
                 checkpoint_steps=checkpoint_steps, optimizer=optimizer,
@@ -350,11 +358,15 @@ def run(
     model_kwargs, overrides = _split_kwargs(model_cls, preset, model_kwargs)
     preset = preset.override(**overrides)
 
+    split = init_seed is not None or data_seed is not None
+    init_seed = seed if init_seed is None else init_seed
+    data_seed = seed if data_seed is None else data_seed
     resolved_device = _resolve_device(device)
     optimizer_ref = model_ref(optimizer)[0] if optimizer else None
     name = _run_name(model_cls, model_kwargs, given, preset, optimizer_ref)
     if output_dir is None:
-        run_dir = paths.runs_dir() / _preset_dir(given) / name / f"seed-{seed}"
+        folder = f"seed-i{init_seed}-d{data_seed}" if split else f"seed-{seed}"
+        run_dir = paths.runs_dir() / _preset_dir(given) / name / folder
     else:
         run_dir = Path(output_dir)
 
@@ -371,7 +383,7 @@ def run(
         from_data = {"vocab_size": vocab_size, "context_length": preset.context_length}
         model_params = inspect.signature(model_cls).parameters
         model_kwargs = {k: v for k, v in from_data.items() if k in model_params} | model_kwargs
-        torch.manual_seed(seed)  # the seed decides the initial weights too, not just the batches
+        torch.manual_seed(init_seed)  # the weights come from this seed, not from the batch order
         model = model_cls(**model_kwargs)
         full_kwargs = {
             name: p.default for name, p in inspect.signature(model_cls).parameters.items()
@@ -383,6 +395,7 @@ def run(
             "preset": asdict(preset),
             "tokenizer": tokenizer_id(preset),
             "seed": seed,
+            **({"init_seed": init_seed, "data_seed": data_seed} if split else {}),
             **({"optimizer": {"ref": optimizer_ref}} if optimizer_ref else {}),
             **({"study": study} if study else {}),
         }, default=str))
@@ -425,7 +438,8 @@ def run(
              f"{resolved_device} -> {run_dir}")
         bar = None
         if progress:
-            bar = ProgressBar(preset.max_steps, f"{model_cls.__name__} seed {seed}")
+            label = f"init {init_seed} data {data_seed}" if split else f"seed {seed}"
+            bar = ProgressBar(preset.max_steps, f"{model_cls.__name__} {label}")
         on_step = chain(on_step, bar, status)
         finish = None
         if wandb:
@@ -458,7 +472,7 @@ def run(
             preset=preset,
             run_dir=run_dir,
             device=resolved_device,
-            seed=seed,
+            seed=data_seed,
             resume=resume,
             on_step=on_step,
             on_eval=on_eval,

@@ -69,6 +69,10 @@ def build_parser() -> argparse.ArgumentParser:
     run_parser.add_argument("--preset", default="tinystories-5min")
     run_parser.add_argument("--seed", type=int, default=0)
     run_parser.add_argument("--seeds", type=int, default=None, help="train seeds 0..N-1")
+    run_parser.add_argument("--init-seed", type=int, default=None,
+                            help="seed for the initial weights (default: --seed)")
+    run_parser.add_argument("--data-seed", type=int, default=None,
+                            help="seed for the batch order (default: --seed)")
     run_parser.add_argument("--device", default=None)
     run_parser.add_argument("--output-dir", default=None)
     run_parser.add_argument("--set", nargs="*", default=[], dest="overrides")
@@ -544,6 +548,8 @@ def _main(argv: list[str] | None = None) -> None:
             preset=args.preset,
             seed=args.seed,
             seeds=args.seeds,
+            init_seed=args.init_seed,
+            data_seed=args.data_seed,
             device=args.device,
             output_dir=args.output_dir,
             resume=not args.no_resume,
