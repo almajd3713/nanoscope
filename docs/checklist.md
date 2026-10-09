@@ -4,7 +4,7 @@ The build list for [`plan-tool.md`](plan-tool.md), sections 4-10, with the decis
 2026-10-05 (plan section 11) applied. Phase numbers follow the plan's section 10. Every
 item is one line, so scripts and agents can grep and edit it.
 
-**Current focus:** P16 gate: `make check` (616 passed) and the first-notebook test pass locally 2026-10-09; left: push, CI e2e green, the user merges. P16. P16.04-P16.06 built; P16.16 mockups approved (row 8). P16.01-P16.03 done. P16.07, P16.13, P16.14, P16.15 done. Next: P16.10-P16.12 (blocks), P16.17, P16.08-P16.09 (LSP); P16.08/P16.09 (LSP), P16.17 (typed blocks). (checkpoint_steps CLI flag, job payload, API field and run-form field done.) Left for the user: P14.33 (tag v0.5.0).
+**Current focus:** P17 (curriculum paths), not started. P16 is merged (PR #18, ebd63ea). Left for the user: P14.33 (tag v0.5.0).
 
 ## Progress
 
@@ -20,7 +20,7 @@ item is one line, so scripts and agents can grep and edit it.
 | P13 | GUI MVP 1: shell, Learn/Tinker screens (12-15 d) | 50 / 50 | done |
 | P14 | GUI MVP 2: model page, drag-and-drop (14-17 d) | 35 / 36 | merged; P14.33 (tag v0.5.0) is the user's |
 | P15 | GUI Research (10-13 d) | 31 / 31 | done |
-| P16 | Extend + depth (8-10 d) | 16 / 18 | in progress |
+| P16 | Extend + depth (8-10 d) | 18 / 18 | done |
 | P17 | Remaining curriculum paths (18-26 d) | 0 / 34 | not started |
 
 MVP = P6-P14 (about 77-96 focused days). Recount a row with
@@ -662,7 +662,7 @@ Order: P13.01 and P13.02 first (these items live in `web/` and run in its CI job
 - [x] P16.14 Workspace tree view and schema browser (Extend level). · files: web/src/pages/Workspace.tsx (new), web/src/pages/Schemas.tsx (new) · deps: P14.99, P16.16 · done: `pnpm -C web test -- Workspace` passes ✓ 2026-10-09 fd1c581: `/workspace` (pages/Workspace.tsx, pure rows in workspace/tree.ts; classifies from /api/files, models, blocks, studies, authoring and git; curricula/ files are not shown as models) and `/schemas[/name]` (pages/Schemas.tsx, schemas/rows.ts: JSON Schema -> field rows incl. $defs/oneOf); Workspace nav item at Extend only, Schemas link in Settings › This server; fixtures are real API output
 - [x] P16.15 Plan done-when: the inspect page shows attention maps from the learner's own run at any archived step. · files: web/e2e/inspect.spec.ts (new) · deps: P16.07 · done: `pnpm -C web exec playwright test inspect` passes ✓ 2026-10-09 32e3a3b: trains a 2-layer Modern with archived steps 4 and 8 through POST /api/runs, opens Inspect from the run page, reads the latest and an archived step, then Across steps (ran locally against `nanoscope serve`, 1.3 min; CI runs it in the e2e job)
 - [x] P16.17 Make blocks visible to a type checker, so the language server (P16.09) helps in model files: `nanoscope.blocks` exports through `__getattr__` (gating), so basedpyright types every block as `Any`, and `BlockModule.__new__` returns `Any`, so an options-only call like `Attention(n_head=4)` is never checked. Add static imports under `TYPE_CHECKING` and typed option calls (overloads or generated stubs) without changing gating at run time. · files: nanoscope/blocks/__init__.py, nanoscope/blocks/spec.py, tests/test_blocks.py · deps: P14.99 · done: `uv run pytest tests/test_blocks.py -k typed` runs basedpyright on a model file and asserts it reports `No parameter named "n_head"` and no error for the correct call ✓ 2026-10-09 f703b29: not `TYPE_CHECKING` imports but a generated package stub, `nanoscope/blocks/__init__.pyi` (`python -m nanoscope.blocks.stubs [--check]`, a test keeps it current): every export is named and each block has two keyword-only overloads, options only (a `BlockSpec`) and with `d_model`/`context_length` (the module); library code imports the submodules and never sees the stub; ruff skips it; the test runs pyright (basedpyright, the language server's checker, gives the same message)
-- [ ] P16.99 PHASE GATE P16. Exit criteria: plan section 10 phase 16. · files: — · deps: P16.* · done: `make check` passes; `uv run pytest tests/test_run.py -k optimizer_resume` passes; the e2e job is green; `uv run pytest tests/test_first_model_notebook.py` passes; **USER ACTION** merge the PR
+- [x] P16.99 PHASE GATE P16. Exit criteria: plan section 10 phase 16. · files: — · deps: P16.* · done: `make check` passes; `uv run pytest tests/test_run.py -k optimizer_resume` passes; the e2e job is green; `uv run pytest tests/test_first_model_notebook.py` passes; **USER ACTION** merge the PR ✓ 2026-10-09 ebd63ea: `make check` 616 passed; first-notebook and all CI jobs green (e2e, compose, both images) on PR #18, merged by the user. Found by CI: `.gitignore` had a bare `workspace/` rule that hid `web/src/workspace/` (fixed 9b4a7b2, rule anchored to `/workspace/`). Not done: e2e for authoring/workspace/schemas/LSP, and a by-eye comparison with the row 8 mockups (MISC FIXES item 4)
 
 ---
 
