@@ -11,11 +11,13 @@ type Props = {
   confirm: string;
   onConfirm: () => void;
   busy?: boolean;
+  // the label of the safe choice (default "Cancel")
+  cancel?: string;
 };
 
 // A confirm step for something that changes a lot. Cancel has the focus, so Enter does not
 // confirm by accident; the confirm button says what it does.
-export function ConfirmDialog({ open, onOpenChange, title, children, confirm, onConfirm, busy }: Props) {
+export function ConfirmDialog({ open, onOpenChange, title, children, confirm, onConfirm, busy, cancel = "Cancel" }: Props) {
   return (
     <AlertDialog.Root open={open} onOpenChange={onOpenChange}>
       <AlertDialog.Portal>
@@ -27,7 +29,7 @@ export function ConfirmDialog({ open, onOpenChange, title, children, confirm, on
           </AlertDialog.Description>
           <div className={styles.foot}>
             <AlertDialog.Cancel asChild>
-              <Button>Cancel</Button>
+              <Button>{cancel}</Button>
             </AlertDialog.Cancel>
             <Button variant="danger" disabled={busy} onClick={onConfirm}>
               {confirm}
