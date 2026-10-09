@@ -4,7 +4,7 @@ The build list for [`plan-tool.md`](plan-tool.md), sections 4-10, with the decis
 2026-10-05 (plan section 11) applied. Phase numbers follow the plan's section 10. Every
 item is one line, so scripts and agents can grep and edit it.
 
-**Current focus:** P16. P16.04-P16.06 built; P16.16 mockups approved (row 8). Next: P16.01-P16.03, then the screen items P16.07, P16.13, P16.14; P16.08/P16.09 (LSP), P16.17 (typed blocks). Add the checkpoint_steps CLI flag and run-form field (discovered work) before P16.15. Left for the user: P14.33 (tag v0.5.0).
+**Current focus:** P16. P16.04-P16.06 built; P16.16 mockups approved (row 8). P16.01-P16.03 done. Next: the screen items P16.07, P16.13, P16.14; P16.08/P16.09 (LSP), P16.17 (typed blocks). Add the checkpoint_steps CLI flag and run-form field (discovered work) before P16.15. Left for the user: P14.33 (tag v0.5.0).
 
 ## Progress
 
@@ -645,9 +645,9 @@ Order: P13.01 and P13.02 first (these items live in `web/` and run in its CI job
 
 ## P16 Extend + depth
 
-- [ ] P16.01 Add an `optimizer=` factory to `run()`/`train()`: a callable `(param_groups, preset)` returning an optimizer, with AdamW as the default. A non-default ref is recorded in config and is part of the run's identity. · files: nanoscope/run.py, nanoscope/train_loop.py · deps: P14.99 · done: `uv run pytest tests/test_run.py -k optimizer_factory` passes
-- [ ] P16.02 Plan done-when: `run(..., optimizer=...)` resumes exactly. · files: tests/test_run.py · deps: P16.01 · done: `uv run pytest tests/test_run.py -k optimizer_resume` passes
-- [ ] P16.03 Add a Muon example optimizer, with a test that it trains a tiny model. · files: nanoscope/optim/__init__.py (new), nanoscope/optim/muon.py (new), tests/test_optim.py (new) · deps: P16.01 · done: `uv run pytest tests/test_optim.py` passes
+- [x] P16.01 Add an `optimizer=` factory to `run()`/`train()`: a callable `(param_groups, preset)` returning an optimizer, with AdamW as the default. A non-default ref is recorded in config and is part of the run's identity. · files: nanoscope/run.py, nanoscope/train_loop.py · deps: P14.99 · done: `uv run pytest tests/test_run.py -k optimizer_factory` passes ✓ 2026-10-09 COMMIT: `run(optimizer=make)` / `train(make_optimizer=)`, factory `(param_groups, preset)`; its ref is in config.json (`optimizer.ref`) and the run name only when set, so old runs keep names; a resume without it is refused
+- [x] P16.02 Plan done-when: `run(..., optimizer=...)` resumes exactly. · files: tests/test_run.py · deps: P16.01 · done: `uv run pytest tests/test_run.py -k optimizer_resume` passes ✓ 2026-10-09 COMMIT
+- [x] P16.03 Add a Muon example optimizer, with a test that it trains a tiny model. · files: nanoscope/optim/__init__.py (new), nanoscope/optim/muon.py (new), tests/test_optim.py (new) · deps: P16.01 · done: `uv run pytest tests/test_optim.py` passes ✓ 2026-10-09 COMMIT: Newton-Schulz Muon for 2-D params (embeddings and head included), AdamW for the rest
 - [x] P16.04 Inspect job: attention maps and logit lens for a prompt at any archived checkpoint, in an `inspect.v1` schema. · files: nanoscope/inspect.py, nanoscope/jobs/execute.py, nanoscope/schemas/inspect.v1.json (new), tests/test_describe.py · deps: P14.99, P6.62 · done: `uv run pytest tests/test_describe.py -k inspect_checkpoint` passes ✓ 2026-10-09 8700307: `inspect_checkpoint(ref, prompt, step=, top_k=)` in nanoscope/inspect.py; maps are causal rows (row t has t+1 weights), lens = embeddings then each block through the final norm and head; `load_run(step=)`, `store.saved_steps`; prompts over 64 tokens refused
 - [x] P16.05 Add `nanoscope inspect <ref> --step N --prompt TEXT`. · files: nanoscope/cli.py · deps: P16.04 · done: `uv run pytest tests/test_describe.py -k inspect_cli` asserts the output ✓ 2026-10-09 8700307: prints the lens (top guess per layer, actual next with p and rank) and where each head looks from the last token; `--json`, `--top-k`
 - [x] P16.06 Add `POST /api/runs/{ref}/inspect` (job). · files: nanoscope/server/routes/runs.py, tests/server/test_runs.py · deps: P16.04 · done: `uv run pytest tests/server/test_runs.py -k inspect` passes ✓ 2026-10-09 8700307: 202 + JobDoc on the interactive lane; the result is the report; an unkept step is a 404 naming the kept ones

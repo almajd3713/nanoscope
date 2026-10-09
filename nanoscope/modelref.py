@@ -18,13 +18,13 @@ from typing import Any
 FILE_MODULES = ("_user_model", "_nanoscope_study_", "_nanoscope_ref_")
 
 
-def source_file(cls: type) -> Path | None:
+def source_file(cls: Any) -> Path | None:
     module = sys.modules.get(cls.__module__)
     file = getattr(module, "__file__", None)
     return Path(file).resolve() if file else None
 
 
-def model_ref(cls: type) -> tuple[str, bool]:
+def model_ref(cls: Any) -> tuple[str, bool]:
     """(ref, rebuildable). Classes from `__main__` or a notebook get a ref but can't be rebuilt."""
     if cls.__module__ == "__main__" or source_file(cls) is None:
         return f"__main__:{cls.__qualname__}", False

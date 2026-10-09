@@ -32,16 +32,20 @@ def preset_dir(preset: Preset) -> str:
 
 
 def run_name(model_name: str, defaults: Mapping[str, Any], model_kwargs: Mapping[str, Any],
-             given: Preset, preset: Preset) -> str:
+             given: Preset, preset: Preset, optimizer: str | None = None) -> str:
     """`bigram` for defaults; `bigram-1a2b3c4d` once anything differs, so runs never collide.
-    `defaults` maps each constructor parameter to its default (or `REQUIRED`)."""
+    `defaults` maps each constructor parameter to its default (or `REQUIRED`); `optimizer` is
+    the ref of a non-default optimizer factory."""
     changed_model = {k: v for k, v in model_kwargs.items()
                      if defaults[k] is REQUIRED or v != defaults[k]}
     changed_preset = {f.name: getattr(preset, f.name) for f in fields(preset)
                       if getattr(preset, f.name) != getattr(given, f.name)}
     name = model_name.lower()
-    if changed_model or changed_preset:
-        name += "-" + hash_of({"model": changed_model, "preset": changed_preset})
+    if changed_model or changed_preset or optimizer:
+        parts: dict[str, Any] = {"model": changed_model, "preset": changed_preset}
+        if optimizer:  # only when set, so existing runs keep their names
+            parts["optimizer"] = optimizer
+        name += "-" + hash_of(parts)
     return name
 
 

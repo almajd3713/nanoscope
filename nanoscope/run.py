@@ -23,7 +23,7 @@ from nanoscope.sizing import count_params, flops_per_token
 from nanoscope.specs import validate_run_request
 from nanoscope.status import STOP_FILE, StatusFile
 from nanoscope.store import ref_of
-from nanoscope.train_loop import TrainResult, generate, train
+from nanoscope.train_loop import OptimizerFactory, TrainResult, generate, train
 
 
 @dataclass
@@ -240,11 +240,12 @@ def _preset_dir(preset: Preset) -> str:
 
 def _run_name(
     model_cls: type[nn.Module], model_kwargs: dict[str, Any], given: Preset, preset: Preset,
+    optimizer: str | None = None,
 ) -> str:
     """`bigram` for defaults; `bigram-1a2b3c4d` once anything differs (see nanoscope.runref)."""
     defaults = {name: REQUIRED if p.default is inspect.Parameter.empty else p.default
                 for name, p in inspect.signature(model_cls).parameters.items()}
-    return run_name(model_cls.__name__, defaults, model_kwargs, given, preset)
+    return run_name(model_cls.__name__, defaults, model_kwargs, given, preset, optimizer)
 
 
 class ConfigMismatch(ValueError):
@@ -307,6 +308,7 @@ def run(
     compile: bool | str = False,
     block_stats: bool = False,
     checkpoint_steps: list[int] | None = None,
+    optimizer: OptimizerFactory | None = None,
     study: dict[str, Any] | None = None,
     **model_kwargs: Any,
 ) -> RunResult | RunGroup:
@@ -324,6 +326,10 @@ def run(
     change the run's identity, so a run can resume with it on or off.
     checkpoint_steps=[100, 500] keeps a full checkpoint at those steps in checkpoints/archive/
     (never pruned); it isn't part of the run's identity either.
+    optimizer=make is a factory `(param_groups, preset) -> torch.optim.Optimizer` that replaces
+    the default AdamW (see nanoscope.optim.muon for an example). Its ref goes into config.json
+    and the run's name, so it is part of the run's identity; the learning-rate schedule still
+    comes from the preset.
     """
     if seeds is not None:
         if output_dir is not None:
@@ -334,7 +340,7 @@ def run(
                 model_cls, preset, seed=s, device=device, resume=resume, on_step=on_step,
                 on_eval=on_eval, wandb=wandb, push_to_hub=push_to_hub, progress=progress,
                 study=study, compile=compile, block_stats=block_stats,
-                checkpoint_steps=checkpoint_steps,
+                checkpoint_steps=checkpoint_steps, optimizer=optimizer,
                 **model_kwargs))
             for s in seed_list
         ])
@@ -345,7 +351,8 @@ def run(
     preset = preset.override(**overrides)
 
     resolved_device = _resolve_device(device)
-    name = _run_name(model_cls, model_kwargs, given, preset)
+    optimizer_ref = model_ref(optimizer)[0] if optimizer else None
+    name = _run_name(model_cls, model_kwargs, given, preset, optimizer_ref)
     if output_dir is None:
         run_dir = paths.runs_dir() / _preset_dir(given) / name / f"seed-{seed}"
     else:
@@ -376,6 +383,7 @@ def run(
             "preset": asdict(preset),
             "tokenizer": tokenizer_id(preset),
             "seed": seed,
+            **({"optimizer": {"ref": optimizer_ref}} if optimizer_ref else {}),
             **({"study": study} if study else {}),
         }, default=str))
         hub = None
@@ -458,6 +466,7 @@ def run(
             compile=compile,
             should_stop=should_stop,
             checkpoint_steps=checkpoint_steps,
+            make_optimizer=optimizer,
         )
         if bar:
             bar.close()
