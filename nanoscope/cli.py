@@ -46,6 +46,16 @@ def _parse_set(items: list[str]) -> dict:
     return result
 
 
+def _parse_steps(value: str | None) -> list[int] | None:
+    if not value:
+        return None
+    try:
+        return [int(part) for part in value.split(",") if part.strip()]
+    except ValueError:
+        raise SystemExit(
+            f"--checkpoint-steps takes comma-separated step numbers, got {value!r}") from None
+
+
 def _parse_compile(value: str | None) -> bool | str:
     return False if value is None else (True if value == "true" else value)
 
@@ -64,6 +74,8 @@ def build_parser() -> argparse.ArgumentParser:
     run_parser.add_argument("--set", nargs="*", default=[], dest="overrides")
     run_parser.add_argument("--compile", nargs="?", const="true", default=None,
                             help="torch.compile; or --compile reduce-overhead for CUDA graphs")
+    run_parser.add_argument("--checkpoint-steps", default=None, metavar="N,N,...",
+                            help="keep a full checkpoint at these steps (never pruned)")
     run_parser.add_argument("--no-resume", action="store_true")
 
     sub.add_parser("presets", help="List available presets")
@@ -536,6 +548,7 @@ def _main(argv: list[str] | None = None) -> None:
             output_dir=args.output_dir,
             resume=not args.no_resume,
             compile=_parse_compile(args.compile),
+            checkpoint_steps=_parse_steps(args.checkpoint_steps),
             **kwargs,
         )
 

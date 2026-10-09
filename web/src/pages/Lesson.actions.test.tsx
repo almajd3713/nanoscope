@@ -95,6 +95,7 @@ describe("Lesson actions", () => {
       kwargs: {},
       compile: false,
       wandb: false,
+      checkpoint_steps: [],
     });
   });
 

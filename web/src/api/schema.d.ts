@@ -854,6 +854,27 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/runs/{ref}/inspect": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Inspect Run
+         * @description Attention maps and a logit lens (`inspect.v1`) for a prompt at one checkpoint. Loading
+         *     the model runs the learner's code, so it is a job; its result is the report.
+         */
+        post: operations["inspect_run_api_runs__ref__inspect_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/runs/{ref}/metrics": {
         parameters: {
             query?: never;
@@ -1804,6 +1825,21 @@ export interface components {
             /** Repo */
             repo: string;
         };
+        /** InspectRequest */
+        InspectRequest: {
+            /**
+             * Prompt
+             * @default Once upon a time
+             */
+            prompt: string;
+            /** Step */
+            step?: number | null;
+            /**
+             * Top K
+             * @default 5
+             */
+            top_k: number;
+        };
         /**
          * JobDoc
          * @description A queue job: what to do, where it stands, and what came of it.
@@ -2185,6 +2221,11 @@ export interface components {
          */
         RunRequest: {
             /**
+             * Checkpoint Steps
+             * @default []
+             */
+            checkpoint_steps: number[];
+            /**
              * Compile
              * @default false
              */
@@ -2218,6 +2259,11 @@ export interface components {
         };
         /** RunValidation */
         RunValidation: {
+            /**
+             * Checkpoint Steps
+             * @default []
+             */
+            checkpoint_steps: number[];
             /**
              * Kwargs
              * @default {}
@@ -4247,6 +4293,50 @@ export interface operations {
                 };
                 content: {
                     "application/json": unknown;
+                };
+            };
+            /** @description The request cannot be done as asked */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description An error (RFC 9457) */
+            "4XX": {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    inspect_run_api_runs__ref__inspect_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                ref: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: {
+            content: {
+                "application/json": components["schemas"]["InspectRequest"] | null;
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            202: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["JobDoc"];
                 };
             };
             /** @description The request cannot be done as asked */

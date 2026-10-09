@@ -36,6 +36,14 @@ export function parseSeeds(text: string): unknown {
   return t;
 }
 
+// "100, 500" -> [100, 500]; empty -> []; anything else is null (the form says so, nothing is sent).
+export function parseSteps(text: string): number[] | null {
+  const t = text.trim();
+  if (t === "") return [];
+  if (/^\d+(\s*,\s*\d+)*$/.test(t)) return t.split(",").map((x) => Number(x.trim()));
+  return null;
+}
+
 export function seedList(seeds: unknown): number[] {
   if (typeof seeds === "number") return Array.from({ length: seeds }, (_, i) => i);
   if (Array.isArray(seeds)) return seeds as number[];
@@ -68,13 +76,16 @@ export function commands(opts: {
   preset: string;
   seeds: unknown;
   kwargs: Record<string, unknown>;
+  checkpointSteps?: number[];
 }): { cli: string; python: string | undefined } {
   const lit = (v: unknown) => (typeof v === "string" ? `"${v}"` : v === null ? "None" : v === true ? "True" : v === false ? "False" : JSON.stringify(v));
   const seeds = typeof opts.seeds === "number" ? opts.seeds : undefined;
+  const steps = opts.checkpointSteps ?? [];
   const sets = Object.entries(opts.kwargs).map(([k, v]) => `${k}=${showValue(v) || "None"}`);
   const cli = [
     `nanoscope run ${opts.model} --preset ${opts.preset}`,
     seeds !== undefined && seeds > 1 ? `--seeds ${seeds}` : "",
+    steps.length ? `--checkpoint-steps ${steps.join(",")}` : "",
     sets.length ? `--set ${sets.join(" ")}` : "",
   ].filter(Boolean).join(" ");
   const python = opts.shippedClass
@@ -86,6 +97,7 @@ export function commands(opts: {
           opts.shippedClass,
           `preset="${opts.preset}"`,
           seeds !== undefined && seeds > 1 ? `seeds=${seeds}` : "",
+          steps.length ? `checkpoint_steps=[${steps.join(", ")}]` : "",
           ...Object.entries(opts.kwargs).map(([k, v]) => `${k}=${lit(v)}`),
         ].filter(Boolean).join(", ")})`,
       ].join("\n")

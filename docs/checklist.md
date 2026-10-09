@@ -4,7 +4,7 @@ The build list for [`plan-tool.md`](plan-tool.md), sections 4-10, with the decis
 2026-10-05 (plan section 11) applied. Phase numbers follow the plan's section 10. Every
 item is one line, so scripts and agents can grep and edit it.
 
-**Current focus:** P16. P16.04-P16.06 built; P16.16 mockups approved (row 8). P16.01-P16.03 done. Next: the screen items P16.07, P16.13, P16.14; P16.08/P16.09 (LSP), P16.17 (typed blocks). Add the checkpoint_steps CLI flag and run-form field (discovered work) before P16.15. Left for the user: P14.33 (tag v0.5.0).
+**Current focus:** P16. P16.04-P16.06 built; P16.16 mockups approved (row 8). P16.01-P16.03 done. Next: the screen items P16.07, P16.13, P16.14; P16.08/P16.09 (LSP), P16.17 (typed blocks). (checkpoint_steps CLI flag, job payload, API field and run-form field done.) Left for the user: P14.33 (tag v0.5.0).
 
 ## Progress
 
@@ -765,7 +765,7 @@ right phase, then tick it here as `[x] → P<n>.<id>`.
 - [ ] (P16.16 drawing) Curricula in the workspace (`curricula/<path>/`) are not listed for learners: the loader reads only the package's `curricula/`. P16.13 previews them; publishing an authored path is a separate decision.
 - [ ] (P16.16 drawing) `GET /api/models` lists lesson classes (`MyLayerNorm`, `MyRMSNorm`) as models: any `nn.Module` subclass in the workspace counts. The workspace tree labels files by what the API says.
 - [ ] (P16.16 drawing) The authoring page's summary words ("ready", "does not load", "starter.py fails 1 of 2 checks and solution.py passes both") are not library output yet: `learn author-check` (P16.13) should print them so the page shows them verbatim.
-- [ ] (P16.16 drawing) `checkpoint_steps` can be set only from Python: `nanoscope run` has no flag and the run form no field, so a learner cannot keep the steps the inspect page's Across steps view and P16.15 need. Add both (the field at Tinker) before P16.15.
+- [x] (P16.16 drawing) `checkpoint_steps` can be set only from Python: `nanoscope run` has no flag and the run form no field, so a learner cannot keep the steps the inspect page's Across steps view and P16.15 need. Add both (the field at Tinker) before P16.15.
 - [ ] After P17: a "Prehistory" curriculum path of pre-transformer language models (MLP LM, RNN, LSTM/GRU, seq2seq attention): recurrent blocks, recurrence-aware `flops_per_token`, stateful sampling. General classical ML/vision is a later, separate call. See plan 14.1.
 - 2026-10-06 (agent): P8.25 dropped. The rebuilt GPT2 has different `state_dict` keys from the old one
   (`norm1/norm2/norm`, separate `q/k/v` instead of `qkv`) but the same-seed initial weights, and the

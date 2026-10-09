@@ -428,3 +428,29 @@ def test_baseline_range(client, finished, home):
     (mine / "metrics.jsonl").write_text("\n".join(rows) + "\n")
     outside = client.get("/api/runs/tinystories-5min/gpt2/seed-0").json()["baseline"]
     assert outside["inside"] is False and outside["value"] == pytest.approx(high + 1.0)
+
+
+def test_submit_with_checkpoint_steps(client, monkeypatch):
+    from learn_helpers import set_preset
+
+    from nanoscope import paths, queue
+    from nanoscope.cli import main
+
+    set_preset(monkeypatch, tiny())
+    sent = client.post("/api/runs", json={"model": "bigram", "preset": "test-tiny",
+                                          "checkpoint_steps": [10, 5, 5]})
+    assert sent.status_code == 202
+    job = sent.json()["job"]
+    assert job["payload"]["checkpoint_steps"] == [5, 10]
+    queue.claim("w", "cpu")
+    with pytest.raises(SystemExit):
+        main(["run-job", str(job["id"])])
+    archive = paths.runs_dir() / "test-tiny" / "bigram" / "seed-0" / "checkpoints" / "archive"
+    assert len(list(archive.iterdir())) == 2
+
+    late = client.post("/api/runs", json={"model": "bigram", "preset": "test-tiny",
+                                          "checkpoint_steps": [500]})
+    assert late.status_code == 422 and "fall outside 1..20" in late.json()["detail"]
+    checked = client.post("/api/validate/run", json={"model": "bigram", "preset": "test-tiny",
+                                                     "checkpoint_steps": [0]})
+    assert [p["field"] for p in checked.json()["problems"]] == ["checkpoint_steps"]

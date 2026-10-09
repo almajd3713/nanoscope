@@ -61,6 +61,13 @@
             "custom_preset": {
               "type": "object"
             },
+            "checkpoint_steps": {
+              "type": "array",
+              "items": {
+                "type": "integer",
+                "minimum": 1
+              }
+            },
             "compile": {
               "type": [
                 "boolean",

@@ -73,7 +73,7 @@ describe("RunForm", () => {
     expect(screen.getAllByText("Set by the preset's data.").length).toBe(2);
     await waitFor(() => expect(seen.some((r) => r.path === "/api/validate/run")).toBe(true));
     const sent = seen.filter((r) => r.path === "/api/validate/run").at(-1)?.body as Sent;
-    expect(sent).toEqual({ model: "nanoscope.models.gpt2:GPT2", preset: "tinystories-5min", kwargs: {}, seeds: 1 });
+    expect(sent).toEqual({ model: "nanoscope.models.gpt2:GPT2", preset: "tinystories-5min", kwargs: {}, seeds: 1, checkpoint_steps: [] });
   });
 
   it("sends only what you changed, says where the runs land, and shows the command", async () => {
@@ -118,9 +118,23 @@ describe("RunForm", () => {
     await screen.findByText("runs list");
     const posts = seen.filter((r) => r.method === "POST" && r.path === "/api/runs").map((r) => r.body);
     expect(posts).toEqual([
-      { model: "nanoscope.models.gpt2:GPT2", preset: "tinystories-5min", seed: 0, kwargs: {}, compile: false, wandb: false },
-      { model: "nanoscope.models.gpt2:GPT2", preset: "tinystories-5min", seed: 1, kwargs: {}, compile: false, wandb: false },
+      { model: "nanoscope.models.gpt2:GPT2", preset: "tinystories-5min", seed: 0, kwargs: {}, compile: false, wandb: false, checkpoint_steps: [] },
+      { model: "nanoscope.models.gpt2:GPT2", preset: "tinystories-5min", seed: 1, kwargs: {}, compile: false, wandb: false, checkpoint_steps: [] },
     ]);
+  });
+
+  it("sends the steps to keep and refuses text that is not step numbers", async () => {
+    const seen = renderForm("/runs/new", { "POST /api/runs": { status: 202, body: { ref: "tinystories-5min/gpt2/seed-0", state: "queued" } } });
+    const steps = await screen.findByLabelText("Keep checkpoints at steps");
+    await userEvent.type(steps, "100 and 500");
+    expect(await screen.findByText("Write step numbers separated by commas.")).toBeTruthy();
+    expect((screen.getByRole("button", { name: "Train" }) as HTMLButtonElement).disabled).toBe(true);
+    await userEvent.clear(steps);
+    await userEvent.type(steps, "100, 500");
+    await userEvent.click(await screen.findByRole("button", { name: "Train" }));
+    await screen.findByText("run page");
+    const post = seen.find((r) => r.method === "POST" && r.path === "/api/runs");
+    expect((post?.body as { checkpoint_steps: number[] }).checkpoint_steps).toEqual([100, 500]);
   });
 
   it("opens the run page for a single seed", async () => {

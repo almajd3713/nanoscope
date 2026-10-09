@@ -361,3 +361,17 @@ def test_optimizer_resume():
     assert [r["loss"] for r in resumed.metrics] == [r["loss"] for r in straight.metrics]
     with pytest.raises(ValueError, match="optimizer"):
         run(Bigram, tiny(), device="cpu", output_dir=out("opt_resumed"))
+
+
+def test_cli_checkpoint_steps(monkeypatch):
+    from learn_helpers import set_preset
+
+    from nanoscope.cli import main
+
+    set_preset(monkeypatch, tiny())
+    base = ["run", "nanoscope/models/bigram.py:Bigram", "--preset", "test-tiny"]
+    main([*base, "--checkpoint-steps", "4,8"])
+    archive = paths.runs_dir() / "test-tiny" / "bigram" / "seed-0" / "checkpoints" / "archive"
+    assert len(list(archive.iterdir())) == 2
+    with pytest.raises(SystemExit, match="comma-separated"):
+        main([*base, "--checkpoint-steps", "a"])

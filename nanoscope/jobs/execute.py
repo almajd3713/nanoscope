@@ -39,7 +39,8 @@ def _run(job: Any, payload: dict[str, Any]) -> dict[str, Any]:
         model_class(payload["model"]), build_preset(payload), seed=payload.get("seed", 0),
         device=job["device"], output_dir=out, push_to_hub=payload.get("push_to_hub"),
         wandb=payload.get("wandb", False), compile=payload.get("compile", False),
-        study=payload.get("study"), progress=False, **payload.get("kwargs", {}))
+        study=payload.get("study"), progress=False,
+        checkpoint_steps=payload.get("checkpoint_steps") or None, **payload.get("kwargs", {}))
     assert isinstance(result, RunResult)
     state = read_json(result.run_dir / "status.json", "status")["state"]
     summary = result.summary()

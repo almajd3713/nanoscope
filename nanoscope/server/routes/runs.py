@@ -126,6 +126,7 @@ class RunRequest(BaseModel):
     compile: bool | str = False
     push_to_hub: str | None = None
     wandb: bool | str = False
+    checkpoint_steps: list[int] = []  # steps whose full checkpoint is kept for good
 
 
 class RunSubmission(BaseModel):
@@ -146,7 +147,8 @@ def submit_run(body: RunRequest, request: Request) -> Any:
     from nanoscope.specs import validate_run_spec
 
     spec, locked = model_spec(body.model)
-    problems = validate_run_spec(spec, body.preset, body.kwargs, None, locked)
+    problems = validate_run_spec(spec, body.preset, body.kwargs, None, locked,
+                                body.checkpoint_steps)
     if problems:
         first = problems[0]
         lock = next((p for p in problems if p.code == "locked"), None)
@@ -167,6 +169,8 @@ def submit_run(body: RunRequest, request: Request) -> Any:
         "kwargs": model_kwargs, "compile": body.compile, "wandb": body.wandb}
     if overrides:
         payload["overrides"] = overrides
+    if body.checkpoint_steps:
+        payload["checkpoint_steps"] = sorted(set(body.checkpoint_steps))
     if body.push_to_hub:
         payload["push_to_hub"] = body.push_to_hub
     job_id = queue.enqueue("run", payload, lane="interactive", ref=ref)

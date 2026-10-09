@@ -2005,6 +2005,14 @@
       "RunRequest": {
         "description": "Train one seed of a model on a preset. Every field but `model` has the library's\ndefault, so `{\"model\": \"bigram\"}` is the level-0 request.",
         "properties": {
+          "checkpoint_steps": {
+            "default": [],
+            "items": {
+              "type": "integer"
+            },
+            "title": "Checkpoint Steps",
+            "type": "array"
+          },
           "compile": {
             "anyOf": [
               {
@@ -2069,6 +2077,14 @@
       },
       "RunValidation": {
         "properties": {
+          "checkpoint_steps": {
+            "default": [],
+            "items": {
+              "type": "integer"
+            },
+            "title": "Checkpoint Steps",
+            "type": "array"
+          },
           "kwargs": {
             "additionalProperties": true,
             "default": {},
