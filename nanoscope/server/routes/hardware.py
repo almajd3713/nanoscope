@@ -55,6 +55,7 @@ class Device(BaseModel):
     kind: str  # "cpu" or "cuda"
     memory_total: int | None = None
     memory_free: int | None = None
+    label: str | None = None  # the GPU's own name
 
 
 class Hardware(BaseModel):
@@ -76,7 +77,7 @@ def hardware() -> Hardware:
         for i in range(torch.cuda.device_count()):
             free, total = torch.cuda.mem_get_info(i)
             devices.append(Device(name=f"cuda:{i}", kind="cuda", memory_total=total,
-                                  memory_free=free))
+                                  memory_free=free, label=torch.cuda.get_device_name(i)))
     return Hardware(devices=devices, cpu_count=os.cpu_count() or 1, torch=torch.__version__,
                     workers=read_workers())
 
@@ -85,14 +86,18 @@ class BenchRequest(BaseModel):
     model: str
     preset: str = "tinystories-5min"
     steps: int = 60
+    device: str | None = None  # measure on this device's worker (default: any worker)
 
 
 @router.post("/bench", status_code=202)
 def bench(body: BenchRequest, request: Request) -> JobDoc:
-    """Measure training speed on a worker's device (a job: it trains for real)."""
+    """Measure training speed on a worker's device (a job: it trains for real). The result is
+    saved to the bench history, as `nanoscope bench --save` does."""
     get_preset(body.preset)
-    job_id = queue.enqueue("bench", {"model": resolve_ref(body.model), "preset": body.preset,
-                                     "steps": body.steps}, lane="interactive")
+    payload = {"model": resolve_ref(body.model), "preset": body.preset, "steps": body.steps}
+    if body.device:
+        payload["device"] = body.device
+    job_id = queue.enqueue("bench", payload, lane="interactive")
     assert job_id is not None
     return job_doc(queue.get(job_id))
 

@@ -53,6 +53,17 @@
       },
       "BenchRequest": {
         "properties": {
+          "device": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Device"
+          },
           "model": {
             "title": "Model",
             "type": "string"
@@ -507,6 +518,17 @@
           "kind": {
             "title": "Kind",
             "type": "string"
+          },
+          "label": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Label"
           },
           "memory_free": {
             "anyOf": [
@@ -2716,7 +2738,7 @@
   "paths": {
     "/api/bench": {
       "post": {
-        "description": "Measure training speed on a worker's device (a job: it trains for real).",
+        "description": "Measure training speed on a worker's device (a job: it trains for real). The result is\nsaved to the bench history, as `nanoscope bench --save` does.",
         "operationId": "bench_api_bench_post",
         "requestBody": {
           "content": {

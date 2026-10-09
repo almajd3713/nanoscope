@@ -97,6 +97,14 @@ def test_lanes_interactive_before_batch(home):
     assert queue.claim("w", "cpu", lanes=("batch",)) is None
 
 
+def test_a_bench_job_that_names_a_device_waits_for_that_devices_worker(home):
+    pinned = add("bench", {"model": "bigram", "device": "cuda:0"}, lane="interactive")
+    other = add("prepare-data", {"preset": "a"})
+    assert take("w-cpu", "cpu")["id"] == other  # the pinned bench is passed over
+    assert queue.claim("w-cpu", "cpu") is None
+    assert take("w-gpu", "cuda:0")["id"] == pinned
+
+
 def test_claim_two_threads_never_double_claim(home):
     ids = [add("prepare-data", {"preset": str(i)}) for i in range(40)]
     got, lock = [], threading.Lock()

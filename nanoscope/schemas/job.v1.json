@@ -133,6 +133,10 @@
             "timeout": {
               "type": "number",
               "exclusiveMinimum": 0
+            },
+            "device": {
+              "type": "string",
+              "minLength": 1
             }
           },
           "required": [

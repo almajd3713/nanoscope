@@ -60,7 +60,7 @@ def _bench(job: Any, payload: dict[str, Any]) -> dict[str, Any]:
     from nanoscope.bench import bench
 
     result = bench(model_class(payload["model"]), payload.get("preset", "tinystories-5min"),
-                   steps=payload.get("steps", 60), device=job["device"])
+                   steps=payload.get("steps", 60), device=job["device"], save=True)
     return {"report": str(result), **result.to_dict()}
 
 

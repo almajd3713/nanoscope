@@ -285,7 +285,8 @@ def test_data_and_hardware(client, monkeypatch):
 
     hardware = client.get("/api/hardware").json()
     assert hardware["devices"][0] == {"name": "cpu", "kind": "cpu", "memory_total": None,
-                                      "memory_free": None}
+                                      "memory_free": None, "label": None}
+    assert all(d["label"] for d in hardware["devices"] if d["kind"] == "cuda")  # the GPU's name
     assert hardware["cpu_count"] >= 1 and hardware["torch"] and hardware["workers"] == []
     # a bench is a job, and its saved results are listed
     bench = client.post("/api/bench", json={"model": "bigram", "steps": 3, "preset": "test-tiny"})
@@ -294,6 +295,8 @@ def test_data_and_hardware(client, monkeypatch):
     assert bench.status_code == 202
     assert bench.json()["payload"] == {"model": "nanoscope.models.bigram:Bigram",
                                        "preset": "tinystories-5min", "steps": 3}
+    pinned = client.post("/api/bench", json={"model": "bigram", "device": "cuda:0"})
+    assert pinned.json()["payload"]["device"] == "cuda:0"
     assert client.get("/api/hardware/bench").json() == []
     row = {"schema": 1, "at": "2026-10-06T10:00:00+00:00", "model": "Bigram", "device": "cpu",
            "step_ms": 12.5, "tokens_per_sec": 1000.0, "tflops": 0.01, "verdict": "CPU run",
