@@ -331,6 +331,29 @@
     {
       "properties": {
         "kind": {
+          "const": "sizes"
+        },
+        "payload": {
+          "type": "object",
+          "properties": {
+            "spec": {
+              "type": "object"
+            },
+            "timeout": {
+              "type": "number",
+              "exclusiveMinimum": 0
+            }
+          },
+          "required": [
+            "spec"
+          ],
+          "additionalProperties": false
+        }
+      }
+    },
+    {
+      "properties": {
+        "kind": {
           "const": "prereg-preview"
         },
         "payload": {

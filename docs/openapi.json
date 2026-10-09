@@ -5469,6 +5469,58 @@
         ]
       }
     },
+    "/api/studies/sizes": {
+      "post": {
+        "description": "Queue a sizes job for a spec that need not be saved: each variant's non-embedding\nparameters and FLOPs per token with `match_knob` resolved, and its distance from the\nreference variant. The job's result is the table (a worker builds the models).",
+        "operationId": "study_sizes_api_studies_sizes_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/StudyValidation"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "202": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "title": "Response Study Sizes Api Studies Sizes Post"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "The request cannot be done as asked"
+          },
+          "4XX": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "An error (RFC 9457)"
+          }
+        },
+        "summary": "Study Sizes",
+        "tags": [
+          "studies"
+        ]
+      }
+    },
     "/api/studies/{name}/bundle.zip": {
       "get": {
         "description": "Everything needed to check or re-run the study, as one zip: report.md, results.json, the\nspec, study.json, plan.json and the per-seed finals. Built from the files on disk.",

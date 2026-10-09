@@ -1,3 +1,4 @@
+import json
 import pytest
 from fakes import tiny
 from fastapi.testclient import TestClient
@@ -251,3 +252,21 @@ def test_explore_studies_have_no_card_and_unknown_studies_404(client):
     assert client.get("/api/studies/nope/card").status_code == 404
     assert client.post("/api/studies/nope/preregister/preview").status_code == 404
     assert client.post("/api/studies/toy/card/push", json={"repo": "me/c"}).status_code == 422
+
+
+def test_sizes_job_resolves_the_match_and_flags_outliers(client):
+    spec = SPEC.replace('baseline = "small"', 'baseline = "small"\ntolerance = 0.05')
+    queued = client.post("/api/studies/sizes", json={"toml": spec})
+    assert queued.status_code == 202, queued.text
+    work_off(queued.json()["id"])
+    table = json.loads(queue.get(queued.json()["id"])["result"])
+    assert table["reference"] == "small" and table["tolerance"] == 0.05
+    small, wide = table["variants"]
+    assert small["delta"] == 0 and small["within"]
+    assert wide["non_embedding_params"] > small["non_embedding_params"]
+    assert wide["delta"] > 0.05 and not wide["within"]
+
+
+def test_sizes_refuses_an_invalid_spec(client):
+    bad = client.post("/api/studies/sizes", json={"toml": SPEC.replace('baseline = "small"', 'baseline = "nope"')})
+    assert bad.status_code == 422

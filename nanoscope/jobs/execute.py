@@ -88,6 +88,32 @@ def _certify(job: Any, payload: dict[str, Any]) -> dict[str, Any]:
     return certify(payload["file"], payload["block"])
 
 
+def _load_workspace_spec(spec: Any) -> Any:
+    """A StudySpec from a path or a dict; a relative file ref is relative to the workspace."""
+    from pathlib import Path
+
+    from nanoscope import paths
+    from nanoscope.studyspec import StudySpec
+
+    spec = StudySpec.load(spec) if isinstance(spec, str) else StudySpec.from_dict(spec)
+    for variant in spec.variants:
+        file, sep, name = variant.model.rpartition(":")
+        if sep and file.endswith(".py") and not Path(file).is_absolute():
+            candidate = paths.workspace_dir() / file
+            if candidate.exists():
+                variant.model = f"{candidate.resolve()}:{name}"
+    return spec
+
+
+def _sizes(job: Any, payload: dict[str, Any]) -> dict[str, Any]:
+    """Parameters and FLOPs per variant of a (maybe unsaved) study spec, with `match_knob`
+    resolved. It builds the models on the meta device, so it is a worker's job."""
+    from nanoscope.study import Study
+
+    spec = _load_workspace_spec(payload["spec"])
+    return Study.from_spec(spec).size_table(spec.match_to)
+
+
 def _study(job: Any, payload: dict[str, Any]) -> dict[str, Any]:
     """Load a study spec (this imports its models: it runs in a worker, not the API) and put
     every unfinished run on the batch lane."""
@@ -150,7 +176,7 @@ def _sync_hub(job: Any, payload: dict[str, Any]) -> dict[str, Any]:
 
 HANDLERS: dict[str, Callable[[Any, dict[str, Any]], dict[str, Any]]] = {
     "run": _run, "prepare-data": _prepare_data, "bench": _bench, "check": _check,
-    "describe": _describe, "study": _study, "sync-hub": _sync_hub, "certify": _certify,
+    "describe": _describe, "study": _study, "sync-hub": _sync_hub, "certify": _certify, "sizes": _sizes,
     "prereg-preview": _prereg_preview, "commit": _commit, "card-push": _card_push,
 }
 

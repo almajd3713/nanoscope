@@ -14,7 +14,7 @@ from nanoscope.server import workspace
 from nanoscope.server.errors import problem
 from nanoscope.server.jobs import job_doc
 from nanoscope.server.models import JobDoc
-from nanoscope.server.routes.models import find_model
+from nanoscope.server.routes.models import find_model, resolve_ref
 from nanoscope.server.routes.validate import StudyValidation, validate_study
 from nanoscope.studyspec import StudySpec
 
@@ -110,6 +110,24 @@ def save_study(body: StudyUpload, request: Request) -> Any:
                        request)
     workspace.write_atomic(target, spec.to_toml())
     return entry(spec.name)
+
+
+@router.post("/studies/sizes", status_code=202)
+def study_sizes(body: StudyValidation, request: Request) -> Any:
+    """Queue a sizes job for a spec that need not be saved: each variant's non-embedding
+    parameters and FLOPs per token with `match_knob` resolved, and its distance from the
+    reference variant. The job's result is the table (a worker builds the models)."""
+    verdict = validate_study(StudyValidation(toml=body.toml, spec=body.spec))
+    if not verdict.ok:
+        return problem(422, verdict.problems[0].message, request,
+                       problems=[p.model_dump() for p in verdict.problems])
+    spec = StudySpec.from_toml(body.toml) if body.toml is not None else StudySpec.from_dict(
+        body.spec or {})
+    for variant in spec.variants:
+        variant.model = resolve_ref(variant.model)
+    job_id = queue.enqueue("sizes", {"spec": spec.to_dict()}, lane="interactive")
+    assert job_id is not None
+    return job_doc(queue.get(job_id))
 
 
 class StudyRun(BaseModel):

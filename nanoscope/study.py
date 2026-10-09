@@ -230,6 +230,23 @@ class Study:
             }
         return out
 
+    def size_table(self, match_to: str | None = None) -> dict[str, Any]:
+        """`sizes()` as a table: each variant's distance from the reference variant (`match_to`,
+        else the baseline, else the first) and whether it is inside the tolerance."""
+        sizes = self.sizes()
+        names = list(sizes)
+        ref = match_to or self.baseline or names[0]
+        target = sizes[ref]["non_embedding_params"]
+        rows = []
+        for name in names:
+            n = sizes[name]["non_embedding_params"]
+            delta = (n - target) / target if target else 0.0
+            rows.append({"name": name, "kwargs": dict(self.variants[name].kwargs),
+                         "non_embedding_params": n,
+                         "flops_per_token": sizes[name]["flops_per_token"],
+                         "delta": delta, "within": abs(delta) <= self.tolerance})
+        return {"reference": ref, "tolerance": self.tolerance, "variants": rows}
+
     def _check_match(self, sizes: dict[str, dict[str, int]]) -> None:
         if self.match != "params":
             return
