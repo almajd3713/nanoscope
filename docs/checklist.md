@@ -4,7 +4,7 @@ The build list for [`plan-tool.md`](plan-tool.md), sections 4-10, with the decis
 2026-10-05 (plan section 11) applied. Phase numbers follow the plan's section 10. Every
 item is one line, so scripts and agents can grep and edit it.
 
-**Current focus:** P15 is merged (PR #17). Left for the user: P14.33 (tag v0.5.0). Next: P16 (needs the P16.16 mockups first, user approves).
+**Current focus:** P16. P16.04-P16.06 (inspect job, CLI, API) are built; the P16.16 mockups (row 8 of the mockups canvas) wait for the user's approval, which blocks P16.07, P16.09, P16.13, P16.14. Pickable meanwhile: P16.01-P16.03, P16.08, P16.10-P16.12, P16.17. Left for the user: P14.33 (tag v0.5.0).
 
 ## Progress
 
@@ -20,7 +20,7 @@ item is one line, so scripts and agents can grep and edit it.
 | P13 | GUI MVP 1: shell, Learn/Tinker screens (12-15 d) | 50 / 50 | done |
 | P14 | GUI MVP 2: model page, drag-and-drop (14-17 d) | 35 / 36 | merged; P14.33 (tag v0.5.0) is the user's |
 | P15 | GUI Research (10-13 d) | 31 / 31 | done |
-| P16 | Extend + depth (8-10 d) | 0 / 17 | not started |
+| P16 | Extend + depth (8-10 d) | 3 / 18 | in progress: P16.16 mockups drawn, waiting for approval |
 | P17 | Remaining curriculum paths (18-26 d) | 0 / 34 | not started |
 
 MVP = P6-P14 (about 77-96 focused days). Recount a row with
@@ -648,9 +648,9 @@ Order: P13.01 and P13.02 first (these items live in `web/` and run in its CI job
 - [ ] P16.01 Add an `optimizer=` factory to `run()`/`train()`: a callable `(param_groups, preset)` returning an optimizer, with AdamW as the default. A non-default ref is recorded in config and is part of the run's identity. · files: nanoscope/run.py, nanoscope/train_loop.py · deps: P14.99 · done: `uv run pytest tests/test_run.py -k optimizer_factory` passes
 - [ ] P16.02 Plan done-when: `run(..., optimizer=...)` resumes exactly. · files: tests/test_run.py · deps: P16.01 · done: `uv run pytest tests/test_run.py -k optimizer_resume` passes
 - [ ] P16.03 Add a Muon example optimizer, with a test that it trains a tiny model. · files: nanoscope/optim/__init__.py (new), nanoscope/optim/muon.py (new), tests/test_optim.py (new) · deps: P16.01 · done: `uv run pytest tests/test_optim.py` passes
-- [ ] P16.04 Inspect job: attention maps and logit lens for a prompt at any archived checkpoint, in an `inspect.v1` schema. · files: nanoscope/inspect.py, nanoscope/jobs/execute.py, nanoscope/schemas/inspect.v1.json (new), tests/test_describe.py · deps: P14.99, P6.62 · done: `uv run pytest tests/test_describe.py -k inspect_checkpoint` passes
-- [ ] P16.05 Add `nanoscope inspect <ref> --step N --prompt TEXT`. · files: nanoscope/cli.py · deps: P16.04 · done: `uv run pytest tests/test_describe.py -k inspect_cli` asserts the output
-- [ ] P16.06 Add `POST /api/runs/{ref}/inspect` (job). · files: nanoscope/server/routes/runs.py, tests/server/test_runs.py · deps: P16.04 · done: `uv run pytest tests/server/test_runs.py -k inspect` passes
+- [x] P16.04 Inspect job: attention maps and logit lens for a prompt at any archived checkpoint, in an `inspect.v1` schema. · files: nanoscope/inspect.py, nanoscope/jobs/execute.py, nanoscope/schemas/inspect.v1.json (new), tests/test_describe.py · deps: P14.99, P6.62 · done: `uv run pytest tests/test_describe.py -k inspect_checkpoint` passes ✓ 2026-10-09 8700307: `inspect_checkpoint(ref, prompt, step=, top_k=)` in nanoscope/inspect.py; maps are causal rows (row t has t+1 weights), lens = embeddings then each block through the final norm and head; `load_run(step=)`, `store.saved_steps`; prompts over 64 tokens refused
+- [x] P16.05 Add `nanoscope inspect <ref> --step N --prompt TEXT`. · files: nanoscope/cli.py · deps: P16.04 · done: `uv run pytest tests/test_describe.py -k inspect_cli` asserts the output ✓ 2026-10-09 8700307: prints the lens (top guess per layer, actual next with p and rank) and where each head looks from the last token; `--json`, `--top-k`
+- [x] P16.06 Add `POST /api/runs/{ref}/inspect` (job). · files: nanoscope/server/routes/runs.py, tests/server/test_runs.py · deps: P16.04 · done: `uv run pytest tests/server/test_runs.py -k inspect` passes ✓ 2026-10-09 8700307: 202 + JobDoc on the interactive lane; the result is the report; an unkept step is a 404 naming the kept ones
 - [ ] P16.16 **USER ACTION** Mockups for the P16 screens, on the mockups canvas (https://claude.ai/artifact/VDJ45sFJB44bqg82gZcrGR): the inspect page (checkpoint scrubber, attention heatmaps per layer and head, logit-lens table), the language-server setting and its ruff-only fallback, the lesson-authoring preview (Extend), and the workspace tree and schema browser (Extend). Same rules as P13.37; heatmaps and lens values come from a real `inspect.v1` result (P16.04). · files: — · deps: P14.99 · done: the user approves; the approval is recorded in the Decisions log
 - [ ] P16.07 Inspect page: a checkpoint scrubber, attention heatmaps per layer and head, and a logit-lens table. · files: web/src/pages/Inspect.tsx (new) · deps: P16.06, P16.16 · done: `pnpm -C web test -- Inspect` passes
 - [ ] P16.08 Add the `lsp` service (node + basedpyright over WebSocket, workspace read-only, profile `editor-lsp`). · files: compose.yaml, docker/Dockerfile.lsp (new) · deps: P14.99 · done: `docker compose --profile editor-lsp config -q` exits 0
@@ -661,6 +661,7 @@ Order: P13.01 and P13.02 first (these items live in `web/` and run in its CI job
 - [ ] P16.13 Curriculum authoring check: `nanoscope learn author-check <dir>` validates a lesson directory and runs its starter and solution checks as jobs; the Extend level previews it in the GUI. · files: nanoscope/learn/cli.py, web/src/pages/Authoring.tsx (new) · deps: P14.99, P16.16 · done: `uv run pytest tests/test_learn.py -k author_check` passes
 - [ ] P16.14 Workspace tree view and schema browser (Extend level). · files: web/src/pages/Workspace.tsx (new), web/src/pages/Schemas.tsx (new) · deps: P14.99, P16.16 · done: `pnpm -C web test -- Workspace` passes
 - [ ] P16.15 Plan done-when: the inspect page shows attention maps from the learner's own run at any archived step. · files: web/e2e/inspect.spec.ts (new) · deps: P16.07 · done: `pnpm -C web exec playwright test inspect` passes
+- [ ] P16.17 Make blocks visible to a type checker, so the language server (P16.09) helps in model files: `nanoscope.blocks` exports through `__getattr__` (gating), so basedpyright types every block as `Any`, and `BlockModule.__new__` returns `Any`, so an options-only call like `Attention(n_head=4)` is never checked. Add static imports under `TYPE_CHECKING` and typed option calls (overloads or generated stubs) without changing gating at run time. · files: nanoscope/blocks/__init__.py, nanoscope/blocks/spec.py, tests/test_blocks.py · deps: P14.99 · done: `uv run pytest tests/test_blocks.py -k typed` runs basedpyright on a model file and asserts it reports `No parameter named "n_head"` and no error for the correct call
 - [ ] P16.99 PHASE GATE P16. Exit criteria: plan section 10 phase 16. · files: — · deps: P16.* · done: `make check` passes; `uv run pytest tests/test_run.py -k optimizer_resume` passes; the e2e job is green; `uv run pytest tests/test_first_model_notebook.py` passes; **USER ACTION** merge the PR
 
 ---
@@ -749,6 +750,8 @@ Append one line per decision: `- YYYY-MM-DD <item id or plan section>: <decision
 - 2026-10-05 P6.35/P6.36: cancelling one run with `nanoscope stop <run>` skips only that run and the study continues; Ctrl-C or `nanoscope stop <study>` ends the whole study (agent, after the user asked to consider it).
 - 2026-10-05 plan 6.4: the graph route for gating stays slot-filling templates only (agent default; the user did not object).
 
+- 2026-10-09 P16.16 (drawn, not yet approved): row 8 of the mockups canvas, 7 boards from real output (a 5000-step Modern run on tinystories-30min with archived steps; basedpyright 1.40.2 over stdio; a real workspace lesson). Choices to approve: Workspace is a nav item at the Extend level only (design system TopBar changed, version 16); Schemas open from Settings › This server next to /docs; Inspect hangs off the run page at Learn; Across steps runs one inspect job per kept step; the language-server setting lives under Settings › This browser with the service's state beside it. P16.17 (typed blocks) was added because the LSP sees every block as Any.
+
 ## Discovered work
 
 Things found while building that aren't items yet. Turn each into an item under the
@@ -758,6 +761,11 @@ right phase, then tick it here as `[x] → P<n>.<id>`.
 - [ ] Not Linux: job children only die with their worker through PR_SET_PDEATHSIG (Linux). On macOS/Windows a killed worker leaves its child; add a pid check before requeue if those platforms matter.
 - [ ] The repo has no CI workflow yet. → covered by P6.04-P6.06.
 - [ ] `docs/plan-tool-landscape.md` still uses the old phase numbers ("Export (phase 13)") and calls questions "open". Fix it when folding into `docs/architecture.md` (P14.32).
+- [ ] (P16.16 drawing) Authored lessons can only name references nanoscope ships (`nanoscope.reference.functional`); a lesson folder cannot bring its own `reference.py`. Decide with P16.13.
+- [ ] (P16.16 drawing) Curricula in the workspace (`curricula/<path>/`) are not listed for learners: the loader reads only the package's `curricula/`. P16.13 previews them; publishing an authored path is a separate decision.
+- [ ] (P16.16 drawing) `GET /api/models` lists lesson classes (`MyLayerNorm`, `MyRMSNorm`) as models: any `nn.Module` subclass in the workspace counts. The workspace tree labels files by what the API says.
+- [ ] (P16.16 drawing) The authoring page's summary words ("ready", "does not load", "starter.py fails 1 of 2 checks and solution.py passes both") are not library output yet: `learn author-check` (P16.13) should print them so the page shows them verbatim.
+- [ ] (P16.16 drawing) `checkpoint_steps` can be set only from Python: `nanoscope run` has no flag and the run form no field, so a learner cannot keep the steps the inspect page's Across steps view and P16.15 need. Add both (the field at Tinker) before P16.15.
 - [ ] After P17: a "Prehistory" curriculum path of pre-transformer language models (MLP LM, RNN, LSTM/GRU, seq2seq attention): recurrent blocks, recurrence-aware `flops_per_token`, stateful sampling. General classical ML/vision is a later, separate call. See plan 14.1.
 - 2026-10-06 (agent): P8.25 dropped. The rebuilt GPT2 has different `state_dict` keys from the old one
   (`norm1/norm2/norm`, separate `q/k/v` instead of `qkv`) but the same-seed initial weights, and the
