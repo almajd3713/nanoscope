@@ -50,7 +50,7 @@ what runs. Each screen can show its command-line equivalent; turn that on in Set
 ## Lessons
 
 Paths build models step by step, from a bigram to a modern transformer block (`foundations`,
-`modern-block`), and on to honest ablations, evaluation and scaling. Lessons that need hours of GPU
+`modern-block`). Lessons that need hours of GPU
 also ship a CPU variant, with estimates. See [docs/learn.md](docs/learn.md).
 
 ## The library
