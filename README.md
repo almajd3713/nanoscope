@@ -1,31 +1,61 @@
 # nanoscope
 
-See what your language model learns. You write an `nn.Module`; nanoscope handles the
-data, the training loop, evaluation, checkpoints and comparison against baselines.
+A tool for learning and researching small language models. You write an `nn.Module`; nanoscope
+handles data, training, evaluation, checkpoints and comparison against baselines, and tells you
+whether a difference is bigger than the noise.
 
-It has four levels that share one core. The level changes what you see, never which code runs.
+The main way to use it is a web app: lessons, a model editor with a drag-and-drop graph, live runs,
+and comparisons with confidence intervals. Everything the app does is also available from Python and
+the command line.
 
-0. **Learn**: `run(Model)` with defaults.
-1. **Tinker**: change a setting, or train several `seeds=`, and compare.
-2. **Research**: a `Study` with seeds, budgets, parameter matching and preregistration.
-3. **Extend**: hooks, presets, optimizers and your own blocks.
-
-You can use it as a library, from the command line, through an HTTP API (`nanoscope serve`), or
-as a docker-compose stack with lessons and notebooks.
-
-## Install
+## Start
 
 ```bash
-pip install nanoscope-lab             # the library
-pip install "nanoscope-lab[server]"   # plus the HTTP API (`nanoscope serve`)
+docker compose up
+docker compose logs api | grep login    # open this link
 ```
 
-To run it as a service (API, a worker, and optional notebooks and GPU worker), see
-[Run it as a service](#run-it-as-a-service).
+That starts the API on `127.0.0.1:8765` and one CPU worker. First run asks whether blocks unlock as
+you pass lessons (guided) or are all available (open). Pick a lesson, press Start, train, run the check.
 
-From a clone, for development: `uv sync --all-extras`.
+Without Docker:
 
-## Learn
+```bash
+pip install "nanoscope-lab[server]"
+nanoscope serve --worker cpu            # http://127.0.0.1:8000
+```
+
+Optional pieces: `--profile gpu` (NVIDIA worker), `--profile notebook` (marimo on `:8766`),
+`--profile editor-lsp` (language server for the code editor). Remote sign-in, backups and GPU setup
+are in [docs/deploy.md](docs/deploy.md). The login token is a remote login: keep the server on
+loopback, or behind an SSH tunnel or an HTTPS proxy.
+
+## What the app does
+
+| Screen | Use it to |
+|---|---|
+| Lessons | Work through paths. Each lesson has a check that says why it fails. Passing unlocks bigger blocks. |
+| Model | Edit a model file as a graph, as code, or both. Drag a block onto another to swap it. |
+| Run | Watch a run live against the shipped baseline's range, read samples, stop, resume, duplicate. |
+| Compare | See a verdict per model with a 95% interval, a forest plot and every seed's curve. |
+| Studies | Build a multi-seed study, see its estimated cost, preregister it with a git commit, export an ablation card. |
+| Inspect | Attention maps, logit lens and one head across checkpoints, for a trained run. |
+| Hardware | Devices, speed benchmarks, and whether the CPU or the GPU is the limit. |
+| Workspace, Authoring | Browse your files and check lessons you wrote (Extend level). |
+
+The level switch (Learn, Tinker, Research, Extend) only hides or shows controls. It never changes
+what runs. Each screen can show its command-line equivalent; turn that on in Settings.
+[docs/gui.md](docs/gui.md) lists every screen.
+
+## Lessons
+
+Paths build models step by step, from a bigram to a modern transformer block (`foundations`,
+`modern-block`). Lessons that need hours of GPU
+also ship a CPU variant, with estimates. See [docs/learn.md](docs/learn.md).
+
+## The library
+
+The same code, without the app:
 
 ```python
 import torch.nn as nn
@@ -41,79 +71,51 @@ class Bigram(nn.Module):
         return self.head(self.token_embedding(idx))
 
 result = run(Bigram, preset="tinystories-5min")   # about a minute on a laptop CPU
-result.plot()
-compare(result, "gpt2")                          # against a shipped 3-seed baseline
+compare(result, "gpt2")                           # against a shipped 3-seed baseline
 ```
 
-Work through the notebooks in order (marimo notebooks: `pip install "nanoscope-lab[notebook]"`, then
-`marimo edit notebooks/marimo/01_first_model.py`, or `docker compose --profile notebook up`):
+- **Tinker:** `run(Model, seeds=5)`; `init_seed=` and `data_seed=` split the seed into weights and batch order.
+- **Research:** `Study` with seeds, budgets, parameter matching, preregistration and record mode.
+  See [docs/research.md](docs/research.md).
+- **Extend:** hooks, presets, optimizers (`run(optimizer=...)`, Muon included) and your own blocks.
+  `GPT2` and `Modern` are short compositions of `nanoscope.blocks`; see [docs/blocks.md](docs/blocks.md).
 
-1. [`01_first_model`](notebooks/marimo/01_first_model.py): write a bigram model and train it.
-2. [`02_gpt2`](notebooks/marimo/02_gpt2.py): a real transformer.
-3. [`03_modern_block`](notebooks/marimo/03_modern_block.py): RoPE, RMSNorm, SwiGLU, GQA, QK-norm, z-loss.
-4. [`04_ablations`](notebooks/marimo/04_ablations.py): which part matters, with seeds and confidence intervals.
-
-Token data downloads from the Hub (`RedhouaneLazib/nanoscope-tokens`) when a preset has
-it, and is tokenized locally otherwise. Everything is cached under `~/.nanoscope/data`.
-
-## Research
-
-See the [research guide](docs/research.md). The research program itself is in
-[`docs/project-nanoscope.md`](docs/project-nanoscope.md).
-
-## Build models from blocks
-
-`GPT2` and `Modern` are short compositions of the blocks in `nanoscope.blocks`, and so can your
-own models. See [docs/blocks.md](docs/blocks.md).
-
-## Guided lessons
-
-Guided paths build the models step by step, with checks that say why. See
-[docs/learn.md](docs/learn.md): `nanoscope learn list`, `learn start`, `learn check`.
-
-## Run it as a service
-
-```bash
-nanoscope serve --worker cpu      # the HTTP API on 127.0.0.1:8000 and one local worker
-docker compose up                 # the same in containers: API on 127.0.0.1:8765, one CPU worker
-docker compose --profile gpu up   # plus an NVIDIA GPU worker
-docker compose --profile notebook up   # plus marimo notebooks on 127.0.0.1:8766
-```
-
-Anything that runs your code is a job for a worker; the API never runs it. See
-[docs/server.md](docs/server.md) for the API and [docs/deploy.md](docs/deploy.md) for compose,
-remote sign-in, backups and GPUs. The token is a remote login: keep it on loopback or behind an
-SSH tunnel or an HTTPS proxy.
+Four marimo notebooks in `notebooks/marimo/` cover the same ground (`pip install "nanoscope-lab[notebook]"`).
 
 ## Command line
 
 ```bash
-nanoscope presets                                   # available presets
 nanoscope run nanoscope/models/gpt2.py:GPT2 --seeds 3
 nanoscope compare modern gpt2 --preset tinystories-5min
-nanoscope study studies/m1_ablation.py --devices cuda:0
-nanoscope report studies/m1_ablation.py             # writes experiments/<name>/
-nanoscope bench modern --compile reduce-overhead    # speed, and whether CPU or GPU is the limit
-nanoscope status runs                               # what is running and how far along
-nanoscope describe nanoscope/models/modern.py:Modern  # shapes, params, FLOPs, memory per module
-nanoscope graph my_model.py                         # a model file's architecture, without running it
-nanoscope blocks                                    # the blocks models are composed from
-nanoscope prepare-data tinystories-5min             # download or tokenize now
-nanoscope publish-data tinystories-5min user/repo   # upload tokens to a Hub dataset
+nanoscope study studies/m1_ablation.py --dry-run     # cost estimate first
+nanoscope status runs                                # what is running, how far along
+nanoscope describe my_model.py:MyLM                  # shapes, params, FLOPs per module
+nanoscope inspect <run> --step 200 --prompt "Once"
+nanoscope learn list
+nanoscope presets
 ```
+
+## How it is built
+
+Anything that runs your code is a job for a worker; the API never imports it. State lives in plain
+files (`status.json`, `metrics.jsonl`) that any tool can read. Details: [docs/server.md](docs/server.md),
+[docs/architecture.md](docs/architecture.md).
 
 ## Develop
 
 ```bash
 uv sync --all-extras
-make test       # offline tests
-make lint
-make typecheck
-make check      # lint, typecheck, then test: what CI runs
+make check      # lint, typecheck, tests: what CI runs
+make web        # build the app into the package
+pnpm -C web dev # app with hot reload, proxying /api
 ```
+
+The design rules for the UI are in [docs/design-system.md](docs/design-system.md).
 
 ## Data credits
 
 Tokens are derived from [TinyStories](https://huggingface.co/datasets/roneneldan/TinyStories)
 (CDLA-Sharing-1.0) and [FineWeb-Edu](https://huggingface.co/datasets/HuggingFaceFW/fineweb-edu)
-(ODC-By 1.0).
+(ODC-By 1.0). Token data is cached under `~/.nanoscope/data`.
+
+MIT licensed.
