@@ -34,9 +34,21 @@ nanoscope run nanoscope/models/modern.py:Modern --preset tinystories-5min \
 nanoscope inspect <run> --step 100
 ```
 
-Pick a repeated random sequence as the prompt, score every head at every saved step, and plot
-`first_step_above` for the best head. Compare the step where the loss bends with the step where
-the score jumps.
+`induction_curve` does the measuring for every checkpoint the run kept: it feeds the model a
+random sequence twice and scores every head.
+
+```python
+from nanoscope.interp import induction_curve
+
+curve = induction_curve("<run>", half=16)
+steps = [point["step"] for point in curve]
+scores = [point["best"]["score"] for point in curve]
+print(first_step_above(steps, scores, 0.3))      # your function from starter.py
+```
+
+Compare the step where the loss bends with the step where the score jumps. The inspect page
+(`nanoscope serve`, run page, Inspect) shows one head's attention across the archived steps for a
+prompt of your choice: try a phrase said twice.
 
 On a GPU, use the `fineweb-edu` preset: a bigger model trained longer has more steps to show
 the jump in.

@@ -492,3 +492,29 @@ def test_ex03_real_data_lr_scale_decides_the_verdict(home):
     # the starter's LR_SCALE of 1 is within noise on this model, and "better" is not claimed
     one = attempt(lesson, solution("extend/03-muon").replace("LR_SCALE = 2.0", "LR_SCALE = 1.0"))
     assert not one["passed"], reasons(one)
+
+
+@pytest.mark.usefixtures("fake_data")
+def test_in01_curve_over_the_learners_own_checkpoints():
+    """The induction lesson's promise: a score for every checkpoint of a run you trained, and the
+    lesson's `first_step_above` reads the step out of it."""
+    from fakes import tiny
+
+    from nanoscope import run
+    from nanoscope.interp import induction_curve
+    from nanoscope.models import Modern
+    from nanoscope.store import ref_of
+
+    result = run(Modern, tiny(checkpoint_interval=5, keep_checkpoints=1), device="cpu",
+                 checkpoint_steps=[3, 10], progress=False, n_layers=2, d_model=32, n_heads=4)
+    curve = induction_curve(ref_of(result.run_dir), half=8)
+    assert [point["step"] for point in curve] == [3, 10, 20]
+    assert all(len(point["heads"]) == 2 * 4 for point in curve)  # 2 layers x 4 heads
+    assert all(0.0 <= point["best"]["score"] <= 1.0 for point in curve)
+    # the lesson's own function reads the emergence step out of the curve
+    ns: dict = {}
+    exec(solution("interpretability/01-induction"), ns)
+    scores = [point["best"]["score"] for point in curve]
+    steps = [point["step"] for point in curve]
+    assert ns["first_step_above"](steps, scores, 0.0) == 3
+    assert ns["first_step_above"](steps, scores, 2.0) == -1
