@@ -462,3 +462,33 @@ def test_ex04_moe(monkeypatch):
     # raw probabilities, not rescaled to sum to 1
     raw = solution(lid).replace("weight = weight / weight.sum(-1, keepdim=True)", "pass")
     assert "differs from the reference" in reasons(attempt(lesson, raw))["same-as-reference"]
+
+
+@pytest.mark.usefixtures("fake_data")
+def test_ex03_muon_runs_the_learners_optimizer(monkeypatch):
+    lesson = quick(load_lesson("extend/03-muon"))
+    assert lesson.checks[1].args["a_optimizer"] == "make_muon"
+    small_cpu_preset(monkeypatch, lesson)
+    doc = attempt(lesson, solution("extend/03-muon"))
+    # the verdict on twenty synthetic steps is not the point: both sides trained, the optimizer
+    # factory in the learner's file was used for A only
+    assert verdicts(doc)["built"]
+    import json
+
+    from nanoscope import paths
+
+    folder = paths.runs_dir() / "lessons" / "extend" / "03-muon"
+    config_a = json.loads(next(folder.glob("*/a/seed-*/config.json")).read_text())
+    config_b = json.loads(next(folder.glob("*/b/seed-*/config.json")).read_text())
+    assert config_a["optimizer"]["ref"].endswith("make_muon")
+    assert "optimizer" not in config_b
+
+
+@pytest.mark.network
+def test_ex03_real_data_lr_scale_decides_the_verdict(home):
+    lesson = load_lesson("extend/03-muon")
+    good = attempt(lesson, solution("extend/03-muon"))
+    assert good["passed"], reasons(good)
+    # the starter's LR_SCALE of 1 is within noise on this model, and "better" is not claimed
+    one = attempt(lesson, solution("extend/03-muon").replace("LR_SCALE = 2.0", "LR_SCALE = 1.0"))
+    assert not one["passed"], reasons(one)

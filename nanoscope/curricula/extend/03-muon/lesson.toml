@@ -1,0 +1,35 @@
+title = "Muon versus AdamW"
+level = 3
+summary = "Compare a new optimizer with the default the honest way: give it a fair learning rate, run seeds, and read the interval."
+prerequisites = ["extend/01-certified-block", "honest-ablations/02-paired"]
+
+[experiment]
+kind = "study"
+a = "Tiny"
+b = "Tiny"
+
+[[checks]]
+id = "built"
+kind = "defines"
+class = "Tiny"
+
+[[checks]]
+id = "muon-vs-adamw"
+kind = "verdict"
+a = "Tiny"
+b = "Tiny"
+a_optimizer = "make_muon"
+expect = "better"
+seeds = 3
+gpu_seeds = 5
+metric = "val_bpb"
+a_kwargs = { max_steps = 200 }
+b_kwargs = { max_steps = 200 }
+
+[compute.cpu]
+preset = "tinystories-5min"
+estimate_minutes = 9
+
+[compute.gpu]
+preset = "tinystories-30min"
+estimate_minutes = 60
