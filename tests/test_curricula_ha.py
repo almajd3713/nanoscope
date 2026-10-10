@@ -428,3 +428,24 @@ def test_ex01_certified_block(monkeypatch):
     # one wrong formula in the block and the reference passes its own check, not the lesson's
     twice = solution(lid).replace("(h * h)", "h")
     assert "not the lesson's" in reasons(attempt(lesson, twice))["certified"]
+
+
+def test_ex02_preset(monkeypatch):
+    import nanoscope.presets as presets
+
+    lid = "extend/02-preset"
+    lesson = load_lesson(lid)
+    monkeypatch.setattr(presets, "_PRESETS", dict(presets._PRESETS))
+    assert "no preset named" in reasons(attempt(lesson))["registered"]
+    done = attempt(lesson, solution(lid))
+    assert done["passed"], reasons(done)
+    # override of the steps only: warmup is still 50 of 60 steps
+    lazy = solution(lid).replace("warmup_steps=10,", "")
+    assert "warmup_steps is 50 of 60" in reasons(attempt(lesson, lazy))["registered"]
+    # changing a data field breaks the cached tokens
+    moved = solution(lid).replace("max_steps=60,", "max_steps=60, context_length=128,")
+    assert "context_length" in reasons(attempt(lesson, moved))["registered"]
+    # a run too short for its evaluation interval never reports a loss
+    never = solution(lid).replace("max_steps=60", "max_steps=30").replace(
+        "warmup_steps=10", "warmup_steps=5").replace("eval_interval=20", "eval_interval=50")
+    assert "never evaluate" in reasons(attempt(lesson, never))["registered"]

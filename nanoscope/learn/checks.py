@@ -307,6 +307,60 @@ def check_certified(ctx: Context, check: Check) -> Result:
                    "max_abs_diff": theirs["max_abs_diff"]})
 
 
+@checker("preset")
+def check_preset(ctx: Context, check: Check) -> Result:
+    """The learner's file registers a preset `name` derived from another: the fields in `same`
+    are unchanged (so the same cached tokens apply), the fields in `differs` changed, the run is
+    at most `max_steps`, warmup is at most `max_warmup_fraction` of it, and evaluation happens
+    at least once."""
+    from nanoscope.presets import get_preset
+
+    name, base_name = check.args["name"], check.args["derived_from"]
+    try:
+        load_user_module(ctx)
+    except (FileNotFoundError, ValueError) as exc:
+        return Result(check.id, check.kind, False, str(exc))
+    except Exception as exc:
+        return Result(check.id, check.kind, False,
+                      f"{ctx.user_file.name} raised {type(exc).__name__}: {exc}")
+    try:
+        mine, base = get_preset(name), get_preset(base_name)
+    except KeyError:
+        return Result(check.id, check.kind, False,
+                      f"no preset named {name!r} is registered by {ctx.user_file.name}: call "
+                      f"register_preset(Preset(name={name!r}, ...))")
+    for field_name in check.args.get("same", []):
+        if getattr(mine, field_name) != getattr(base, field_name):
+            return Result(check.id, check.kind, False,
+                          f"{field_name} is {getattr(mine, field_name)!r} but {base_name} has "
+                          f"{getattr(base, field_name)!r}: keep it, or the cached tokens and the "
+                          "comparison with that preset no longer apply")
+    for field_name in check.args.get("differs", []):
+        if getattr(mine, field_name) == getattr(base, field_name):
+            return Result(check.id, check.kind, False,
+                          f"{field_name} is the same as {base_name}'s "
+                          f"({getattr(base, field_name)!r}): the lesson wants it changed")
+    limit = check.args.get("max_steps")
+    if limit is not None and mine.max_steps > limit:
+        return Result(check.id, check.kind, False,
+                      f"max_steps is {mine.max_steps}; this preset is for a quick run, "
+                      f"at most {limit}")
+    fraction = check.args.get("max_warmup_fraction")
+    if fraction is not None and mine.warmup_steps > fraction * mine.max_steps:
+        return Result(check.id, check.kind, False,
+                      f"warmup_steps is {mine.warmup_steps} of {mine.max_steps} steps "
+                      f"({mine.warmup_steps / mine.max_steps:.0%}): the learning rate would "
+                      f"still be climbing for more than {fraction:.0%} of the run")
+    if mine.eval_interval > mine.max_steps:
+        return Result(check.id, check.kind, False,
+                      f"eval_interval is {mine.eval_interval} but the run has {mine.max_steps} "
+                      "steps, so it would never evaluate and report no loss")
+    return Result(check.id, check.kind, True,
+                  f"{name} is registered: {mine.max_steps} steps, warmup {mine.warmup_steps}, "
+                  f"evaluating every {mine.eval_interval}, tokens as in {base_name}",
+                  {"preset": name, "max_steps": mine.max_steps})
+
+
 def _kwargs_text(kwargs: dict[str, Any]) -> str:
     return ", ".join(f"{k}={v}" for k, v in kwargs.items())
 

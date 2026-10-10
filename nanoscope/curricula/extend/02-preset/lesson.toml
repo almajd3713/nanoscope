@@ -1,0 +1,21 @@
+title = "Your own preset"
+level = 3
+summary = "Register a preset for quick experiments, derived from a shipped one without breaking its cached tokens."
+prerequisites = ["extend/01-certified-block"]
+
+[experiment]
+kind = "check"
+
+[[checks]]
+id = "registered"
+kind = "preset"
+name = "quick-smoke"
+derived_from = "tinystories-5min"
+same = ["dataset", "tokenizer", "vocab_size", "context_length", "train_docs", "hub_data"]
+differs = ["max_steps"]
+max_steps = 100
+max_warmup_fraction = 0.25
+
+[compute.cpu]
+preset = "tinystories-5min"
+estimate_minutes = 0.2

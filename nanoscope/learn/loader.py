@@ -37,6 +37,8 @@ CHECK_KINDS = {  # kind -> (required args, optional args)
                 {"tolerance", "kwargs", "against_kwargs", "context_length"}),
     "ablation": ({"study", "full", "baseline", "drops"}, {"seeds", "gpu_seeds", "metric"}),
     "ladder": ({"study", "rungs", "holdout"}, {"seeds", "gpu_seeds", "metric", "x"}),
+    "preset": ({"name", "derived_from"},
+               {"same", "differs", "max_steps", "max_warmup_fraction"}),
     "certified": ({"class", "against"}, set()),
     "predicted": ({"quantity"}, {"must_hit"}),
     "reproduces": ({"baseline"}, {"metric", "class", "kwargs"}),
