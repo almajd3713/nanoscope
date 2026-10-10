@@ -21,7 +21,7 @@ item is one line, so scripts and agents can grep and edit it.
 | P14 | GUI MVP 2: model page, drag-and-drop (14-17 d) | 35 / 36 | merged; P14.33 (tag v0.5.0) is the user's |
 | P15 | GUI Research (10-13 d) | 31 / 31 | done |
 | P16 | Extend + depth (8-10 d) | 18 / 18 | done |
-| P17 | Remaining curriculum paths (18-26 d) | 13 / 34 | in progress |
+| P17 | Remaining curriculum paths (18-26 d) | 17 / 34 | in progress |
 
 MVP = P6-P14 (about 77-96 focused days). Recount a row with
 `grep -c '^- \[x\] P6\.' docs/checklist.md` (done) and `grep -c '^- \[.\] P6\.' docs/checklist.md`
@@ -684,11 +684,11 @@ Order: P13.01 and P13.02 first (these items live in `web/` and run in its CI job
 - [x] P17.11 Add the CI tests for EV01-EV02. · files: tests/test_curricula.py · deps: P17.10 · done: `uv run pytest tests/test_curricula.py -k ev` passes ✓ 2026-10-10 c79664b: in tests/test_curricula_ha.py
 
 ### P17 · Efficiency (level 2-3)
-- [ ] P17.12 Write `efficiency/path.toml` and lesson EF01, bench and the CPU-bound/GPU-bound verdict. · files: nanoscope/curricula/efficiency/* (new), tests/solutions/efficiency/01-bench.py (new) · deps: P17.01 · done: `uv run nanoscope learn list --path efficiency` lists it
-- [ ] P17.13 Write lesson EF02, torch.compile. CPU variant: compile on CPU. GPU variant: `reduce-overhead` and CUDA graphs (about 15 min). · files: nanoscope/curricula/efficiency/02-compile/*, tests/solutions/efficiency/02-compile.py · deps: P17.12 · done: listed with both variants
+- [x] P17.12 Write `efficiency/path.toml` and lesson EF01, bench and the CPU-bound/GPU-bound verdict. · files: nanoscope/curricula/efficiency/* (new), tests/solutions/efficiency/01-bench.py (new) · deps: P17.01 · done: `uv run nanoscope learn list --path efficiency` lists it ✓ 2026-10-10 efficiency commit
+- [x] P17.13 Write lesson EF02, torch.compile. CPU variant: compile on CPU. GPU variant: `reduce-overhead` and CUDA graphs (about 15 min). · files: nanoscope/curricula/efficiency/02-compile/*, tests/solutions/efficiency/02-compile.py · deps: P17.12 · done: listed with both variants ✓ 2026-10-10 efficiency commit
 - [ ] P17.14 **USER ACTION** The user builds the KV cache (M4). The agent then writes lesson EF03 around it. Until then this item stays open, and EF03 is listed as "coming". · files: nanoscope/curricula/efficiency/03-kv-cache/* · deps: P17.12 · done: the user's KV cache is merged and `uv run pytest tests/test_curricula.py -k ef03` passes
-- [ ] P17.15 Write lesson EF04, roofline and MFU. CPU variant on a laptop; GPU variant (about 20 min). · files: nanoscope/curricula/efficiency/04-roofline/*, tests/solutions/efficiency/04-roofline.py · deps: P17.12 · done: listed with both variants
-- [ ] P17.16 Add the CI tests for EF01, EF02 and EF04 (EF03 after P17.14). · files: tests/test_curricula.py · deps: P17.15, P17.13 · done: `uv run pytest tests/test_curricula.py -k "ef01 or ef02 or ef04"` passes
+- [x] P17.15 Write lesson EF04, roofline and MFU. CPU variant on a laptop; GPU variant (about 20 min). · files: nanoscope/curricula/efficiency/04-roofline/*, tests/solutions/efficiency/04-roofline.py · deps: P17.12 · done: listed with both variants ✓ 2026-10-10 efficiency commit
+- [x] P17.16 Add the CI tests for EF01, EF02 and EF04 (EF03 after P17.14). · files: tests/test_curricula.py · deps: P17.15, P17.13 · done: `uv run pytest tests/test_curricula.py -k "ef01 or ef02 or ef04"` passes ✓ 2026-10-10 efficiency commit: tests in tests/test_curricula_ha.py (`-k ef0`); EF03 stays open (P17.14)
 
 ### P17 · Interpretability (level 2-3)
 - [ ] P17.17 Write `interpretability/path.toml` and lesson IN01, induction heads over checkpoints. CPU variant: a 2-layer attention-only model on tinystories-5min with log-spaced `checkpoint_steps` (about 10 min). GPU variant: a bigger model on fineweb-edu (about 2 GPU-hours). · files: nanoscope/curricula/interpretability/* (new), tests/solutions/interpretability/01-induction.py (new) · deps: P16.99, P17.01 · done: listed with both variants

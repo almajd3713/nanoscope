@@ -1,0 +1,39 @@
+title = "Bench: how fast, and what is the limit?"
+level = 2
+summary = "Turn a step time into tokens per second, and decide from the GPU's busy fraction whether Python or the GPU is the bottleneck."
+prerequisites = ["foundations/01-bigram"]
+
+[experiment]
+kind = "check"
+
+[[checks]]
+id = "throughput"
+kind = "function"
+name = "tokens_per_second"
+reference = "naive_tokens_per_second"
+tolerance = 1e-6
+cases = [[54.0, 8, 256], [12.8, 8, 256], [250.0, 32, 128]]
+
+[[checks]]
+id = "busy"
+kind = "function"
+name = "gpu_busy"
+reference = "naive_gpu_busy"
+tolerance = 1e-9
+cases = [[16.2, 54.0], [5.9, 12.8], [40.0, 38.0]]
+
+[[checks]]
+id = "bound"
+kind = "function"
+name = "cpu_bound"
+reference = "naive_cpu_bound"
+tolerance = 0
+cases = [[0.30], [0.46], [0.69], [0.7], [0.95]]
+
+[compute.cpu]
+preset = "tinystories-5min"
+estimate_minutes = 2
+
+[compute.gpu]
+preset = "tinystories-5min"
+estimate_minutes = 3

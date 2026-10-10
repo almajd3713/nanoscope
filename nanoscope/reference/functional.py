@@ -349,3 +349,56 @@ def naive_chinchilla_split(flops, tokens_per_param=20):
     training tokens per parameter: C = 6 * N * (20 * N), so N = sqrt(C / 120)."""
     n_params = math.sqrt(flops / (6 * tokens_per_param))
     return n_params, tokens_per_param * n_params
+
+
+# -- speed: bench, compile, roofline ----------------------------------------------------------
+
+def naive_tokens_per_second(step_ms, batch_size, context_length):
+    """Tokens a training step consumes, divided by the time it takes."""
+    return batch_size * context_length / (step_ms / 1000)
+
+
+def naive_gpu_busy(kernel_ms, step_ms):
+    """The fraction of a step the GPU spends running kernels, at most 1."""
+    return min(kernel_ms / step_ms, 1.0)
+
+
+def naive_cpu_bound(gpu_busy, threshold=0.7):
+    """1.0 when the GPU waits on Python for more than 30% of the step, else 0.0."""
+    return 1.0 if gpu_busy < threshold else 0.0
+
+
+def naive_speedup(eager_ms, compiled_ms):
+    return eager_ms / compiled_ms
+
+
+def naive_break_even_steps(compile_seconds, eager_ms, compiled_ms):
+    """Steps after which the time saved per step has paid back the compile time."""
+    return compile_seconds * 1000 / (eager_ms - compiled_ms)
+
+
+def naive_worth_compiling(steps, compile_seconds, eager_ms, compiled_ms):
+    """1.0 when a run of `steps` finishes sooner with compile, compile time included."""
+    eager_total = steps * eager_ms / 1000
+    compiled_total = compile_seconds + steps * compiled_ms / 1000
+    return 1.0 if compiled_total < eager_total else 0.0
+
+
+def naive_mfu(tflops, peak_tflops):
+    """Model FLOPs utilisation: the share of the chip's peak the model actually uses."""
+    return tflops / peak_tflops
+
+
+def naive_arithmetic_intensity(flops, bytes_moved):
+    """FLOPs done per byte read from or written to memory."""
+    return flops / bytes_moved
+
+
+def naive_attainable_tflops(intensity, peak_tflops, bandwidth_gbs):
+    """The roofline: memory feeds `intensity * bandwidth` FLOP/s, the chip caps at its peak."""
+    return min(peak_tflops, intensity * bandwidth_gbs / 1000)
+
+
+def naive_memory_bound(intensity, peak_tflops, bandwidth_gbs):
+    """1.0 when memory, not arithmetic, limits the kernel."""
+    return 1.0 if intensity * bandwidth_gbs / 1000 < peak_tflops else 0.0

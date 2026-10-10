@@ -1,0 +1,47 @@
+title = "MFU and the roofline"
+level = 2
+summary = "Compare what your model achieves to what the chip could do, and tell whether a kernel is limited by arithmetic or by memory."
+prerequisites = ["efficiency/02-compile"]
+
+[experiment]
+kind = "check"
+
+[[checks]]
+id = "mfu"
+kind = "function"
+name = "mfu"
+reference = "naive_mfu"
+tolerance = 1e-9
+cases = [[1.52, 22.0], [0.36, 22.0], [30.0, 65.0]]
+
+[[checks]]
+id = "intensity"
+kind = "function"
+name = "arithmetic_intensity"
+reference = "naive_arithmetic_intensity"
+tolerance = 1e-9
+cases = [[2.0e9, 4.0e6], [8.0e9, 1.6e8], [1.0e6, 1.0e6]]
+
+[[checks]]
+id = "roofline"
+kind = "function"
+name = "attainable_tflops"
+reference = "naive_attainable_tflops"
+tolerance = 1e-9
+cases = [[1.0, 20.0, 300.0], [100.0, 20.0, 300.0], [66.7, 20.0, 300.0], [10.0, 65.0, 320.0]]
+
+[[checks]]
+id = "limit"
+kind = "function"
+name = "memory_bound"
+reference = "naive_memory_bound"
+tolerance = 0
+cases = [[1.0, 20.0, 300.0], [100.0, 20.0, 300.0], [66.7, 20.0, 300.0], [67.0, 20.0, 300.0]]
+
+[compute.cpu]
+preset = "tinystories-5min"
+estimate_minutes = 3
+
+[compute.gpu]
+preset = "tinystories-5min"
+estimate_minutes = 5

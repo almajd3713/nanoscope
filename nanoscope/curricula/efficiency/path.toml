@@ -1,0 +1,12 @@
+title = "Efficiency"
+level = 2
+summary = "Measure how fast a model trains, find out whether the GPU or Python is the bottleneck, decide when torch.compile pays for itself, and read a model against the roofline."
+prerequisites = ["foundations"]
+
+[compute.cpu]
+preset = "tinystories-5min"
+estimate_minutes = 6
+
+[compute.gpu]
+preset = "tinystories-5min"
+estimate_minutes = 10

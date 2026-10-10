@@ -349,3 +349,47 @@ def test_sc02_ladder_two_steps(monkeypatch):
     done = attempt(lesson, answer(measured - 0.2, measured + 0.2))
     assert done["passed"], reasons(done)
     assert "It landed" in reasons(done)["extrapolate"]
+
+
+def test_ef01_bench(monkeypatch):
+    function_lesson_passes(monkeypatch, "efficiency/01-bench", "efficiency/01-bench")
+    lesson = load_lesson("efficiency/01-bench")
+    # forgetting the cap, and flipping the comparison, are the usual slips
+    uncapped = solution("efficiency/01-bench").replace("min(kernel_ms / step_ms, 1.0)",
+                                                       "kernel_ms / step_ms")
+    assert not verdicts(attempt(lesson, uncapped))["busy"]
+    flipped = solution("efficiency/01-bench").replace("< threshold", "> threshold")
+    assert not verdicts(attempt(lesson, flipped))["bound"]
+
+
+def test_ef02_compile(monkeypatch):
+    function_lesson_passes(monkeypatch, "efficiency/02-compile", "efficiency/02-compile")
+    lesson = load_lesson("efficiency/02-compile")
+    # counting only the steps, not the compile time
+    free = solution("efficiency/02-compile").replace("compile_seconds + steps", "steps")
+    assert not verdicts(attempt(lesson, free))["decision"]
+
+
+def test_ef04_roofline(monkeypatch):
+    function_lesson_passes(monkeypatch, "efficiency/04-roofline", "efficiency/04-roofline")
+    lesson = load_lesson("efficiency/04-roofline")
+    # forgetting that bandwidth is in GB/s and the result in TFLOP/s
+    units = solution("efficiency/04-roofline").replace("bandwidth_gbs / 1000", "bandwidth_gbs")
+    assert not verdicts(attempt(lesson, units))["roofline"]
+
+
+@pytest.mark.network
+def test_sc02_real_data_ladder_and_holdout(home):
+    lesson = load_lesson("scaling-lite/02-ladder")
+    original = solution("scaling-lite/02-ladder")
+    lesson_study("02-ladder", "scaling-lite", [("HOLDOUT = False", "HOLDOUT = True")]).run(devices=["cpu"])
+
+    def answer(low, high):
+        return original.replace("PREDICTION = (0.0, 1.0)", f"PREDICTION = ({low}, {high})")
+
+    probe = attempt(lesson, answer(0.01, 100.0))
+    evidence = probe["checks"][0]["evidence"]
+    print("SC02", {k: evidence[k] for k in evidence if k != "points"})
+    measured = evidence["measured"]
+    done = attempt(lesson, answer(measured - 0.2, measured + 0.2))
+    assert done["passed"], reasons(done)
