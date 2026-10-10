@@ -711,6 +711,21 @@ def find_model(ctx: Context, name: str) -> type:
         raise
 
 
+def find_optimizer(ctx: Context, name: str | None) -> Any:
+    """A verdict side's optimizer factory: "adamw" (the default) is None, "muon" is the shipped
+    one, anything else is a function of that name in the learner's file."""
+    if name is None or name == "adamw":
+        return None
+    if name == "muon":
+        from nanoscope.optim import muon
+
+        return muon
+    function = getattr(load_user_module(ctx), name, None)
+    if not callable(function):
+        raise AttributeError(f"function {name} is not defined in {ctx.user_file.name}")
+    return function
+
+
 @checker("verdict")
 def check_verdict(ctx: Context, check: Check) -> Result:
     """Train A and B on the lesson's preset with n seeds, `compare()` them, and require the
@@ -729,6 +744,8 @@ def check_verdict(ctx: Context, check: Check) -> Result:
     try:
         preset = lesson_preset(ctx)
         classes = {side: find_model(ctx, check.args[side]) for side in ("a", "b")}
+        optimizers = {side: find_optimizer(ctx, check.args.get(f"{side}_optimizer"))
+                      for side in ("a", "b")}
     except (AttributeError, FileNotFoundError, ValueError) as exc:
         return Result(check.id, check.kind, False, str(exc))
     pairing = check.args.get("pairing", "paired")
@@ -747,6 +764,7 @@ def check_verdict(ctx: Context, check: Check) -> Result:
         for seed in range(seeds):
             run(cls, preset, seed=offset + seed, device="cpu" if ctx.variant == "cpu" else None,
                 output_dir=ctx.runs_dir / folder / f"seed-{offset + seed}", progress=False,
+                **({"optimizer": optimizers[side]} if optimizers[side] else {}),
                 **check.args.get(f"{side}_kwargs", {}))
     comparison = compare(ctx.runs_dir / "a", ctx.runs_dir / b_folder, metric=metric)
     row = comparison.rows[0]

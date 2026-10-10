@@ -449,3 +449,16 @@ def test_ex02_preset(monkeypatch):
     never = solution(lid).replace("max_steps=60", "max_steps=30").replace(
         "warmup_steps=10", "warmup_steps=5").replace("eval_interval=20", "eval_interval=50")
     assert "never evaluate" in reasons(attempt(lesson, never))["registered"]
+
+
+def test_ex04_moe(monkeypatch):
+    lid = "extend/04-moe"
+    lesson = load_lesson(lid)
+    assert lesson.unlocks == ["block:MoE"]
+    starter = attempt(lesson)
+    assert not starter["passed"]
+    done = attempt(lesson, solution(lid))
+    assert done["passed"], reasons(done)
+    # raw probabilities, not rescaled to sum to 1
+    raw = solution(lid).replace("weight = weight / weight.sum(-1, keepdim=True)", "pass")
+    assert "differs from the reference" in reasons(attempt(lesson, raw))["same-as-reference"]

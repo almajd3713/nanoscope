@@ -448,3 +448,9 @@ def naive_squared_relu_mlp(x, w_up, w_down):
     """relu(x @ w_up) squared, then @ w_down. x is (..., d), w_up (d, h), w_down (h, d)."""
     hidden = torch.relu(x @ w_up)
     return (hidden * hidden) @ w_down
+
+
+def naive_moe_forward(x, gate_weight, top_k, *expert_weights):
+    """The output of `naive_moe`. `expert_weights` is w1, w3, w2 of expert 0, then expert 1, ..."""
+    experts = [tuple(expert_weights[i:i + 3]) for i in range(0, len(expert_weights), 3)]
+    return naive_moe(x, gate_weight, experts, top_k)[0]
