@@ -1,5 +1,33 @@
 # Changelog
 
+## 0.6.0 (2026-10-10)
+
+Phases 15, 16 and 17: studies and hardware in the app, the inspect and authoring tools, and the rest of the curriculum.
+
+### Added
+- Studies in the app: a study builder (variants, seeds, size matching, an estimate before it runs), a live
+  grid per study, preregistration commits and ablation cards (`nanoscope card export|push|compare`, opt-in
+  and record mode only), and a Hardware page with benchmarks. Record-mode runs start after a read-only git check.
+- Tools for models: `nanoscope inspect` (attention maps per head and a logit lens at any kept checkpoint,
+  also a page in the app), `run(optimizer=make)` with a shipped Muon, `checkpoint_steps`, `ALiBi` and `MoE`
+  blocks, typed blocks through a generated stub, `nanoscope learn author-check`, a Workspace tree and a
+  Schemas browser at the Extend level, and an optional language-server service (`--profile editor-lsp`).
+- Learning paths: honest-ablations, evaluation, efficiency, scaling-lite, interpretability and extend
+  (24 lessons; see `docs/learn.md`). Each lesson with a long run has a CPU and a GPU variant; the GPU
+  estimates are declared, not measured.
+- Library: `run(init_seed=, data_seed=)` splits a seed into weights and batch order, `nanoscope.scaling.fit_power_law`
+  (exponent with an interval, and a prediction interval), `nanoscope.interp.induction_curve`.
+- New lesson check kinds: `matches`, `function`, `ablation`, `ladder`, `certified` and `preset`; `verdict`
+  takes `pairing` and per-side optimizers, and `predicted` takes `must_hit`.
+
+### Changed
+- `MoE` is locked (composite) until the extend path's MoE lesson unlocks `block:MoE`.
+- A block registered by a user can be registered again when its file is re-run.
+- Study reports count finished runs only.
+
+### Fixed
+- A registered block's constructor arguments were not found by lesson checks (they read `__new__`).
+
 ## 0.5.0 (2026-10-08)
 
 Phases 13 and 14: the web app, with the model page.
