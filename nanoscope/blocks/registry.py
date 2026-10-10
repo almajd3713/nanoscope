@@ -36,7 +36,9 @@ _BLOCKS: dict[str, BlockInfo] = {}
 def _register(info: BlockInfo) -> BlockInfo:
     if info.tier not in TIERS:
         raise ValueError(f"block {info.name!r}: tier must be one of {', '.join(TIERS)}")
-    if info.name in _BLOCKS and _BLOCKS[info.name] != info:
+    old = _BLOCKS.get(info.name)
+    # a user block is registered again whenever its file is re-run (an edit, a re-check)
+    if old is not None and old != info and not (old.user and info.user):
         raise ValueError(f"block {info.name!r} is already registered differently")
     _BLOCKS[info.name] = info
     return info

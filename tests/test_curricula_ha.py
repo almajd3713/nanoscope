@@ -413,3 +413,18 @@ def test_in02_logit_lens(monkeypatch):
     wrong = solution(lid).replace("all(top_token(row) == target for row in layer_logits[k:])",
                                   "top_token(layer_logits[k]) == target")
     assert not verdicts(attempt(lesson, wrong))["settled"]
+
+
+def test_ex01_certified_block(monkeypatch):
+    lid = "extend/01-certified-block"
+    lesson = load_lesson(lid)
+    assert not attempt(lesson)["passed"]
+    done = attempt(lesson, solution(lid))
+    assert done["passed"], reasons(done)
+    # forgetting the reference: registered, but nothing to certify against
+    bare = solution(lid).replace("@register_block(reference=squared_relu_mlp, family=\"mlp\")",
+                                 "@register_block(family=\"mlp\")")
+    assert "not registered with a reference" in reasons(attempt(lesson, bare))["certified"]
+    # one wrong formula in the block and the reference passes its own check, not the lesson's
+    twice = solution(lid).replace("(h * h)", "h")
+    assert "not the lesson's" in reasons(attempt(lesson, twice))["certified"]

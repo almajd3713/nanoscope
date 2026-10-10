@@ -442,3 +442,9 @@ def naive_first_settled_layer(layer_logits, target):
         if all(naive_top_token(row) == target for row in layer_logits[i:]):
             return float(i)
     return -1.0
+
+
+def naive_squared_relu_mlp(x, w_up, w_down):
+    """relu(x @ w_up) squared, then @ w_down. x is (..., d), w_up (d, h), w_down (h, d)."""
+    hidden = torch.relu(x @ w_up)
+    return (hidden * hidden) @ w_down

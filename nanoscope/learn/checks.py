@@ -218,9 +218,15 @@ def constructor_args(cls: type, given: dict[str, Any] | None) -> dict[str, Any]:
     """The lesson's `args` plus small defaults for any required argument it did not give."""
     import inspect
 
+    from nanoscope.blocks.spec import BlockModule
+
     args = dict(given or {})
-    for name, param in inspect.signature(cls).parameters.items():
-        if name in args or param.kind in (param.VAR_POSITIONAL, param.VAR_KEYWORD):
+    # a registered block's __new__ takes (*args, **kwargs); its real arguments are __init__'s
+    signature = inspect.signature(cls.__init__) if issubclass(cls, BlockModule) \
+        else inspect.signature(cls)
+    for name, param in signature.parameters.items():
+        variadic = param.kind in (param.VAR_POSITIONAL, param.VAR_KEYWORD)
+        if name == "self" or name in args or variadic:
             continue
         if param.default is inspect.Parameter.empty:
             if name not in DEFAULT_ARGS:
@@ -258,6 +264,47 @@ def check_defines(ctx: Context, check: Check) -> Result:
     return Result(check.id, check.kind, True,
                   f"{cls.__name__}({_kwargs_text(kwargs)}) builds, {total:,} parameters",
                   {"class": cls.__name__, "parameters": total})
+
+
+@checker("certified")
+def check_certified(ctx: Context, check: Check) -> Result:
+    """The learner registered the block with a reference of their own (the certification the
+    palette shows), AND the block matches the lesson's reference. The first alone could pass with
+    a wrong formula written twice; the second alone would not teach `register_block`."""
+    import nanoscope.blocks.registry as registry
+    from nanoscope.blocks.certify import run_check
+    from nanoscope.reference import functional
+
+    try:
+        cls = user_class(ctx, check)
+    except (FileNotFoundError, AttributeError, ValueError) as exc:
+        return Result(check.id, check.kind, False, str(exc))
+    name = cls.__name__
+    own = registry.reference_for(name)
+    if own is None:
+        return Result(check.id, check.kind, False,
+                      f"{name} is not registered with a reference: decorate it with "
+                      "@register_block(reference=your_function)")
+    truth = getattr(functional, check.args["against"], None)
+    if truth is None:
+        return Result(check.id, check.kind, False,
+                      f"the lesson names reference {check.args['against']!r}, which "
+                      "nanoscope.reference doesn't have: this is a bug in the lesson")
+    mine = run_check(cls, own)
+    if not mine["passed"]:
+        return Result(check.id, check.kind, False,
+                      f"{name} does not match its own reference {own.__name__}: {mine['message']}")
+    theirs = run_check(cls, truth)
+    if not theirs["passed"]:
+        return Result(check.id, check.kind, False,
+                      f"{name} matches your reference but not the lesson's "
+                      f"({check.args['against']}): {theirs['message']}. Both can be wrong "
+                      "the same way: check the formula, not only the code")
+    return Result(check.id, check.kind, True,
+                  f"{name} is registered with reference {own.__name__} and matches it and the "
+                  f"lesson's: {theirs['message']}",
+                  {"class": name, "reference": own.__name__,
+                   "max_abs_diff": theirs["max_abs_diff"]})
 
 
 def _kwargs_text(kwargs: dict[str, Any]) -> str:

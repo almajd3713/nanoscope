@@ -1,0 +1,12 @@
+title = "Extend"
+level = 3
+summary = "Add your own parts to nanoscope: a block that shows up in the palette with a certificate, a preset, an optimizer, and a mixture of experts built from primitives."
+prerequisites = ["foundations/05-block"]
+
+[compute.cpu]
+preset = "tinystories-5min"
+estimate_minutes = 14
+
+[compute.gpu]
+preset = "tinystories-30min"
+estimate_minutes = 70
