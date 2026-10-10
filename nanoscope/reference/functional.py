@@ -255,3 +255,235 @@ def naive_block(x, ln1_weight, ln1_bias, wq, wk, wv, wo, ln2_weight, ln2_bias, w
     x = x + naive_multi_head_attention(layer_norm(x, ln1_weight, ln1_bias), wq, wk, wv, wo,
                                        n_heads)
     return x + gelu(layer_norm(x, ln2_weight, ln2_bias) @ w_fc.T) @ w_proj.T
+
+
+def t_quantile(p, df):
+    """The Student-t value below which a fraction p of the distribution lies, found by
+    integrating the density (Simpson's rule) and bisecting. Slow and exact enough to check
+    a learner's use of a library routine."""
+    def density(x):
+        return math.exp(math.lgamma((df + 1) / 2) - math.lgamma(df / 2)
+                        - 0.5 * math.log(df * math.pi)
+                        - (df + 1) / 2 * math.log1p(x * x / df))
+
+    def cdf(x):  # P(T <= x) for x >= 0
+        n = 2000
+        h = x / n
+        total = density(0.0) + density(x)
+        total += sum((4 if i % 2 else 2) * density(i * h) for i in range(1, n))
+        return 0.5 + total * h / 3
+
+    low, high = 0.0, 1000.0
+    for _ in range(80):
+        mid = (low + high) / 2
+        low, high = (mid, high) if cdf(mid) < p else (low, mid)
+    return (low + high) / 2
+
+
+def naive_paired_ci(a, b):
+    """(mean, low, high): the 95% interval for the average of a[i] - b[i], from the n - 1
+    degrees of freedom of the differences."""
+    d = [x - y for x, y in zip(a, b, strict=True)]
+    n = len(d)
+    mean = sum(d) / n
+    sd = math.sqrt(sum((x - mean) ** 2 for x in d) / (n - 1))
+    margin = t_quantile(0.975, n - 1) * sd / math.sqrt(n)
+    return mean, mean - margin, mean + margin
+
+
+def naive_unpaired_ci(a, b):
+    """(mean, low, high): the 95% Welch interval for mean(a) - mean(b) when the two groups
+    have no pairing and may have different spreads."""
+    na, nb = len(a), len(b)
+    ma, mb = sum(a) / na, sum(b) / nb
+    va = sum((x - ma) ** 2 for x in a) / (na - 1) / na
+    vb = sum((x - mb) ** 2 for x in b) / (nb - 1) / nb
+    df = (va + vb) ** 2 / (va**2 / (na - 1) + vb**2 / (nb - 1))
+    margin = t_quantile(0.975, df) * math.sqrt(va + vb)
+    return ma - mb, ma - mb - margin, ma - mb + margin
+
+
+def naive_standard_error(values):
+    """The standard error of the mean: the sample standard deviation over sqrt(n)."""
+    n = len(values)
+    mean = sum(values) / n
+    sd = math.sqrt(sum((x - mean) ** 2 for x in values) / (n - 1))
+    return sd / math.sqrt(n)
+
+
+def naive_docs_needed(sd, half_width):
+    """How many independent measurements it takes for the 95% interval of their mean to be at
+    most `half_width` either side, given the spread `sd` of one measurement (normal
+    approximation: 1.96 standard errors)."""
+    return math.ceil((1.96 * sd / half_width) ** 2)
+
+
+def naive_two_way_mean_squares(grid):
+    """Split a grid of results, grid[i][j] for init seed i and data seed j, into mean squares:
+    (init, data, residual). Row means differ because of the initial weights, column means
+    because of the data order, and what neither explains is the residual (the interaction)."""
+    rows, cols = len(grid), len(grid[0])
+    grand = sum(sum(r) for r in grid) / (rows * cols)
+    row_means = [sum(r) / cols for r in grid]
+    col_means = [sum(grid[i][j] for i in range(rows)) / rows for j in range(cols)]
+    init = cols * sum((m - grand) ** 2 for m in row_means) / (rows - 1)
+    data = rows * sum((m - grand) ** 2 for m in col_means) / (cols - 1)
+    resid = sum((grid[i][j] - row_means[i] - col_means[j] + grand) ** 2
+                for i in range(rows) for j in range(cols)) / ((rows - 1) * (cols - 1))
+    return init, data, resid
+
+
+def naive_training_flops(n_params, tokens):
+    """The 6ND rule: each token costs about 2 FLOPs per parameter going forward and 4 coming
+    back, so training on D tokens costs about 6 * N * D FLOPs. It leaves out attention."""
+    return 6 * n_params * tokens
+
+
+def naive_tokens_for_budget(flops, n_params):
+    """The tokens a model of n_params can be trained on with a compute budget of `flops`."""
+    return flops / (6 * n_params)
+
+
+def naive_chinchilla_split(flops, tokens_per_param=20):
+    """(parameters, tokens) that spend `flops` with the compute-optimal ratio of about 20
+    training tokens per parameter: C = 6 * N * (20 * N), so N = sqrt(C / 120)."""
+    n_params = math.sqrt(flops / (6 * tokens_per_param))
+    return n_params, tokens_per_param * n_params
+
+
+# -- speed: bench, compile, roofline ----------------------------------------------------------
+
+def naive_tokens_per_second(step_ms, batch_size, context_length):
+    """Tokens a training step consumes, divided by the time it takes."""
+    return batch_size * context_length / (step_ms / 1000)
+
+
+def naive_gpu_busy(kernel_ms, step_ms):
+    """The fraction of a step the GPU spends running kernels, at most 1."""
+    return min(kernel_ms / step_ms, 1.0)
+
+
+def naive_cpu_bound(gpu_busy, threshold=0.7):
+    """1.0 when the GPU waits on Python for more than 30% of the step, else 0.0."""
+    return 1.0 if gpu_busy < threshold else 0.0
+
+
+def naive_speedup(eager_ms, compiled_ms):
+    return eager_ms / compiled_ms
+
+
+def naive_break_even_steps(compile_seconds, eager_ms, compiled_ms):
+    """Steps after which the time saved per step has paid back the compile time."""
+    return compile_seconds * 1000 / (eager_ms - compiled_ms)
+
+
+def naive_worth_compiling(steps, compile_seconds, eager_ms, compiled_ms):
+    """1.0 when a run of `steps` finishes sooner with compile, compile time included."""
+    eager_total = steps * eager_ms / 1000
+    compiled_total = compile_seconds + steps * compiled_ms / 1000
+    return 1.0 if compiled_total < eager_total else 0.0
+
+
+def naive_mfu(tflops, peak_tflops):
+    """Model FLOPs utilisation: the share of the chip's peak the model actually uses."""
+    return tflops / peak_tflops
+
+
+def naive_arithmetic_intensity(flops, bytes_moved):
+    """FLOPs done per byte read from or written to memory."""
+    return flops / bytes_moved
+
+
+def naive_attainable_tflops(intensity, peak_tflops, bandwidth_gbs):
+    """The roofline: memory feeds `intensity * bandwidth` FLOP/s, the chip caps at its peak."""
+    return min(peak_tflops, intensity * bandwidth_gbs / 1000)
+
+
+def naive_memory_bound(intensity, peak_tflops, bandwidth_gbs):
+    """1.0 when memory, not arithmetic, limits the kernel."""
+    return 1.0 if intensity * bandwidth_gbs / 1000 < peak_tflops else 0.0
+
+
+def naive_induction_score(attn, half):
+    """Mean attention from each position in the second copy of a repeated sequence to the token
+    after its earlier occurrence. `attn[i]` holds the weights of position i over positions 0..i;
+    the sequence is `half` random tokens followed by the same `half` tokens again."""
+    rows = [attn[i][i - half + 1] for i in range(half, 2 * half)]
+    return sum(rows) / len(rows)
+
+
+def naive_previous_token_score(attn):
+    """Mean attention from each position to the one just before it."""
+    rows = [attn[i][i - 1] for i in range(1, len(attn))]
+    return sum(rows) / len(rows)
+
+
+def naive_first_step_above(steps, scores, threshold):
+    """The first step whose score reaches `threshold` and stays there at every later step, or -1."""
+    for i in range(len(steps)):
+        if all(s >= threshold for s in scores[i:]):
+            return float(steps[i])
+    return -1.0
+
+
+def naive_top_token(logits):
+    """Index of the largest logit."""
+    return float(max(range(len(logits)), key=lambda i: logits[i]))
+
+
+def naive_rank_of(logits, target):
+    """0 when `target` has the largest logit, 1 for the second largest, and so on."""
+    return float(sum(1 for v in logits if v > logits[target]))
+
+
+def naive_first_settled_layer(layer_logits, target):
+    """The first layer whose top token is `target` and stays so at every later layer, or -1."""
+    for i in range(len(layer_logits)):
+        if all(naive_top_token(row) == target for row in layer_logits[i:]):
+            return float(i)
+    return -1.0
+
+
+def naive_squared_relu_mlp(x, w_up, w_down):
+    """relu(x @ w_up) squared, then @ w_down. x is (..., d), w_up (d, h), w_down (h, d)."""
+    hidden = torch.relu(x @ w_up)
+    return (hidden * hidden) @ w_down
+
+
+def naive_moe_forward(x, gate_weight, top_k, *expert_weights):
+    """The output of `naive_moe`. `expert_weights` is w1, w3, w2 of expert 0, then expert 1, ..."""
+    experts = [tuple(expert_weights[i:i + 3]) for i in range(0, len(expert_weights), 3)]
+    return naive_moe(x, gate_weight, experts, top_k)[0]
+
+
+def naive_kv_cache_bytes(n_layers, n_kv_heads, head_dim, seq_len, batch, bytes_per_value):
+    """Keys and values (the 2), for every layer, kv head and position kept."""
+    return float(2 * n_layers * n_kv_heads * head_dim * seq_len * batch * bytes_per_value)
+
+
+def naive_tokens_processed(prompt_len, new_tokens, cached):
+    """Token positions pushed through the layers to generate `new_tokens`. With a cache the prompt
+    goes through once and each later token alone; without it every step redoes the whole
+    sequence so far."""
+    if cached:
+        return float(prompt_len + new_tokens - 1)
+    return float(sum(prompt_len + j for j in range(new_tokens)))
+
+
+def naive_max_context(memory_gb, weights_gb, n_layers, n_kv_heads, head_dim, bytes_per_value):
+    """Longest sequence (batch 1) whose cache fits in the memory left after the weights."""
+    per_token = 2 * n_layers * n_kv_heads * head_dim * bytes_per_value
+    return float(int((memory_gb - weights_gb) * 1e9 // per_token))
+
+
+def naive_cached_step(q, new_k, new_v, cache_k, cache_v):
+    """One decoding step of one attention head. The cache holds the keys and values of the
+    positions before; the new token's own key and value join them; q attends over all."""
+    keys, values = [*cache_k, new_k], [*cache_v, new_v]
+    scale = math.sqrt(len(q))
+    scores = [sum(a * b for a, b in zip(q, k, strict=True)) / scale for k in keys]
+    top = max(scores)
+    weights = [math.exp(s - top) for s in scores]
+    total = sum(weights)
+    return [sum(w / total * v[d] for w, v in zip(weights, values, strict=True))
+            for d in range(len(new_v))]

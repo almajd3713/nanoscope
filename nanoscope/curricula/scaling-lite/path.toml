@@ -1,0 +1,12 @@
+title = "Scaling, lite"
+level = 2
+summary = "Fit a scaling trend on small models, predict the next size up before you train it, and learn how far to trust the extrapolation."
+prerequisites = ["honest-ablations/01-seed-noise"]
+
+[compute.cpu]
+preset = "tinystories-5min"
+estimate_minutes = 14
+
+[compute.gpu]
+preset = "fineweb-edu"
+estimate_minutes = 480

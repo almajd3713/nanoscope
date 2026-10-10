@@ -1,0 +1,39 @@
+title = "torch.compile: when does it pay for itself?"
+level = 2
+summary = "Compiling a model costs time up front and saves time on every step. Work out the speedup, the break-even point, and whether a given run should compile."
+prerequisites = ["efficiency/01-bench"]
+
+[experiment]
+kind = "check"
+
+[[checks]]
+id = "speedup"
+kind = "function"
+name = "speedup"
+reference = "naive_speedup"
+tolerance = 1e-9
+cases = [[54.0, 41.2], [54.0, 12.8], [12.8, 12.0]]
+
+[[checks]]
+id = "break-even"
+kind = "function"
+name = "break_even_steps"
+reference = "naive_break_even_steps"
+tolerance = 1e-6
+cases = [[40.0, 54.0, 12.8], [40.0, 54.0, 41.2], [5.0, 20.0, 15.0]]
+
+[[checks]]
+id = "decision"
+kind = "function"
+name = "worth_compiling"
+reference = "naive_worth_compiling"
+tolerance = 0
+cases = [[500, 40.0, 54.0, 12.8], [5000, 40.0, 54.0, 12.8], [100000, 40.0, 54.0, 41.2], [500, 40.0, 54.0, 41.2]]
+
+[compute.cpu]
+preset = "tinystories-5min"
+estimate_minutes = 2
+
+[compute.gpu]
+preset = "tinystories-5min"
+estimate_minutes = 6

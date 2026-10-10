@@ -19,8 +19,9 @@ def client(home, tmp_path, monkeypatch):
 
 def test_lessons(client):
     paths_doc = client.get("/api/curricula").json()
-    assert [p["id"] for p in paths_doc] == ["foundations", "modern-block"]
-    foundations = paths_doc[0]
+    ids = [p["id"] for p in paths_doc]
+    assert {"foundations", "modern-block", "extend", "interpretability"} <= set(ids)
+    foundations = paths_doc[ids.index("foundations")]
     assert foundations["level"] == 0 and foundations["compute"]["cpu"]["estimate_minutes"] == 14
     first = foundations["lessons"][0]
     assert first["id"] == "foundations/01-bigram" and first["state"] == "not-started"
@@ -104,7 +105,7 @@ def test_unlocks(client):
     assert view["first_run"] is True  # nobody has chosen yet
     assert view["lockable"]["block:Attention"] == {
         "lesson": "foundations/04-multi-head", "state": "open", "reason": None}
-    assert len(view["lockable"]) == 9
+    assert len(view["lockable"]) == 10  # nine from the first two paths, and MoE
     assert client.post("/api/learn/policy", json={"policy": "guided"}).json()["policy"] == "guided"
     view = client.get("/api/learn/unlocks").json()
     assert view["first_run"] is False

@@ -138,6 +138,8 @@ Train both at matched non-embedding parameter count *and* matched FLOPs on FineW
 
 ### M2 — The scaling law *(the crown jewel)* (≈25 hrs)
 
+Path: `scaling-lite` (FLOP budgets and a small ladder; the full 12M-70M ladder stays your own run).
+
 This is the milestone that makes the project worth doing.
 
 1. **Parametrize with muP** so that learning rate transfers across width. Verify the transfer empirically: sweep LR at width 128 and width 512, and show the optimal LR coincides. If it doesn't, your muP implementation is wrong — and finding that out is half the value.
@@ -156,6 +158,8 @@ This is the milestone that makes the project worth doing.
 ---
 
 ### M3 — Architecture ablations, honestly (≈20 hrs)
+
+Path: `honest-ablations` (seed noise, pairing, matching, predict-then-run, a capstone ablation study).
 
 At matched FLOPs, using muP so hyperparameters transfer, three seeds each:
 
@@ -179,6 +183,8 @@ The discipline here is the point. The default failure mode of small-scale archit
 
 ### M4 — Inference and efficiency (≈20 hrs)
 
+Path: `efficiency` (bench, compile, roofline; KV cache sizing and work).
+
 Your own model, your own serving stack. Build in this order:
 
 1. **KV cache from scratch.** Then verify: cached decode must be numerically identical to full recomputation.
@@ -196,6 +202,8 @@ Your own model, your own serving stack. Build in this order:
 
 ### M5 — Evaluation as a discipline (≈12 hrs)
 
+Path: `evaluation` (evaluation noise, init versus data seed).
+
 - Integrate `lm-evaluation-harness`. Run your models on LAMBADA, HellaSwag, ARC-Easy, PIQA. Most will be near chance. Report that honestly, with CIs, and explain why length-normalized loglikelihood scoring behaves the way it does at this scale.
 - Build **your own** harness for things small models *can* do: TinyStories grammaticality, induction-task accuracy, synthetic factual recall, held-out perplexity by domain.
 - Implement the statistics: bootstrap CIs, **paired** bootstrap for model comparisons, clustered standard errors when items are grouped.
@@ -210,6 +218,8 @@ Your own model, your own serving stack. Build in this order:
 ---
 
 ### M6 — Interpretability on a model you built (≈20 hrs)
+
+Path: `interpretability` (induction heads over checkpoints, the logit lens).
 
 The advantage of studying your own model: you know the training data, you have every checkpoint, and you can retrain with a variable changed.
 

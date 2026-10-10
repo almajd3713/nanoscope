@@ -183,7 +183,10 @@ def load_user_module(ctx: Context) -> Any:
     module = importlib.util.module_from_spec(spec)
     sys.modules[name] = module
     try:
-        spec.loader.exec_module(module)
+        # compiled from the text, not imported: the bytecode cache is keyed on the file's
+        # modification second and size, so an edit of the same length made within a second
+        # of the last check would otherwise run the old code
+        exec(compile(file.read_text(encoding="utf-8"), str(file), "exec"), module.__dict__)
     except SyntaxError as exc:
         raise ValueError(f"{file.name} line {exc.lineno}: {exc.msg}") from exc
     finally:
@@ -215,9 +218,15 @@ def constructor_args(cls: type, given: dict[str, Any] | None) -> dict[str, Any]:
     """The lesson's `args` plus small defaults for any required argument it did not give."""
     import inspect
 
+    from nanoscope.blocks.spec import BlockModule
+
     args = dict(given or {})
-    for name, param in inspect.signature(cls).parameters.items():
-        if name in args or param.kind in (param.VAR_POSITIONAL, param.VAR_KEYWORD):
+    # a registered block's __new__ takes (*args, **kwargs); its real arguments are __init__'s
+    signature = inspect.signature(cls.__init__) if issubclass(cls, BlockModule) \
+        else inspect.signature(cls)
+    for name, param in signature.parameters.items():
+        variadic = param.kind in (param.VAR_POSITIONAL, param.VAR_KEYWORD)
+        if name == "self" or name in args or variadic:
             continue
         if param.default is inspect.Parameter.empty:
             if name not in DEFAULT_ARGS:
@@ -255,6 +264,101 @@ def check_defines(ctx: Context, check: Check) -> Result:
     return Result(check.id, check.kind, True,
                   f"{cls.__name__}({_kwargs_text(kwargs)}) builds, {total:,} parameters",
                   {"class": cls.__name__, "parameters": total})
+
+
+@checker("certified")
+def check_certified(ctx: Context, check: Check) -> Result:
+    """The learner registered the block with a reference of their own (the certification the
+    palette shows), AND the block matches the lesson's reference. The first alone could pass with
+    a wrong formula written twice; the second alone would not teach `register_block`."""
+    import nanoscope.blocks.registry as registry
+    from nanoscope.blocks.certify import run_check
+    from nanoscope.reference import functional
+
+    try:
+        cls = user_class(ctx, check)
+    except (FileNotFoundError, AttributeError, ValueError) as exc:
+        return Result(check.id, check.kind, False, str(exc))
+    name = cls.__name__
+    own = registry.reference_for(name)
+    if own is None:
+        return Result(check.id, check.kind, False,
+                      f"{name} is not registered with a reference: decorate it with "
+                      "@register_block(reference=your_function)")
+    truth = getattr(functional, check.args["against"], None)
+    if truth is None:
+        return Result(check.id, check.kind, False,
+                      f"the lesson names reference {check.args['against']!r}, which "
+                      "nanoscope.reference doesn't have: this is a bug in the lesson")
+    mine = run_check(cls, own)
+    if not mine["passed"]:
+        return Result(check.id, check.kind, False,
+                      f"{name} does not match its own reference {own.__name__}: {mine['message']}")
+    theirs = run_check(cls, truth)
+    if not theirs["passed"]:
+        return Result(check.id, check.kind, False,
+                      f"{name} matches your reference but not the lesson's "
+                      f"({check.args['against']}): {theirs['message']}. Both can be wrong "
+                      "the same way: check the formula, not only the code")
+    return Result(check.id, check.kind, True,
+                  f"{name} is registered with reference {own.__name__} and matches it and the "
+                  f"lesson's: {theirs['message']}",
+                  {"class": name, "reference": own.__name__,
+                   "max_abs_diff": theirs["max_abs_diff"]})
+
+
+@checker("preset")
+def check_preset(ctx: Context, check: Check) -> Result:
+    """The learner's file registers a preset `name` derived from another: the fields in `same`
+    are unchanged (so the same cached tokens apply), the fields in `differs` changed, the run is
+    at most `max_steps`, warmup is at most `max_warmup_fraction` of it, and evaluation happens
+    at least once."""
+    from nanoscope.presets import get_preset
+
+    name, base_name = check.args["name"], check.args["derived_from"]
+    try:
+        load_user_module(ctx)
+    except (FileNotFoundError, ValueError) as exc:
+        return Result(check.id, check.kind, False, str(exc))
+    except Exception as exc:
+        return Result(check.id, check.kind, False,
+                      f"{ctx.user_file.name} raised {type(exc).__name__}: {exc}")
+    try:
+        mine, base = get_preset(name), get_preset(base_name)
+    except KeyError:
+        return Result(check.id, check.kind, False,
+                      f"no preset named {name!r} is registered by {ctx.user_file.name}: call "
+                      f"register_preset(Preset(name={name!r}, ...))")
+    for field_name in check.args.get("same", []):
+        if getattr(mine, field_name) != getattr(base, field_name):
+            return Result(check.id, check.kind, False,
+                          f"{field_name} is {getattr(mine, field_name)!r} but {base_name} has "
+                          f"{getattr(base, field_name)!r}: keep it, or the cached tokens and the "
+                          "comparison with that preset no longer apply")
+    for field_name in check.args.get("differs", []):
+        if getattr(mine, field_name) == getattr(base, field_name):
+            return Result(check.id, check.kind, False,
+                          f"{field_name} is the same as {base_name}'s "
+                          f"({getattr(base, field_name)!r}): the lesson wants it changed")
+    limit = check.args.get("max_steps")
+    if limit is not None and mine.max_steps > limit:
+        return Result(check.id, check.kind, False,
+                      f"max_steps is {mine.max_steps}; this preset is for a quick run, "
+                      f"at most {limit}")
+    fraction = check.args.get("max_warmup_fraction")
+    if fraction is not None and mine.warmup_steps > fraction * mine.max_steps:
+        return Result(check.id, check.kind, False,
+                      f"warmup_steps is {mine.warmup_steps} of {mine.max_steps} steps "
+                      f"({mine.warmup_steps / mine.max_steps:.0%}): the learning rate would "
+                      f"still be climbing for more than {fraction:.0%} of the run")
+    if mine.eval_interval > mine.max_steps:
+        return Result(check.id, check.kind, False,
+                      f"eval_interval is {mine.eval_interval} but the run has {mine.max_steps} "
+                      "steps, so it would never evaluate and report no loss")
+    return Result(check.id, check.kind, True,
+                  f"{name} is registered: {mine.max_steps} steps, warmup {mine.warmup_steps}, "
+                  f"evaluating every {mine.eval_interval}, tokens as in {base_name}",
+                  {"preset": name, "max_steps": mine.max_steps})
 
 
 def _kwargs_text(kwargs: dict[str, Any]) -> str:
@@ -376,6 +480,72 @@ def check_equivalent(ctx: Context, check: Check) -> Result:
                   f"random inputs (tolerance {tolerance:g})",
                   {"max_abs_diff": worst, "tolerance": tolerance, "trials": len(shapes),
                    "reference": name})
+
+
+# -- function --------------------------------------------------------------------------------
+
+def _shown(value: Any) -> Any:
+    if isinstance(value, list):
+        return [_shown(x) for x in value]
+    return round(value, 4) if isinstance(value, float) else value
+
+
+@checker("function")
+def check_function(ctx: Context, check: Check) -> Result:
+    """A plain function in the learner's file gives the same numbers as a naive reference on
+    the lesson's fixed cases. Each case is the list of arguments; the result is a number or a
+    tuple of numbers, and `labels` names the parts of a tuple in the failure message."""
+    import copy
+    import math
+
+    from nanoscope.reference import functional
+
+    name = check.args["name"]
+    reference = getattr(functional, check.args["reference"], None)
+    if reference is None:
+        return Result(check.id, check.kind, False,
+                      f"the lesson names reference {check.args['reference']!r}, which "
+                      "nanoscope.reference doesn't have: this is a bug in the lesson")
+    try:
+        function = getattr(load_user_module(ctx), name, None)
+    except (FileNotFoundError, ValueError) as exc:
+        return Result(check.id, check.kind, False, str(exc))
+    if not callable(function):
+        return Result(check.id, check.kind, False,
+                      f"function {name} is not defined in {ctx.user_file.name}")
+    tolerance = float(check.args.get("tolerance", 1e-6))
+    labels = check.args.get("labels", [])
+    worst = 0.0
+
+    def numbers(value: Any) -> list[float]:
+        return [float(x) for x in value] if isinstance(value, (tuple, list)) else [float(value)]
+
+    for i, case in enumerate(check.args["cases"], 1):
+        shown = ", ".join(str(_shown(a)) for a in case)
+        want = numbers(reference(*copy.deepcopy(case)))
+        try:
+            got = numbers(function(*copy.deepcopy(case)))
+        except Exception as exc:
+            return Result(check.id, check.kind, False,
+                          f"{name}({shown}) raised {type(exc).__name__}: {exc}")
+        if len(got) != len(want):
+            return Result(check.id, check.kind, False,
+                          f"{name}({shown}) returned {len(got)} value(s); the lesson expects "
+                          f"{len(want)}" + (f" ({', '.join(labels)})" if labels else ""))
+        for k, (g, w) in enumerate(zip(got, want, strict=True)):
+            diff = abs(g - w) if math.isfinite(g) else math.inf
+            worst = max(worst, diff)
+            if not diff <= tolerance:
+                part = labels[k] if k < len(labels) else f"value {k + 1}"
+                return Result(
+                    check.id, check.kind, False,
+                    f"case {i}, {name}({shown}): {part} is {g:.6g} but the reference gives "
+                    f"{w:.6g} (off by {diff:.3g}; tolerance {tolerance:g})",
+                    {"case": i, "part": part, "got": g, "want": w, "tolerance": tolerance})
+    return Result(check.id, check.kind, True,
+                  f"{name} matches the reference {check.args['reference']} on "
+                  f"{len(check.args['cases'])} cases: largest difference {worst:.3g}",
+                  {"max_abs_diff": worst, "cases": len(check.args["cases"])})
 
 
 # -- forbid ----------------------------------------------------------------------------------
@@ -524,6 +694,8 @@ def check_trains(ctx: Context, check: Check) -> Result:
 
 SHIPPED = ("bigram", "gpt2", "modern")
 VERDICTS = ("better", "worse", "within noise")
+PAIRINGS = ("paired", "unpaired")
+UNPAIRED_OFFSET = 1000
 
 
 def find_model(ctx: Context, name: str) -> type:
@@ -537,6 +709,21 @@ def find_model(ctx: Context, name: str) -> type:
             return {"bigram": models.Bigram, "gpt2": models.GPT2,
                     "modern": models.Modern}[name.lower()]
         raise
+
+
+def find_optimizer(ctx: Context, name: str | None) -> Any:
+    """A verdict side's optimizer factory: "adamw" (the default) is None, "muon" is the shipped
+    one, anything else is a function of that name in the learner's file."""
+    if name is None or name == "adamw":
+        return None
+    if name == "muon":
+        from nanoscope.optim import muon
+
+        return muon
+    function = getattr(load_user_module(ctx), name, None)
+    if not callable(function):
+        raise AttributeError(f"function {name} is not defined in {ctx.user_file.name}")
+    return function
 
 
 @checker("verdict")
@@ -557,14 +744,29 @@ def check_verdict(ctx: Context, check: Check) -> Result:
     try:
         preset = lesson_preset(ctx)
         classes = {side: find_model(ctx, check.args[side]) for side in ("a", "b")}
+        optimizers = {side: find_optimizer(ctx, check.args.get(f"{side}_optimizer"))
+                      for side in ("a", "b")}
     except (AttributeError, FileNotFoundError, ValueError) as exc:
         return Result(check.id, check.kind, False, str(exc))
+    pairing = check.args.get("pairing", "paired")
+    if pairing not in PAIRINGS:
+        return Result(check.id, check.kind, False,
+                      f"the lesson asks for pairing {pairing!r}; it is one of "
+                      f"{', '.join(PAIRINGS)}: this is a bug in the lesson")
+    # Unpaired: B gets other seeds, so no seed of A has a partner and compare() cannot pair.
+    # They go in their own folder, so a paired check in the same lesson reuses A's finished
+    # runs and neither check sees the other's seeds.
+    unpaired = pairing == "unpaired"
+    b_folder = "b-unpaired" if unpaired else "b"
     for side, cls in classes.items():
+        offset = UNPAIRED_OFFSET if side == "b" and unpaired else 0
+        folder = b_folder if side == "b" else "a"
         for seed in range(seeds):
-            run(cls, preset, seed=seed, device="cpu" if ctx.variant == "cpu" else None,
-                output_dir=ctx.runs_dir / side / f"seed-{seed}", progress=False,
+            run(cls, preset, seed=offset + seed, device="cpu" if ctx.variant == "cpu" else None,
+                output_dir=ctx.runs_dir / folder / f"seed-{offset + seed}", progress=False,
+                **({"optimizer": optimizers[side]} if optimizers[side] else {}),
                 **check.args.get(f"{side}_kwargs", {}))
-    comparison = compare(ctx.runs_dir / "a", ctx.runs_dir / "b", metric=metric)
+    comparison = compare(ctx.runs_dir / "a", ctx.runs_dir / b_folder, metric=metric)
     row = comparison.rows[0]
     delta = row["delta"]
     label = f"{check.args['a']} vs {check.args['b']}"
@@ -587,13 +789,272 @@ def check_verdict(ctx: Context, check: Check) -> Result:
         return Result(check.id, check.kind, False, f"{label}: {why}", {"seeds": seeds})
     interval = f"{delta['mean']:+.3f} [{delta['ci95_low']:+.3f}, {delta['ci95_high']:+.3f}]"
     evidence = {"verdict": row["verdict"], "expected": expect, "metric": metric, "seeds": seeds,
-                "delta": delta["mean"], "ci95": [delta["ci95_low"], delta["ci95_high"]]}
-    said = f"{label}: {row['verdict']} ({metric} difference {interval}, {seeds} seeds)"
+                "delta": delta["mean"], "ci95": [delta["ci95_low"], delta["ci95_high"]],
+                "paired": delta["paired"]}
+    how = "" if delta["paired"] else ", unpaired"
+    said = f"{label}: {row['verdict']} ({metric} difference {interval}, {seeds} seeds{how})"
     if row["verdict"] == expect:
         return Result(check.id, check.kind, True, f"{said}, as the lesson expects", evidence)
     return Result(check.id, check.kind, False,
                   f"{said}; the lesson expects '{expect}'. Look at what differs between the two "
                   "models, and at the interval: is zero inside it?", evidence)
+
+
+# -- matches ---------------------------------------------------------------------------------
+
+QUANTITIES = ("params", "flops")
+
+
+def _size_of(cls: type, kwargs: dict[str, Any], quantity: str, context_length: int) -> int:
+    """Non-embedding parameters, or training FLOPs per token, of a class built on the meta
+    device (no memory): the same numbers a Study matches on."""
+    import inspect
+
+    from nanoscope.sizing import build_on_meta, count_params, flops_per_token
+
+    accepted = inspect.signature(cls).parameters
+    sized = {"vocab_size": 4096, "context_length": context_length}
+    given = {k: v for k, v in sized.items() if k in accepted} | kwargs
+    model = build_on_meta(cls, **constructor_args(cls, given))
+    return count_params(model)[1] if quantity == "params" else flops_per_token(
+        model, context_length)
+
+
+@checker("matches")
+def check_matches(ctx: Context, check: Check) -> Result:
+    """The learner's class is the same size as another model: non-embedding parameters or
+    training FLOPs per token within `tolerance` (default 3%). Sizing a comparison fairly is
+    most of an honest ablation."""
+    quantity = check.args["quantity"]
+    if quantity not in QUANTITIES:
+        return Result(check.id, check.kind, False,
+                      f"the lesson asks to match {quantity!r}; this check knows "
+                      f"{', '.join(QUANTITIES)}: this is a bug in the lesson")
+    tolerance = float(check.args.get("tolerance", 0.03))
+    context_length = int(check.args.get("context_length", 256))
+    try:
+        mine = user_class(ctx, check)
+        other = find_model(ctx, check.args["against"])
+        a = _size_of(mine, check.args.get("kwargs", {}), quantity, context_length)
+        b = _size_of(other, check.args.get("against_kwargs", {}), quantity, context_length)
+    except (AttributeError, FileNotFoundError, ValueError, TypeError) as exc:
+        return Result(check.id, check.kind, False, str(exc))
+    what = "non-embedding parameters" if quantity == "params" else "training FLOPs per token"
+    gap = (a - b) / b
+    evidence = {"quantity": quantity, "mine": a, "other": b, "gap": gap, "tolerance": tolerance}
+    said = (f"{mine.__name__} has {a:,} {what}, {other.__name__} has {b:,} "
+            f"({gap:+.1%}; the lesson allows {tolerance:.0%})")
+    if abs(gap) <= tolerance:
+        return Result(check.id, check.kind, True, f"{said}: matched", evidence)
+    side = "more" if gap > 0 else "fewer"
+    return Result(check.id, check.kind, False,
+                  f"{said}: {mine.__name__} has {side}, so any difference in the results could "
+                  "be size, not the idea. Adjust a width until they match", evidence)
+
+
+# -- ablation --------------------------------------------------------------------------------
+
+@checker("ablation")
+def check_ablation(ctx: Context, check: Check) -> Result:
+    """The capstone. Read the learner's own finished Study (the full model, a baseline and one
+    variant per `drops` entry, each the full model with one component removed), compare the
+    variants with seed-level intervals, then hold the learner's file against what the study
+    found. The file must define
+
+        GAP = (low, high)          the interval for full - baseline, in the lesson's metric
+        NULL_COMPONENT = "name"    a drop whose removal changed nothing detectable (or None)
+
+    GAP must contain the measured difference and not be far wider than the study's own
+    interval (the rule for a prediction). NULL_COMPONENT must be a drop whose verdict is
+    'within noise'. Naming a component that matters, or claiming none is null when one is,
+    fails with the numbers. The check trains nothing: the evidence is the learner's study."""
+    from nanoscope.compare import compare
+    from nanoscope.statistics import score_prediction
+    from nanoscope.studyfiles import finished_runs, study_dir
+
+    seeds = int(check.args.get("gpu_seeds", check.args.get("seeds", 3))
+                if ctx.variant == "gpu" else check.args.get("seeds", 3))
+    metric = check.args.get("metric", "val_bpb")
+    study, full, base = check.args["study"], check.args["full"], check.args["baseline"]
+    drops: list[str] = check.args["drops"]
+    try:
+        preset = lesson_preset(ctx)
+        module = load_user_module(ctx)
+    except (AttributeError, FileNotFoundError, ValueError) as exc:
+        return Result(check.id, check.kind, False, str(exc))
+    gap, null = getattr(module, "GAP", None), getattr(module, "NULL_COMPONENT", "<unset>")
+    problems = []
+    if not (isinstance(gap, (tuple, list)) and len(gap) == 2
+            and all(isinstance(x, (int, float)) for x in gap) and gap[0] < gap[1]):
+        problems.append("GAP is not set: write GAP = (low, high), your interval for the "
+                        f"difference between {full} and {base} (negative is better for "
+                        "val_bpb)")
+    if null == "<unset>" or not (null is None or null in drops):
+        problems.append(f"NULL_COMPONENT must be one of {', '.join(drops)}, or None if you "
+                        "think every component matters")
+    if problems:  # say what is missing before anyone waits on a study
+        return Result(check.id, check.kind, False, "; ".join(problems))
+    assert isinstance(gap, (tuple, list))
+    low, high = float(gap[0]), float(gap[1])
+
+    folder = study_dir(study)
+    wanted = [full, base, *drops]
+    missing = [v for v in wanted if not (folder / v).exists()]
+    if missing:
+        return Result(check.id, check.kind, False,
+                      f"the study {study!r} has no variant {', '.join(missing)} under "
+                      f"{folder}: run the study from the lesson first (it needs {len(wanted)} "
+                      f"variants: {', '.join(wanted)})")
+    done = {v: finished_runs(folder / v) for v in wanted}
+    short = [f"{v} ({len(r)})" for v, r in done.items() if len(r) < seeds]
+    if short:
+        return Result(check.id, check.kind, False,
+                      f"every variant needs {seeds} finished seeds; still short: "
+                      f"{', '.join(short)}. Let the study finish")
+    seed_sets = {tuple(sorted(r.seed for r in runs)) for runs in done.values()}
+    if len(seed_sets) > 1:
+        listing = "; ".join(f"{v}: {sorted(r.seed for r in runs)}" for v, runs in done.items())
+        return Result(check.id, check.kind, False,
+                      f"the variants were not run on the same seeds, so they cannot be paired: "
+                      f"{listing}")
+    other = sorted({r.preset["name"] for runs in done.values() for r in runs} - {preset})
+    if other:
+        return Result(check.id, check.kind, False,
+                      f"the study ran on {', '.join(other)}, but this lesson is on {preset}: "
+                      "use the preset from the lesson")
+
+    against = compare(folder / full, folder / base, metric=metric).rows[0]
+    delta = against["delta"]
+    if delta is None or delta["ci95_low"] is None:
+        return Result(check.id, check.kind, False,
+                      f"there is no interval for {full} against {base}: the lesson needs "
+                      "3 seeds")
+    ci = (delta["ci95_low"], delta["ci95_high"])
+    score = score_prediction(delta["mean"], ci, low=low, high=high)
+    measured = (f"{full} vs {base}: {delta['mean']:+.3f} [{ci[0]:+.3f}, {ci[1]:+.3f}] {metric}")
+    verdicts: dict[str, str] = {}
+    table = []
+    for name in drops:
+        row = compare(folder / name, folder / full, metric=metric).rows[0]
+        dd = row["delta"]
+        identical = (dd is not None and dd["ci95_low"] is None and dd["mean"] == 0
+                     and "no observed seed variation" in dd.get("status", ""))
+        verdicts[name] = "within noise" if identical else row["verdict"]
+        shown = ("no interval" if dd is None or dd["ci95_low"] is None else
+                 f"{dd['mean']:+.3f} [{dd['ci95_low']:+.3f}, {dd['ci95_high']:+.3f}]")
+        table.append(f"{name}: {verdicts[name]} ({shown})")
+    evidence = {"delta": delta["mean"], "ci95": list(ci), "gap": [low, high],
+                "verdict": against["verdict"], "drops": verdicts, "seeds": seeds,
+                "null_component": null, "score": score}
+    fails = []
+    if not score["passed"]:
+        if score.get("hit") is False:
+            fails.append(f"your GAP ({low:+g}, {high:+g}) does not contain the measured "
+                         f"difference")
+        if score.get("sharp") is False:
+            fails.append("your GAP is far wider than the study's own interval, so it says "
+                         "almost nothing")
+    nulls = [n for n, v in verdicts.items() if v == "within noise"]
+    if null is None and nulls:
+        fails.append(f"you said every component matters, but removing {', '.join(nulls)} was "
+                     "within noise")
+    elif null is not None and verdicts[null] != "within noise":
+        fails.append(f"{null} is not null: removing it was {verdicts[null]}")
+    detail = "; ".join(table)
+    if fails:
+        return Result(check.id, check.kind, False,
+                      f"{'; '.join(fails)}. Measured {measured}. Removing each component, "
+                      f"against {full}: {detail}", evidence)
+    return Result(check.id, check.kind, True,
+                  f"your gap holds ({measured}) and {null or 'no component'} is null as you "
+                  f"said. Removing each component, against {full}: {detail}", evidence)
+
+
+# -- ladder ----------------------------------------------------------------------------------
+
+LADDER_X = {"params": ("n_non_embedding_params", "non-embedding parameters"),
+            "flops": ("flops_per_token", "training FLOPs per token")}
+
+
+@checker("ladder")
+def check_ladder(ctx: Context, check: Check) -> Result:
+    """A scaling ladder from the learner's own finished Study: fit a power law to the `rungs`
+    (the metric against the model's size), predict the held-out larger model, and hold the
+    learner's file against what happened. The file must define
+
+        PREDICTION = (low, high)    the metric you expect for the held-out model
+
+    written before the held-out model was trained. It must contain the measured mean, and it
+    must not be far wider than the fit's own 95% prediction interval. The message always reports
+    the fitted exponent with its interval and where the held-out model really landed."""
+    from nanoscope.scaling import fit_power_law
+    from nanoscope.studyfiles import finished_runs, study_dir
+
+    seeds = int(check.args.get("gpu_seeds", check.args.get("seeds", 3))
+                if ctx.variant == "gpu" else check.args.get("seeds", 3))
+    metric = check.args.get("metric", "val_bpb")
+    key, what = LADDER_X[check.args.get("x", "params")]
+    study, rungs, holdout = check.args["study"], list(check.args["rungs"]), check.args["holdout"]
+    try:
+        preset = lesson_preset(ctx)
+        module = load_user_module(ctx)
+    except (AttributeError, FileNotFoundError, ValueError) as exc:
+        return Result(check.id, check.kind, False, str(exc))
+    guess = getattr(module, "PREDICTION", None)
+    if not (isinstance(guess, (tuple, list)) and len(guess) == 2
+            and all(isinstance(v, (int, float)) for v in guess) and guess[0] < guess[1]):
+        return Result(check.id, check.kind, False,
+                      f"PREDICTION is not set: write PREDICTION = (low, high), the {metric} you "
+                      f"expect for {holdout}, from a fit to {', '.join(rungs)} and before you "
+                      f"train {holdout}")
+    low, high = float(guess[0]), float(guess[1])
+    folder = study_dir(study)
+    missing = [v for v in [*rungs, holdout] if not (folder / v).exists()]
+    if missing:
+        return Result(check.id, check.kind, False,
+                      f"the study {study!r} has no variant {', '.join(missing)} under {folder}: "
+                      "run the study from the lesson first")
+    done = {v: finished_runs(folder / v) for v in [*rungs, holdout]}
+    short = [f"{v} ({len(r)})" for v, r in done.items() if len(r) < seeds]
+    if short:
+        return Result(check.id, check.kind, False,
+                      f"every variant needs {seeds} finished seeds; still short: "
+                      f"{', '.join(short)}. Let the study finish")
+    other = sorted({r.preset["name"] for runs in done.values() for r in runs} - {preset})
+    if other:
+        return Result(check.id, check.kind, False,
+                      f"the study ran on {', '.join(other)}, but this lesson is on {preset}")
+    points = [(r.config["stats"][key], r.final(metric)) for v in rungs for r in done[v]]
+    fit = fit_power_law(points)
+    held = done[holdout]
+    x_held = held[0].config["stats"][key]
+    got = sum(r.final(metric) for r in held) / len(held)
+    mid, plo, phi = fit.predict(x_held)
+    ci = fit.exponent_ci95
+    exponent = (f"exponent {fit.exponent:+.3f}" + (f" [{ci[0]:+.3f}, {ci[1]:+.3f}]" if ci else "")
+                + f" over {len(rungs)} sizes ({fit.n} runs, {what})")
+    own = (f"; the fit alone predicts {mid:.3f}" + (f" [{plo:.3f}, {phi:.3f}]"
+                                                    if plo is not None else ""))
+    landed = f"{holdout} measured {got:.3f} {metric}"
+    evidence = {"exponent": fit.exponent, "exponent_ci95": list(ci) if ci else None,
+                "predicted": mid, "prediction_interval": [plo, phi], "measured": got,
+                "prediction": [low, high], "holdout": holdout, "x_holdout": x_held}
+    problems = []
+    if not low <= got <= high:
+        problems.append(f"your PREDICTION ({low:.3f}, {high:.3f}) does not contain it")
+    if plo is not None and phi is not None and (high - low) > 10 * (phi - plo):
+        problems.append("your PREDICTION is far wider than the fit's own prediction interval, "
+                        "so it says almost nothing")
+    if problems:
+        return Result(check.id, check.kind, False,
+                      f"{landed}: {'; '.join(problems)}. The fit: {exponent}{own}", evidence)
+    inside = plo is not None and phi is not None and plo <= got <= phi
+    verdict = ("inside the fit's own interval: the power law extrapolated one step" if inside
+               else "outside the fit's own interval: the trend did not simply continue, "
+                    "which is worth understanding")
+    return Result(check.id, check.kind, True,
+                  f"{landed}, inside your PREDICTION ({low:.3f}, {high:.3f}). The fit: "
+                  f"{exponent}{own}. It landed {verdict}", evidence)
 
 
 # -- predicted -------------------------------------------------------------------------------
@@ -710,6 +1171,12 @@ def check_predicted(ctx: Context, check: Check) -> Result:
     if score["passed"]:
         return Result(check.id, check.kind, True,
                       f"your prediction was recorded first and holds: {found}", score)
+    if not check.args.get("must_hit", True) and score.get("sharp") is not False:
+        # a practice prediction: it must come first and say something, but a miss is reported,
+        # not graded, because a wrong guess cannot be taken back and redone
+        missed = "" if score["passed"] else "; it did not hold, and that is the interesting part"
+        return Result(check.id, check.kind, True,
+                      f"your prediction was recorded first{missed}: {found}", score)
     misses = []
     if score.get("hit") is False:
         misses.append(f"the observed difference is outside your interval "

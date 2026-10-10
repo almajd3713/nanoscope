@@ -16,6 +16,22 @@ nanoscope learn status                     # lessons and what is unlocked
 `workspace/lessons/<path>/<lesson>/`. It never overwrites your edits. Edit that file, then run
 `learn check`. `learn check --queue` runs the check as a worker job instead.
 
+## Paths
+
+`nanoscope learn list` shows these with state. Estimates are the lesson's declared CPU / GPU
+minutes; a GPU figure of "measured" is filled in once someone has run it on real hardware.
+
+| Path | Level | Lessons | CPU / GPU estimate | What it teaches |
+|---|---|---|---|---|
+| `foundations` | 0 | 6 | 14 min / none | A bigram, an MLP, an attention head, multi-head attention, a block, GPT-2. |
+| `modern-block` | 1 | 7 | 15 min / 10 min | RMSNorm, RoPE, SwiGLU, GQA, QK-norm, z-loss, then the assembled model. |
+| `honest-ablations` | 2 | 5 | 95 min / 60 min | Seed noise, paired and unpaired comparison, matching size, predicting before running, and an ablation study of your own. |
+| `evaluation` | 2 | 2 | 18 min / 60 min | How much of a number is the evaluation set, and how much is init versus data order. |
+| `efficiency` | 2 | 4 | 8 min / 12 min | Throughput and what bounds it, when `torch.compile` pays, the KV cache (memory and work), the roofline. |
+| `scaling-lite` | 2 | 2 | 14 min / 480 min | FLOP budgets, then a three-size ladder with a power-law fit and a prediction written before the largest size is trained. |
+| `interpretability` | 2 | 2 | 12 min / 120 min | Induction heads measured over your own checkpoints, and the logit lens. |
+| `extend` | 3 | 3 | 14 min / 70 min | A certified block, your own preset, Muon versus AdamW, and a mixture of experts built from primitives. |
+
 ## How a lesson is checked
 
 Each lesson lists checks in its `lesson.toml`. A check prints one verdict and the reason, pass
@@ -27,9 +43,14 @@ or fail, and the whole result is written to `learn/checks/<id>.json`.
 | `equivalent` | Does your block match a naive reference function on random inputs? The reason gives the largest difference and the input shape that failed. |
 | `forbid` | Does your file avoid the shortcuts the lesson forbids (`F.scaled_dot_product_attention`, `torch.nn.MultiheadAttention`) and the blocks you have not unlocked? It reads your file with `ast`, so it reports line numbers. |
 | `trains` | Does `run()` of your model reach the target loss on the lesson's preset? |
-| `verdict` | Training your model against another with several seeds, is the difference the one the lesson expects (better, worse, within noise)? |
-| `predicted` | Did you commit to a prediction *before* the experiment, and does it hold? See below. |
+| `verdict` | Training your model against another with several seeds, is the difference the one the lesson expects (better, worse, within noise)? `a_optimizer`/`b_optimizer` name an optimizer factory (`muon`, `adamw`, or a function in your file) for each side. `pairing = "unpaired"` gives the second model other seeds, so the comparison cannot be paired. |
+| `predicted` | Did you commit to a prediction *before* the experiment, and does it hold? See below. With `must_hit = false` a miss is reported but does not fail the lesson, since a wrong prediction cannot be redone. |
 | `reproduces` | Does your result land where the shipped baseline's seeds do? |
+| `matches` | Is your model the same size as another (non-embedding parameters or training FLOPs per token, within a tolerance)? Sizing a comparison fairly. |
+| `function` | Does a plain function in your file give the same numbers as a naive reference on fixed cases? The reason names the case and the part that is off. |
+| `certified` | Is your block registered with `register_block(reference=...)`, does it match its own reference, and does it also match the lesson's? A formula wrong the same way twice passes the first test only. |
+| `preset` | Does your file register a preset derived from a shipped one, with the data fields kept (so cached tokens apply) and a schedule that makes sense (warmup inside the run, at least one evaluation)? |
+| `ablation` | The capstone of the honest-ablations path: reads your own finished `Study`, compares the full model, a baseline and each removed component, and holds the `GAP` interval and `NULL_COMPONENT` in your file against what it found. It trains nothing. |
 
 If a `defines` check fails, the rest are skipped: they would fail for the same reason.
 

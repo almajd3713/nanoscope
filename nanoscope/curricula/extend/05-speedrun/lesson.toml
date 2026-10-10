@@ -1,0 +1,43 @@
+title = "Speedrun: beat GPT-2 in two CPU minutes"
+level = 3
+summary = "Beat the GPT-2 baseline on a CPU in a hundred steps at the same size, and prove it with the significance rule instead of one lucky seed."
+prerequisites = ["extend/03-muon", "honest-ablations/03-matching"]
+
+[experiment]
+kind = "study"
+a = "Speedrun"
+b = "gpt2"
+
+[[checks]]
+id = "built"
+kind = "defines"
+class = "Speedrun"
+
+[[checks]]
+id = "same-size"
+kind = "matches"
+class = "Speedrun"
+against = "gpt2"
+quantity = "params"
+tolerance = 0.1
+against_kwargs = { d_model = 64, n_layers = 2 }
+
+[[checks]]
+id = "faster"
+kind = "verdict"
+a = "Speedrun"
+b = "gpt2"
+b_kwargs = { max_steps = 100, d_model = 64, n_layers = 2 }
+a_kwargs = { max_steps = 100 }
+expect = "better"
+seeds = 3
+gpu_seeds = 5
+metric = "val_bpb"
+
+[compute.cpu]
+preset = "tinystories-5min"
+estimate_minutes = 8
+
+[compute.gpu]
+preset = "tinystories-5min"
+estimate_minutes = 5

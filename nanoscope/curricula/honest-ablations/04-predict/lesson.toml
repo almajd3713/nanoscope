@@ -1,0 +1,46 @@
+title = "Predict, then run"
+level = 2
+summary = "Write down what you expect an ablation to show before you run it, as an interval, then see how the result compares. Commit first or the prediction proves nothing."
+prerequisites = ["honest-ablations/01-seed-noise", "modern-block/02-rope"]
+
+[experiment]
+kind = "study"
+a = "WithRoPE"
+b = "NoRoPE"
+
+[[checks]]
+id = "built"
+kind = "defines"
+class = "NoRoPE"
+
+[[checks]]
+id = "rope-gap"
+kind = "verdict"
+a = "WithRoPE"
+b = "NoRoPE"
+expect = "better"
+seeds = 5
+gpu_seeds = 5
+metric = "val_bpb"
+a_kwargs = { max_steps = 200 }
+b_kwargs = { max_steps = 200 }
+
+[[checks]]
+id = "committed-first"
+kind = "predicted"
+quantity = "rope-gap"
+must_hit = false
+
+[depth.surface]
+seeds = 5
+
+[depth.deep]
+seeds = 8
+
+[compute.cpu]
+preset = "tinystories-5min"
+estimate_minutes = 10
+
+[compute.gpu]
+preset = "tinystories-5min"
+estimate_minutes = 5

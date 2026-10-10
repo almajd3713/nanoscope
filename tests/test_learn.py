@@ -525,3 +525,20 @@ def test_author_check_cli(tmp_path, home, capsys):
     with pytest.raises(SystemExit) as failed:
         main(["learn", "author-check", str(folder)])
     assert failed.value.code == 1
+
+
+def test_all_curricula_variants():
+    """Every shipped lesson has a CPU variant (CI and laptops), a GPU variant never stands alone,
+    and no CPU variant is long enough to need a GPU one that is missing."""
+    from nanoscope.learn.loader import MAX_CPU_MINUTES, curricula_dir, load_path
+
+    paths = sorted(p.name for p in curricula_dir().iterdir() if (p / "path.toml").exists())
+    assert {"foundations", "honest-ablations", "evaluation", "efficiency", "scaling-lite",
+            "interpretability", "extend"} <= set(paths)
+    lessons = [lesson for name in paths for lesson in load_path(name).lessons]
+    assert len(lessons) > 30
+    for lesson in lessons:
+        assert "cpu" in lesson.compute, f"{lesson.id} has no [compute.cpu]"
+        cpu = lesson.compute["cpu"].estimate_minutes
+        assert cpu <= MAX_CPU_MINUTES or "gpu" in lesson.compute, (
+            f"{lesson.id}: {cpu:g} CPU minutes and no GPU variant")

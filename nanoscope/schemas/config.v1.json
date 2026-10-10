@@ -60,6 +60,12 @@
     "seed": {
       "type": "integer"
     },
+    "init_seed": {
+      "type": "integer"
+    },
+    "data_seed": {
+      "type": "integer"
+    },
     "study": {
       "type": "object"
     },

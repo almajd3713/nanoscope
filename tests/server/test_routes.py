@@ -147,7 +147,7 @@ def test_blocks_lock_state(client, tmp_path, monkeypatch):
     assert blocks["RMSNorm"]["lock"]["locked"] is True
     assert blocks["GELUMLP"]["lock"]["locked"] is False  # primitives are never locked
     locked = sorted(n for n, b in blocks.items() if b["lock"]["locked"])
-    assert locked == ["Block", "Decoder", "RMSNorm", "RoPE", "SwiGLU"]
+    assert locked == ["Block", "Decoder", "MoE", "RMSNorm", "RoPE", "SwiGLU"]
 
 
 def test_validate(client, tmp_path, monkeypatch):

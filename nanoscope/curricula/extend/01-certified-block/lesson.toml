@@ -1,0 +1,22 @@
+title = "A certified block"
+level = 3
+summary = "Register your own block with a reference, so the palette can show that it computes what you say it does."
+prerequisites = ["foundations/05-block"]
+
+[experiment]
+kind = "check"
+
+[[checks]]
+id = "built"
+kind = "defines"
+class = "SquaredReLUMLP"
+
+[[checks]]
+id = "certified"
+kind = "certified"
+class = "SquaredReLUMLP"
+against = "naive_squared_relu_mlp"
+
+[compute.cpu]
+preset = "tinystories-5min"
+estimate_minutes = 0.5

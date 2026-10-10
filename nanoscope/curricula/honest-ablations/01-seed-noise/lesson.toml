@@ -1,0 +1,50 @@
+title = "Seed noise: the same model against itself"
+level = 2
+summary = "Train one model on several seeds, see how far apart the results land, and learn why a difference smaller than that spread is not a result."
+prerequisites = ["foundations/06-gpt2"]
+
+[experiment]
+kind = "study"
+a = "MyGPT"
+b = "GPT2"
+
+[[checks]]
+id = "built"
+kind = "defines"
+class = "MyGPT"
+
+[[checks]]
+id = "same-size"
+kind = "matches"
+class = "MyGPT"
+against = "gpt2"
+quantity = "params"
+tolerance = 0.0
+against_kwargs = { d_model = 64, n_layers = 2 }
+
+[[checks]]
+id = "noise"
+kind = "verdict"
+a = "MyGPT"
+b = "GPT2"
+expect = "within noise"
+pairing = "unpaired"
+seeds = 5
+gpu_seeds = 5
+metric = "val_bpb"
+a_kwargs = { max_steps = 200 }
+b_kwargs = { d_model = 64, n_layers = 2, max_steps = 200 }
+
+[depth.surface]
+seeds = 5
+
+[depth.deep]
+seeds = 10
+
+[compute.cpu]
+preset = "tinystories-5min"
+estimate_minutes = 8
+
+[compute.gpu]
+preset = "tinystories-5min"
+estimate_minutes = 4

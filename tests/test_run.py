@@ -375,3 +375,38 @@ def test_cli_checkpoint_steps(monkeypatch):
     assert len(list(archive.iterdir())) == 2
     with pytest.raises(SystemExit, match="comma-separated"):
         main([*base, "--checkpoint-steps", "a"])
+
+
+def test_split_seeds_decide_weights_and_batch_order_separately(fake_data):
+    def losses(r):
+        return [m["loss"] for m in r.metrics]
+
+    base = run(Bigram, tiny(), seed=3, progress=False)
+    same = run(Bigram, tiny(), seed=7, init_seed=3, data_seed=3, progress=False)
+    new_data = run(Bigram, tiny(), seed=3, data_seed=4, progress=False)
+    new_init = run(Bigram, tiny(), seed=3, init_seed=4, progress=False)
+    assert losses(same) == losses(base)
+    assert losses(new_data) != losses(base) and losses(new_init) != losses(base)
+    a = run(Bigram, tiny(), seed=0, init_seed=5, data_seed=1, progress=False)
+    b = run(Bigram, tiny(), seed=0, init_seed=5, data_seed=2, progress=False)
+    assert losses(a) != losses(b)
+
+
+def test_default_run_dirs_are_unchanged_and_split_runs_are_named_by_both_seeds(fake_data):
+    from helpers import assert_valid
+
+    plain = run(Bigram, tiny(), seed=2, progress=False)
+    split = run(Bigram, tiny(), seed=2, data_seed=5, progress=False)
+    assert plain.run_dir.name == "seed-2"
+    assert split.run_dir.name == "seed-i2-d5"
+    assert split.run_dir.parent == plain.run_dir.parent
+    config = json.loads((split.run_dir / "config.json").read_text())
+    assert (config["init_seed"], config["data_seed"]) == (2, 5)
+    assert_valid("config", config)
+    assert "init_seed" not in json.loads((plain.run_dir / "config.json").read_text())
+
+
+def test_one_initialisation_many_data_orders(fake_data):
+    group = run(Bigram, tiny(), seeds=3, init_seed=0, progress=False)
+    assert [r.run_dir.name for r in group] == ["seed-i0-d0", "seed-i0-d1", "seed-i0-d2"]
+    assert group.seeds == [0, 1, 2]

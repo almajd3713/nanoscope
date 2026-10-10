@@ -1,0 +1,28 @@
+title = "A mixture of experts"
+level = 3
+summary = "Route each token to its best experts and mix their outputs. Parameters grow with the number of experts; the work per token grows only with top_k."
+prerequisites = ["extend/01-certified-block", "modern-block/03-swiglu"]
+unlocks = ["block:MoE"]
+
+[experiment]
+kind = "check"
+
+[[checks]]
+id = "built"
+kind = "defines"
+class = "MyMoE"
+args = { experts = 4, top_k = 2 }
+
+[[checks]]
+id = "same-as-reference"
+kind = "equivalent"
+class = "MyMoE"
+args = { experts = 4, top_k = 2 }
+reference = "naive_moe_forward"
+inputs = [[[4, 16]], [[2, 5, 16]]]
+call = ["input:0", "param:gate.weight", 2, "param:experts.0.w1.weight", "param:experts.0.w3.weight", "param:experts.0.proj.weight", "param:experts.1.w1.weight", "param:experts.1.w3.weight", "param:experts.1.proj.weight", "param:experts.2.w1.weight", "param:experts.2.w3.weight", "param:experts.2.proj.weight", "param:experts.3.w1.weight", "param:experts.3.w3.weight", "param:experts.3.proj.weight"]
+randomize = true
+
+[compute.cpu]
+preset = "tinystories-5min"
+estimate_minutes = 0.5

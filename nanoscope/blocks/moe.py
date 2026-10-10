@@ -29,13 +29,13 @@ class Expert(nn.Module):
         return self.proj(F.silu(self.w1(x)) * self.w3(x))
 
 
-@block("mlp", "primitive", reference="naive_moe", features=("moe",))
+@block("mlp", "composite", reference="naive_moe", features=("moe",))
 class MoE(BlockModule):
     """`experts` SwiGLU experts, `top_k` of them per token. `aux_loss` weights the
     load-balancing term E * sum_e (share of assignments to e) * (mean router probability of e),
     which is 1 when the load is even and grows as it skews; 0 turns the term off.
 
-    Primitive tier (never locked) until a lesson unlocks it as `block:MoE`."""
+    Composite tier: locked until extend/04-moe unlocks it as `block:MoE`."""
 
     aux_loss_value: torch.Tensor | None
 
