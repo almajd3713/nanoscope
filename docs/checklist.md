@@ -4,7 +4,7 @@ The build list for [`plan-tool.md`](plan-tool.md), sections 4-10, with the decis
 2026-10-05 (plan section 11) applied. Phase numbers follow the plan's section 10. Every
 item is one line, so scripts and agents can grep and edit it.
 
-**Current focus:** P17 (curriculum paths): honest-ablations, evaluation, efficiency (except EF03), scaling-lite and the interpretability and extend lessons, the variants test and the docs done; left: P17.19 (IN01 curve test, Playwright spec), P17.14 and P17.31 (optional), P17.30 (user: GPU runs), then the gate P17.99. P16 is merged (PR #18, ebd63ea). Left for the user: P14.33 (tag v0.5.0).
+**Current focus:** P17 is merged (PR #19, 07aa7aa); only P17.30 stays open (GPU estimates declared, not measured, by decision). Next: pick the next phase or the MISC FIXES PR. P16 is merged (PR #18, ebd63ea). Left for the user: P14.33 (tag v0.5.0).
 
 ## Progress
 
@@ -21,7 +21,7 @@ item is one line, so scripts and agents can grep and edit it.
 | P14 | GUI MVP 2: model page, drag-and-drop (14-17 d) | 35 / 36 | merged; P14.33 (tag v0.5.0) is the user's |
 | P15 | GUI Research (10-13 d) | 31 / 31 | done |
 | P16 | Extend + depth (8-10 d) | 18 / 18 | done |
-| P17 | Remaining curriculum paths (18-26 d) | 17 / 34 | in progress |
+| P17 | Remaining curriculum paths (18-26 d) | 33 / 34 | done except P17.30 (user, GPU runs) |
 
 MVP = P6-P14 (about 77-96 focused days). Recount a row with
 `grep -c '^- \[x\] P6\.' docs/checklist.md` (done) and `grep -c '^- \[.\] P6\.' docs/checklist.md`
@@ -699,7 +699,7 @@ Order: P13.01 and P13.02 first (these items live in `web/` and run in its CI job
 - [x] P17.20 Create `nanoscope/scaling.py` with `fit_power_law(points)`, which returns the exponent with a CI, tested on synthetic data. · files: nanoscope/scaling.py (new), tests/test_scaling.py (new) · deps: P15.99 · done: `uv run pytest tests/test_scaling.py` passes ✓ 2026-10-09 10063d5: `PowerLawFit` (OLS in log space, t-interval on n-2 df, `predict()` with a prediction interval, `to_dict()`); the interval covers the true exponent 92-98% of 300 simulated ladders; three points give a wide interval and the status says so
 - [x] P17.21 Write `scaling-lite/path.toml` and lesson SC01, FLOP budgets. · files: nanoscope/curricula/scaling-lite/* (new), tests/solutions/scaling-lite/01-flops.py (new) · deps: P17.01 · done: `uv run nanoscope learn list --path scaling-lite` lists it ✓ 2026-10-10 c79664b
 - [x] P17.22 Write lesson SC02, a ladder with a preregistered prediction and the DataDecide caveat. CPU variant: a 3-point ladder on tinystories-5min (about 45-90 min CPU). GPU variant: a 4-point ladder on fineweb-edu (about 6-12 GPU-hours). · files: nanoscope/curricula/scaling-lite/02-ladder/*, tests/solutions/scaling-lite/02-ladder.py · deps: P17.20, P17.21 · done: listed with both variants ✓ 2026-10-10 c79664b, real-data run 9d099d6
-- [ ] P17.23 Add the CI tests for SC01-SC02 (CPU variant at `fake_data` scale). · files: tests/test_curricula.py · deps: P17.22 · done: `uv run pytest tests/test_curricula.py -k sc` passes (note: the SC tests live in tests/test_curricula_ha.py; run `-k "sc01 or sc02"` there)
+- [x] P17.23 Add the CI tests for SC01-SC02 (CPU variant at `fake_data` scale). · files: tests/test_curricula.py · deps: P17.22 · done: `uv run pytest tests/test_curricula.py -k sc` passes ✓ 2026-10-10 (tests in tests/test_curricula_ha.py: `-k "sc01 or sc02"`)
 
 ### P17 · Extend (level 3)
 - [x] P17.24 Write `extend/path.toml` and lesson EX01, a certified block (`register_block` plus a certification check). · files: nanoscope/curricula/extend/* (new), tests/solutions/extend/01-certified-block.py (new) · deps: P17.01, P14.99 · done: `uv run nanoscope learn list --path extend` lists it ✓ 2026-10-10 ac16759
@@ -714,7 +714,7 @@ Order: P13.01 and P13.02 first (these items live in `web/` and run in its CI job
 - [x] P17.31 Optional (idea 9): CPU speedrun lesson, "beat the GPT-2 baseline in 2 CPU minutes", gated by the significance rule. · files: nanoscope/curricula/extend/05-speedrun/* · deps: P17.28 · done: listed and its CI test passes ✓ 2026-10-10 (real data: Modern as shipped loses to GPT-2 at 100 steps; RoPE+RMSNorm+GELU(240)+MHA+no QK-norm/z-loss wins by -0.077 bpb, CI [-0.105, -0.049])
 - [x] P17.32 List every path in `docs/learn.md` with its level and estimates. · files: docs/learn.md · deps: P17.29 · done: `grep -c 'scaling-lite\|interpretability\|honest-ablations' docs/learn.md` prints at least 3 ✓ 2026-10-10 a21501d
 - [x] P17.33 Link milestones M2-M6 in `docs/project-nanoscope.md` to their paths. · files: docs/project-nanoscope.md · deps: P17.32 · done: `grep -cE 'scaling-lite|efficiency|evaluation|interpretability' docs/project-nanoscope.md` prints at least 4 ✓ 2026-10-10 a21501d
-- [ ] P17.99 PHASE GATE P17. Exit criteria: plan section 10 phase 17. · files: — · deps: P17.* (P17.14 and P17.31 may stay open, with a note) · done: `make check` passes; `make test-curricula` passes; `uv run pytest tests/test_first_model_notebook.py` passes; CI green; **USER ACTION** merge the PR and release
+- [x] P17.99 PHASE GATE P17. Exit criteria: plan section 10 phase 17. · files: — · deps: P17.* (P17.14 and P17.31 may stay open, with a note) · done: `make check` passes; `make test-curricula` passes; `uv run pytest tests/test_first_model_notebook.py` passes; CI green; **USER ACTION** merge the PR and release ✓ 2026-10-10 PR #19 merged by the user (07aa7aa); CI green on all jobs (check 3.10/3.12, curricula, server, first-notebook, web, compose, e2e, image). P17.30 stays open by decision.
 
 ---
 
