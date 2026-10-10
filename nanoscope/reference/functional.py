@@ -301,3 +301,51 @@ def naive_unpaired_ci(a, b):
     df = (va + vb) ** 2 / (va**2 / (na - 1) + vb**2 / (nb - 1))
     margin = t_quantile(0.975, df) * math.sqrt(va + vb)
     return ma - mb, ma - mb - margin, ma - mb + margin
+
+
+def naive_standard_error(values):
+    """The standard error of the mean: the sample standard deviation over sqrt(n)."""
+    n = len(values)
+    mean = sum(values) / n
+    sd = math.sqrt(sum((x - mean) ** 2 for x in values) / (n - 1))
+    return sd / math.sqrt(n)
+
+
+def naive_docs_needed(sd, half_width):
+    """How many independent measurements it takes for the 95% interval of their mean to be at
+    most `half_width` either side, given the spread `sd` of one measurement (normal
+    approximation: 1.96 standard errors)."""
+    return math.ceil((1.96 * sd / half_width) ** 2)
+
+
+def naive_two_way_mean_squares(grid):
+    """Split a grid of results, grid[i][j] for init seed i and data seed j, into mean squares:
+    (init, data, residual). Row means differ because of the initial weights, column means
+    because of the data order, and what neither explains is the residual (the interaction)."""
+    rows, cols = len(grid), len(grid[0])
+    grand = sum(sum(r) for r in grid) / (rows * cols)
+    row_means = [sum(r) / cols for r in grid]
+    col_means = [sum(grid[i][j] for i in range(rows)) / rows for j in range(cols)]
+    init = cols * sum((m - grand) ** 2 for m in row_means) / (rows - 1)
+    data = rows * sum((m - grand) ** 2 for m in col_means) / (cols - 1)
+    resid = sum((grid[i][j] - row_means[i] - col_means[j] + grand) ** 2
+                for i in range(rows) for j in range(cols)) / ((rows - 1) * (cols - 1))
+    return init, data, resid
+
+
+def naive_training_flops(n_params, tokens):
+    """The 6ND rule: each token costs about 2 FLOPs per parameter going forward and 4 coming
+    back, so training on D tokens costs about 6 * N * D FLOPs. It leaves out attention."""
+    return 6 * n_params * tokens
+
+
+def naive_tokens_for_budget(flops, n_params):
+    """The tokens a model of n_params can be trained on with a compute budget of `flops`."""
+    return flops / (6 * n_params)
+
+
+def naive_chinchilla_split(flops, tokens_per_param=20):
+    """(parameters, tokens) that spend `flops` with the compute-optimal ratio of about 20
+    training tokens per parameter: C = 6 * N * (20 * N), so N = sqrt(C / 120)."""
+    n_params = math.sqrt(flops / (6 * tokens_per_param))
+    return n_params, tokens_per_param * n_params

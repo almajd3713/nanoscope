@@ -1,0 +1,41 @@
+title = "Capstone: the modern block, ablated honestly"
+level = 2
+summary = "Run the full ablation of the modern block against GPT-2 with matched sizes and paired seeds, then write down the gap with its interval and name a component that turned out not to matter."
+prerequisites = [
+  "honest-ablations/02-paired", "honest-ablations/03-matching", "honest-ablations/04-predict",
+  "modern-block/07-assemble",
+]
+
+[experiment]
+kind = "study"
+a = "Modern"
+b = "GPT2"
+
+[[checks]]
+id = "gap-and-null"
+kind = "ablation"
+study = "ha05-capstone"
+full = "modern"
+baseline = "gpt2"
+drops = ["no-rope", "no-qk-norm", "no-swiglu", "no-rmsnorm", "no-zloss", "no-gqa"]
+seeds = 3
+gpu_seeds = 5
+metric = "val_bpb"
+
+[depth.surface]
+seeds = 3
+
+[depth.deep]
+seeds = 5
+
+[depth.research]
+seeds = 5
+mode = "record"
+
+[compute.cpu]
+preset = "tinystories-5min"
+estimate_minutes = 22
+
+[compute.gpu]
+preset = "tinystories-30min"
+estimate_minutes = 45

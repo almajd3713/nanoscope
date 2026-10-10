@@ -345,6 +345,36 @@ def test_predicted_scores_and_tamper_checks(make):
     assert score_prediction(0.3, None)["passed"] is False
 
 
+def test_a_practice_prediction_counts_when_first_and_sharp_even_if_it_misses(make):
+    import hashlib
+
+    from nanoscope.learn import progress
+    from nanoscope.learn.checks import prediction_path, run_one
+
+    toml = ('\n[[checks]]\nid = "foresaw"\nkind = "predicted"\nquantity = "gap"\n'
+            'must_hit = false\n')
+    ctx = make(toml, "")
+    lid, file = ctx.lesson.id, prediction_path(ctx.lesson)
+    file.parent.mkdir(parents=True, exist_ok=True)
+    file.write_text('verdict = "worse"\nlow = 0.0\nhigh = 0.1\n')
+    progress.record_prediction(lid, file, hashlib.sha256(file.read_bytes()).hexdigest())
+    ctx.shared["evidence"] = {"gap": {"verdict": "better", "delta": -0.10,
+                                      "ci95": [-0.14, -0.06]}}
+    progress.mark(lid, "checking")
+    missed = run_one(ctx, ctx.lesson.checks[0])
+    assert missed.passed and "it did not hold, and that is the interesting part" in missed.reason
+    assert missed.evidence["hit"] is False
+    file.write_text('verdict = "better"\nlow = -5.0\nhigh = 5.0\n')  # vague is still refused
+    progress.record_prediction(lid, file, hashlib.sha256(file.read_bytes()).hexdigest())
+    state = progress.read()
+    state["lessons"][lid]["first_checked_at"] = None
+    from nanoscope.fsutil import write_json_atomic
+
+    write_json_atomic(progress.progress_path(), state)
+    vague = run_one(ctx, ctx.lesson.checks[0])
+    assert not vague.passed and "far wider" in vague.reason
+
+
 from nanoscope.statistics import score_prediction  # noqa: E402
 
 
@@ -521,8 +551,7 @@ def test_verdict_pairing(make, monkeypatch):
     assert not bad.passed and "bug in the lesson" in bad.reason
 
 
-ABLATION = DUMB + '''
-
+ANSWERS = '''\
 GAP = ({low}, {high})
 NULL_COMPONENT = {null}
 '''
@@ -532,42 +561,82 @@ NULL_COMPONENT = {null}
 def test_ablation(make, monkeypatch):
     from fakes import tiny
 
-    set_preset(monkeypatch, tiny(name="tinystories-5min", max_steps=30))
-    toml = ('\n[[checks]]\nid = "capstone"\nkind = "ablation"\nmodel = "Bigram"\n'
-            'baseline = "Dumb"\nseeds = 3\n'
-            'drops = [{ name = "tiny-width", kwargs = { d_model = 2 } },'
-            ' { name = "a-bit-wider", kwargs = { d_model = 33 } }]\n')
+    from nanoscope import Study
+    from nanoscope.models import Bigram
+
+    preset = tiny(name="tinystories-5min", max_steps=30)
+    set_preset(monkeypatch, preset)
+    study = Study("cap", preset=preset, seeds=3)
+    study.add("full", Bigram, d_model=32)
+    study.add("baseline", Bigram, d_model=1)
+    study.add("no-width", Bigram, d_model=2)
+    study.add("a-bit-wider", Bigram, d_model=33)
+    toml = ('\n[[checks]]\nid = "capstone"\nkind = "ablation"\nstudy = "cap"\nfull = "full"\n'
+            'baseline = "baseline"\nseeds = 3\ndrops = ["no-width", "a-bit-wider"]\n')
 
     def attempt(low, high, null):
-        code = ABLATION.format(low=low, high=high, null=null)
-        return run(make(toml, code))
+        return run(make(toml, ANSWERS.format(low=low, high=high, null=null)))
 
-    unset = run(make(toml, DUMB))
+    unset = run(make(toml, "x = 1\n"))
     assert not unset.passed and "GAP is not set" in unset.reason
-    assert "NULL_COMPONENT must be one of tiny-width, a-bit-wider" in unset.reason
+    assert "NULL_COMPONENT must be one of no-width, a-bit-wider" in unset.reason
 
-    good = attempt(-2.1, -1.65, '"a-bit-wider"')
+    absent = attempt(-1.0, 0.0, '"a-bit-wider"')  # answers fine, but nothing was trained yet
+    assert not absent.passed and "has no variant full" in absent.reason
+
+    study.run(devices=["cpu"])
+    measured = attempt(-1000.0, 1000.0, '"a-bit-wider"').evidence["delta"]
+    low, high = measured - 0.1, measured + 0.1
+
+    good = attempt(low, high, '"a-bit-wider"')
     assert good.passed, good.reason
     assert "a-bit-wider is null as you said" in good.reason
     assert good.evidence["drops"]["a-bit-wider"] == "within noise"
-    assert good.evidence["drops"]["tiny-width"] == "worse"
+    assert good.evidence["drops"]["no-width"] == "worse"
 
-    wrong_null = attempt(-2.1, -1.65, '"tiny-width"')
-    assert not wrong_null.passed and "tiny-width is not null: removing it was worse" \
-        in wrong_null.reason
-    assert "Removing each component: tiny-width: worse" in wrong_null.reason
+    wrong_null = attempt(low, high, '"no-width"')
+    assert not wrong_null.passed
+    assert "no-width is not null: removing it was worse" in wrong_null.reason
+    assert "Removing each component, against full: no-width: worse" in wrong_null.reason
 
-    none_null = attempt(-2.1, -1.65, "None")
+    none_null = attempt(low, high, "None")
     assert not none_null.passed and "you said every component matters" in none_null.reason
 
-    miss = attempt(0.5, 1.0, '"a-bit-wider"')
+    miss = attempt(measured + 1.0, measured + 2.0, '"a-bit-wider"')
     assert not miss.passed and "does not contain the measured difference" in miss.reason
 
     vague = attempt(-1000.0, 1000.0, '"a-bit-wider"')
-    assert not vague.passed and "far wider than the run's own interval" in vague.reason
+    assert not vague.passed and "far wider than the study's own interval" in vague.reason
 
-    odd = attempt(-2.1, -1.65, '"nonsense"')
+    odd = attempt(low, high, '"nonsense"')
     assert not odd.passed and "NULL_COMPONENT must be one of" in odd.reason
+
+
+@pytest.mark.usefixtures("fake_data")
+def test_ablation_asks_for_a_complete_study_on_the_lessons_preset(make, monkeypatch):
+    from fakes import tiny
+
+    from nanoscope import Study
+    from nanoscope.models import Bigram
+
+    set_preset(monkeypatch, tiny(name="tinystories-5min", max_steps=30))
+    toml = ('\n[[checks]]\nid = "capstone"\nkind = "ablation"\nstudy = "cap2"\nfull = "full"\n'
+            'baseline = "baseline"\nseeds = 3\ndrops = ["other"]\n')
+    answers = "GAP = (-1.0, 0.0)\nNULL_COMPONENT = None\n"
+    two = Study("cap2", preset=tiny(name="tinystories-5min", max_steps=30), seeds=2)
+    for name in ("full", "baseline", "other"):
+        two.add(name, Bigram, d_model=8 if name == "full" else 4)
+    two.run(devices=["cpu"])
+    short = run(make(toml, answers))
+    assert not short.passed and "needs 3 finished seeds" in short.reason
+    assert "full (2)" in short.reason
+
+    elsewhere = Study("cap3", preset=tiny(name="another-preset", max_steps=30), seeds=3)
+    for name in ("full", "baseline", "other"):
+        elsewhere.add(name, Bigram, d_model=8 if name == "full" else 4)
+    elsewhere.run(devices=["cpu"])
+    wrong = run(make(toml.replace("cap2", "cap3"), answers))
+    assert not wrong.passed and "ran on another-preset" in wrong.reason
 
 
 @pytest.mark.usefixtures("fake_data")
@@ -626,3 +695,62 @@ def test_function(make):
     assert "bug in the lesson" in unknown.reason
     crash = run(make(toml, "def mean_gap(a, b):\n    return a / b\n"))
     assert "raised TypeError" in crash.reason
+
+
+@pytest.mark.usefixtures("fake_data")
+def test_ladder(make, monkeypatch):
+    from fakes import tiny
+
+    from nanoscope import Study
+    from nanoscope.models import GPT2
+
+    preset = tiny(name="tinystories-5min", max_steps=30)
+    set_preset(monkeypatch, preset)
+    study = Study("rungs", preset=preset, seeds=3)
+    for name, width in {"w16": 16, "w24": 24, "w32": 32, "w48": 48}.items():
+        study.add(name, GPT2, d_model=width, n_layers=1, n_heads=2)
+    toml = ('\n[[checks]]\nid = "extrapolate"\nkind = "ladder"\nstudy = "rungs"\n'
+            'rungs = ["w16", "w24", "w32"]\nholdout = "w48"\nseeds = 3\n')
+
+    def attempt(low, high):
+        return run(make(toml, f"PREDICTION = ({low}, {high})\n"))
+
+    unset = run(make(toml, "x = 1\n"))
+    assert not unset.passed and "PREDICTION is not set" in unset.reason
+    assert "before you train w48" in unset.reason
+    absent = attempt(3.0, 6.0)
+    assert not absent.passed and "has no variant w16, w24, w32, w48" in absent.reason
+
+    study.run(devices=["cpu"])
+    probe = attempt(0.01, 100.0)  # wide, so only the numbers matter
+    e = probe.evidence
+    assert e["exponent"] < 0 and e["measured"] > 0 and e["holdout"] == "w48"
+    assert "exponent -" in probe.reason and "over 3 sizes (9 runs, non-embedding parameters)" \
+        in probe.reason
+    near = (e["measured"] - 0.15, e["measured"] + 0.15)
+    ok = attempt(*near)
+    assert ok.passed, ok.reason
+    assert "It landed" in ok.reason and "the fit alone predicts" in ok.reason
+
+    miss = attempt(e["measured"] + 0.5, e["measured"] + 0.9)
+    assert not miss.passed and "does not contain it" in miss.reason
+    vague = attempt(-1000.0, 1000.0)
+    assert not vague.passed and "far wider than the fit's own prediction interval" in vague.reason
+    flops = run(make(toml.replace('seeds = 3\n', 'seeds = 3\nx = "flops"\n'),
+                     f"PREDICTION = ({near[0]}, {near[1]})\n"))
+    assert "training FLOPs per token" in flops.reason
+
+
+def test_an_edit_of_the_same_length_within_a_second_is_the_code_that_runs(make):
+    """Python's bytecode cache is keyed on the file's modification second and size; the loader
+    must not use it, or `+` changed to `-` would keep running the old file."""
+    plus = "def add(a, b):\n    return a + b\n"
+    toml = ('\n[[checks]]\nid = "add"\nkind = "function"\nname = "add"\n'
+            'reference = "naive_training_flops"\ncases = [[2, 3]]\n')
+    ctx = make(toml, plus)
+    first = run(ctx)  # add(2, 3) = 5 against 6 * 2 * 3 = 36: wrong, but it ran
+    assert "is 5" in first.reason
+    ctx.user_file.write_text(plus.replace("a + b", "a * b"))
+    ctx.shared.pop("module", None)
+    second = run(ctx)
+    assert "is 6" in second.reason  # the edited file, not the cached one

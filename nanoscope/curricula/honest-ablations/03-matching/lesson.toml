@@ -1,0 +1,42 @@
+title = "A fair fight: matching parameters and FLOPs"
+level = 2
+summary = "A bigger model usually beats a smaller one, so an ablation must give both the same size. Match a SwiGLU model to a GELU one by non-embedding parameters and by training FLOPs per token."
+prerequisites = ["honest-ablations/01-seed-noise", "modern-block/03-swiglu"]
+
+[experiment]
+kind = "study"
+a = "MySwiGLU"
+b = "Modern"
+
+[[checks]]
+id = "built"
+kind = "defines"
+class = "MySwiGLU"
+
+[[checks]]
+id = "same-params"
+kind = "matches"
+class = "MySwiGLU"
+against = "modern"
+quantity = "params"
+tolerance = 0.03
+against_kwargs = { swiglu = false, d_model = 64, n_layers = 2 }
+
+[[checks]]
+id = "same-flops"
+kind = "matches"
+class = "MySwiGLU"
+against = "modern"
+quantity = "flops"
+tolerance = 0.03
+against_kwargs = { swiglu = false, d_model = 64, n_layers = 2 }
+
+[depth.surface]
+seeds = 3
+
+[depth.deep]
+seeds = 5
+
+[compute.cpu]
+preset = "tinystories-5min"
+estimate_minutes = 0.5

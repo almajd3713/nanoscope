@@ -183,7 +183,10 @@ def load_user_module(ctx: Context) -> Any:
     module = importlib.util.module_from_spec(spec)
     sys.modules[name] = module
     try:
-        spec.loader.exec_module(module)
+        # compiled from the text, not imported: the bytecode cache is keyed on the file's
+        # modification second and size, so an edit of the same length made within a second
+        # of the last check would otherwise run the old code
+        exec(compile(file.read_text(encoding="utf-8"), str(file), "exec"), module.__dict__)
     except SyntaxError as exc:
         raise ValueError(f"{file.name} line {exc.lineno}: {exc.msg}") from exc
     finally:
@@ -380,6 +383,12 @@ def check_equivalent(ctx: Context, check: Check) -> Result:
 
 # -- function --------------------------------------------------------------------------------
 
+def _shown(value: Any) -> Any:
+    if isinstance(value, list):
+        return [_shown(x) for x in value]
+    return round(value, 4) if isinstance(value, float) else value
+
+
 @checker("function")
 def check_function(ctx: Context, check: Check) -> Result:
     """A plain function in the learner's file gives the same numbers as a naive reference on
@@ -411,8 +420,7 @@ def check_function(ctx: Context, check: Check) -> Result:
         return [float(x) for x in value] if isinstance(value, (tuple, list)) else [float(value)]
 
     for i, case in enumerate(check.args["cases"], 1):
-        shown = ", ".join(f"{[round(x, 4) for x in a]}" if isinstance(a, list) else f"{a}"
-                          for a in case)
+        shown = ", ".join(str(_shown(a)) for a in case)
         want = numbers(reference(*copy.deepcopy(case)))
         try:
             got = numbers(function(*copy.deepcopy(case)))
@@ -729,101 +737,205 @@ def check_matches(ctx: Context, check: Check) -> Result:
 
 @checker("ablation")
 def check_ablation(ctx: Context, check: Check) -> Result:
-    """The capstone. Train the full model, a baseline and one variant per `drops` entry (the
-    full model with one component removed) on the lesson's preset, compare them with seed-level
-    intervals, then hold the learner's file against the result. It must define
+    """The capstone. Read the learner's own finished Study (the full model, a baseline and one
+    variant per `drops` entry, each the full model with one component removed), compare the
+    variants with seed-level intervals, then hold the learner's file against what the study
+    found. The file must define
 
         GAP = (low, high)          the interval for full - baseline, in the lesson's metric
-        NULL_COMPONENT = "name"    a drop whose removal changed nothing detectable
+        NULL_COMPONENT = "name"    a drop whose removal changed nothing detectable (or None)
 
-    GAP must contain the measured difference and not be far wider than the run's own interval
-    (the same rule as a prediction). NULL_COMPONENT must be a drop whose verdict is 'within
-    noise'. Naming a component that really matters, or claiming none is null when one is,
-    fails with the numbers."""
+    GAP must contain the measured difference and not be far wider than the study's own
+    interval (the rule for a prediction). NULL_COMPONENT must be a drop whose verdict is
+    'within noise'. Naming a component that matters, or claiming none is null when one is,
+    fails with the numbers. The check trains nothing: the evidence is the learner's study."""
     from nanoscope.compare import compare
-    from nanoscope.run import run
     from nanoscope.statistics import score_prediction
+    from nanoscope.studyfiles import finished_runs, study_dir
 
     seeds = int(check.args.get("gpu_seeds", check.args.get("seeds", 3))
                 if ctx.variant == "gpu" else check.args.get("seeds", 3))
     metric = check.args.get("metric", "val_bpb")
-    drops: list[dict[str, Any]] = check.args["drops"]
+    study, full, base = check.args["study"], check.args["full"], check.args["baseline"]
+    drops: list[str] = check.args["drops"]
     try:
         preset = lesson_preset(ctx)
         module = load_user_module(ctx)
-        full = find_model(ctx, check.args["model"])
-        base = find_model(ctx, check.args["baseline"])
     except (AttributeError, FileNotFoundError, ValueError) as exc:
         return Result(check.id, check.kind, False, str(exc))
     gap, null = getattr(module, "GAP", None), getattr(module, "NULL_COMPONENT", "<unset>")
-    names = [d["name"] for d in drops]
     problems = []
     if not (isinstance(gap, (tuple, list)) and len(gap) == 2
             and all(isinstance(x, (int, float)) for x in gap) and gap[0] < gap[1]):
         problems.append("GAP is not set: write GAP = (low, high), your interval for the "
-                        "difference between the full model and the baseline (negative is "
-                        "better for val_bpb)")
-    if null == "<unset>" or not (null is None or null in names):
-        problems.append(f"NULL_COMPONENT must be one of {', '.join(names)}, or None if you "
+                        f"difference between {full} and {base} (negative is better for "
+                        "val_bpb)")
+    if null == "<unset>" or not (null is None or null in drops):
+        problems.append(f"NULL_COMPONENT must be one of {', '.join(drops)}, or None if you "
                         "think every component matters")
-    if problems:  # no point training for an hour before the file says anything
+    if problems:  # say what is missing before anyone waits on a study
         return Result(check.id, check.kind, False, "; ".join(problems))
     assert isinstance(gap, (tuple, list))
     low, high = float(gap[0]), float(gap[1])
 
-    common = check.args.get("kwargs", {})
-    runs = ctx.runs_dir
-    jobs = [("full", full, common), ("baseline", base, {**common, **check.args.get(
-        "baseline_kwargs", {})})] + [(d["name"], full, {**common, **d.get("kwargs", {})})
-                                     for d in drops]
-    for label, cls, kwargs in jobs:
-        for seed in range(seeds):
-            run(cls, preset, seed=seed, device="cpu" if ctx.variant == "cpu" else None,
-                output_dir=runs / label / f"seed-{seed}", progress=False, **kwargs)
-    against = compare(runs / "full", runs / "baseline", metric=metric).rows[0]
+    folder = study_dir(study)
+    wanted = [full, base, *drops]
+    missing = [v for v in wanted if not (folder / v).exists()]
+    if missing:
+        return Result(check.id, check.kind, False,
+                      f"the study {study!r} has no variant {', '.join(missing)} under "
+                      f"{folder}: run the study from the lesson first (it needs {len(wanted)} "
+                      f"variants: {', '.join(wanted)})")
+    done = {v: finished_runs(folder / v) for v in wanted}
+    short = [f"{v} ({len(r)})" for v, r in done.items() if len(r) < seeds]
+    if short:
+        return Result(check.id, check.kind, False,
+                      f"every variant needs {seeds} finished seeds; still short: "
+                      f"{', '.join(short)}. Let the study finish")
+    seed_sets = {tuple(sorted(r.seed for r in runs)) for runs in done.values()}
+    if len(seed_sets) > 1:
+        listing = "; ".join(f"{v}: {sorted(r.seed for r in runs)}" for v, runs in done.items())
+        return Result(check.id, check.kind, False,
+                      f"the variants were not run on the same seeds, so they cannot be paired: "
+                      f"{listing}")
+    other = sorted({r.preset["name"] for runs in done.values() for r in runs} - {preset})
+    if other:
+        return Result(check.id, check.kind, False,
+                      f"the study ran on {', '.join(other)}, but this lesson is on {preset}: "
+                      "use the preset from the lesson")
+
+    against = compare(folder / full, folder / base, metric=metric).rows[0]
     delta = against["delta"]
     if delta is None or delta["ci95_low"] is None:
         return Result(check.id, check.kind, False,
-                      f"with {seeds} seeds there is no interval for the gap; the lesson needs 3")
+                      f"there is no interval for {full} against {base}: the lesson needs "
+                      "3 seeds")
     ci = (delta["ci95_low"], delta["ci95_high"])
     score = score_prediction(delta["mean"], ci, low=low, high=high)
-    measured = f"full vs baseline: {delta['mean']:+.3f} [{ci[0]:+.3f}, {ci[1]:+.3f}] {metric}"
+    measured = (f"{full} vs {base}: {delta['mean']:+.3f} [{ci[0]:+.3f}, {ci[1]:+.3f}] {metric}")
     verdicts: dict[str, str] = {}
     table = []
-    for d in drops:
-        row = compare(runs / d["name"], runs / "full", metric=metric).rows[0]
+    for name in drops:
+        row = compare(folder / name, folder / full, metric=metric).rows[0]
         dd = row["delta"]
         identical = (dd is not None and dd["ci95_low"] is None and dd["mean"] == 0
                      and "no observed seed variation" in dd.get("status", ""))
-        verdicts[d["name"]] = "within noise" if identical else row["verdict"]
+        verdicts[name] = "within noise" if identical else row["verdict"]
         shown = ("no interval" if dd is None or dd["ci95_low"] is None else
                  f"{dd['mean']:+.3f} [{dd['ci95_low']:+.3f}, {dd['ci95_high']:+.3f}]")
-        table.append(f"{d['name']}: {row['verdict']} ({shown})")
+        table.append(f"{name}: {verdicts[name]} ({shown})")
     evidence = {"delta": delta["mean"], "ci95": list(ci), "gap": [low, high],
                 "verdict": against["verdict"], "drops": verdicts, "seeds": seeds,
                 "null_component": null, "score": score}
-    detail = "; ".join(table)
     fails = []
     if not score["passed"]:
         if score.get("hit") is False:
             fails.append(f"your GAP ({low:+g}, {high:+g}) does not contain the measured "
-                         f"difference ({measured})")
+                         f"difference")
         if score.get("sharp") is False:
-            fails.append("your GAP is far wider than the run's own interval, so it says almost "
-                         "nothing")
+            fails.append("your GAP is far wider than the study's own interval, so it says "
+                         "almost nothing")
     nulls = [n for n, v in verdicts.items() if v == "within noise"]
     if null is None and nulls:
         fails.append(f"you said every component matters, but removing {', '.join(nulls)} was "
                      "within noise")
     elif null is not None and verdicts[null] != "within noise":
         fails.append(f"{null} is not null: removing it was {verdicts[null]}")
+    detail = "; ".join(table)
     if fails:
         return Result(check.id, check.kind, False,
-                      f"{'; '.join(fails)}. Measured {measured}. Removing each component: "
-                      f"{detail}", evidence)
+                      f"{'; '.join(fails)}. Measured {measured}. Removing each component, "
+                      f"against {full}: {detail}", evidence)
     return Result(check.id, check.kind, True,
                   f"your gap holds ({measured}) and {null or 'no component'} is null as you "
-                  f"said. Removing each component: {detail}", evidence)
+                  f"said. Removing each component, against {full}: {detail}", evidence)
+
+
+# -- ladder ----------------------------------------------------------------------------------
+
+LADDER_X = {"params": ("n_non_embedding_params", "non-embedding parameters"),
+            "flops": ("flops_per_token", "training FLOPs per token")}
+
+
+@checker("ladder")
+def check_ladder(ctx: Context, check: Check) -> Result:
+    """A scaling ladder from the learner's own finished Study: fit a power law to the `rungs`
+    (the metric against the model's size), predict the held-out larger model, and hold the
+    learner's file against what happened. The file must define
+
+        PREDICTION = (low, high)    the metric you expect for the held-out model
+
+    written before the held-out model was trained. It must contain the measured mean, and it
+    must not be far wider than the fit's own 95% prediction interval. The message always reports
+    the fitted exponent with its interval and where the held-out model really landed."""
+    from nanoscope.scaling import fit_power_law
+    from nanoscope.studyfiles import finished_runs, study_dir
+
+    seeds = int(check.args.get("gpu_seeds", check.args.get("seeds", 3))
+                if ctx.variant == "gpu" else check.args.get("seeds", 3))
+    metric = check.args.get("metric", "val_bpb")
+    key, what = LADDER_X[check.args.get("x", "params")]
+    study, rungs, holdout = check.args["study"], list(check.args["rungs"]), check.args["holdout"]
+    try:
+        preset = lesson_preset(ctx)
+        module = load_user_module(ctx)
+    except (AttributeError, FileNotFoundError, ValueError) as exc:
+        return Result(check.id, check.kind, False, str(exc))
+    guess = getattr(module, "PREDICTION", None)
+    if not (isinstance(guess, (tuple, list)) and len(guess) == 2
+            and all(isinstance(v, (int, float)) for v in guess) and guess[0] < guess[1]):
+        return Result(check.id, check.kind, False,
+                      f"PREDICTION is not set: write PREDICTION = (low, high), the {metric} you "
+                      f"expect for {holdout}, from a fit to {', '.join(rungs)} and before you "
+                      f"train {holdout}")
+    low, high = float(guess[0]), float(guess[1])
+    folder = study_dir(study)
+    missing = [v for v in [*rungs, holdout] if not (folder / v).exists()]
+    if missing:
+        return Result(check.id, check.kind, False,
+                      f"the study {study!r} has no variant {', '.join(missing)} under {folder}: "
+                      "run the study from the lesson first")
+    done = {v: finished_runs(folder / v) for v in [*rungs, holdout]}
+    short = [f"{v} ({len(r)})" for v, r in done.items() if len(r) < seeds]
+    if short:
+        return Result(check.id, check.kind, False,
+                      f"every variant needs {seeds} finished seeds; still short: "
+                      f"{', '.join(short)}. Let the study finish")
+    other = sorted({r.preset["name"] for runs in done.values() for r in runs} - {preset})
+    if other:
+        return Result(check.id, check.kind, False,
+                      f"the study ran on {', '.join(other)}, but this lesson is on {preset}")
+    points = [(r.config["stats"][key], r.final(metric)) for v in rungs for r in done[v]]
+    fit = fit_power_law(points)
+    held = done[holdout]
+    x_held = held[0].config["stats"][key]
+    got = sum(r.final(metric) for r in held) / len(held)
+    mid, plo, phi = fit.predict(x_held)
+    ci = fit.exponent_ci95
+    exponent = (f"exponent {fit.exponent:+.3f}" + (f" [{ci[0]:+.3f}, {ci[1]:+.3f}]" if ci else "")
+                + f" over {len(rungs)} sizes ({fit.n} runs, {what})")
+    own = (f"; the fit alone predicts {mid:.3f}" + (f" [{plo:.3f}, {phi:.3f}]"
+                                                    if plo is not None else ""))
+    landed = f"{holdout} measured {got:.3f} {metric}"
+    evidence = {"exponent": fit.exponent, "exponent_ci95": list(ci) if ci else None,
+                "predicted": mid, "prediction_interval": [plo, phi], "measured": got,
+                "prediction": [low, high], "holdout": holdout, "x_holdout": x_held}
+    problems = []
+    if not low <= got <= high:
+        problems.append(f"your PREDICTION ({low:.3f}, {high:.3f}) does not contain it")
+    if plo is not None and phi is not None and (high - low) > 10 * (phi - plo):
+        problems.append("your PREDICTION is far wider than the fit's own prediction interval, "
+                        "so it says almost nothing")
+    if problems:
+        return Result(check.id, check.kind, False,
+                      f"{landed}: {'; '.join(problems)}. The fit: {exponent}{own}", evidence)
+    inside = plo is not None and phi is not None and plo <= got <= phi
+    verdict = ("inside the fit's own interval: the power law extrapolated one step" if inside
+               else "outside the fit's own interval: the trend did not simply continue, "
+                    "which is worth understanding")
+    return Result(check.id, check.kind, True,
+                  f"{landed}, inside your PREDICTION ({low:.3f}, {high:.3f}). The fit: "
+                  f"{exponent}{own}. It landed {verdict}", evidence)
 
 
 # -- predicted -------------------------------------------------------------------------------
@@ -940,6 +1052,12 @@ def check_predicted(ctx: Context, check: Check) -> Result:
     if score["passed"]:
         return Result(check.id, check.kind, True,
                       f"your prediction was recorded first and holds: {found}", score)
+    if not check.args.get("must_hit", True) and score.get("sharp") is not False:
+        # a practice prediction: it must come first and say something, but a miss is reported,
+        # not graded, because a wrong guess cannot be taken back and redone
+        missed = "" if score["passed"] else "; it did not hold, and that is the interesting part"
+        return Result(check.id, check.kind, True,
+                      f"your prediction was recorded first{missed}: {found}", score)
     misses = []
     if score.get("hit") is False:
         misses.append(f"the observed difference is outside your interval "

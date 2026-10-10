@@ -1,0 +1,34 @@
+title = "A scaling ladder: predict the next size up"
+level = 2
+summary = "Train a few model sizes, fit how the loss falls with size, write down a prediction for a larger model before you train it, and see how far the trend carries."
+prerequisites = ["scaling-lite/01-flops", "honest-ablations/04-predict"]
+
+[experiment]
+kind = "study"
+a = "GPT2"
+b = "GPT2"
+
+[[checks]]
+id = "extrapolate"
+kind = "ladder"
+study = "sc02-ladder"
+rungs = ["w32", "w48", "w64"]
+holdout = "w96"
+x = "params"
+seeds = 3
+gpu_seeds = 3
+metric = "val_bpb"
+
+[depth.surface]
+seeds = 3
+
+[depth.deep]
+seeds = 5
+
+[compute.cpu]
+preset = "tinystories-5min"
+estimate_minutes = 10
+
+[compute.gpu]
+preset = "fineweb-edu"
+estimate_minutes = 480

@@ -35,9 +35,9 @@ CHECK_KINDS = {  # kind -> (required args, optional args)
                 {"seeds", "gpu_seeds", "metric", "a_kwargs", "b_kwargs", "pairing"}),
     "matches": ({"class", "against", "quantity"},
                 {"tolerance", "kwargs", "against_kwargs", "context_length"}),
-    "ablation": ({"model", "baseline", "drops"},
-                 {"seeds", "gpu_seeds", "metric", "kwargs", "baseline_kwargs"}),
-    "predicted": ({"quantity"}, set()),
+    "ablation": ({"study", "full", "baseline", "drops"}, {"seeds", "gpu_seeds", "metric"}),
+    "ladder": ({"study", "rungs", "holdout"}, {"seeds", "gpu_seeds", "metric", "x"}),
+    "predicted": ({"quantity"}, {"must_hit"}),
     "reproduces": ({"baseline"}, {"metric", "class", "kwargs"}),
 }
 EXPERIMENT_KINDS = ("run", "study", "check")

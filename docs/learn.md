@@ -27,9 +27,12 @@ or fail, and the whole result is written to `learn/checks/<id>.json`.
 | `equivalent` | Does your block match a naive reference function on random inputs? The reason gives the largest difference and the input shape that failed. |
 | `forbid` | Does your file avoid the shortcuts the lesson forbids (`F.scaled_dot_product_attention`, `torch.nn.MultiheadAttention`) and the blocks you have not unlocked? It reads your file with `ast`, so it reports line numbers. |
 | `trains` | Does `run()` of your model reach the target loss on the lesson's preset? |
-| `verdict` | Training your model against another with several seeds, is the difference the one the lesson expects (better, worse, within noise)? |
-| `predicted` | Did you commit to a prediction *before* the experiment, and does it hold? See below. |
+| `verdict` | Training your model against another with several seeds, is the difference the one the lesson expects (better, worse, within noise)? `pairing = "unpaired"` gives the second model other seeds, so the comparison cannot be paired. |
+| `predicted` | Did you commit to a prediction *before* the experiment, and does it hold? See below. With `must_hit = false` a miss is reported but does not fail the lesson, since a wrong prediction cannot be redone. |
 | `reproduces` | Does your result land where the shipped baseline's seeds do? |
+| `matches` | Is your model the same size as another (non-embedding parameters or training FLOPs per token, within a tolerance)? Sizing a comparison fairly. |
+| `function` | Does a plain function in your file give the same numbers as a naive reference on fixed cases? The reason names the case and the part that is off. |
+| `ablation` | The capstone of the honest-ablations path: reads your own finished `Study`, compares the full model, a baseline and each removed component, and holds the `GAP` interval and `NULL_COMPONENT` in your file against what it found. It trains nothing. |
 
 If a `defines` check fails, the rest are skipped: they would fail for the same reason.
 

@@ -1,0 +1,28 @@
+title = "Eval noise: how much does the validation set matter?"
+level = 2
+summary = "A score is measured on a finite set of documents, so it carries its own sampling error. Measure it from one trained model, and see why comparing two models on the same documents cancels most of it."
+prerequisites = ["honest-ablations/01-seed-noise"]
+
+[experiment]
+kind = "check"
+
+[[checks]]
+id = "standard-error"
+kind = "function"
+name = "standard_error"
+reference = "naive_standard_error"
+cases = [
+  [[2.10, 2.31, 1.95, 2.40, 2.22]],
+  [[0.51, 0.48, 0.55, 0.49, 0.53, 0.50, 0.47, 0.52]],
+]
+
+[[checks]]
+id = "how-many"
+kind = "function"
+name = "chunks_needed"
+reference = "naive_docs_needed"
+cases = [[0.30, 0.05], [0.12, 0.01], [1.0, 0.5]]
+
+[compute.cpu]
+preset = "tinystories-5min"
+estimate_minutes = 3

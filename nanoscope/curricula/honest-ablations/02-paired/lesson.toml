@@ -1,0 +1,74 @@
+title = "Paired and unpaired comparisons"
+level = 2
+summary = "Compute the confidence interval for a difference two ways, and see why running both models on the same seeds sees a small effect that unpaired runs cannot."
+prerequisites = ["honest-ablations/01-seed-noise"]
+
+[experiment]
+kind = "study"
+a = "TinyGPT"
+b = "TinyGPT"
+
+[[checks]]
+id = "paired-formula"
+kind = "function"
+name = "paired_ci"
+reference = "naive_paired_ci"
+labels = ["mean", "low", "high"]
+cases = [
+  [[1.571, 1.568, 1.595, 1.552, 1.569], [1.512, 1.514, 1.529, 1.514, 1.512]],
+  [[0.31, 0.29, 0.35, 0.30], [0.20, 0.25, 0.22, 0.26]],
+]
+
+[[checks]]
+id = "unpaired-formula"
+kind = "function"
+name = "unpaired_ci"
+reference = "naive_unpaired_ci"
+labels = ["mean", "low", "high"]
+cases = [
+  [[1.571, 1.568, 1.595, 1.552, 1.569], [1.512, 1.514, 1.529, 1.514, 1.512]],
+  [[0.31, 0.29, 0.35, 0.30, 0.33, 0.28], [0.20, 0.25, 0.22]],
+]
+
+[[checks]]
+id = "built"
+kind = "defines"
+class = "TinyGPT"
+
+[[checks]]
+id = "paired-sees-it"
+kind = "verdict"
+a = "TinyGPT"
+b = "TinyGPT"
+expect = "better"
+pairing = "paired"
+seeds = 5
+metric = "val_bpb"
+a_kwargs = { max_steps = 205 }
+b_kwargs = { max_steps = 200 }
+
+[[checks]]
+id = "unpaired-misses-it"
+kind = "verdict"
+a = "TinyGPT"
+b = "TinyGPT"
+expect = "within noise"
+pairing = "unpaired"
+seeds = 5
+metric = "val_bpb"
+a_kwargs = { max_steps = 205 }
+b_kwargs = { max_steps = 200 }
+
+[depth.surface]
+seeds = 5
+
+[depth.deep]
+seeds = 8
+
+[compute.cpu]
+preset = "tinystories-5min"
+estimate_minutes = 12
+
+[compute.gpu]
+preset = "tinystories-5min"
+estimate_minutes = 6

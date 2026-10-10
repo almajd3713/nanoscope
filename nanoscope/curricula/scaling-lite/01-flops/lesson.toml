@@ -1,0 +1,35 @@
+title = "FLOP budgets: what a training run costs"
+level = 2
+summary = "Compute is parameters times tokens. Write the rule of thumb, spend a fixed budget two ways, and see what the compute-optimal split looks like."
+prerequisites = ["honest-ablations/03-matching"]
+
+[experiment]
+kind = "check"
+
+[[checks]]
+id = "cost"
+kind = "function"
+name = "training_flops"
+reference = "naive_training_flops"
+cases = [[1.0e6, 4.0e6], [1.25e6, 2.0e8], [124.0e6, 1.0e10]]
+
+[[checks]]
+id = "tokens"
+kind = "function"
+name = "tokens_for_budget"
+reference = "naive_tokens_for_budget"
+tolerance = 1e-3
+cases = [[1.0e15, 1.0e6], [3.0e16, 1.25e6]]
+
+[[checks]]
+id = "optimal"
+kind = "function"
+name = "chinchilla_split"
+reference = "naive_chinchilla_split"
+labels = ["parameters", "tokens"]
+tolerance = 1e-3
+cases = [[1.0e15], [6.0e18], [1.0e22]]
+
+[compute.cpu]
+preset = "tinystories-5min"
+estimate_minutes = 2
