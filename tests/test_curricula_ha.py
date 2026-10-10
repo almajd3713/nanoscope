@@ -534,3 +534,26 @@ def test_ef03_kv_cache(monkeypatch):
     forgot = solution(lid).replace("keys, values = cache_k + [new_k], cache_v + [new_v]",
                                    "keys, values = cache_k or [new_k], cache_v or [new_v]")
     assert not verdicts(attempt(lesson, forgot))["step"]
+
+
+@pytest.mark.usefixtures("fake_data")
+def test_ex05_speedrun_is_gated_by_size_and_the_interval(monkeypatch):
+    lid = "extend/05-speedrun"
+    lesson = load_lesson(lid)
+    small_cpu_preset(monkeypatch, quick(lesson))
+    assert [c.kind for c in lesson.checks] == ["defines", "matches", "verdict"]
+    assert lesson.compute["cpu"].estimate_minutes <= 15
+    assert lesson.checks[2].args["expect"] == "better"
+    # a model far bigger than the baseline is refused on size before any training
+    big = solution(lid).replace("d_model: int = 64", "d_model: int = 256")
+    assert not verdicts(attempt(quick(lesson), big))["same-size"]
+
+
+@pytest.mark.network
+def test_ex05_real_data_the_starter_loses_and_the_ablated_model_wins(home):
+    lid = "extend/05-speedrun"
+    lesson = load_lesson(lid)
+    lost = attempt(lesson)  # the starter is Modern as shipped, which GPT-2 beats at 100 steps
+    assert verdicts(lost)["same-size"] and not verdicts(lost)["faster"], reasons(lost)
+    won = attempt(lesson, solution(lid))
+    assert won["passed"], reasons(won)

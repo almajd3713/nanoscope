@@ -376,4 +376,7 @@ def test_end_to_end(monkeypatch, capsys):
     capsys.readouterr()
     main(["learn", "status"])
     out = capsys.readouterr().out
-    assert out.count("passed") == 13 and "locked" not in out.split("unlocks:")[1]
+    assert out.count("passed") == 13
+    # every unlock of these two paths is earned; MoE belongs to the extend path, not started
+    still_locked = [line for line in out.split("unlocks:")[1].splitlines() if "locked" in line]
+    assert all("MoE" in line for line in still_locked)
