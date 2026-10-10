@@ -4,7 +4,7 @@ The build list for [`plan-tool.md`](plan-tool.md), sections 4-10, with the decis
 2026-10-05 (plan section 11) applied. Phase numbers follow the plan's section 10. Every
 item is one line, so scripts and agents can grep and edit it.
 
-**Current focus:** P17 (curriculum paths): honest-ablations, evaluation, efficiency (except EF03), scaling-lite and the interpretability lessons done; the IN01 curve test and Playwright spec (P17.19), extend (P17.24-28) and docs next. P16 is merged (PR #18, ebd63ea). Left for the user: P14.33 (tag v0.5.0).
+**Current focus:** P17 (curriculum paths): honest-ablations, evaluation, efficiency (except EF03), scaling-lite and the interpretability and extend lessons, the variants test and the docs done; left: P17.19 (IN01 curve test, Playwright spec), P17.14 and P17.31 (optional), P17.30 (user: GPU runs), then the gate P17.99. P16 is merged (PR #18, ebd63ea). Left for the user: P14.33 (tag v0.5.0).
 
 ## Progress
 
@@ -702,18 +702,18 @@ Order: P13.01 and P13.02 first (these items live in `web/` and run in its CI job
 - [ ] P17.23 Add the CI tests for SC01-SC02 (CPU variant at `fake_data` scale). · files: tests/test_curricula.py · deps: P17.22 · done: `uv run pytest tests/test_curricula.py -k sc` passes (note: the SC tests live in tests/test_curricula_ha.py; run `-k "sc01 or sc02"` there)
 
 ### P17 · Extend (level 3)
-- [ ] P17.24 Write `extend/path.toml` and lesson EX01, a certified block (`register_block` plus a certification check). · files: nanoscope/curricula/extend/* (new), tests/solutions/extend/01-certified-block.py (new) · deps: P17.01, P14.99 · done: `uv run nanoscope learn list --path extend` lists it
-- [ ] P17.25 Write lesson EX02, adding a preset (`register_preset`). · files: nanoscope/curricula/extend/02-preset/*, tests/solutions/extend/02-preset.py · deps: P17.24 · done: listed
-- [ ] P17.26 Write lesson EX03, Muon versus AdamW as a `verdict`. CPU variant: 3 seeds on tinystories-5min (about 12 min). GPU variant: 5 seeds on tinystories-30min (about 1 GPU-hour). · files: nanoscope/curricula/extend/03-muon/*, tests/solutions/extend/03-muon.py · deps: P17.24, P16.03 · done: listed with both variants
-- [ ] P17.27 Write lesson EX04, MoE from primitives (`unlocks block:MoE`). CPU variant: 4 experts, tiny (about 10 min). GPU variant: 8 experts (about 1 GPU-hour). · files: nanoscope/curricula/extend/04-moe/*, tests/solutions/extend/04-moe.py · deps: P17.24, P16.11 · done: listed with both variants
-- [ ] P17.28 Add the CI tests for EX01-EX04. · files: tests/test_curricula.py · deps: P17.27, P17.26, P17.25 · done: `uv run pytest tests/test_curricula.py -k ex` passes
+- [x] P17.24 Write `extend/path.toml` and lesson EX01, a certified block (`register_block` plus a certification check). · files: nanoscope/curricula/extend/* (new), tests/solutions/extend/01-certified-block.py (new) · deps: P17.01, P14.99 · done: `uv run nanoscope learn list --path extend` lists it ✓ 2026-10-10 ac16759
+- [x] P17.25 Write lesson EX02, adding a preset (`register_preset`). · files: nanoscope/curricula/extend/02-preset/*, tests/solutions/extend/02-preset.py · deps: P17.24 · done: listed ✓ 2026-10-10 c634667
+- [x] P17.26 Write lesson EX03, Muon versus AdamW as a `verdict`. CPU variant: 3 seeds on tinystories-5min (about 12 min). GPU variant: 5 seeds on tinystories-30min (about 1 GPU-hour). · files: nanoscope/curricula/extend/03-muon/*, tests/solutions/extend/03-muon.py · deps: P17.24, P16.03 · done: listed with both variants ✓ 2026-10-10 9499160 (real data: LR_SCALE 2 passes, 1 does not)
+- [x] P17.27 Write lesson EX04, MoE from primitives (`unlocks block:MoE`). CPU variant: 4 experts, tiny (about 10 min). GPU variant: 8 experts (about 1 GPU-hour). · files: nanoscope/curricula/extend/04-moe/*, tests/solutions/extend/04-moe.py · deps: P17.24, P16.11 · done: listed with both variants ✓ 2026-10-10 344fc6b
+- [x] P17.28 Add the CI tests for EX01-EX04. · files: tests/test_curricula.py · deps: P17.27, P17.26, P17.25 · done: `uv run pytest tests/test_curricula.py -k ex` passes ✓ 2026-10-10 344fc6b (EX tests live in tests/test_curricula_ha.py)
 
 ### P17 · Cross-path
-- [ ] P17.29 Write a loader test over all curricula: every `[compute.gpu]` has a `[compute.cpu]`, and no CPU estimate exceeds 15 min without a GPU variant. · files: tests/test_learn.py · deps: P17.28, P17.23, P17.19, P17.16, P17.11, P17.07 · done: `uv run pytest tests/test_learn.py -k all_curricula_variants` passes
+- [x] P17.29 Write a loader test over all curricula: every `[compute.gpu]` has a `[compute.cpu]`, and no CPU estimate exceeds 15 min without a GPU variant. · files: tests/test_learn.py · deps: P17.28, P17.23, P17.19, P17.16, P17.11, P17.07 · done: `uv run pytest tests/test_learn.py -k all_curricula_variants` passes ✓ 2026-10-10 a21501d
 - [ ] P17.30 **USER ACTION** Run each GPU variant once on the user's hardware and write the measured estimates into its `lesson.toml` (the agent prepares the commands). · files: nanoscope/curricula/*/*/lesson.toml · deps: P17.29 · done: `grep -L 'measured' $(grep -l 'compute.gpu' nanoscope/curricula/*/*/lesson.toml)` is empty
 - [ ] P17.31 Optional (idea 9): CPU speedrun lesson, "beat the GPT-2 baseline in 2 CPU minutes", gated by the significance rule. · files: nanoscope/curricula/extend/05-speedrun/* · deps: P17.28 · done: listed and its CI test passes
-- [ ] P17.32 List every path in `docs/learn.md` with its level and estimates. · files: docs/learn.md · deps: P17.29 · done: `grep -c 'scaling-lite\|interpretability\|honest-ablations' docs/learn.md` prints at least 3
-- [ ] P17.33 Link milestones M2-M6 in `docs/project-nanoscope.md` to their paths. · files: docs/project-nanoscope.md · deps: P17.32 · done: `grep -cE 'scaling-lite|efficiency|evaluation|interpretability' docs/project-nanoscope.md` prints at least 4
+- [x] P17.32 List every path in `docs/learn.md` with its level and estimates. · files: docs/learn.md · deps: P17.29 · done: `grep -c 'scaling-lite\|interpretability\|honest-ablations' docs/learn.md` prints at least 3 ✓ 2026-10-10 a21501d
+- [x] P17.33 Link milestones M2-M6 in `docs/project-nanoscope.md` to their paths. · files: docs/project-nanoscope.md · deps: P17.32 · done: `grep -cE 'scaling-lite|efficiency|evaluation|interpretability' docs/project-nanoscope.md` prints at least 4 ✓ 2026-10-10 a21501d
 - [ ] P17.99 PHASE GATE P17. Exit criteria: plan section 10 phase 17. · files: — · deps: P17.* (P17.14 and P17.31 may stay open, with a note) · done: `make check` passes; `make test-curricula` passes; `uv run pytest tests/test_first_model_notebook.py` passes; CI green; **USER ACTION** merge the PR and release
 
 ---
