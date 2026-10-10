@@ -1,0 +1,35 @@
+title = "The logit lens"
+level = 2
+summary = "Read the next-token guess off every layer of a model, not only the last, and find the layer where the answer settles."
+prerequisites = ["interpretability/01-induction"]
+
+[experiment]
+kind = "check"
+
+[[checks]]
+id = "top"
+kind = "function"
+name = "top_token"
+reference = "naive_top_token"
+tolerance = 0
+cases = [[[0.1, 2.0, -1.0, 0.5]], [[3.0, 3.0, 1.0]], [[-2.0, -1.0, -3.0]]]
+
+[[checks]]
+id = "rank"
+kind = "function"
+name = "rank_of"
+reference = "naive_rank_of"
+tolerance = 0
+cases = [[[0.1, 2.0, -1.0, 0.5], 1], [[0.1, 2.0, -1.0, 0.5], 3], [[0.1, 2.0, -1.0, 0.5], 2]]
+
+[[checks]]
+id = "settled"
+kind = "function"
+name = "first_settled_layer"
+reference = "naive_first_settled_layer"
+tolerance = 0
+cases = [[[[0.0, 1.0, 0.0], [0.0, 0.0, 1.0], [0.0, 0.0, 2.0]], 2], [[[0.0, 0.0, 1.0], [1.0, 0.0, 0.0], [0.0, 0.0, 2.0]], 2], [[[1.0, 0.0, 0.0], [1.0, 0.0, 0.0]], 2]]
+
+[compute.cpu]
+preset = "tinystories-5min"
+estimate_minutes = 2

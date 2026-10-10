@@ -382,7 +382,8 @@ def test_ef04_roofline(monkeypatch):
 def test_sc02_real_data_ladder_and_holdout(home):
     lesson = load_lesson("scaling-lite/02-ladder")
     original = solution("scaling-lite/02-ladder")
-    lesson_study("02-ladder", "scaling-lite", [("HOLDOUT = False", "HOLDOUT = True")]).run(devices=["cpu"])
+    swap = [("HOLDOUT = False", "HOLDOUT = True")]
+    lesson_study("02-ladder", "scaling-lite", swap).run(devices=["cpu"])
 
     def answer(low, high):
         return original.replace("PREDICTION = (0.0, 1.0)", f"PREDICTION = ({low}, {high})")
@@ -393,3 +394,22 @@ def test_sc02_real_data_ladder_and_holdout(home):
     measured = evidence["measured"]
     done = attempt(lesson, answer(measured - 0.2, measured + 0.2))
     assert done["passed"], reasons(done)
+
+
+def test_in01_induction(monkeypatch):
+    lid = "interpretability/01-induction"
+    function_lesson_passes(monkeypatch, lid, lid)
+    lesson = load_lesson(lid)
+    # the off-by-one slip: attending to the twin itself, not the token after it
+    wrong = solution(lid).replace("i - half + 1", "i - half")
+    assert not verdicts(attempt(lesson, wrong))["induction"]
+
+
+def test_in02_logit_lens(monkeypatch):
+    lid = "interpretability/02-logit-lens"
+    function_lesson_passes(monkeypatch, lid, lid)
+    lesson = load_lesson(lid)
+    # forgetting "and stays": the first layer that ever guesses right
+    wrong = solution(lid).replace("all(top_token(row) == target for row in layer_logits[k:])",
+                                  "top_token(layer_logits[k]) == target")
+    assert not verdicts(attempt(lesson, wrong))["settled"]

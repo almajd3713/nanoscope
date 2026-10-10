@@ -402,3 +402,43 @@ def naive_attainable_tflops(intensity, peak_tflops, bandwidth_gbs):
 def naive_memory_bound(intensity, peak_tflops, bandwidth_gbs):
     """1.0 when memory, not arithmetic, limits the kernel."""
     return 1.0 if intensity * bandwidth_gbs / 1000 < peak_tflops else 0.0
+
+
+def naive_induction_score(attn, half):
+    """Mean attention from each position in the second copy of a repeated sequence to the token
+    after its earlier occurrence. `attn[i]` holds the weights of position i over positions 0..i;
+    the sequence is `half` random tokens followed by the same `half` tokens again."""
+    rows = [attn[i][i - half + 1] for i in range(half, 2 * half)]
+    return sum(rows) / len(rows)
+
+
+def naive_previous_token_score(attn):
+    """Mean attention from each position to the one just before it."""
+    rows = [attn[i][i - 1] for i in range(1, len(attn))]
+    return sum(rows) / len(rows)
+
+
+def naive_first_step_above(steps, scores, threshold):
+    """The first step whose score reaches `threshold` and stays there at every later step, or -1."""
+    for i in range(len(steps)):
+        if all(s >= threshold for s in scores[i:]):
+            return float(steps[i])
+    return -1.0
+
+
+def naive_top_token(logits):
+    """Index of the largest logit."""
+    return float(max(range(len(logits)), key=lambda i: logits[i]))
+
+
+def naive_rank_of(logits, target):
+    """0 when `target` has the largest logit, 1 for the second largest, and so on."""
+    return float(sum(1 for v in logits if v > logits[target]))
+
+
+def naive_first_settled_layer(layer_logits, target):
+    """The first layer whose top token is `target` and stays so at every later layer, or -1."""
+    for i in range(len(layer_logits)):
+        if all(naive_top_token(row) == target for row in layer_logits[i:]):
+            return float(i)
+    return -1.0

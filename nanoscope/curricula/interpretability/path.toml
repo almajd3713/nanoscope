@@ -1,0 +1,12 @@
+title = "Interpretability"
+level = 2
+summary = "Watch a model learn to copy: measure an induction head at every checkpoint of your own run, then read a model's layers with the logit lens."
+prerequisites = ["foundations/04-multi-head"]
+
+[compute.cpu]
+preset = "tinystories-5min"
+estimate_minutes = 12
+
+[compute.gpu]
+preset = "fineweb-edu"
+estimate_minutes = 120
