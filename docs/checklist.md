@@ -4,7 +4,7 @@ The build list for [`plan-tool.md`](plan-tool.md), sections 4-10, with the decis
 2026-10-05 (plan section 11) applied. Phase numbers follow the plan's section 10. Every
 item is one line, so scripts and agents can grep and edit it.
 
-**Current focus:** P17 (curriculum paths), not started. P16 is merged (PR #18, ebd63ea). Left for the user: P14.33 (tag v0.5.0).
+**Current focus:** P17 (curriculum paths): honest-ablations, evaluation and SC01 done; SC02 real-data run in progress; efficiency, interpretability, extend next. P16 is merged (PR #18, ebd63ea). Left for the user: P14.33 (tag v0.5.0).
 
 ## Progress
 
@@ -21,7 +21,7 @@ item is one line, so scripts and agents can grep and edit it.
 | P14 | GUI MVP 2: model page, drag-and-drop (14-17 d) | 35 / 36 | merged; P14.33 (tag v0.5.0) is the user's |
 | P15 | GUI Research (10-13 d) | 31 / 31 | done |
 | P16 | Extend + depth (8-10 d) | 18 / 18 | done |
-| P17 | Remaining curriculum paths (18-26 d) | 2 / 34 | in progress |
+| P17 | Remaining curriculum paths (18-26 d) | 13 / 34 | in progress |
 
 MVP = P6-P14 (about 77-96 focused days). Recount a row with
 `grep -c '^- \[x\] P6\.' docs/checklist.md` (done) and `grep -c '^- \[.\] P6\.' docs/checklist.md`
@@ -669,19 +669,19 @@ Order: P13.01 and P13.02 first (these items live in `web/` and run in its CI job
 ## P17 Remaining curriculum paths (decision 11.6: each GPU-hour lesson has a CPU and a GPU variant with estimates)
 
 ### P17 · Honest ablations (level 2)
-- [ ] P17.01 Write `honest-ablations/path.toml` with Foundations and The modern block as prerequisites. · files: nanoscope/curricula/honest-ablations/path.toml (new) · deps: P15.99 · done: `uv run nanoscope learn list --path honest-ablations` exits 0
-- [ ] P17.02 Write lesson HA01, seed noise: one model, 5 seeds, see the spread (Dodge et al.). CPU only, about 6 min. · files: nanoscope/curricula/honest-ablations/01-seed-noise/* (new), tests/solutions/honest-ablations/01-seed-noise.py (new) · deps: P17.01 · done: `uv run nanoscope learn list --path honest-ablations` lists it
-- [ ] P17.03 Write lesson HA02, paired versus unpaired CIs (`verdict` check). · files: nanoscope/curricula/honest-ablations/02-paired/*, tests/solutions/honest-ablations/02-paired.py · deps: P17.02 · done: listed
-- [ ] P17.04 Write lesson HA03, matching params and FLOPs (`match="params"`, `FLOPs` budgets). · files: nanoscope/curricula/honest-ablations/03-matching/*, tests/solutions/honest-ablations/03-matching.py · deps: P17.02 · done: listed
-- [ ] P17.05 Write lesson HA04, predict then run (`predicted` check). · files: nanoscope/curricula/honest-ablations/04-predict/*, tests/solutions/honest-ablations/04-predict.py · deps: P17.02 · done: listed
-- [ ] P17.06 Write lesson HA05, the capstone M1 ablation: a `verdict` check to "state the gap with a CI and name one null component". CPU variant: tinystories-5min, 3 seeds, 8 variants, Tokens(4e6), about 60-90 min CPU. GPU variant: fineweb-edu in record mode, about 4-8 GPU-hours. · files: nanoscope/curricula/honest-ablations/05-capstone/*, tests/solutions/honest-ablations/05-capstone.py · deps: P17.03, P17.04, P17.05 · done: listed, and `lesson.toml` has both `[compute.cpu]` and `[compute.gpu]`
-- [ ] P17.07 Add the CI tests for HA01-HA05 (solutions pass and starters fail, with `fake_data`). · files: tests/test_curricula.py · deps: P17.06 · done: `uv run pytest tests/test_curricula.py -k ha` passes
+- [x] P17.01 Write `honest-ablations/path.toml` with Foundations and The modern block as prerequisites. · files: nanoscope/curricula/honest-ablations/path.toml (new) · deps: P15.99 · done: `uv run nanoscope learn list --path honest-ablations` exits 0 ✓ 2026-10-10 7a0717b
+- [x] P17.02 Write lesson HA01, seed noise: one model, 5 seeds, see the spread (Dodge et al.). CPU only, about 6 min. · files: nanoscope/curricula/honest-ablations/01-seed-noise/* (new), tests/solutions/honest-ablations/01-seed-noise.py (new) · deps: P17.01 · done: `uv run nanoscope learn list --path honest-ablations` lists it ✓ 2026-10-10 7a0717b (real-data run passed)
+- [x] P17.03 Write lesson HA02, paired versus unpaired CIs (`verdict` check). · files: nanoscope/curricula/honest-ablations/02-paired/*, tests/solutions/honest-ablations/02-paired.py · deps: P17.02 · done: listed ✓ 2026-10-10 c79664b (real-data run passed)
+- [x] P17.04 Write lesson HA03, matching params and FLOPs (`match="params"`, `FLOPs` budgets). · files: nanoscope/curricula/honest-ablations/03-matching/*, tests/solutions/honest-ablations/03-matching.py · deps: P17.02 · done: listed ✓ 2026-10-10 c79664b
+- [x] P17.05 Write lesson HA04, predict then run (`predicted` check). · files: nanoscope/curricula/honest-ablations/04-predict/*, tests/solutions/honest-ablations/04-predict.py · deps: P17.02 · done: listed ✓ 2026-10-10 c79664b (real-data run passed)
+- [x] P17.06 Write lesson HA05, the capstone M1 ablation: a `verdict` check to "state the gap with a CI and name one null component". CPU variant: tinystories-5min, 3 seeds, 8 variants, Tokens(4e6), about 60-90 min CPU. GPU variant: fineweb-edu in record mode, about 4-8 GPU-hours. · files: nanoscope/curricula/honest-ablations/05-capstone/*, tests/solutions/honest-ablations/05-capstone.py · deps: P17.03, P17.04, P17.05 · done: listed, and `lesson.toml` has both `[compute.cpu]` and `[compute.gpu]` ✓ 2026-10-10 c79664b (real-data run passed)
+- [x] P17.07 Add the CI tests for HA01-HA05 (solutions pass and starters fail, with `fake_data`). · files: tests/test_curricula.py · deps: P17.06 · done: `uv run pytest tests/test_curricula.py -k ha` passes ✓ 2026-10-10 c79664b: the tests are in tests/test_curricula_ha.py, not test_curricula.py; `pytest tests/test_curricula_ha.py` passes
 
 ### P17 · Evaluation (level 2)
 - [x] P17.08 Add separate `run(init_seed=, data_seed=)` keywords (both default to `seed`) so seed variance can be decomposed. · files: nanoscope/run.py, nanoscope/train_loop.py, tests/test_run.py · deps: P15.99 · done: `uv run pytest tests/test_run.py -k split_seeds` passes, and the default run dirs are unchanged ✓ 2026-10-09 161623c: `seed` stays the single knob; `init_seed` decides the weights and `data_seed` the batch order and dropout, each defaulting to `seed`. Giving either puts the run in `seed-i<init>-d<data>` and records both in config.json (`config.v1` gained two optional keys); with `seeds=N` the other seed follows each `s`, so `run(M, seeds=5, init_seed=0)` is one initialisation, five data orders. `train()` is unchanged (its `seed` is the data seed). CLI `--init-seed/--data-seed`. Not wired into job payloads, Study or the run form yet
-- [ ] P17.09 Write `evaluation/path.toml` and lesson EV01, eval noise: `eval_docs` size versus CI width. CPU only. · files: nanoscope/curricula/evaluation/* (new), tests/solutions/evaluation/01-eval-noise.py (new) · deps: P17.01 · done: `uv run nanoscope learn list --path evaluation` lists it
-- [ ] P17.10 Write lesson EV02: init-seed versus data-order variance. CPU variant: 3×3 seeds on tinystories-5min (about 15 min). GPU variant: 5×5 seeds on tinystories-30min (about 1 GPU-hour). · files: nanoscope/curricula/evaluation/02-variance/*, tests/solutions/evaluation/02-variance.py · deps: P17.08, P17.09 · done: listed with both variants
-- [ ] P17.11 Add the CI tests for EV01-EV02. · files: tests/test_curricula.py · deps: P17.10 · done: `uv run pytest tests/test_curricula.py -k ev` passes
+- [x] P17.09 Write `evaluation/path.toml` and lesson EV01, eval noise: `eval_docs` size versus CI width. CPU only. · files: nanoscope/curricula/evaluation/* (new), tests/solutions/evaluation/01-eval-noise.py (new) · deps: P17.01 · done: `uv run nanoscope learn list --path evaluation` lists it ✓ 2026-10-10 c79664b
+- [x] P17.10 Write lesson EV02: init-seed versus data-order variance. CPU variant: 3×3 seeds on tinystories-5min (about 15 min). GPU variant: 5×5 seeds on tinystories-30min (about 1 GPU-hour). · files: nanoscope/curricula/evaluation/02-variance/*, tests/solutions/evaluation/02-variance.py · deps: P17.08, P17.09 · done: listed with both variants ✓ 2026-10-10 c79664b: EV02 is a `function` check on a fixed 3x3 grid, so there is no CPU/GPU study to run; the lesson text shows how to run one
+- [x] P17.11 Add the CI tests for EV01-EV02. · files: tests/test_curricula.py · deps: P17.10 · done: `uv run pytest tests/test_curricula.py -k ev` passes ✓ 2026-10-10 c79664b: in tests/test_curricula_ha.py
 
 ### P17 · Efficiency (level 2-3)
 - [ ] P17.12 Write `efficiency/path.toml` and lesson EF01, bench and the CPU-bound/GPU-bound verdict. · files: nanoscope/curricula/efficiency/* (new), tests/solutions/efficiency/01-bench.py (new) · deps: P17.01 · done: `uv run nanoscope learn list --path efficiency` lists it
@@ -697,7 +697,7 @@ Order: P13.01 and P13.02 first (these items live in `web/` and run in its CI job
 
 ### P17 · Scaling-lite (level 2)
 - [x] P17.20 Create `nanoscope/scaling.py` with `fit_power_law(points)`, which returns the exponent with a CI, tested on synthetic data. · files: nanoscope/scaling.py (new), tests/test_scaling.py (new) · deps: P15.99 · done: `uv run pytest tests/test_scaling.py` passes ✓ 2026-10-09 10063d5: `PowerLawFit` (OLS in log space, t-interval on n-2 df, `predict()` with a prediction interval, `to_dict()`); the interval covers the true exponent 92-98% of 300 simulated ladders; three points give a wide interval and the status says so
-- [ ] P17.21 Write `scaling-lite/path.toml` and lesson SC01, FLOP budgets. · files: nanoscope/curricula/scaling-lite/* (new), tests/solutions/scaling-lite/01-flops.py (new) · deps: P17.01 · done: `uv run nanoscope learn list --path scaling-lite` lists it
+- [x] P17.21 Write `scaling-lite/path.toml` and lesson SC01, FLOP budgets. · files: nanoscope/curricula/scaling-lite/* (new), tests/solutions/scaling-lite/01-flops.py (new) · deps: P17.01 · done: `uv run nanoscope learn list --path scaling-lite` lists it ✓ 2026-10-10 c79664b
 - [ ] P17.22 Write lesson SC02, a ladder with a preregistered prediction and the DataDecide caveat. CPU variant: a 3-point ladder on tinystories-5min (about 45-90 min CPU). GPU variant: a 4-point ladder on fineweb-edu (about 6-12 GPU-hours). · files: nanoscope/curricula/scaling-lite/02-ladder/*, tests/solutions/scaling-lite/02-ladder.py · deps: P17.20, P17.21 · done: listed with both variants
 - [ ] P17.23 Add the CI tests for SC01-SC02 (CPU variant at `fake_data` scale). · files: tests/test_curricula.py · deps: P17.22 · done: `uv run pytest tests/test_curricula.py -k sc` passes
 
