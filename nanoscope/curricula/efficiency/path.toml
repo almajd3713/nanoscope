@@ -5,8 +5,8 @@ prerequisites = ["foundations"]
 
 [compute.cpu]
 preset = "tinystories-5min"
-estimate_minutes = 6
+estimate_minutes = 8
 
 [compute.gpu]
 preset = "tinystories-5min"
-estimate_minutes = 10
+estimate_minutes = 12

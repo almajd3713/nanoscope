@@ -454,3 +454,36 @@ def naive_moe_forward(x, gate_weight, top_k, *expert_weights):
     """The output of `naive_moe`. `expert_weights` is w1, w3, w2 of expert 0, then expert 1, ..."""
     experts = [tuple(expert_weights[i:i + 3]) for i in range(0, len(expert_weights), 3)]
     return naive_moe(x, gate_weight, experts, top_k)[0]
+
+
+def naive_kv_cache_bytes(n_layers, n_kv_heads, head_dim, seq_len, batch, bytes_per_value):
+    """Keys and values (the 2), for every layer, kv head and position kept."""
+    return float(2 * n_layers * n_kv_heads * head_dim * seq_len * batch * bytes_per_value)
+
+
+def naive_tokens_processed(prompt_len, new_tokens, cached):
+    """Token positions pushed through the layers to generate `new_tokens`. With a cache the prompt
+    goes through once and each later token alone; without it every step redoes the whole
+    sequence so far."""
+    if cached:
+        return float(prompt_len + new_tokens - 1)
+    return float(sum(prompt_len + j for j in range(new_tokens)))
+
+
+def naive_max_context(memory_gb, weights_gb, n_layers, n_kv_heads, head_dim, bytes_per_value):
+    """Longest sequence (batch 1) whose cache fits in the memory left after the weights."""
+    per_token = 2 * n_layers * n_kv_heads * head_dim * bytes_per_value
+    return float(int((memory_gb - weights_gb) * 1e9 // per_token))
+
+
+def naive_cached_step(q, new_k, new_v, cache_k, cache_v):
+    """One decoding step of one attention head. The cache holds the keys and values of the
+    positions before; the new token's own key and value join them; q attends over all."""
+    keys, values = [*cache_k, new_k], [*cache_v, new_v]
+    scale = math.sqrt(len(q))
+    scores = [sum(a * b for a, b in zip(q, k, strict=True)) / scale for k in keys]
+    top = max(scores)
+    weights = [math.exp(s - top) for s in scores]
+    total = sum(weights)
+    return [sum(w / total * v[d] for w, v in zip(weights, values, strict=True))
+            for d in range(len(new_v))]

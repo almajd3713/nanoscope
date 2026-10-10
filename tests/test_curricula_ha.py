@@ -518,3 +518,19 @@ def test_in01_curve_over_the_learners_own_checkpoints():
     steps = [point["step"] for point in curve]
     assert ns["first_step_above"](steps, scores, 0.0) == 3
     assert ns["first_step_above"](steps, scores, 2.0) == -1
+
+
+def test_ef03_kv_cache(monkeypatch):
+    lid = "efficiency/03-kv-cache"
+    function_lesson_passes(monkeypatch, lid, lid)
+    lesson = load_lesson(lid)
+    # keys only: half the cache
+    keys_only = solution(lid).replace("return 2 * n_layers", "return n_layers")
+    assert not verdicts(attempt(lesson, keys_only))["cache-size"]
+    # the cache saves work: the uncached count is the larger one
+    flipped = solution(lid).replace("if cached:", "if not cached:")
+    assert not verdicts(attempt(lesson, flipped))["work"]
+    # forgetting the new token's own key and value
+    forgot = solution(lid).replace("keys, values = cache_k + [new_k], cache_v + [new_v]",
+                                   "keys, values = cache_k or [new_k], cache_v or [new_v]")
+    assert not verdicts(attempt(lesson, forgot))["step"]

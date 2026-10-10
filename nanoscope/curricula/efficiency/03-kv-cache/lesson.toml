@@ -1,0 +1,43 @@
+title = "The KV cache"
+level = 2
+summary = "Generating a token needs the keys and values of every earlier token. Keep them instead of recomputing them: work how much it saves, how much memory it costs, and what one cached step computes."
+prerequisites = ["foundations/04-multi-head"]
+
+[experiment]
+kind = "check"
+
+[[checks]]
+id = "cache-size"
+kind = "function"
+name = "kv_cache_bytes"
+reference = "naive_kv_cache_bytes"
+tolerance = 0
+cases = [[4, 4, 16, 256, 1, 4], [4, 2, 16, 256, 1, 4], [32, 8, 128, 4096, 1, 2], [2, 4, 32, 100, 8, 2]]
+
+[[checks]]
+id = "work"
+kind = "function"
+name = "tokens_processed"
+reference = "naive_tokens_processed"
+tolerance = 0
+cases = [[10, 5, true], [10, 5, false], [100, 200, true], [100, 200, false], [1, 1, false]]
+
+[[checks]]
+id = "fits"
+kind = "function"
+name = "max_context"
+reference = "naive_max_context"
+tolerance = 0
+cases = [[8.0, 2.0, 32, 8, 128, 2], [24.0, 14.0, 32, 8, 128, 2], [4.0, 0.5, 4, 2, 16, 4]]
+
+[[checks]]
+id = "step"
+kind = "function"
+name = "cached_step"
+reference = "naive_cached_step"
+tolerance = 1e-9
+cases = [[[1.0, 0.0], [0.5, 0.5], [2.0, 4.0], [], []], [[1.0, 2.0], [0.0, 1.0], [3.0, 1.0], [[1.0, 0.0], [0.0, 1.0]], [[1.0, 2.0], [3.0, 4.0]]], [[0.5, -1.0, 2.0], [1.0, 1.0, 0.0], [0.0, 1.0, 5.0], [[1.0, 2.0, 3.0]], [[2.0, 0.0, 1.0]]]]
+
+[compute.cpu]
+preset = "tinystories-5min"
+estimate_minutes = 2

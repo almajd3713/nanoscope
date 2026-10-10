@@ -27,7 +27,7 @@ minutes; a GPU figure of "measured" is filled in once someone has run it on real
 | `modern-block` | 1 | 7 | 15 min / 10 min | RMSNorm, RoPE, SwiGLU, GQA, QK-norm, z-loss, then the assembled model. |
 | `honest-ablations` | 2 | 5 | 95 min / 60 min | Seed noise, paired and unpaired comparison, matching size, predicting before running, and an ablation study of your own. |
 | `evaluation` | 2 | 2 | 18 min / 60 min | How much of a number is the evaluation set, and how much is init versus data order. |
-| `efficiency` | 2 | 3 | 6 min / 10 min | Throughput and what bounds it, when `torch.compile` pays, the roofline. KV cache is coming. |
+| `efficiency` | 2 | 4 | 8 min / 12 min | Throughput and what bounds it, when `torch.compile` pays, the KV cache (memory and work), the roofline. |
 | `scaling-lite` | 2 | 2 | 14 min / 480 min | FLOP budgets, then a three-size ladder with a power-law fit and a prediction written before the largest size is trained. |
 | `interpretability` | 2 | 2 | 12 min / 120 min | Induction heads measured over your own checkpoints, and the logit lens. |
 | `extend` | 3 | 3 | 14 min / 70 min | A certified block, your own preset, Muon versus AdamW, and a mixture of experts built from primitives. |

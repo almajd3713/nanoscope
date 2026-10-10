@@ -183,7 +183,7 @@ The discipline here is the point. The default failure mode of small-scale archit
 
 ### M4 — Inference and efficiency (≈20 hrs)
 
-Path: `efficiency` (bench, compile, roofline; the KV-cache lesson waits for your implementation).
+Path: `efficiency` (bench, compile, roofline; KV cache sizing and work).
 
 Your own model, your own serving stack. Build in this order:
 
