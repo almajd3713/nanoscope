@@ -1,4 +1,4 @@
-import type { ButtonHTMLAttributes } from "react";
+import type { AnchorHTMLAttributes, ButtonHTMLAttributes } from "react";
 import { Link, type LinkProps } from "react-router-dom";
 import styles from "./Button.module.css";
 
@@ -22,4 +22,9 @@ export function Button({ variant, size, className, ...rest }: Look & ButtonHTMLA
 
 export function ButtonLink({ variant, size, className, ...rest }: Look & LinkProps) {
   return <Link className={[classes({ variant, size }), className].filter(Boolean).join(" ")} {...rest} />;
+}
+
+// A file download or other link out of the app, drawn as a button.
+export function ButtonAnchor({ variant, size, className, ...rest }: Look & AnchorHTMLAttributes<HTMLAnchorElement>) {
+  return <a className={[classes({ variant, size }), className].filter(Boolean).join(" ")} {...rest} />;
 }

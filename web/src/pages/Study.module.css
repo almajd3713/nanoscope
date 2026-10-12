@@ -134,3 +134,19 @@
   max-height: 520px;
   overflow: auto;
 }
+
+.verdicts {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.reportCol {
+  flex: 999 1 560px;
+  min-width: 0;
+}
+
+.bundleCol {
+  flex: 0 1 280px;
+  min-width: 240px;
+}

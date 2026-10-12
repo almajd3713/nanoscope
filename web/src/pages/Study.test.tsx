@@ -77,6 +77,8 @@ describe("Study page", () => {
     open(allRuns("done"));
     const comparison = await screen.findByRole("region", { name: "Comparison" });
     expect(within(comparison).getByText(finalRow.text.delta)).toBeTruthy();
+    const verdicts = screen.getByRole("region", { name: "Verdicts" });
+    expect(within(verdicts).getByText(finalRow.text.statement!)).toBeTruthy();
     expect(within(comparison).getAllByText(/no shipped baselines with 3 or more seeds/).length).toBeGreaterThan(0);
     expect(within(comparison).getByRole("img", { name: /Δ val_bpb vs small, 95% CI/ })).toBeTruthy();
     const predictions = screen.getByRole("region", { name: "Predictions" });

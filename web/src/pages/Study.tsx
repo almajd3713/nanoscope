@@ -3,7 +3,7 @@ import { useCallback, useState } from "react";
 import { Link, useParams } from "react-router-dom";
 import { api } from "../api/client";
 import { ApiProblem, unwrap } from "../api/problem";
-import { Button, ButtonLink } from "../components/Button";
+import { Button, ButtonAnchor, ButtonLink } from "../components/Button";
 import { CardExport } from "../components/CardExport";
 import { EquivalentCommand } from "../components/EquivalentCommand";
 import { ForestPlot } from "../components/ForestPlot";
@@ -162,9 +162,9 @@ export function Study() {
           {shows("ablationCards", level) && s.mode === "record" && state === "done" && <Button onClick={() => setCardOpen(true)}>Export ablation card…</Button>}
           {shows("studyBuilder", level) && <ButtonLink to={`/studies/${name}/edit`}>Open in builder</ButtonLink>}
           {rep && (
-            <a className={`${styles.link} body-strong`} href={`/api/studies/${encodeURIComponent(name)}/bundle.zip`} download>
+            <ButtonAnchor variant="primary" href={`/api/studies/${encodeURIComponent(name)}/bundle.zip`} download>
               Download bundle
-            </a>
+            </ButtonAnchor>
           )}
         </div>
         {stop.error && <ProblemFromError error={stop.error} />}
@@ -191,6 +191,18 @@ export function Study() {
               extra={`${counts.running} running · ${counts.waiting} queued`}
               label="Study progress"
             />
+          </div>
+        </section>
+      )}
+
+      {rep && (
+        <section className={styles.panel} aria-label="Verdicts">
+          <div className={styles.verdicts}>
+            {rep.comparison.rows.filter((r) => r.text.statement).map((r) => (
+              <Verdict key={r.label} verdict={r.verdict}>
+                {r.text.statement}
+              </Verdict>
+            ))}
           </div>
         </section>
       )}
@@ -346,19 +358,18 @@ export function Study() {
       )}
 
       {rep && (
-        <section className={styles.panel} aria-label="Report">
-          <h2 className="heading">Report</h2>
-          <div className={styles.report}>{markdown.data ? <Markdown>{markdown.data}</Markdown> : <p className={`small ${styles.muted}`}>Loading the report…</p>}</div>
-        </section>
-      )}
-
-      {rep && (
-        <section className={styles.panel} aria-label="Bundle">
-          <h2 className="heading">Bundle</h2>
-          <p className={`small ${styles.muted}`}>One zip with everything needed to check or re-run the study.</p>
-          <a className={`${styles.link} body-strong`} href={`/api/studies/${encodeURIComponent(name)}/bundle.zip`} download>
-            Download {name}-bundle.zip
-          </a>
+        <section className={styles.split}>
+          <section className={`${styles.panel} ${styles.reportCol}`} aria-label="Report">
+            <h2 className="heading">Report</h2>
+            <div className={styles.report}>{markdown.data ? <Markdown>{markdown.data}</Markdown> : <p className={`small ${styles.muted}`}>Loading the report…</p>}</div>
+          </section>
+          <section className={`${styles.panel} ${styles.bundleCol}`} aria-label="Bundle">
+            <h2 className="heading">Bundle</h2>
+            <p className={`small ${styles.muted}`}>One zip with everything needed to check or re-run the study.</p>
+            <ButtonAnchor href={`/api/studies/${encodeURIComponent(name)}/bundle.zip`} download>
+              Download {name}-bundle.zip
+            </ButtonAnchor>
+          </section>
         </section>
       )}
 

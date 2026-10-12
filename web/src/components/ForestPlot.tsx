@@ -71,7 +71,7 @@ export function ForestPlot({ caption, rows, unit }: { caption: string; rows: For
             {t === 0 ? "0" : t.toFixed(2).replace(/\.?0+$/, "").replace("-", "−")}
           </text>
         ))}
-        <text x={x(0)} y={TOP - 1} textAnchor="middle" className={styles.tick}>
+        <text x={x(0)} y={TOP - 1} textAnchor={x(0) > W - RIGHT - 40 ? "end" : x(0) < LEFT + 40 ? "start" : "middle"} className={styles.tick}>
           no difference
         </text>
         <text x={LEFT} y={axisY + 30} textAnchor="start" className={styles.tick}>

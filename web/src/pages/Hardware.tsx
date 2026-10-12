@@ -134,16 +134,18 @@ export function Hardware() {
                   const slots = ws.reduce((n, w) => n + w.slots, 0);
                   const used = ws.reduce((n, w) => n + w.jobs.length, 0);
                   return (
-                    <tr key={d.name}>
+                    <tr key={d.name} className={styles.deviceRow}>
                       <td>
                         <span className={styles.cell}>
                           {d.kind === "cuda" ? <GraphicsCard size={16} aria-hidden="true" /> : <Cpu size={16} aria-hidden="true" />}
-                          <code className="value-strong">{d.name}</code>
-                          {d.label && <span className={styles.muted}>{d.label}</span>}
+                          <span className={styles.deviceName}>
+                            <code className="value-strong">{d.name}</code>
+                            {d.label && <span className={styles.muted}>{d.label}</span>}
+                          </span>
                         </span>
                       </td>
-                      <td>{d.kind === "cpu" ? `cpu · ${hardware.data.cpu_count} cores` : d.kind}</td>
-                      <td className={`value ${styles.right} ${d.memory_free === null ? styles.muted : ""}`}>
+                      <td className={styles.kind}>{d.kind === "cpu" ? `cpu · ${hardware.data.cpu_count} cores` : d.kind}</td>
+                      <td className={`value ${styles.right} ${styles.memory} ${d.memory_free === null ? styles.muted : ""}`}>
                         {d.memory_free === null || d.memory_total === null ? "–" : `${gb(d.memory_free)} of ${gb(d.memory_total)} GB`}
                       </td>
                       <td>
