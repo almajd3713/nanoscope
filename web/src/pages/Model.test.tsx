@@ -41,6 +41,7 @@ function open(routes: Parameters<typeof mockApi>[0] = {}) {
       <MemoryRouter initialEntries={[`/model/${FILE}`]}>
         <Routes>
           <Route path="/model/*" element={<Model />} />
+          <Route path="/runs/*" element={<p>The run page</p>} />
         </Routes>
       </MemoryRouter>
     </Providers>,
@@ -56,6 +57,13 @@ describe("Model page", () => {
     expect(await screen.findByLabelText("Attention in attn")).toBeTruthy();
     expect(screen.getByRole("navigation", { name: "Block palette" })).toBeTruthy();
     expect(screen.queryByLabelText(`Editor for ${FILE}`)).toBeNull();
+  });
+
+  it("Train queues a run of the open class with the defaults and opens it", async () => {
+    const seen = open({ "POST /api/runs": { status: 202, body: { ref: "run-1" } } });
+    await userEvent.click(await screen.findByRole("button", { name: "Train" }));
+    expect(await screen.findByText("The run page")).toBeTruthy();
+    expect(seen.find((x) => x.method === "POST" && x.path === "/api/runs")!.body).toMatchObject({ model: `${FILE}:MyModern`, kwargs: {} });
   });
 
   it("from Tinker up shows the editor beside the graph, on the same file", async () => {

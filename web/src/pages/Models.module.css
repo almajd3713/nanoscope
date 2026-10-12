@@ -80,3 +80,22 @@
 .table tbody tr:hover td {
   background: var(--surface);
 }
+
+.spacer {
+  flex: 1;
+}
+
+.good {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  color: var(--good);
+}
+
+.bad {
+  display: inline-flex;
+  align-items: baseline;
+  gap: var(--space-1);
+  color: var(--bad);
+  white-space: normal;
+}

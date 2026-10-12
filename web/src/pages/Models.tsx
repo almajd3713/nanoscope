@@ -3,17 +3,20 @@ import { Link } from "react-router-dom";
 import { api } from "../api/client";
 import { unwrap } from "../api/problem";
 import { useLevel } from "../app/level";
+import { useState } from "react";
 import { Button } from "../components/Button";
+import { EquivalentCommand } from "../components/EquivalentCommand";
+import { NewModelDialog } from "../components/NewModelDialog";
 import { ProblemFromError } from "../components/ProblemView";
 import { StateTag } from "../components/StateTag";
 import { Tag } from "../components/Tag";
 import { countText } from "../format";
 import { useBlocks } from "../graph/api";
-import { Check, Circle, SealCheck, Warning, X } from "../icons";
+import { Check, Circle, Plus, SealCheck, Warning, X } from "../icons";
 import { shows } from "../levels";
 import styles from "./Models.module.css";
 
-type Model = { name: string; ref: string; doc: string; shipped: boolean };
+type Model = { name: string; ref: string; doc: string; shipped: boolean; source?: string | null };
 type Job = {
   id: number;
   kind: string;
@@ -55,6 +58,12 @@ export function Models() {
     refetchInterval: (q) => ((q.state.data ?? []).some((j) => ACTIVE.includes(j.state)) ? 1000 : false),
   });
   const blocks = useBlocks();
+  const [creating, setCreating] = useState(false);
+  const files = useQuery({ queryKey: ["files", "models"], queryFn: () => unwrap(api.GET("/api/files", { params: { query: { glob: "models/**/*.py" } } })) as unknown as Promise<{ path: string; modified: number }[]> });
+  const edited = (file: string) => {
+    const f = files.data?.find((x) => x.path === file);
+    return f ? new Date(f.modified * 1000).toISOString().replace("T", " ").slice(0, 16) : "–";
+  };
   const trace = useMutation({
     mutationFn: (ref: string) => unwrap(api.POST("/api/models/{ref}/describe", { params: { path: { ref } } })),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ["jobs", "describe"] }),
@@ -73,8 +82,14 @@ export function Models() {
     <div className={styles.page}>
       <header className={styles.head}>
         <h1 className="title">Models</h1>
-        <span className={`small ${styles.muted}`}>from your workspace, read without running them</span>
+        <span className={`small ${styles.muted}`}>model classes found in <span className="value">workspace/</span>, read without running them</span>
+        <span className={styles.spacer} />
+        <Button variant="primary" onClick={() => setCreating(true)}>
+          <Plus size={16} aria-hidden="true" />
+          New model
+        </Button>
       </header>
+      <NewModelDialog open={creating} onOpenChange={setCreating} />
 
       <section className={styles.section} aria-label="Your models">
         <h2 className="heading">Your models</h2>
@@ -89,11 +104,12 @@ export function Models() {
             <table className={`${styles.table} small`}>
               <thead>
                 <tr>
-                  <th className="label" scope="col">Model</th>
                   <th className="label" scope="col">File</th>
+                  <th className="label" scope="col">Class</th>
                   <th className={`label ${styles.right}`} scope="col">Params</th>
                   <th className={`label ${styles.right}`} scope="col">FLOPs/token</th>
-                  <th className="label" scope="col">Trace</th>
+                  <th className="label" scope="col">Last trace</th>
+                  <th className="label" scope="col">Edited</th>
                 </tr>
               </thead>
               <tbody>
@@ -101,27 +117,29 @@ export function Models() {
                   const file = m.ref.slice(0, m.ref.lastIndexOf(":"));
                   const job = lastTrace(jobs.data ?? [], m.ref);
                   const done = job?.state === "done" ? job.result : null;
+                  const busy = job !== undefined && ACTIVE.includes(job.state);
                   return (
                     <tr key={m.ref}>
                       <td>
                         <Link to={`/model/${file}?class=${m.name}`} className={`value ${styles.link}`}>
-                          {m.name}
+                          {file}
                         </Link>
                       </td>
-                      <td className="value">{file}</td>
+                      <td className="value">{m.name}</td>
                       <td className={`value ${styles.right}`}>{done?.params ? countText(done.params.total) : "–"}</td>
                       <td className={`value ${styles.right}`}>{done?.flops_per_token !== undefined ? countText(done.flops_per_token) : "–"}</td>
                       <td>
                         <span className={styles.cell}>
-                          {!job && <Tag tone="muted" icon={Circle}>not traced</Tag>}
-                          {job && job.state !== "done" && <StateTag state={job.state} />}
-                          {job?.state === "done" && <Tag tone="good" icon={Check}>traced</Tag>}
-                          <Button size="sm" disabled={trace.isPending || (job !== undefined && ACTIVE.includes(job.state))} onClick={() => trace.mutate(m.ref)}>
+                          {job?.state === "done" && <span className={styles.good}><Check size={14} aria-hidden="true" /> no shape errors</span>}
+                          {job?.state === "failed" && <span className={styles.bad}><X size={14} aria-hidden="true" /> {job.error ?? "the trace failed"}</span>}
+                          {busy && job && <StateTag state={job.state} />}
+                          {!job && <span className={styles.muted}>not traced yet</span>}
+                          <Button size="sm" variant="quiet" disabled={trace.isPending || busy} onClick={() => trace.mutate(m.ref)}>
                             Trace
                           </Button>
-                          {job?.state === "failed" && job.error && <span className={styles.muted}>{job.error}</span>}
                         </span>
                       </td>
+                      <td className={`value ${styles.muted}`}>{edited(file)}</td>
                     </tr>
                   );
                 })}
@@ -178,6 +196,7 @@ export function Models() {
           {certify.isSuccess && <p className={`small ${styles.muted}`}>The check is queued; the result appears here when a worker finishes it.</p>}
         </section>
       )}
+      <EquivalentCommand cli={`nanoscope graph ${mine[0]?.source ?? "models/my_lm.py"}\nnanoscope blocks`} />
     </div>
   );
 }
