@@ -4,7 +4,7 @@ import { MemoryRouter, Route, Routes } from "react-router-dom";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { installEventSource, lastSource } from "../../test/eventsource";
 import { mockApi } from "../../test/fetch";
-import { resetLevelCache } from "../app/level";
+import { resetLevelCache, setLevel } from "../app/level";
 import { Providers } from "../app/providers";
 import { Study } from "./Study";
 
@@ -43,6 +43,7 @@ const report = {
 beforeEach(() => {
   localStorage.clear();
   resetLevelCache();
+  setLevel("Research");
   installEventSource();
 });
 afterEach(() => vi.unstubAllGlobals());
@@ -115,6 +116,14 @@ describe("Study page", () => {
     open(allRuns("done"), { "GET /api/studies/toy/card/upload": { body: { repo: "a/b", repo_type: "dataset", path_in_repo: "cards/toy.json", content: "{}", commit_message: "m", exported_at: "t" } } });
     await userEvent.click(await screen.findByRole("button", { name: "Export ablation card…" }));
     expect(await screen.findByText("Ablation card for toy")).toBeTruthy();
+  });
+
+  it("hides the card and builder controls below Research", async () => {
+    setLevel("Tinker");
+    open(allRuns("done"));
+    await screen.findByRole("region", { name: "Comparison" });
+    expect(screen.queryByRole("button", { name: "Export ablation card…" })).toBeNull();
+    expect(screen.queryByRole("link", { name: "Open in builder" })).toBeNull();
   });
 
   it("has no card button while runs are still going", async () => {

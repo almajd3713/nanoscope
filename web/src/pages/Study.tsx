@@ -15,7 +15,9 @@ import { Readout } from "../components/Readout";
 import { StateTag } from "../components/StateTag";
 import { Tag } from "../components/Tag";
 import { Verdict } from "../components/Verdict";
+import { useLevel } from "../app/level";
 import { Circle, Stop } from "../icons";
+import { shows } from "../levels";
 import { useEvents } from "../hooks/useEvents";
 import { parseRef, studyCounts, studyState, type RunLine } from "../studies/studyState";
 import styles from "./Study.module.css";
@@ -53,6 +55,7 @@ const UNIT: Record<string, string> = { val_bpb: "bpb", val_loss: "nats per token
 // One study: its runs as a variants × seeds grid that fills in over SSE, the comparison and forest
 // plot from finished runs, the report and the evidence bundle.
 export function Study() {
+  const level = useLevel();
   const { name = "" } = useParams();
   const queryClient = useQueryClient();
   const [live, setLive] = useState<Record<string, Patch>>({});
@@ -156,8 +159,8 @@ export function Study() {
               Stop study
             </Button>
           )}
-          {s.mode === "record" && state === "done" && <Button onClick={() => setCardOpen(true)}>Export ablation card…</Button>}
-          <ButtonLink to={`/studies/${name}/edit`}>Open in builder</ButtonLink>
+          {shows("ablationCards", level) && s.mode === "record" && state === "done" && <Button onClick={() => setCardOpen(true)}>Export ablation card…</Button>}
+          {shows("studyBuilder", level) && <ButtonLink to={`/studies/${name}/edit`}>Open in builder</ButtonLink>}
           {rep && (
             <a className={`${styles.link} body-strong`} href={`/api/studies/${encodeURIComponent(name)}/bundle.zip`} download>
               Download bundle

@@ -8,7 +8,9 @@ import { EquivalentCommand } from "../components/EquivalentCommand";
 import { ProblemFromError } from "../components/ProblemView";
 import { StateTag } from "../components/StateTag";
 import { stampText } from "../format";
+import { useLevel } from "../app/level";
 import { Cpu, GraphicsCard, Play, Warning, X } from "../icons";
+import { shows } from "../levels";
 import styles from "./Hardware.module.css";
 
 type Device = { name: string; kind: string; memory_total: number | null; memory_free: number | null; label: string | null };
@@ -48,6 +50,8 @@ function target(job: Job): string {
 
 // What this machine can train on, who is working, what is queued, and how fast each device is.
 export function Hardware() {
+  const level = useLevel();
+  const canBench = shows("bench", level);
   const queryClient = useQueryClient();
   const [filter, setFilter] = useState<Filter>("All");
   const [showAll, setShowAll] = useState(false);
@@ -266,47 +270,55 @@ export function Hardware() {
               Training speed measured on each device, 60 steps of the preset. Study estimates use these numbers.
             </span>
           </div>
-          <label className={styles.field}>
-            <span className="label">Model</span>
-            <select className={`${styles.select} value`} value={model} onChange={(e) => setBenchModel(e.target.value)}>
-              {models.data.map((m) => (
-                <option key={m.ref} value={m.ref}>{m.name}</option>
-              ))}
-            </select>
-          </label>
-          <label className={styles.field}>
-            <span className="label">Device</span>
-            <select className={`${styles.select} value`} value={device} onChange={(e) => setBenchDevice(e.target.value)}>
-              {hardware.data.devices.map((d) => (
-                <option key={d.name} value={d.name}>{d.name}</option>
-              ))}
-            </select>
-          </label>
-          <label className={styles.field}>
-            <span className="label">Preset</span>
-            <select className={`${styles.select} value`} value={benchPreset} onChange={(e) => setBenchPreset(e.target.value)}>
-              {presets.data.map((p) => (
-                <option key={p.name} value={p.name}>{p.name}</option>
-              ))}
-            </select>
-          </label>
-          <Button variant="primary" onClick={() => bench.mutate()} disabled={bench.isPending || !model}>
-            <Play size={16} aria-hidden="true" />
-            Run bench
-          </Button>
+          {canBench && (
+            <>
+            <label className={styles.field}>
+              <span className="label">Model</span>
+              <select className={`${styles.select} value`} value={model} onChange={(e) => setBenchModel(e.target.value)}>
+                {models.data.map((m) => (
+                  <option key={m.ref} value={m.ref}>{m.name}</option>
+                ))}
+              </select>
+            </label>
+            <label className={styles.field}>
+              <span className="label">Device</span>
+              <select className={`${styles.select} value`} value={device} onChange={(e) => setBenchDevice(e.target.value)}>
+                {hardware.data.devices.map((d) => (
+                  <option key={d.name} value={d.name}>{d.name}</option>
+                ))}
+              </select>
+            </label>
+            <label className={styles.field}>
+              <span className="label">Preset</span>
+              <select className={`${styles.select} value`} value={benchPreset} onChange={(e) => setBenchPreset(e.target.value)}>
+                {presets.data.map((p) => (
+                  <option key={p.name} value={p.name}>{p.name}</option>
+                ))}
+              </select>
+            </label>
+            <Button variant="primary" onClick={() => bench.mutate()} disabled={bench.isPending || !model}>
+              <Play size={16} aria-hidden="true" />
+              Run bench
+            </Button>
+            </>
+          )}
         </div>
-        {busyOn(device) > 0 && (
-          <span className={`small ${styles.warn}`}>
-            <Warning size={14} aria-hidden="true" />
-            {device} is training {busyOn(device)} {busyOn(device) === 1 ? "run" : "runs"}; a bench there now measures a shared device.
-          </span>
-        )}
-        {live.every((w) => w.device !== device) && (
-          <span className={`small ${styles.muted}`}>No worker is running on {device}: the bench waits in the queue until one starts.</span>
+        {canBench && (
+          <>
+          {busyOn(device) > 0 && (
+            <span className={`small ${styles.warn}`}>
+              <Warning size={14} aria-hidden="true" />
+              {device} is training {busyOn(device)} {busyOn(device) === 1 ? "run" : "runs"}; a bench there now measures a shared device.
+            </span>
+          )}
+          {live.every((w) => w.device !== device) && (
+            <span className={`small ${styles.muted}`}>No worker is running on {device}: the bench waits in the queue until one starts.</span>
+          )}
+          </>
         )}
         {bench.error && <ProblemFromError error={bench.error} />}
         {history.data && history.data.length === 0 ? (
-          <p className={`small ${styles.muted}`} style={{ margin: 0 }}>No bench results yet. Run one to give studies an estimate.</p>
+          <p className={`small ${styles.muted}`} style={{ margin: 0 }}>No bench results yet.{canBench ? " Run one to give studies an estimate." : ""}</p>
         ) : (
           <div className={styles.wrap}>
             <table className={`${styles.table} small`}>

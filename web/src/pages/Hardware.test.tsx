@@ -5,7 +5,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import models from "../../test/fixtures/models.json";
 import presets from "../../test/fixtures/presets.json";
 import { mockApi } from "../../test/fetch";
-import { resetLevelCache } from "../app/level";
+import { resetLevelCache, setLevel } from "../app/level";
 import { Providers } from "../app/providers";
 import { Hardware } from "./Hardware";
 
@@ -34,6 +34,7 @@ const benchRow = { schema: 1, at: "2026-10-08T20:58:00+00:00", model: "GPT2", de
 beforeEach(() => {
   localStorage.clear();
   resetLevelCache();
+  setLevel("Research");
 });
 afterEach(() => vi.unstubAllGlobals());
 
@@ -58,6 +59,14 @@ function open(routes: Parameters<typeof mockApi>[0] = {}) {
 }
 
 describe("Hardware page", () => {
+  it("keeps the bench history but hides the bench controls below Research", async () => {
+    setLevel("Tinker");
+    open();
+    expect(await screen.findByText("Bench")).toBeTruthy();
+    expect(screen.queryByRole("button", { name: "Run bench" })).toBeNull();
+    expect(screen.getByText("68,844")).toBeTruthy();
+  });
+
   it("shows devices with the GPU's name, workers with their secrets by name, and what is busy", async () => {
     open();
     const devices = await screen.findByRole("region", { name: "Devices" });
