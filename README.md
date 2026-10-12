@@ -1,8 +1,8 @@
 # nanoscope
 
-A workbench for learning and researching small language models. You write a PyTorch `nn.Module`;
-nanoscope trains it, evaluates it, and tells you whether a difference between two models is bigger
-than seed noise.
+A web app for learning how small language models work and for testing changes to them properly.
+You build a model in lessons, edit it as code or as a graph, train it, and compare it with another
+model with confidence intervals instead of a single loss number.
 
 It has three parts that share one code path:
 
@@ -17,62 +17,50 @@ It has three parts that share one code path:
 
 ```bash
 docker compose up
-docker compose logs api | grep login     # open this link once
+docker compose logs api | grep login
 ```
 
-The API listens on `127.0.0.1:8765` with one CPU worker. Optional profiles: `gpu`, `notebook`
-(marimo on `:8766`), `editor-lsp`.
+Open the link that grep prints. The app is at `http://127.0.0.1:8765` and trains on one CPU worker.
+For an NVIDIA GPU use `docker compose --profile gpu up`.
 
-Without Docker (Python 3.10 to 3.12):
+Without Docker, on Python 3.10 to 3.12:
 
 ```bash
 pip install "nanoscope-lab[server]"
-nanoscope serve --worker cpu             # http://127.0.0.1:8000
+nanoscope serve --worker cpu
 ```
 
-The login token is a remote login: it can save files and queue runs that execute. Keep the server
-on loopback, behind an SSH tunnel, or behind an HTTPS proxy. See [docs/deploy.md](docs/deploy.md).
+That serves on `http://127.0.0.1:8000`. The login token lets whoever has it run code on your
+machine, so keep the server on localhost or behind an SSH tunnel. Setup for GPUs, remote use and
+backups is in [docs/deploy.md](docs/deploy.md).
 
 ## Usage
 
+The Learn, Tinker, Research and Extend switch hides controls you don't need yet. It doesn't
+change what runs. [docs/gui.md](docs/gui.md) describes each screen. The app calls the same code as
+Python and the command line:
+
 ```python
-import torch.nn as nn
 from nanoscope import compare, run
 
-class Bigram(nn.Module):
-    def __init__(self, vocab_size: int, d_model: int = 32):
-        super().__init__()
-        self.token_embedding = nn.Embedding(vocab_size, d_model)
-        self.head = nn.Linear(d_model, vocab_size, bias=False)
-
-    def forward(self, idx):
-        return self.head(self.token_embedding(idx))
-
-result = run(Bigram, preset="tinystories-5min")   # about a minute on a laptop CPU
-compare(result, "gpt2")                           # against a shipped 3-seed baseline
+result = run(MyModel, preset="tinystories-5min")
+compare(result, "gpt2")
 ```
-
-`run(Model, seeds=5)` trains several seeds. `Study` adds budgets, parameter matching, preregistration
-and record mode ([docs/research.md](docs/research.md)). Hooks, presets, optimizers and your own
-blocks are covered in [docs/blocks.md](docs/blocks.md).
-
-## Command line
 
 ```bash
-nanoscope run nanoscope/models/gpt2.py:GPT2 --seeds 3
+nanoscope run models/my_model.py:MyModel --seeds 3
 nanoscope compare modern gpt2 --preset tinystories-5min
-nanoscope study studies/m1_ablation.py --dry-run     # estimate the cost first
-nanoscope status runs
-nanoscope describe my_model.py:MyLM                  # shapes, params, FLOPs per module
-nanoscope inspect <run> --step 200 --prompt "Once"
-nanoscope learn list
+nanoscope --help
 ```
+
+[docs/research.md](docs/research.md) covers studies and [docs/blocks.md](docs/blocks.md) covers
+writing your own blocks.
 
 ## Develop
 
 ```bash
 uv sync --all-extras
-make check        # lint, typecheck, tests: what CI runs
+make check        # what CI runs
 make web          # build the app into the package
 pnpm -C web dev   # app with hot reload
 ```
@@ -83,3 +71,4 @@ Tokens come from [TinyStories](https://huggingface.co/datasets/roneneldan/TinySt
 (CDLA-Sharing-1.0) and [FineWeb-Edu](https://huggingface.co/datasets/HuggingFaceFW/fineweb-edu)
 (ODC-By 1.0), cached under `~/.nanoscope/data`.
 
+Architecture notes are in [docs/architecture.md](docs/architecture.md). MIT licensed.
