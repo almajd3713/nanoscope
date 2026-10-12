@@ -59,3 +59,31 @@ def match_params(
 
     best = min(candidates, key=distance)
     return {**kwargs, knob: best}
+
+
+def closest_value(
+    model_cls: type[nn.Module],
+    target: int,
+    knob: str,
+    lo: int = 8,
+    hi: int = 65536,
+    step: int = 8,
+    **kwargs: Any,
+) -> int:
+    """The multiple of `step` in [lo, hi] for `knob` whose non-embedding parameter count is
+    closest to `target`, by bisection (a width knob only ever adds parameters)."""
+    if knob not in inspect.signature(model_cls).parameters:
+        raise TypeError(f"{model_cls.__name__} has no parameter {knob!r}")
+
+    def count(value: int) -> int:
+        return count_params(build_on_meta(model_cls, **kwargs, **{knob: value}))[1]
+
+    a, b = lo // step, hi // step
+    while a < b:
+        mid = (a + b) // 2
+        if count(mid * step) < target:
+            a = mid + 1
+        else:
+            b = mid
+    return min((v for v in (max(a - 1, lo // step), a) if v >= 1),
+               key=lambda v: abs(count(v * step) - target)) * step

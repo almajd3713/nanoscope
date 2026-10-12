@@ -3,6 +3,7 @@ import userEvent from "@testing-library/user-event";
 import { MemoryRouter, Route, Routes } from "react-router-dom";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import models from "../../test/fixtures/models.json";
+import realSizes from "../../test/fixtures/study-sizes.json";
 import presets from "../../test/fixtures/presets.json";
 import { installEventSource } from "../../test/eventsource";
 import { mockApi } from "../../test/fetch";
@@ -96,6 +97,24 @@ describe("StudyBuilder", () => {
       expect(sent.workers_per_device).toBe(1);
     });
     await waitFor(() => expect(screen.getByText(/unsaved changes/)).toBeTruthy());
+  });
+
+  it("offers the width that brings a variant inside the tolerance, and applies it on click", async () => {
+    const [gpt2, modern] = realSizes.variants;
+    const spec = { ...SPEC, baseline: "gpt2", variants: [
+      { name: "gpt2", model: "nanoscope.models.gpt2:GPT2", kwargs: gpt2!.kwargs },
+      { name: "modern", model: "nanoscope.models.modern:Modern", kwargs: modern!.kwargs },
+    ] };
+    const seen = open("/studies/toy/edit", {
+      "GET /api/studies/toy/spec": { body: { name: "toy", path: "studies/toy.toml", spec, toml: TOML } },
+      "GET /api/jobs/5": { body: job("done", realSizes) },
+    });
+    await userEvent.click(await screen.findByRole("button", { name: "Use ffn_hidden = 384 (-0.7%)" }));
+    expect((screen.getByLabelText("Keywords of modern") as HTMLInputElement).value).toContain("ffn_hidden = 384");
+    await waitFor(() => {
+      const sent = seen.filter((s) => s.path === "/api/validate/study").at(-1)?.body as { spec: { variants: { kwargs: Record<string, unknown> }[] } };
+      expect(sent.spec.variants[1]!.kwargs.ffn_hidden).toBe(384);
+    });
   });
 
   it("adds and removes variants, and keeps the baseline pointing at one that exists", async () => {

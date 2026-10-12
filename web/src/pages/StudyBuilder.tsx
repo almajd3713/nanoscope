@@ -13,7 +13,7 @@ import { PreregDialog } from "../components/PreregDialog";
 import { ProblemFromError, ProblemView } from "../components/ProblemView";
 import { countText } from "../format";
 import { Play, Plus, Trash } from "../icons";
-import { freshName, fromSpec, toSpec, type StudyDraft, type VariantDraft } from "../studyDraft";
+import { freshName, fromSpec, setKwarg, toSpec, type StudyDraft, type VariantDraft } from "../studyDraft";
 import { useSizes, useStudyFromFile, useStudyValidation, type Problem, type SizeRow } from "../studies/useStudyChecks";
 import styles from "./StudyBuilder.module.css";
 
@@ -387,6 +387,19 @@ function Builder({
               key={r.name}
               title={`${r.name} is outside the size tolerance`}
               detail={`${r.non_embedding_params.toLocaleString("en-US")} non-embedding params, ${(Math.abs(r.delta) * 100).toFixed(1)}% ${r.delta > 0 ? "above" : "below"} ${sizes.data?.reference}; match = params allows ${((sizes.data?.tolerance ?? 0) * 100).toFixed(0)}%.`}
+              next={
+                r.suggestion && (
+                  <Button
+                    size="sm"
+                    onClick={() => {
+                      const at = draft.variants.findIndex((v) => v.name === r.name);
+                      if (at >= 0 && r.suggestion) setVariant(at, { kwargs: setKwarg(draft.variants[at]!.kwargs, r.suggestion.knob, r.suggestion.value) });
+                    }}
+                  >
+                    {`Use ${r.suggestion.knob} = ${r.suggestion.value} (${r.suggestion.delta >= 0 ? "+" : ""}${(r.suggestion.delta * 100).toFixed(1)}%)`}
+                  </Button>
+                )
+              }
             />
           ))}
           {sizes.error && <ProblemFromError error={sizes.error} />}

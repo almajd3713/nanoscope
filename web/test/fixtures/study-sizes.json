@@ -1,0 +1,39 @@
+{
+  "reference": "gpt2",
+  "tolerance": 0.02,
+  "variants": [
+    {
+      "name": "gpt2",
+      "kwargs": {
+        "d_model": 128,
+        "n_layers": 4,
+        "n_heads": 4
+      },
+      "non_embedding_params": 793344,
+      "flops_per_token": 9478656,
+      "delta": 0.0,
+      "within": true,
+      "suggestion": null
+    },
+    {
+      "name": "modern",
+      "kwargs": {
+        "d_model": 128,
+        "n_layers": 4,
+        "n_heads": 4,
+        "n_kv_heads": 2,
+        "ffn_hidden": 64
+      },
+      "non_embedding_params": 296320,
+      "flops_per_token": 6496512,
+      "delta": -0.6264924169086802,
+      "within": false,
+      "suggestion": {
+        "knob": "ffn_hidden",
+        "value": 384,
+        "non_embedding_params": 787840,
+        "delta": -0.006937721845756696
+      }
+    }
+  ]
+}
