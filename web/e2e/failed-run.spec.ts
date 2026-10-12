@@ -9,7 +9,8 @@ test("a failed run shows its error from status.json", async ({ page }) => {
   await expect(page.getByRole("button", { name: "Train" })).toBeVisible(); // the model page, or the lesson page of a started lesson
   await page.getByRole("button", { name: "Train" }).click();
   await page.waitForURL(/\/runs\//);
-  const error = page.getByRole("alert");
+  // Monaco keeps two empty role=alert nodes in the page once an editor has mounted: they are not the error
+  const error = page.locator('[role="alert"]:not(.monaco-alert)');
   await expect(error).toContainText("NotImplementedError", { timeout: 240_000 });
   await expect(error).toContainText("embed, window, hidden layer, project");
   await expect(page.getByText("failed", { exact: true }).first()).toBeVisible();
