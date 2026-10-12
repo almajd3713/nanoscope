@@ -302,6 +302,34 @@ def test_learn_start_copies_the_marimo_notebook(curricula, home, capsys, monkeyp
     assert target.read_text() == MARIMO_NOTEBOOK and f"copied {target}" in capsys.readouterr().out
 
 
+def test_learn_template_swaps_the_starter_and_keeps_your_work(curricula, home, capsys, monkeypatch, tmp_path):
+    from nanoscope import paths
+    from nanoscope.cli import main
+
+    monkeypatch.setenv("NANOSCOPE_WORKSPACE", str(tmp_path / "ws"))
+    lesson = curricula / "foundations" / "01-bigram"
+    with pytest.raises(SystemExit) as refused:
+        main(["learn", "template", "foundations/01-bigram"])
+    assert refused.value.code == 2
+    assert "has no block template" in capsys.readouterr().out
+    (lesson / "starter_template.py").write_text("# from blocks\n")
+    folder = paths.workspace_dir() / "lessons" / "foundations" / "01-bigram"
+    main(["learn", "start", "foundations/01-bigram"])
+    capsys.readouterr()
+    # an untouched starter is replaced without a copy
+    main(["learn", "template", "foundations/01-bigram"])
+    assert (folder / "starter.py").read_text() == "# from blocks\n" and not (folder / "starter_by_hand.py").exists()
+    # work of yours is kept beside it, and a second swap does not overwrite that copy
+    (folder / "starter.py").write_text("# my own bigram\n")
+    main(["learn", "template", "foundations/01-bigram"])
+    assert (folder / "starter_by_hand.py").read_text() == "# my own bigram\n"
+    assert f"kept as {folder / 'starter_by_hand.py'}" in capsys.readouterr().out
+    (folder / "starter.py").write_text("# my second try\n")
+    main(["learn", "template", "foundations/01-bigram"])
+    assert (folder / "starter_by_hand.py").read_text() == "# my own bigram\n"
+    assert (folder / "starter_by_hand_2.py").read_text() == "# my second try\n"
+
+
 def test_learn_start(curricula, home, capsys, monkeypatch, tmp_path):
     from nanoscope import paths
     from nanoscope.cli import main

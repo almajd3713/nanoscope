@@ -11,7 +11,7 @@ from pydantic import BaseModel
 
 from nanoscope import paths, queue
 from nanoscope.learn import gating, loader, progress, unlocks
-from nanoscope.learn.cli import locked_by, start_lesson, workspace_lesson_dir
+from nanoscope.learn.cli import locked_by, start_lesson, use_template, workspace_lesson_dir
 from nanoscope.learn.loader import LessonSpec
 from nanoscope.server import sse
 from nanoscope.server.jobs import job_doc
@@ -89,7 +89,7 @@ def curricula() -> list[PathSummary]:
 def lesson_detail(path: str, lesson: str) -> LessonDetail:
     """One lesson: its text (Surface, Deep, Reading), checks, unlocks and starter files."""
     spec = loader.load_lesson(f"{path}/{lesson}")
-    files = [n for n in ("starter.py", "notebook.py") if (spec.dir / n).exists()]
+    files = [n for n in ("starter.py", "starter_template.py", "notebook.py") if (spec.dir / n).exists()]
     return LessonDetail(
         **_summary(spec).model_dump(), prerequisites=spec.prerequisites, forbid=spec.forbid,
         checks=[{"id": c.id, "kind": c.kind, **c.args} for c in spec.checks],
@@ -130,6 +130,25 @@ def start(path: str, lesson: str, body: StartRequest | None = None) -> StartResu
         copied=[p.relative_to(root).as_posix() for p in copied],
         kept=[p.relative_to(root).as_posix() for p in kept], state=progress.state(spec.id),
         policy=unlocks.policy(), first_start=first)
+
+
+class TemplateResult(BaseModel):
+    lesson: str
+    starter: str  # the workspace file, now the block template
+    saved_as: str | None  # where your earlier starter.py went, if it held work
+
+
+@router.post("/curricula/{path}/{lesson}/template")
+def template(path: str, lesson: str) -> TemplateResult:
+    """Build the lesson's class from blocks instead: starter.py becomes the lesson's block
+    template, which the model page draws. A starter.py you had edited is kept beside it as
+    starter_by_hand.py. A lesson without a template is a 422."""
+    spec = loader.load_lesson(f"{path}/{lesson}")
+    starter, saved = use_template(spec)
+    root = paths.workspace_dir()
+    return TemplateResult(
+        lesson=spec.id, starter=starter.relative_to(root).as_posix(),
+        saved_as=saved.relative_to(root).as_posix() if saved else None)
 
 
 class CheckRequest(BaseModel):

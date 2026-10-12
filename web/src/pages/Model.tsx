@@ -1,4 +1,4 @@
-import { useMutation } from "@tanstack/react-query";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 import { useNavigate, useParams, useSearchParams } from "react-router-dom";
 import { api } from "../api/client";
@@ -62,6 +62,14 @@ export function Model() {
     mutationFn: () => unwrap(api.POST("/api/runs", { body: { ...RUN_DEFAULTS, kwargs: {}, model: `${path}:${cls?.name ?? ""}` } })) as Promise<{ ref: string }>,
     onSuccess: (run) => navigate(`/runs/${run.ref}`),
   });
+  const queryClient = useQueryClient();
+  const blockTemplate = useMutation({
+    mutationFn: () => unwrap(api.POST("/api/curricula/{path}/{lesson}/template", { params: { path: { path: lesson.ids?.path ?? "", lesson: lesson.ids?.lesson ?? "" } } })),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: ["file", path] });
+      void queryClient.invalidateQueries({ queryKey: ["graph", path] });
+    },
+  });
   const source = useFileDoc(path).data?.content ?? "";
   // a failed equivalence check goes on its class, as the lesson names it
   const checked = lesson.check.result && lesson.detail ? fromChecks(lesson.check.result.checks, lesson.detail.checks, source) : [];
@@ -92,10 +100,21 @@ export function Model() {
       <div className={styles.page}>
         <h1 className="title">{path}</h1>
         {lesson.ids && <LessonBar file={path} lesson={lesson} />}
-        {lesson.ids ? (
+        {lesson.ids && lesson.detail?.files?.includes("starter_template.py") ? (
+          <EmptyState
+            title="You are writing this one by hand"
+            body="There is nothing to draw for plain PyTorch. To use the graph and the palette instead, build the same class by filling slots with blocks. What you have written is kept next to it as starter_by_hand.py."
+            action={
+              <Button disabled={blockTemplate.isPending} onClick={() => blockTemplate.mutate()}>
+                Build it from blocks instead
+              </Button>
+            }
+            command={`nanoscope learn template ${lesson.id}`}
+          />
+        ) : lesson.ids ? (
           <EmptyState
             title="This lesson is plain PyTorch"
-            body="You write the layers yourself, so there is nothing to draw. The graph appears in the lessons that give you a template to fill."
+            body="You write the layers yourself, so there is nothing to draw."
           />
         ) : (
           <EmptyState
@@ -104,6 +123,7 @@ export function Model() {
             action={<Button onClick={() => setCreating(true)}>Start a model from blocks</Button>}
           />
         )}
+        {blockTemplate.error && <ProblemFromError error={blockTemplate.error} />}
         <NewModelDialog open={creating} onOpenChange={setCreating} />
         {shows("editor", level) || lesson.ids ? (
           <Editor path={path} markers={checked} />

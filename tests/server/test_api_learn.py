@@ -44,6 +44,30 @@ def test_lessons(client):
     assert client.get("/api/curricula/foundations/99-nope").status_code == 422
 
 
+def test_template_route_of_lesson_three(client, tmp_path):
+    """Lesson 3 can be built from blocks: starter.py becomes the template, the model page draws
+    it, and what the learner wrote is kept beside it."""
+    from nanoscope.blocks.graph import parse
+
+    lesson = "foundations/03-attention-head"
+    assert "starter_template.py" in client.get(f"/api/curricula/{lesson}").json()["files"]
+    assert "starter_template.py" not in client.get(
+        "/api/curricula/foundations/01-bigram").json()["files"]
+    client.post(f"/api/curricula/{lesson}/start")
+    starter = tmp_path / "ws" / "lessons" / lesson / "starter.py"
+    starter.write_text("# my attention head\n")
+    done = client.post(f"/api/curricula/{lesson}/template")
+    assert done.status_code == 200
+    assert done.json() == {"lesson": lesson, "starter": f"lessons/{lesson}/starter.py",
+                           "saved_as": f"lessons/{lesson}/starter_by_hand.py"}
+    assert starter.with_name("starter_by_hand.py").read_text() == "# my attention head\n"
+    (drawn,) = parse(starter)["classes"]
+    assert drawn["name"] == "OneHead" and drawn["kind"] == "filled"
+    # a lesson that is plain PyTorch by design says so
+    refused = client.post("/api/curricula/foundations/01-bigram/template")
+    assert refused.status_code == 422 and "no block template" in refused.json()["detail"]
+
+
 def test_start_never_overwrites_and_turns_gating_on(client, tmp_path):
     assert not unlocks.exists()
     started = client.post("/api/curricula/foundations/01-bigram/start")

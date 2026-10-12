@@ -58,6 +58,10 @@ def add_parsers(sub: argparse._SubParsersAction) -> None:  # type: ignore[type-a
     start.add_argument("--open", action="store_true",
                        help="don't gate blocks (policy open) when starting for the first time")
 
+    template = commands.add_parser(
+        "template", help="Build a lesson's class from blocks instead (the model page draws it)")
+    template.add_argument("lesson", help="e.g. foundations/03-attention-head")
+
 
 def _minutes(minutes: float) -> str:
     return f"{minutes:g} min" if minutes < 90 else f"{minutes / 60:.3g} h"
@@ -130,6 +134,36 @@ def start_lesson(lesson: LessonSpec, owner: str = "local") -> tuple[Path, list[P
     if progress.state(lesson.id, owner) == "not-started":
         progress.mark(lesson.id, "started", owner=owner)
     return folder, copied, kept
+
+
+def use_template(lesson: LessonSpec, owner: str = "local") -> tuple[Path, Path | None]:
+    """Replace starter.py with the lesson's block template (`starter_template.py`: the same class
+    built by filling slots, which the model page draws). Work you wrote by hand in starter.py is
+    kept beside it as starter_by_hand.py (starter_by_hand_2.py ...), never overwritten.
+    Returns (starter, where the old file went or None)."""
+    source = lesson.dir / "starter_template.py"
+    if not source.exists():
+        raise ValueError(f"{lesson.id} has no block template; its starter is plain PyTorch")
+    folder = workspace_lesson_dir(lesson)
+    folder.mkdir(parents=True, exist_ok=True)
+    target = folder / "starter.py"
+    template = source.read_text(encoding="utf-8")
+    saved = None
+    if target.exists():
+        old = target.read_text(encoding="utf-8")
+        shipped = lesson.dir / "starter.py"
+        untouched = shipped.exists() and old == shipped.read_text(encoding="utf-8")
+        if old != template and not untouched:
+            saved = folder / "starter_by_hand.py"
+            n = 2
+            while saved.exists():
+                saved = folder / f"starter_by_hand_{n}.py"
+                n += 1
+            saved.write_text(old, encoding="utf-8")
+    target.write_text(template, encoding="utf-8")
+    if progress.state(lesson.id, owner) == "not-started":
+        progress.mark(lesson.id, "started", owner=owner)
+    return target, saved
 
 
 def _resolve_id(text: str) -> str:
@@ -263,10 +297,22 @@ def run(args: argparse.Namespace) -> int:
 def _run(args: argparse.Namespace) -> int:
     command = args.learn_command
     if command is None:
-        print("usage: nanoscope learn list | start | predict | check <lesson>")
+        print("usage: nanoscope learn list | start | template | predict | check <lesson>")
         return 0
     if command == "list":
         print(format_paths(load_paths(args.path)))
+        return 0
+    if command == "template":
+        lesson = loader.load_lesson(args.lesson)
+        try:
+            starter, saved = use_template(lesson)
+        except ValueError as exc:
+            print(exc)
+            return 2
+        print(f"wrote the block template to {starter}")
+        if saved:
+            print(f"  your earlier file is kept as {saved}")
+        print(f"  open it on the model page, fill the slots, then: nanoscope learn check {lesson.id}")
         return 0
     if command == "start":
         lesson = loader.load_lesson(args.lesson)
