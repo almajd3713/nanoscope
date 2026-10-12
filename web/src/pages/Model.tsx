@@ -95,7 +95,7 @@ export function Model() {
         {lesson.ids ? (
           <EmptyState
             title="This lesson is plain PyTorch"
-            body="You write the layers yourself, so there is nothing to draw. The graph appears in the lessons that give you a template to fill."
+            body="You write the layers yourself, so there is nothing to draw."
           />
         ) : (
           <EmptyState
