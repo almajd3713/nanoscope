@@ -4,6 +4,8 @@ import { useNavigate, useParams, useSearchParams } from "react-router-dom";
 import { api } from "../api/client";
 import { unwrap } from "../api/problem";
 import { useLevel } from "../app/level";
+import { PhoneNotice } from "../components/PhoneNotice";
+import { usePhone } from "../hooks/usePhone";
 import { Button } from "../components/Button";
 import { Editor } from "../components/Editor";
 import { EmptyState } from "../components/EmptyState";
@@ -36,6 +38,7 @@ export function Model() {
   const path = useParams()["*"] ?? "";
   const [search, setSearch] = useSearchParams();
   const level = useLevel();
+  const phone = usePhone();
   const navigate = useNavigate();
   const graph = useGraph(path);
   const blocks = useBlocks();
@@ -109,6 +112,29 @@ export function Model() {
   };
   // a lesson's file is the exercise: it must be editable at every level
   const editor = shows("editor", level) || Boolean(lesson.ids);
+  if (phone) {
+    return (
+      <PhoneNotice
+        title="The model page needs a screen at least 1024 px wide"
+        back={{ to: "/models", label: "Back to Models" }}
+        actions={
+          cls && !lesson.ids ? (
+            <Button variant="primary" disabled={train.isPending} onClick={() => train.mutate()}>
+              <Play size={16} aria-hidden="true" />
+              Train with defaults
+            </Button>
+          ) : null
+        }
+      >
+        <p className="body">The editor, the graph and drag and drop do not fit a phone. You can train this model from here.</p>
+        <p className="small">
+          <span className="value">{path}</span>
+          {cls ? <> · class <span className="value">{cls.name}</span></> : null}
+        </p>
+        {train.error && <ProblemFromError error={train.error} />}
+      </PhoneNotice>
+    );
+  }
   return (
     <div className={styles.page}>
       <header className={styles.head}>

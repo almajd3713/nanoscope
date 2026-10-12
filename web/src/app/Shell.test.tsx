@@ -98,3 +98,17 @@ describe("Shell", () => {
     expect(within(group).getByRole("radio", { name: "Learn" }).getAttribute("aria-checked")).toBe("true");
   });
 });
+
+describe("Shell on a phone", () => {
+  it("names the page and opens the nav from a Menu button, closing it when you go somewhere", async () => {
+    renderShell("/runs");
+    const button = screen.getByRole("button", { name: "Menu" });
+    expect(button.getAttribute("aria-expanded")).toBe("false");
+    expect(screen.getAllByText("Runs").length).toBeGreaterThan(1); // the bar's page name, and the nav link
+    await userEvent.click(button);
+    expect(button.getAttribute("aria-expanded")).toBe("true");
+    await userEvent.click(within(screen.getByRole("navigation", { name: "Main" })).getByRole("link", { name: "Learn" }));
+    expect(screen.getByRole("button", { name: "Menu" }).getAttribute("aria-expanded")).toBe("false");
+    expect(screen.getByText("learn page")).toBeTruthy();
+  });
+});

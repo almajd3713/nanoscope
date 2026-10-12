@@ -144,3 +144,15 @@ describe("Model page", () => {
     expect(await screen.findByText(`no such file: ${FILE}`)).toBeTruthy();
   });
 });
+
+describe("Model page on a phone", () => {
+  it("shows a notice with Train instead of the editor and the graph", async () => {
+    vi.stubGlobal("matchMedia", () => ({ matches: true, addEventListener() {}, removeEventListener() {} }));
+    const seen = open({ "POST /api/runs": { status: 202, body: { ref: "run-1" } } });
+    expect(await screen.findByText("The model page needs a screen at least 1024 px wide")).toBeTruthy();
+    expect(screen.queryByLabelText("Attention in attn")).toBeNull();
+    await userEvent.click(await screen.findByRole("button", { name: "Train with defaults" }));
+    await screen.findByText("The run page");
+    expect(seen.find((x) => x.method === "POST" && x.path === "/api/runs")).toBeTruthy();
+  });
+});

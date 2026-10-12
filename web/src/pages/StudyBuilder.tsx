@@ -5,6 +5,8 @@ import { Link, useNavigate, useParams, useSearchParams } from "react-router-dom"
 import { api } from "../api/client";
 import { unwrap } from "../api/problem";
 import { Button } from "../components/Button";
+import { PhoneNotice } from "../components/PhoneNotice";
+import { usePhone } from "../hooks/usePhone";
 import { EquivalentCommand } from "../components/EquivalentCommand";
 import { Field } from "../components/Field";
 import { Note } from "../components/Note";
@@ -38,7 +40,18 @@ const gb = (bytes: number | null) => (bytes === null ? "" : `${(bytes / 1024 ** 
 
 // A study as a form: the plan, the variants with their sizes, the compute it would use. The file
 // it saves is the committable `studies/<name>.toml`; the library judges every value.
+// On a phone the builder shows a notice: the form, the sizes table and the preview do not fit.
 export function StudyBuilder() {
+  return usePhone() ? (
+    <PhoneNotice title="The study builder needs a screen at least 1024 px wide" back={{ to: "/studies", label: "Back to Studies" }}>
+      <p className="body">Build and edit studies on a larger screen. Studies that exist can still be read from the Studies page.</p>
+    </PhoneNotice>
+  ) : (
+    <StudyBuilderForm />
+  );
+}
+
+function StudyBuilderForm() {
   const { name } = useParams();
   // /studies/new?file=studies/mine.py opens a Python study (a worker reads it as a spec)
   const file = useSearchParams()[0].get("file");

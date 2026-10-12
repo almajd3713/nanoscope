@@ -3,6 +3,7 @@ import { useCallback, useState } from "react";
 import { Link, useSearchParams } from "react-router-dom";
 import { api } from "../api/client";
 import { unwrap } from "../api/problem";
+import { usePhone } from "../hooks/usePhone";
 import { useLevel } from "../app/level";
 import { ButtonLink } from "../components/Button";
 import { EquivalentCommand } from "../components/EquivalentCommand";
@@ -19,6 +20,7 @@ const STATES = ["all", "running", "queued", "done", "stopped", "failed"] as cons
 type Patch = { state?: string; step?: number; max_steps?: number; val_bpb?: number };
 
 export function Runs() {
+  const phone = usePhone();
   const [params, setParams] = useSearchParams();
   const prefix = params.get("prefix") ?? "";
   const stateFilter = params.get("state") ?? "all";
@@ -87,7 +89,7 @@ export function Runs() {
           {stream === "paused" ? <span className={styles.warn}>Live updates paused. Reconnecting…</span> : "live"}
         </span>
         <span className={styles.spacer} />
-        {shows("compare", level) && (
+        {!phone && shows("compare", level) && (
           <ButtonLink
             to={`/compare?runs=${selected.join(",")}`}
             aria-disabled={selected.length < 2}
@@ -97,7 +99,7 @@ export function Runs() {
             Compare selected
           </ButtonLink>
         )}
-        {shows("runForm", level) && (
+        {!phone && shows("runForm", level) && (
           <ButtonLink to="/runs/new" variant="primary">
             <Plus size={16} aria-hidden="true" />
             New run
@@ -106,7 +108,7 @@ export function Runs() {
       </header>
 
       <div className={styles.filters}>
-        <div className={styles.search}>
+        {!phone && <div className={styles.search}>
           <MagnifyingGlass size={16} aria-hidden="true" />
           <input
             aria-label="Filter by ref prefix"
@@ -114,7 +116,7 @@ export function Runs() {
             value={prefix}
             onChange={(e) => set("prefix", e.target.value)}
           />
-        </div>
+        </div>}
         <div className={`${styles.states} small`} role="group" aria-label="State">
           {STATES.map((s) => (
             <button key={s} type="button" aria-pressed={stateFilter === s} onClick={() => set("state", s)}>
@@ -122,10 +124,10 @@ export function Runs() {
             </button>
           ))}
         </div>
-        <label className={`small ${styles.check}`}>
+        {!phone && <label className={`small ${styles.check}`}>
           <input type="checkbox" checked={baselines} onChange={(e) => set("baselines", e.target.checked ? "1" : null)} />
           Show shipped baselines
-        </label>
+        </label>}
       </div>
 
       {!runs.data ? (
@@ -140,6 +142,22 @@ export function Runs() {
             <>Train one from a lesson.</>
           )}
         </p>
+      ) : phone ? (
+        <ul className={styles.cards}>
+          {rows.map((r) => (
+            <li key={r.ref} className={styles.card}>
+              <span className={styles.cardHead}>
+                <StateTag state={r.state} />
+                <span className="value">
+                  {r.state === "done" && r.val_bpb != null ? `${r.val_bpb.toFixed(3)} bpb` : r.step || r.state === "running" || r.state === "failed" ? `${r.step} / ${r.max_steps}` : ""}
+                </span>
+              </span>
+              <Link to={`/runs/${r.ref}`} className={`value ${styles.link}`}>
+                {r.ref}
+              </Link>
+            </li>
+          ))}
+        </ul>
       ) : (
         <div className={styles.wrap}>
           <table className={`${styles.table} small`}>
@@ -189,10 +207,11 @@ export function Runs() {
           </table>
         </div>
       )}
-      <span className={`small ${styles.muted}`}>
+      {phone && <span className={`small ${styles.muted}`}>Starting runs and comparing need a larger screen; watching and stopping work here.</span>}
+      {!phone && <span className={`small ${styles.muted}`}>
         val_bpb is the latest evaluation: lower is better. A stopped run resumes from its last checkpoint; a cancelled one keeps its
         files.
-      </span>
+      </span>}
       <EquivalentCommand cli={`nanoscope status runs/${prefix}`.trimEnd()} />
     </div>
   );
