@@ -2,6 +2,7 @@ import { act, render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { MemoryRouter, Route, Routes } from "react-router-dom";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import done from "../../test/fixtures/run-done.json";
 import failed from "../../test/fixtures/run-failed.json";
 import { installEventSource, lastSource, MockEventSource } from "../../test/eventsource";
 import { mockApi } from "../../test/fetch";
@@ -158,5 +159,21 @@ describe("Run header", () => {
       </Providers>,
     );
     expect((await screen.findByRole("alert")).textContent).toContain(`no run at ref '${REF}'`);
+  });
+
+  it("says when a finished run finished, in how many steps and on which device, with no progress bar", async () => {
+    mockApi({ [`GET /api/runs/${done.ref}`]: { body: done } });
+    render(
+      <Providers>
+        <MemoryRouter initialEntries={[`/runs/${done.ref}`]}>
+          <Routes>
+            <Route path="/runs/*" element={<Run />} />
+          </Routes>
+        </MemoryRouter>
+      </Providers>,
+    );
+    expect(await screen.findByText(/^Finished/)).toBeTruthy();
+    expect(screen.getByText(`${done.status.step} of ${done.status.max_steps} steps`, { exact: false })).toBeTruthy();
+    expect(screen.queryByRole("progressbar")).toBeNull();
   });
 });

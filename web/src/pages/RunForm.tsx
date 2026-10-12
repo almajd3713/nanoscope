@@ -259,7 +259,7 @@ function Form({ models, presets, origin }: { models: ModelDoc[]; presets: Preset
             {model.doc && <span className={`small ${styles.muted}`}>{model.doc.split("\n")[0]}</span>}
           </div>
           <div className={styles.grid}>
-            {model.params
+            {[...model.params.filter((p) => !p.from_data), ...model.params.filter((p) => p.from_data)]
               .filter((p) => p.annotation !== "bool")
               .map((p) =>
                 field(`m:${p.name}`, p.name, p.annotation ? `${p.annotation}` : undefined, p.from_data),

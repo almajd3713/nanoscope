@@ -26,7 +26,7 @@ export function axis(values: number[]): { min: number; max: number; ticks: numbe
 }
 
 const W = 420;
-const LEFT = 84;
+const MIN_LEFT = 84;
 const RIGHT = 16;
 const ROW = 28;
 const TOP = 8;
@@ -37,6 +37,8 @@ export function ForestPlot({ caption, rows, unit }: { caption: string; rows: For
   const shown = rows.filter((r) => r.delta);
   const values = shown.flatMap((r) => [r.delta!.mean, r.delta!.ci95_low ?? r.delta!.mean, r.delta!.ci95_high ?? r.delta!.mean]);
   const { min, max, ticks } = axis(values);
+  // room for the longest label, so a long model name never runs over the plot
+  const LEFT = Math.min(200, Math.max(MIN_LEFT, Math.max(0, ...rows.map((r) => r.label.length)) * 7.4 + 16));
   const x = (v: number) => LEFT + ((v - min) / (max - min)) * (W - LEFT - RIGHT);
   const height = TOP + rows.length * ROW + 44;
   const axisY = TOP + rows.length * ROW + 8;
