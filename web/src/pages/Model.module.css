@@ -21,13 +21,13 @@
 
 .body {
   display: grid;
-  grid-template-columns: var(--sidebar) minmax(0, 1fr) minmax(0, 1fr);
+  grid-template-columns: var(--sidebar) minmax(0, 1fr) minmax(0, 1fr) var(--inspector);
   gap: var(--space-3);
   min-height: 0;
 }
 
 .bodyNoEditor {
-  grid-template-columns: var(--sidebar) minmax(0, 1fr);
+  grid-template-columns: var(--sidebar) minmax(0, 1fr) var(--inspector);
 }
 
 .side {
@@ -37,7 +37,14 @@
 
 .stage {
   display: grid;
-  grid-template-rows: minmax(280px, 1fr) auto;
+  grid-template-rows: minmax(280px, 1fr);
+  min-height: 0;
+  min-width: 0;
+}
+
+.inspectorCol {
+  display: flex;
+  flex-direction: column;
   gap: var(--space-3);
   min-height: 0;
   min-width: 0;

@@ -1,0 +1,39 @@
+[
+  {
+    "schema": 1,
+    "nanoscope": "0.6.0",
+    "worker_id": "almajd3713-61586-cpu",
+    "device": "cpu",
+    "slots": 1,
+    "pid": 61586,
+    "host": "almajd3713",
+    "jobs": [],
+    "started_at": "2026-10-12T13:17:10+00:00",
+    "heartbeat_at": "2026-10-12T13:17:10+00:00",
+    "secrets": {
+      "HF_TOKEN": true,
+      "WANDB_API_KEY": false
+    },
+    "age": 0.5465655326843262
+  },
+  {
+    "schema": 1,
+    "nanoscope": "0.6.0",
+    "worker_id": "almajd3713-61586-cuda:0",
+    "device": "cuda:0",
+    "slots": 2,
+    "pid": 61586,
+    "host": "almajd3713",
+    "jobs": [
+      4,
+      5
+    ],
+    "started_at": "2026-10-12T13:17:10+00:00",
+    "heartbeat_at": "2026-10-12T13:17:10+00:00",
+    "secrets": {
+      "HF_TOKEN": true,
+      "WANDB_API_KEY": false
+    },
+    "age": 0.5466198921203613
+  }
+]

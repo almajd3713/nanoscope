@@ -41,6 +41,7 @@ function open(routes: Parameters<typeof mockApi>[0] = {}) {
       <MemoryRouter initialEntries={[`/model/${FILE}`]}>
         <Routes>
           <Route path="/model/*" element={<Model />} />
+          <Route path="/runs/*" element={<p>The run page</p>} />
         </Routes>
       </MemoryRouter>
     </Providers>,
@@ -56,6 +57,13 @@ describe("Model page", () => {
     expect(await screen.findByLabelText("Attention in attn")).toBeTruthy();
     expect(screen.getByRole("navigation", { name: "Block palette" })).toBeTruthy();
     expect(screen.queryByLabelText(`Editor for ${FILE}`)).toBeNull();
+  });
+
+  it("Train queues a run of the open class with the defaults and opens it", async () => {
+    const seen = open({ "POST /api/runs": { status: 202, body: { ref: "run-1" } } });
+    await userEvent.click(await screen.findByRole("button", { name: "Train" }));
+    expect(await screen.findByText("The run page")).toBeTruthy();
+    expect(seen.find((x) => x.method === "POST" && x.path === "/api/runs")!.body).toMatchObject({ model: `${FILE}:MyModern`, kwargs: {} });
   });
 
   it("from Tinker up shows the editor beside the graph, on the same file", async () => {
@@ -134,5 +142,17 @@ describe("Model page", () => {
   it("shows the library's message when the file cannot be read", async () => {
     open({ [`POST /api/files/${FILE}/graph`]: { status: 404, problem: true, body: { title: "Not found", status: 404, detail: `no such file: ${FILE}` } } });
     expect(await screen.findByText(`no such file: ${FILE}`)).toBeTruthy();
+  });
+});
+
+describe("Model page on a phone", () => {
+  it("shows a notice with Train instead of the editor and the graph", async () => {
+    vi.stubGlobal("matchMedia", () => ({ matches: true, addEventListener() {}, removeEventListener() {} }));
+    const seen = open({ "POST /api/runs": { status: 202, body: { ref: "run-1" } } });
+    expect(await screen.findByText("The model page needs a screen at least 1024 px wide")).toBeTruthy();
+    expect(screen.queryByLabelText("Attention in attn")).toBeNull();
+    await userEvent.click(await screen.findByRole("button", { name: "Train with defaults" }));
+    await screen.findByText("The run page");
+    expect(seen.find((x) => x.method === "POST" && x.path === "/api/runs")).toBeTruthy();
   });
 });

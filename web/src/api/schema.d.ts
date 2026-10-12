@@ -2181,6 +2181,8 @@ export interface components {
             lessons: components["schemas"]["LessonSummary"][];
             /** Level */
             level: number;
+            /** Order */
+            order: number;
             /** Prerequisites */
             prerequisites: string[];
             /** Summary */

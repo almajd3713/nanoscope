@@ -5,6 +5,7 @@ import { unwrap } from "../api/problem";
 import { Button, ButtonLink } from "../components/Button";
 import { CheckPanel } from "../components/CheckPanel";
 import { EquivalentCommand } from "../components/EquivalentCommand";
+import { LessonNav } from "../components/LessonNav";
 import { LessonState } from "../components/LessonState";
 import { Markdown } from "../components/Markdown";
 import { Predict } from "../components/Predict";
@@ -196,6 +197,8 @@ export function Lesson() {
             )}
           </section>
         )}
+
+        <LessonNav id={d.id} />
 
         <EquivalentCommand cli={`nanoscope learn start ${d.id}\nnanoscope learn check ${d.id}`} />
       </div>

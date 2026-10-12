@@ -592,3 +592,22 @@ def test_study_dry_run_prints_the_plan_and_trains_nothing(tmp_path, capsys):
     assert "6 runs (2 variants x 3 seeds), nothing is trained" in out
     assert "small:" in out and "wide:" in out and "estimate:" in out
     assert not (paths.runs_dir() / "studies").exists()
+
+
+def test_size_table_suggests_a_width_that_brings_a_variant_inside_the_tolerance():
+    study = Study("suggest", preset=tiny(), seeds=1)
+    study.add("gpt2", GPT2, **SMALL)
+    study.add("modern", Modern, ffn_hidden=16, **SMALL)
+    study.add("bigram", Bigram)
+    rows = {r["name"]: r for r in study.size_table("gpt2")["variants"]}
+    assert rows["gpt2"]["suggestion"] is None  # inside the tolerance: nothing to suggest
+    assert rows["bigram"]["suggestion"] is None  # no width knob
+
+    suggestion = rows["modern"]["suggestion"]
+    assert suggestion["knob"] == "ffn_hidden"
+    assert abs(suggestion["delta"]) <= study.tolerance
+
+    study.variants.pop("modern")  # taking the suggestion lands inside the tolerance
+    study.add("modern", Modern, ffn_hidden=suggestion["value"], **SMALL)
+    again = {r["name"]: r for r in study.size_table("gpt2")["variants"]}
+    assert again["modern"]["within"] and again["modern"]["suggestion"] is None

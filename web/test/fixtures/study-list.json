@@ -1,0 +1,27 @@
+[
+  {
+    "name": "toy",
+    "spec": "studies/toy.toml",
+    "preset": "test-tiny",
+    "mode": "record",
+    "seeds": [
+      0,
+      1,
+      2
+    ],
+    "variants": [
+      {
+        "name": "small",
+        "model": "nanoscope.models.bigram:Bigram"
+      },
+      {
+        "name": "wide",
+        "model": "nanoscope.models.bigram:Bigram"
+      }
+    ],
+    "runs_total": 6,
+    "runs_by_state": {
+      "done": 6
+    }
+  }
+]

@@ -5,11 +5,15 @@ import { unwrap } from "../api/problem";
 import { ButtonLink } from "../components/Button";
 import { EmptyState } from "../components/EmptyState";
 import { ProblemFromError } from "../components/ProblemView";
+import { useLevel } from "../app/level";
 import { Plus } from "../icons";
+import { shows } from "../levels";
 import styles from "./Study.module.css";
 
 // Studies in the workspace and studies that have run.
 export function Studies() {
+  const level = useLevel();
+  const build = shows("studyBuilder", level);
   const studies = useQuery({
     queryKey: ["studies"],
     queryFn: () => unwrap(api.GET("/api/studies")),
@@ -23,16 +27,18 @@ export function Studies() {
         <h1 className="title">Studies</h1>
         <span className={`small ${styles.muted}`}>spec files in <span className="value">studies/</span> and studies that have run</span>
         <span className={styles.spacer} />
-        <ButtonLink to="/studies/new" variant="primary">
-          <Plus size={16} aria-hidden="true" />
-          New study
-        </ButtonLink>
+        {build && (
+          <ButtonLink to="/studies/new" variant="primary">
+            <Plus size={16} aria-hidden="true" />
+            New study
+          </ButtonLink>
+        )}
       </header>
       {studies.data.length === 0 ? (
         <EmptyState
           title="No studies yet"
           body="A study trains several model variants on the same seeds and budget, and compares them with intervals."
-          action={<ButtonLink to="/studies/new">Build one</ButtonLink>}
+          action={build ? <ButtonLink to="/studies/new">Build one</ButtonLink> : undefined}
           command="nanoscope study studies/m1-ablation.toml --dry-run"
         />
       ) : (
@@ -61,7 +67,7 @@ export function Studies() {
                     {s.runs_by_state["done"] ?? 0} / {s.runs_total}
                   </td>
                   <td>
-                    {s.spec ? <Link to={`/studies/${s.name}/edit`} className={`value ${styles.link}`}>{s.spec}</Link> : <span className={styles.muted}>no spec file</span>}
+                    {s.spec ? (build ? <Link to={`/studies/${s.name}/edit`} className={`value ${styles.link}`}>{s.spec}</Link> : <span className="value">{s.spec}</span>) : <span className={styles.muted}>no spec file</span>}
                   </td>
                 </tr>
               ))}

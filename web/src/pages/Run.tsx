@@ -23,6 +23,7 @@ import styles from "./Run.module.css";
 const TERMINAL = ["done", "failed", "stopped", "cancelled"];
 const LIVE_STATES = ["queued", "preparing", "running"];
 const STALE_SECONDS = 120;
+const AT: Record<string, string> = { done: "Finished", failed: "Failed", stopped: "Stopped", cancelled: "Cancelled" };
 
 type RunError = { type: string; message: string; traceback?: string[] };
 type Live = {
@@ -246,24 +247,19 @@ export function Run() {
           {stop.error && <ProblemFromError error={stop.error} />}
           {resume.error && <ProblemFromError error={resume.error} />}
           <span className={`small ${styles.muted}`}>
-            {watching && stream === "paused" ? (
-              <span className={styles.warn}>Live updates paused. Reconnecting…</span>
-            ) : watching ? (
-              "Live"
-            ) : null}
-            {watching && running && silentFor > STALE_SECONDS && ` · last update ${clockText(silentFor)} ago`}
-            {device && (
-              <>
-                {" · "}
-                <span className="value">{device}</span>
-              </>
-            )}
-            {status?.updated_at && !watching && (
-              <>
-                {" · "}
-                <span className="value">{stampText(status.updated_at)}</span>
-              </>
-            )}
+            {[
+              watching && stream === "paused" ? <span key="live" className={styles.warn}>Live updates paused. Reconnecting…</span> : watching ? "Live" : null,
+              watching && running && silentFor > STALE_SECONDS ? `last update ${clockText(silentFor)} ago` : null,
+              !watching && status?.updated_at ? (
+                <span key="when">
+                  {AT[state ?? ""] ?? "Updated"} <span className="value">{stampText(status.updated_at)}</span>
+                </span>
+              ) : null,
+              !watching && maxSteps > 0 ? `${step} of ${maxSteps} steps` : null,
+              device ? <span key="device" className="value">{device}</span> : null,
+            ]
+              .filter((part) => part !== null)
+              .flatMap((part, i) => (i === 0 ? [part] : [" · ", part]))}
           </span>
         </header>
 
@@ -296,7 +292,7 @@ export function Run() {
             {live.tokensPerSec !== undefined && (
               <Readout label="Throughput" value={countText(live.tokensPerSec)} unit="tokens/s" />
             )}
-            {maxSteps > 0 && (
+            {maxSteps > 0 && state !== "done" && (
               <div className={styles.progress}>
                 <Progress step={step} total={maxSteps} eta={eta} label="Training progress" />
               </div>

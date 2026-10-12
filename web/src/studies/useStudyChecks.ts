@@ -13,6 +13,8 @@ export type SizeRow = {
   flops_per_token: number;
   delta: number;
   within: boolean;
+  // the value of a width knob that would bring the variant inside the tolerance, when it has one
+  suggestion: { knob: string; value: number; non_embedding_params: number; delta: number } | null;
 };
 export type SizeTable = { reference: string; tolerance: number; variants: SizeRow[] };
 

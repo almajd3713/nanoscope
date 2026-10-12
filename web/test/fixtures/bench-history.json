@@ -1,0 +1,19 @@
+[
+  {
+    "schema": 1,
+    "at": "2026-10-12T13:17:10+00:00",
+    "model": "Bigram",
+    "device": "cpu",
+    "step_ms": 13.736466499949529,
+    "tokens_per_sec": 9318.262451298542,
+    "tflops": 0.0005367319171947961,
+    "verdict": "CPU run: nothing to compare against.",
+    "nanoscope": "0.6.0",
+    "preset": "test-tiny",
+    "torch": "2.14.0+cu130",
+    "steps": 6,
+    "compile": "off",
+    "mfu": null,
+    "gpu_busy": null
+  }
+]

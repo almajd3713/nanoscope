@@ -75,3 +75,84 @@
   flex: 1;
   padding: var(--space-6) var(--space-5);
 }
+
+.page,
+.menuButton {
+  display: none;
+}
+
+.menuButton {
+  align-items: center;
+  gap: var(--space-1);
+  min-height: 44px;
+  margin-left: auto;
+  padding: 0 var(--space-2);
+  border: 0;
+  background: none;
+  color: var(--ink);
+  cursor: pointer;
+}
+
+.menuButton:focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: 2px;
+}
+
+/* On a phone the nav, the level switch and the rest sit behind a Menu button; the bar says where you are. */
+@media (max-width: 600px) {
+  .bar {
+    flex-wrap: wrap;
+    height: auto;
+    min-height: var(--topbar);
+    gap: var(--space-2) var(--space-3);
+    padding: 0 var(--space-4);
+  }
+
+  .wordmark {
+    display: none;
+  }
+
+  .page {
+    display: inline;
+  }
+
+  .menuButton {
+    display: inline-flex;
+  }
+
+  .nav,
+  .right {
+    display: none;
+    width: 100%;
+  }
+
+  .open .nav {
+    display: flex;
+    flex-direction: column;
+    gap: 0;
+  }
+
+  .open .nav .link {
+    min-height: 44px;
+  }
+
+  .open .nav .link[aria-current="page"]::after {
+    left: 0;
+    right: auto;
+    top: 0;
+    bottom: 0;
+    width: 2px;
+    height: auto;
+  }
+
+  .open .right {
+    display: flex;
+    flex-wrap: wrap;
+    margin-left: 0;
+    padding-bottom: var(--space-3);
+  }
+
+  .content {
+    padding: var(--space-4);
+  }
+}

@@ -49,10 +49,11 @@ from nanoscope.presets import Preset, get_preset
 from nanoscope.progress import one_line, snapshot
 from nanoscope.run import RunResult, run
 from nanoscope.schemas.upgrade import read_json
-from nanoscope.sizing import build_on_meta, count_params, flops_per_token
+from nanoscope.sizing import build_on_meta, closest_value, count_params, flops_per_token
 from nanoscope.status import STOP_FILE
 from nanoscope.studyspec import StudySpec
 
+WIDTH_KNOBS = ("ffn_hidden",)  # model parameters size_table may suggest a value for
 PROGRESS_EVERY = 30  # seconds between progress lines while workers run
 
 
@@ -232,7 +233,9 @@ class Study:
 
     def size_table(self, match_to: str | None = None) -> dict[str, Any]:
         """`sizes()` as a table: each variant's distance from the reference variant (`match_to`,
-        else the baseline, else the first) and whether it is inside the tolerance."""
+        else the baseline, else the first) and whether it is inside the tolerance. A variant
+        outside it gets a `suggestion`: the value of its MLP width knob that would bring it
+        inside, when the model has one."""
         sizes = self.sizes()
         names = list(sizes)
         ref = match_to or self.baseline or names[0]
@@ -241,11 +244,42 @@ class Study:
         for name in names:
             n = sizes[name]["non_embedding_params"]
             delta = (n - target) / target if target else 0.0
+            within = abs(delta) <= self.tolerance
             rows.append({"name": name, "kwargs": dict(self.variants[name].kwargs),
                          "non_embedding_params": n,
                          "flops_per_token": sizes[name]["flops_per_token"],
-                         "delta": delta, "within": abs(delta) <= self.tolerance})
+                         "delta": delta, "within": within,
+                         "suggestion": None if within else self._suggest_width(name, target)})
         return {"reference": ref, "tolerance": self.tolerance, "variants": rows}
+
+    def _suggest_width(self, name: str, target: int) -> dict[str, Any] | None:
+        variant = self.variants[name]
+        knob = next((k for k in WIDTH_KNOBS
+                     if k in inspect.signature(variant.model_cls).parameters), None)
+        if knob is None:
+            return None
+        from_data = {"vocab_size": load_tokenizer(self.preset).vocab_size,
+                     "context_length": self.preset.context_length}
+        params = inspect.signature(variant.model_cls).parameters
+        kwargs = {k: x for k, x in from_data.items() if k in params} | {
+            k: x for k, x in variant.kwargs.items() if k != knob}
+        best = None
+        for step in (8, 1):  # a multiple of 8 is kinder to the hardware; 1 is the fallback
+            try:
+                value = closest_value(variant.model_cls, target, knob, step=step, **kwargs)
+                count = count_params(
+                    build_on_meta(variant.model_cls, **kwargs, **{knob: value}))[1]
+            except (TypeError, ValueError):
+                return None
+            delta = (count - target) / target if target else 0.0
+            best = (value, count, delta)
+            if abs(delta) <= self.tolerance:
+                break
+        assert best is not None
+        value, count, delta = best
+        if abs(delta) > self.tolerance:
+            return None
+        return {"knob": knob, "value": value, "non_embedding_params": count, "delta": delta}
 
     def _check_match(self, sizes: dict[str, dict[str, int]]) -> None:
         if self.match != "params":

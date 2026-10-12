@@ -42,7 +42,8 @@ test("a locked block names its lesson, cannot be dropped, and drags after the le
 
   // dragging a locked item does not start, and nothing reaches the file
   await rope.dragTo(target);
-  await expect(page.getByRole("alert")).toHaveCount(0);
+  // (Monaco keeps two empty role=alert nodes once an editor has mounted: not a problem message)
+  await expect(page.locator('[role="alert"]:not(.monaco-alert)')).toHaveCount(0);
   expect(await readFile(request, FILE)).toBe(MODEL);
 
   // pass the RoPE lesson with the solution

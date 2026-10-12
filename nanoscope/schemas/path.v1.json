@@ -22,6 +22,10 @@
         3
       ]
     },
+    "order": {
+      "type": "integer",
+      "description": "Where the course sits in the catalog; lower comes first."
+    },
     "summary": {
       "type": "string"
     },

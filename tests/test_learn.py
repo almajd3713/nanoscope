@@ -7,6 +7,7 @@ from helpers import assert_valid
 
 from nanoscope.learn.loader import (
     CurriculumError,
+    list_path_ids,
     load_lesson,
     load_path,
     parse_lesson_md,
@@ -542,3 +543,13 @@ def test_all_curricula_variants():
         cpu = lesson.compute["cpu"].estimate_minutes
         assert cpu <= MAX_CPU_MINUTES or "gpu" in lesson.compute, (
             f"{lesson.id}: {cpu:g} CPU minutes and no GPU variant")
+
+
+def test_courses_are_listed_in_catalog_order():
+    ids = list_path_ids()
+    orders = [load_path(i).order for i in ids]
+    assert orders == sorted(orders) and len(set(orders)) == len(orders)
+    assert ids[0] == "foundations"
+    for i in ids:  # a course never comes before one it needs
+        for pre in load_path(i).prerequisites:
+            assert ids.index(pre.split("/")[0]) < ids.index(i)

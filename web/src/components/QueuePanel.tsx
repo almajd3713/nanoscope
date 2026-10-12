@@ -8,6 +8,7 @@ import { shows } from "../levels";
 import { CaretDown, CaretRight, Cpu, GraphicsCard, X } from "../icons";
 import { ProblemFromError } from "./ProblemView";
 import { StateTag } from "./StateTag";
+import { jobTarget, useWorkspaceRoot } from "../jobTarget";
 import styles from "./QueuePanel.module.css";
 
 const ACTIVE = ["queued", "running", "cancelling"];
@@ -24,15 +25,11 @@ type Job = {
 };
 type Worker = { worker_id: string; device: string; slots: number; jobs?: unknown[]; age?: number };
 
-function target(job: Job): string {
-  const p = job.payload;
-  return job.ref ?? (p["lesson"] as string | undefined) ?? (p["model"] as string | undefined) ?? (p["file"] as string | undefined) ?? "";
-}
-
 // The shell footer: one line when collapsed, the jobs when opened. Cancelling a run saves a
 // checkpoint first, so cancelling asks nothing.
 export function QueuePanel() {
   const [open, setOpen] = useState(false);
+  const workspace = useWorkspaceRoot();
   const level = useLevel();
   const queryClient = useQueryClient();
   const jobs = useQuery({
@@ -80,8 +77,8 @@ export function QueuePanel() {
                     <StateTag state={job.state} />
                   </span>
                   <span className={`value ${styles.muted}`}>{job.kind}</span>
-                  <span className={`value ${styles.target}`} title={target(job)}>
-                    {job.kind === "run" && job.ref ? <Link to={`/runs/${job.ref}`}>{job.ref}</Link> : target(job)}
+                  <span className={`value ${styles.target}`} title={jobTarget(job, workspace)}>
+                    {job.kind === "run" && job.ref ? <Link to={`/runs/${job.ref}`}>{job.ref}</Link> : jobTarget(job, workspace)}
                   </span>
                   <span />
                   {job.state === "queued" || job.state === "running" ? (

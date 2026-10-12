@@ -140,3 +140,17 @@ describe("Runs", () => {
     expect((await screen.findByRole("alert")).textContent).toContain("bad prefix '..'");
   });
 });
+
+describe("Runs on a phone", () => {
+  it("lists runs as cards and leaves starting and comparing to a larger screen", async () => {
+    vi.stubGlobal("matchMedia", () => ({ matches: true, addEventListener() {}, removeEventListener() {} }));
+    act(() => setLevel("Tinker"));
+    renderRuns();
+    const first = await screen.findAllByRole("link", { name: /seed-0/ });
+    expect(first.length).toBeGreaterThan(0);
+    expect(screen.queryByRole("table")).toBeNull();
+    expect(screen.queryByRole("link", { name: "New run" })).toBeNull();
+    expect(screen.queryByRole("link", { name: "Compare selected" })).toBeNull();
+    expect(screen.getByText(/need a larger screen/)).toBeTruthy();
+  });
+});

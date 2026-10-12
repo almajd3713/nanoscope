@@ -5,6 +5,8 @@ import { Link, useNavigate, useParams, useSearchParams } from "react-router-dom"
 import { api } from "../api/client";
 import { unwrap } from "../api/problem";
 import { Button } from "../components/Button";
+import { PhoneNotice } from "../components/PhoneNotice";
+import { usePhone } from "../hooks/usePhone";
 import { EquivalentCommand } from "../components/EquivalentCommand";
 import { Field } from "../components/Field";
 import { Note } from "../components/Note";
@@ -13,7 +15,7 @@ import { PreregDialog } from "../components/PreregDialog";
 import { ProblemFromError, ProblemView } from "../components/ProblemView";
 import { countText } from "../format";
 import { Play, Plus, Trash } from "../icons";
-import { freshName, fromSpec, toSpec, type StudyDraft, type VariantDraft } from "../studyDraft";
+import { freshName, fromSpec, setKwarg, toSpec, type StudyDraft, type VariantDraft } from "../studyDraft";
 import { useSizes, useStudyFromFile, useStudyValidation, type Problem, type SizeRow } from "../studies/useStudyChecks";
 import styles from "./StudyBuilder.module.css";
 
@@ -38,7 +40,18 @@ const gb = (bytes: number | null) => (bytes === null ? "" : `${(bytes / 1024 ** 
 
 // A study as a form: the plan, the variants with their sizes, the compute it would use. The file
 // it saves is the committable `studies/<name>.toml`; the library judges every value.
+// On a phone the builder shows a notice: the form, the sizes table and the preview do not fit.
 export function StudyBuilder() {
+  return usePhone() ? (
+    <PhoneNotice title="The study builder needs a screen at least 1024 px wide" back={{ to: "/studies", label: "Back to Studies" }}>
+      <p className="body">Build and edit studies on a larger screen. Studies that exist can still be read from the Studies page.</p>
+    </PhoneNotice>
+  ) : (
+    <StudyBuilderForm />
+  );
+}
+
+function StudyBuilderForm() {
   const { name } = useParams();
   // /studies/new?file=studies/mine.py opens a Python study (a worker reads it as a spec)
   const file = useSearchParams()[0].get("file");
@@ -387,6 +400,24 @@ function Builder({
               key={r.name}
               title={`${r.name} is outside the size tolerance`}
               detail={`${r.non_embedding_params.toLocaleString("en-US")} non-embedding params, ${(Math.abs(r.delta) * 100).toFixed(1)}% ${r.delta > 0 ? "above" : "below"} ${sizes.data?.reference}; match = params allows ${((sizes.data?.tolerance ?? 0) * 100).toFixed(0)}%.`}
+              next={
+                r.suggestion && (
+                  <>
+                    <span className="small">
+                      {r.suggestion.knob} = {r.suggestion.value} gives {r.suggestion.non_embedding_params.toLocaleString("en-US")} ({(Math.abs(r.suggestion.delta) * 100).toFixed(1)}% {r.suggestion.delta >= 0 ? "above" : "below"} {sizes.data?.reference}).
+                    </span>
+                    <Button
+                      size="sm"
+                      onClick={() => {
+                        const at = draft.variants.findIndex((v) => v.name === r.name);
+                        if (at >= 0 && r.suggestion) setVariant(at, { kwargs: setKwarg(draft.variants[at]!.kwargs, r.suggestion.knob, r.suggestion.value) });
+                      }}
+                    >
+                      {`Use ${r.suggestion.knob} = ${r.suggestion.value}`}
+                    </Button>
+                  </>
+                )
+              }
             />
           ))}
           {sizes.error && <ProblemFromError error={sizes.error} />}

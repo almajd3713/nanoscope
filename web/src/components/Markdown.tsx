@@ -10,6 +10,7 @@ export function Markdown({ children }: { children: string }) {
       <ReactMarkdown
         remarkPlugins={[remarkGfm]}
         components={{
+          h1: ({ node: _node, ...p }) => <h1 className="prose-heading" {...p} />,
           h2: ({ node: _node, ...p }) => <h2 className="prose-heading" {...p} />,
           h3: ({ node: _node, ...p }) => <h3 className="prose-subheading" {...p} />,
           code: ({ node: _node, className, ...p }) => (

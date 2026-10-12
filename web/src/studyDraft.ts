@@ -67,6 +67,15 @@ export function parseKwargs(text: string): Record<string, unknown> {
   return Object.fromEntries(splitPairs(text).map(([k, v]) => [k, parseValue(v, null)]));
 }
 
+// "a = 1, b = 2" with b set to 3 -> "a = 1, b = 3"; a key that is not there is added.
+export function setKwarg(text: string, key: string, value: unknown): string {
+  const pairs = splitPairs(text);
+  const shown = showValue(value);
+  const found = pairs.some(([k]) => k === key);
+  const next = found ? pairs.map(([k, v]): [string, string] => (k === key ? [k, shown] : [k, v])) : [...pairs, [key, shown] as [string, string]];
+  return next.map(([k, v]) => `${k} = ${v}`).join(", ");
+}
+
 export function showKwargs(kwargs: Record<string, unknown>): string {
   return Object.entries(kwargs)
     .map(([k, v]) => `${k} = ${showValue(v)}`)

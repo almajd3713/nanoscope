@@ -140,3 +140,15 @@
   overflow: auto;
   color: var(--ink);
 }
+
+/* On a phone the lesson comes first and the outline and facts follow it. */
+@media (max-width: 600px) {
+  .page {
+    gap: var(--space-5);
+  }
+
+  .aside {
+    order: 2;
+    flex-basis: 100%;
+  }
+}

@@ -4,6 +4,7 @@ import { api } from "../api/client";
 import { unwrap } from "../api/problem";
 import { Button, ButtonLink } from "../components/Button";
 import { CheckPanel } from "../components/CheckPanel";
+import { LessonNav } from "../components/LessonNav";
 import { ProblemFromError } from "../components/ProblemView";
 import { Play } from "../icons";
 import { RUN_DEFAULTS } from "../runDefaults";
@@ -63,6 +64,7 @@ export function LessonBar({ file, lesson }: Props) {
           Run the check
         </Button>
       </div>
+      <LessonNav id={id} size="sm" />
       {train.error && <ProblemFromError error={train.error} />}
       {check.run.error && <ProblemFromError error={check.run.error} />}
       {check.job && (

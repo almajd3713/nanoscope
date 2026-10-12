@@ -1,0 +1,13 @@
+{
+  "root": "/tmp/pytest-of-reeler/pytest-11/test_dump0/ws",
+  "files": [
+    "studies/toy.toml"
+  ],
+  "diff": "diff --git a/studies/toy.toml b/studies/toy.toml\nnew file mode 100644\nindex 0000000..f9aac64\n--- /dev/null\n+++ b/studies/toy.toml\n@@ -0,0 +1,24 @@\n+schema = 1\n+name = \"toy\"\n+preset = \"test-tiny\"\n+baseline = \"small\"\n+seeds = [0, 1, 2]\n+mode = \"record\"\n+tolerance = 0.02\n+\n+[predictions.wide]\n+val_bpb = 1.2\n+\n+[[variants]]\n+name = \"small\"\n+model = \"nanoscope.models.bigram:Bigram\"\n+\n+[variants.kwargs]\n+d_model = 8\n+\n+[[variants]]\n+name = \"wide\"\n+model = \"nanoscope.models.bigram:Bigram\"\n+\n+[variants.kwargs]\n+d_model = 32\n",
+  "message": "Preregister study toy\n\nmode: record; preset: test-tiny; seeds: 0, 1, 2\nvariants: small, wide\npredictions: wide val_bpb=1.2\n\nCommitted by nanoscope before the first record run.\n\nCommitted-via: nanoscope",
+  "unrelated": [],
+  "identity": true,
+  "nothing_to_commit": false,
+  "head": null,
+  "hash": "78f06b2698467eab"
+}

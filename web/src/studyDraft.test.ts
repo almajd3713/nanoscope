@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { freshName, fromSpec, parseKwargs, parseSeedList, splitPairs, toSpec } from "./studyDraft";
+import { freshName, fromSpec, parseKwargs, parseSeedList, setKwarg, splitPairs, toSpec } from "./studyDraft";
 
 const SPEC = {
   schema: 1,
@@ -55,5 +55,13 @@ describe("study draft", () => {
 
   it("names a new variant with the first free number", () => {
     expect(freshName([{ name: "variant-2", model: "m", kwargs: "", predicted: "" }])).toBe("variant-3");
+  });
+});
+
+describe("setKwarg", () => {
+  it("replaces a value in place and appends a missing key", () => {
+    expect(setKwarg("d_model = 128, ffn_hidden = 64, rope = false", "ffn_hidden", 384)).toBe("d_model = 128, ffn_hidden = 384, rope = false");
+    expect(setKwarg("", "ffn_hidden", 384)).toBe("ffn_hidden = 384");
+    expect(setKwarg("layers = [1, 2]", "ffn_hidden", 8)).toBe("layers = [1, 2], ffn_hidden = 8");
   });
 });

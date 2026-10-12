@@ -1,6 +1,11 @@
+import { useMutation } from "@tanstack/react-query";
 import { useState } from "react";
-import { useParams, useSearchParams } from "react-router-dom";
+import { useNavigate, useParams, useSearchParams } from "react-router-dom";
+import { api } from "../api/client";
+import { unwrap } from "../api/problem";
 import { useLevel } from "../app/level";
+import { PhoneNotice } from "../components/PhoneNotice";
+import { usePhone } from "../hooks/usePhone";
 import { Button } from "../components/Button";
 import { Editor } from "../components/Editor";
 import { EmptyState } from "../components/EmptyState";
@@ -20,7 +25,9 @@ import { useHistory } from "../graph/history";
 import { Inspector } from "../graph/Inspector";
 import { Palette } from "../graph/Palette";
 import { hasTemplate, TemplateCanvas } from "../graph/TemplateCanvas";
+import { Play } from "../icons";
 import { shows } from "../levels";
+import { RUN_DEFAULTS } from "../runDefaults";
 import { LessonBar, useLessonOfFile } from "./LessonBar";
 import styles from "./Model.module.css";
 
@@ -31,6 +38,8 @@ export function Model() {
   const path = useParams()["*"] ?? "";
   const [search, setSearch] = useSearchParams();
   const level = useLevel();
+  const phone = usePhone();
+  const navigate = useNavigate();
   const graph = useGraph(path);
   const blocks = useBlocks();
   const [selected, setSelected] = useState<Box | null>(null);
@@ -47,6 +56,10 @@ export function Model() {
   const trace = useTrace(path, cls?.name ?? null);
   const layerStats = useLayerStats(cls?.name ?? null);
   const lesson = useLessonOfFile(path);
+  const train = useMutation({
+    mutationFn: () => unwrap(api.POST("/api/runs", { body: { ...RUN_DEFAULTS, kwargs: {}, model: `${path}:${cls?.name ?? ""}` } })) as Promise<{ ref: string }>,
+    onSuccess: (run) => navigate(`/runs/${run.ref}`),
+  });
   const source = useFileDoc(path).data?.content ?? "";
   // a failed equivalence check goes on its class, as the lesson names it
   const checked = lesson.check.result && lesson.detail ? fromChecks(lesson.check.result.checks, lesson.detail.checks, source) : [];
@@ -81,7 +94,7 @@ export function Model() {
           title="No graph for this file"
           body="It has no Decoder or Composite class, so there is nothing to draw: it is plain PyTorch. Edit it in your editor or below."
         />
-        {shows("editor", level) ? (
+        {shows("editor", level) || lesson.ids ? (
           <Editor path={path} markers={checked} />
         ) : (
           <pre className="code" aria-label="Your file">{source}</pre>
@@ -97,7 +110,31 @@ export function Model() {
     const extra = b as { reference?: string | null; user?: boolean; certification?: { state: string } };
     return { reference: extra.reference ?? null, user: extra.user === true, certification: extra.certification?.state, locked: b.lock?.locked === true, lesson: b.lock?.lesson ?? null };
   };
-  const editor = shows("editor", level);
+  // a lesson's file is the exercise: it must be editable at every level
+  const editor = shows("editor", level) || Boolean(lesson.ids);
+  if (phone) {
+    return (
+      <PhoneNotice
+        title="The model page needs a screen at least 1024 px wide"
+        back={{ to: "/models", label: "Back to Models" }}
+        actions={
+          cls && !lesson.ids ? (
+            <Button variant="primary" disabled={train.isPending} onClick={() => train.mutate()}>
+              <Play size={16} aria-hidden="true" />
+              Train with defaults
+            </Button>
+          ) : null
+        }
+      >
+        <p className="body">The editor, the graph and drag and drop do not fit a phone. You can train this model from here.</p>
+        <p className="small">
+          <span className="value">{path}</span>
+          {cls ? <> · class <span className="value">{cls.name}</span></> : null}
+        </p>
+        {train.error && <ProblemFromError error={train.error} />}
+      </PhoneNotice>
+    );
+  }
   return (
     <div className={styles.page}>
       <header className={styles.head}>
@@ -119,7 +156,14 @@ export function Model() {
         <Button size="sm" disabled={!history.canRedo} onClick={history.redo}>
           Redo
         </Button>
+        {!lesson.ids && cls && (
+          <Button variant="primary" disabled={train.isPending} onClick={() => train.mutate()}>
+            <Play size={16} aria-hidden="true" />
+            Train
+          </Button>
+        )}
       </header>
+      {train.error && <ProblemFromError error={train.error} />}
       {lesson.ids && <LessonBar file={path} lesson={lesson} />}
       <div className={`${styles.body} ${editor ? "" : styles.bodyNoEditor}`}>
         <aside className={styles.side} aria-label="Palette">
@@ -152,17 +196,17 @@ export function Model() {
               }}
             />
           )}
-          <div>
-            {layerStats.run && layerStats.blocks && (
-              <p className="caption">Layer colours: gradient norm at step {layerStats.step} of <span className="value">{layerStats.run}</span></p>
-            )}
-            {note && <ProblemView title="That block can't go there" detail={note} />}
-            {cls && selected && selected.path && <Inspector cls={cls} box={selected} blocks={catalog} onEdit={apply} busy={patch.isPending} error={patch.error} />}
-            {!(selected && selected.path) && patch.error ? <ProblemFromError error={patch.error} /> : null}
-            {cls && <StackPanel cls={cls} onEdit={apply} busy={patch.isPending} />}
-            {cls && hasTemplate(cls) && <TemplateCanvas cls={cls} blocks={catalog} onEdit={apply} />}
-          </div>
         </div>
+        <aside className={styles.inspectorCol} aria-label="Inspector column">
+          {layerStats.run && layerStats.blocks && (
+            <p className="caption">Layer colours: gradient norm at step {layerStats.step} of <span className="value">{layerStats.run}</span></p>
+          )}
+          {note && <ProblemView title="That block can't go there" detail={note} />}
+          {cls && selected && selected.path && <Inspector cls={cls} box={selected} blocks={catalog} onEdit={apply} busy={patch.isPending} error={patch.error} />}
+          {!(selected && selected.path) && patch.error ? <ProblemFromError error={patch.error} /> : null}
+          {cls && <StackPanel cls={cls} onEdit={apply} busy={patch.isPending} />}
+          {cls && hasTemplate(cls) && <TemplateCanvas cls={cls} blocks={catalog} onEdit={apply} />}
+        </aside>
       </div>
     </div>
   );

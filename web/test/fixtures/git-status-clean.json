@@ -1,0 +1,11 @@
+{
+  "repo": true,
+  "root": "/tmp/pytest-of-reeler/pytest-11/test_dump0/ws",
+  "branch": "main",
+  "head": "fac364bc5ccc93b751098452cb83937393c98225",
+  "clean": true,
+  "changed": [],
+  "identity": true,
+  "path": "studies/toy.toml",
+  "path_committed": true
+}

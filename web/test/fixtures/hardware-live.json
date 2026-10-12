@@ -1,0 +1,59 @@
+{
+  "devices": [
+    {
+      "name": "cpu",
+      "kind": "cpu",
+      "memory_total": null,
+      "memory_free": null,
+      "label": null
+    },
+    {
+      "name": "cuda:0",
+      "kind": "cuda",
+      "memory_total": 8585216000,
+      "memory_free": 7396655104,
+      "label": "NVIDIA GeForce RTX 4070 Laptop GPU"
+    }
+  ],
+  "cpu_count": 16,
+  "torch": "2.14.0+cu130",
+  "workers": [
+    {
+      "schema": 1,
+      "nanoscope": "0.6.0",
+      "worker_id": "almajd3713-61586-cpu",
+      "device": "cpu",
+      "slots": 1,
+      "pid": 61586,
+      "host": "almajd3713",
+      "jobs": [],
+      "started_at": "2026-10-12T13:17:10+00:00",
+      "heartbeat_at": "2026-10-12T13:17:10+00:00",
+      "secrets": {
+        "HF_TOKEN": true,
+        "WANDB_API_KEY": false
+      },
+      "age": 0.5386199951171875
+    },
+    {
+      "schema": 1,
+      "nanoscope": "0.6.0",
+      "worker_id": "almajd3713-61586-cuda:0",
+      "device": "cuda:0",
+      "slots": 2,
+      "pid": 61586,
+      "host": "almajd3713",
+      "jobs": [
+        4,
+        5
+      ],
+      "started_at": "2026-10-12T13:17:10+00:00",
+      "heartbeat_at": "2026-10-12T13:17:10+00:00",
+      "secrets": {
+        "HF_TOKEN": true,
+        "WANDB_API_KEY": false
+      },
+      "age": 0.5387277603149414
+    }
+  ]
+}

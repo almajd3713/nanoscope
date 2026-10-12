@@ -42,6 +42,7 @@ class PathSummary(BaseModel):
     id: str
     title: str
     level: int
+    order: int  # catalog position: the list is already sorted by it
     summary: str
     prerequisites: list[str]
     compute: dict[str, ComputeDoc]
@@ -78,7 +79,7 @@ def curricula() -> list[PathSummary]:
     for path_id in loader.list_path_ids():
         path = loader.load_path(path_id)  # a broken lesson is a 422 with every problem listed
         out.append(PathSummary(
-            id=path.id, title=path.title, level=path.level, summary=path.summary,
+            id=path.id, title=path.title, level=path.level, order=path.order, summary=path.summary,
             prerequisites=path.prerequisites, compute=_compute(path.compute),
             lessons=[_summary(lesson) for lesson in path.lessons]))
     return out
