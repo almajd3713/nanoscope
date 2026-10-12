@@ -16,12 +16,12 @@ It has three parts that share one code path:
 ## Installation
 
 ```bash
-docker compose up
+./up.sh
 docker compose logs api | grep login
 ```
 
 Open the link that grep prints. The app is at `http://127.0.0.1:8765` and trains on one CPU worker.
-For an NVIDIA GPU use `docker compose --profile gpu up`.
+`./up.sh` also starts a GPU worker when Docker can use an NVIDIA GPU (`./up.sh --cpu` skips it).
 
 Without Docker, on Python 3.10 to 3.12:
 

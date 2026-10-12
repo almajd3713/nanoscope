@@ -1,5 +1,7 @@
-# docker compose up                      the API and one CPU worker
-# docker compose --profile gpu up        plus a GPU worker (NVIDIA container toolkit)
+# ./up.sh                                the API, the editor's language server and a CPU worker,
+#                                        plus a GPU worker when an NVIDIA GPU is usable from Docker
+# docker compose up                      the same without the GPU worker
+# docker compose --profile gpu up        with it (needs the NVIDIA container toolkit)
 # Settings come from the environment or a .env file: see .env.example.
 name: nanoscope
 
@@ -86,19 +88,15 @@ services:
     restart: unless-stopped
 
   lsp:
-    <<: *hardened
-    # The code editor's language server (basedpyright): hovers, signatures and type errors next
-    # to ruff's. It reads the workspace and never writes to it; the editor falls back to ruff
-    # only when this service is not running.
-    image: ghcr.io/almajd3713/nanoscope:lsp
-    build:
-      context: .
-      dockerfile: docker/Dockerfile.lsp
-      args: { BASE: "${NANOSCOPE_LSP_BASE:-ghcr.io/almajd3713/nanoscope:cpu}" }
-    profiles: [editor-lsp]
+    <<: [*cpu-image, *hardened]
+    # The code editor's language server (basedpyright): completions, hovers, signatures and type
+    # errors next to ruff's. It runs from the same image as the API (so it sees the same torch and
+    # nanoscope your code runs against), reads the workspace and never writes to it.
+    command: ["python", "-m", "uvicorn", "nanoscope.server.lsp_bridge:app", "--host", "0.0.0.0", "--port", "3000"]
     ports:
       - "127.0.0.1:${NANOSCOPE_LSP_PORT:-8767}:3000"
     environment:
+      NANOSCOPE_LSP_ROOT: /nanoscope/workspace
       NANOSCOPE_LSP_ORIGINS: ${NANOSCOPE_LSP_ORIGINS:-}   # pages besides this machine's that may connect
       XDG_CACHE_HOME: /tmp/xdg
       HOME: /tmp
