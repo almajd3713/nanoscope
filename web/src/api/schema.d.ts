@@ -254,28 +254,6 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/curricula/{path}/{lesson}/template": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /**
-         * Template
-         * @description Build the lesson's class from blocks instead: starter.py becomes the lesson's block
-         *     template, which the model page draws. A starter.py you had edited is kept beside it as
-         *     starter_by_hand.py. A lesson without a template is a 422.
-         */
-        post: operations["template_api_curricula__path___lesson__template_post"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
     "/api/data": {
         parameters: {
             query?: never;
@@ -2633,15 +2611,6 @@ export interface components {
             /** Toml */
             toml?: string | null;
         };
-        /** TemplateResult */
-        TemplateResult: {
-            /** Lesson */
-            lesson: string;
-            /** Saved As */
-            saved_as: string | null;
-            /** Starter */
-            starter: string;
-        };
         /** UnlockRequest */
         UnlockRequest: {
             /**
@@ -3218,47 +3187,6 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["StartResult"];
-                };
-            };
-            /** @description The request cannot be done as asked */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ProblemDetails"];
-                };
-            };
-            /** @description An error (RFC 9457) */
-            "4XX": {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ProblemDetails"];
-                };
-            };
-        };
-    };
-    template_api_curricula__path___lesson__template_post: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                path: string;
-                lesson: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["TemplateResult"];
                 };
             };
             /** @description The request cannot be done as asked */

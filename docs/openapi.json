@@ -2778,36 +2778,6 @@
         "title": "StudyValidationResult",
         "type": "object"
       },
-      "TemplateResult": {
-        "properties": {
-          "lesson": {
-            "title": "Lesson",
-            "type": "string"
-          },
-          "saved_as": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Saved As"
-          },
-          "starter": {
-            "title": "Starter",
-            "type": "string"
-          }
-        },
-        "required": [
-          "lesson",
-          "starter",
-          "saved_as"
-        ],
-        "title": "TemplateResult",
-        "type": "object"
-      },
       "UnlockRequest": {
         "properties": {
           "all": {
@@ -3743,68 +3713,6 @@
           }
         },
         "summary": "Start",
-        "tags": [
-          "learn"
-        ]
-      }
-    },
-    "/api/curricula/{path}/{lesson}/template": {
-      "post": {
-        "description": "Build the lesson's class from blocks instead: starter.py becomes the lesson's block\ntemplate, which the model page draws. A starter.py you had edited is kept beside it as\nstarter_by_hand.py. A lesson without a template is a 422.",
-        "operationId": "template_api_curricula__path___lesson__template_post",
-        "parameters": [
-          {
-            "in": "path",
-            "name": "path",
-            "required": true,
-            "schema": {
-              "title": "Path",
-              "type": "string"
-            }
-          },
-          {
-            "in": "path",
-            "name": "lesson",
-            "required": true,
-            "schema": {
-              "title": "Lesson",
-              "type": "string"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/TemplateResult"
-                }
-              }
-            },
-            "description": "Successful Response"
-          },
-          "422": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ProblemDetails"
-                }
-              }
-            },
-            "description": "The request cannot be done as asked"
-          },
-          "4XX": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ProblemDetails"
-                }
-              }
-            },
-            "description": "An error (RFC 9457)"
-          }
-        },
-        "summary": "Template",
         "tags": [
           "learn"
         ]

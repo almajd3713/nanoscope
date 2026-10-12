@@ -126,37 +126,4 @@ describe("Model page for a lesson file", () => {
     expect(within(bar).getByRole("button", { name: "Run the check" })).toBeTruthy();
     expect(((await screen.findByLabelText(`Source of ${FILE}`)) as HTMLTextAreaElement).value).toBe(SOURCE);
   });
-
-  it("a lesson with a block template offers it, and the file then draws as a graph", async () => {
-    const LESSON3 = "lessons/foundations/03-attention-head/starter.py";
-    let swapped = false;
-    const seen = mockApi({
-      [`GET /api/files/${LESSON3}`]: { body: { path: LESSON3, content: SOURCE, etag: "e1" } },
-      [`POST /api/files/${LESSON3}/graph`]: { body: () => ({ ...graph, path: LESSON3, etag: "e1", classes: swapped ? graph.classes : [] }) },
-      [`POST /api/files/${LESSON3}/lint`]: { body: [] },
-      "GET /api/blocks": { body: blocks },
-      "GET /api/presets": { body: [] },
-      "GET /api/jobs": { body: [] },
-      "GET /api/curricula/foundations/03-attention-head": { body: { ...lesson04, id: "foundations/03-attention-head", files: ["starter.py", "starter_template.py"], state: "started" } },
-      "POST /api/curricula/foundations/03-attention-head/template": {
-        body: () => {
-          swapped = true;
-          return { lesson: "foundations/03-attention-head", starter: LESSON3, saved_as: "lessons/foundations/03-attention-head/starter_by_hand.py" };
-        },
-      },
-    });
-    render(
-      <Providers>
-        <MemoryRouter initialEntries={[`/model/${LESSON3}`]}>
-          <Routes>
-            <Route path="/model/*" element={<Model />} />
-          </Routes>
-        </MemoryRouter>
-      </Providers>,
-    );
-    expect(await screen.findByText("You are writing this one by hand")).toBeTruthy();
-    await userEvent.click(screen.getByRole("button", { name: "Build it from blocks instead" }));
-    await waitFor(() => expect(seen.some((s) => s.path.endsWith("/03-attention-head/template") && s.method === "POST")).toBe(true));
-    await waitFor(() => expect(screen.queryByText("You are writing this one by hand")).toBeNull());
-  });
 });
