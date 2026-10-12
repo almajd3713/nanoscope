@@ -1,0 +1,75 @@
+name: tag
+
+on:
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "Tag for main, after bumping the version files (v0.7.0, v0.7.0rc1)"
+        required: true
+        type: string
+      kind:
+        description: "GitHub release type (a pre-release needs an rc tag, a release must not have one)"
+        required: true
+        type: choice
+        options: [release, pre-release]
+        default: release
+
+permissions:
+  contents: write
+  actions: write
+
+jobs:
+  tag:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+      - name: Check the tag
+        env:
+          TAG: ${{ inputs.tag }}
+          KIND: ${{ inputs.kind }}
+        run: |
+          [[ "$TAG" =~ ^v[0-9]+\.[0-9]+\.[0-9]+(rc[0-9]+)?$ ]] || { echo "::error::'$TAG' is not like v1.2.3 or v1.2.3rc1"; exit 1; }
+          if [[ "$KIND" == pre-release && "$TAG" != *rc* ]] || [[ "$KIND" == release && "$TAG" == *rc* ]]; then
+            echo "::error::$TAG is a$([[ $TAG == *rc* ]] && echo ' release candidate' || echo ' final version') tag, so the kind must be $([[ $TAG == *rc* ]] && echo pre-release || echo release)"; exit 1
+          fi
+          if git ls-remote --exit-code --tags origin "refs/tags/$TAG" >/dev/null; then
+            echo "::error::$TAG already exists"; exit 1
+          fi
+          grep -q "^## ${TAG#v} " CHANGELOG.md || { echo "::error::CHANGELOG.md has no '## ${TAG#v}' section: write it first"; exit 1; }
+      - uses: astral-sh/setup-uv@v5
+        with:
+          python-version: "3.12"
+      - name: Bump the version and tag the result
+        env:
+          TAG: ${{ inputs.tag }}
+        run: |
+          version=${TAG#v}
+          sed -i "s/^__version__ = .*/__version__ = \"$version\"/" nanoscope/__init__.py
+          uv run --extra server python -m nanoscope.server.openapi docs/openapi.json
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          if ! git diff --quiet; then
+            git commit -am "release $version: version and openapi"
+            git push origin HEAD:main
+          fi
+          git tag -a "$TAG" -m "$TAG"
+          git push origin "refs/tags/$TAG"
+      - name: Create the GitHub release from the changelog
+        env:
+          TAG: ${{ inputs.tag }}
+          KIND: ${{ inputs.kind }}
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          awk -v v="## ${TAG#v} " 'index($0, v) == 1 {on=1; next} /^## / {on=0} on' CHANGELOG.md > notes.md
+          flag=(); [[ "$KIND" == pre-release ]] && flag=(--prerelease)
+          gh release create "$TAG" --verify-tag --title "$TAG" --notes-file notes.md "${flag[@]}"
+      - name: Run the publish workflows on the tag
+        # a tag pushed with GITHUB_TOKEN starts no workflows, but a dispatch does
+        env:
+          TAG: ${{ inputs.tag }}
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh workflow run release.yml --ref "$TAG"
+          gh workflow run image.yml --ref "$TAG"
