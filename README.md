@@ -13,9 +13,7 @@ It has three parts that share one code path:
 - **Experiments** with seeds, paired comparisons, 95% intervals, preregistered studies and baselines
   for the shipped models.
 
-The app is the main way in. Everything it does is also a Python call and a CLI command.
-
-## Run it
+## Installation
 
 ```bash
 docker compose up
@@ -35,7 +33,7 @@ nanoscope serve --worker cpu             # http://127.0.0.1:8000
 The login token is a remote login: it can save files and queue runs that execute. Keep the server
 on loopback, behind an SSH tunnel, or behind an HTTPS proxy. See [docs/deploy.md](docs/deploy.md).
 
-## Use it from Python
+## Usage
 
 ```python
 import torch.nn as nn
@@ -70,24 +68,6 @@ nanoscope inspect <run> --step 200 --prompt "Once"
 nanoscope learn list
 ```
 
-## Lessons
-
-Eight paths: `foundations`, `modern-block`, `honest-ablations`, `evaluation`, `efficiency`,
-`scaling-lite`, `interpretability`, `extend`. Lessons that need hours of GPU also have a CPU variant,
-with a compute estimate for each. See [docs/learn.md](docs/learn.md).
-
-## Levels
-
-The switch in the top bar (Learn, Tinker, Research, Extend) only shows or hides controls. It never
-changes what runs. Settings can show the CLI equivalent of every screen. The screens are listed in
-[docs/gui.md](docs/gui.md).
-
-## Design
-
-Anything that runs your code is a job for a worker; the API process never imports it. State is
-plain files (`status.json`, `metrics.jsonl`) that other tools can read. See
-[docs/architecture.md](docs/architecture.md) and [docs/server.md](docs/server.md).
-
 ## Develop
 
 ```bash
@@ -97,12 +77,9 @@ make web          # build the app into the package
 pnpm -C web dev   # app with hot reload
 ```
 
-UI rules are in [docs/design-system.md](docs/design-system.md).
-
 ## Data
 
 Tokens come from [TinyStories](https://huggingface.co/datasets/roneneldan/TinyStories)
 (CDLA-Sharing-1.0) and [FineWeb-Edu](https://huggingface.co/datasets/HuggingFaceFW/fineweb-edu)
 (ODC-By 1.0), cached under `~/.nanoscope/data`.
 
-MIT licensed.
