@@ -389,15 +389,20 @@ function Builder({
               detail={`${r.non_embedding_params.toLocaleString("en-US")} non-embedding params, ${(Math.abs(r.delta) * 100).toFixed(1)}% ${r.delta > 0 ? "above" : "below"} ${sizes.data?.reference}; match = params allows ${((sizes.data?.tolerance ?? 0) * 100).toFixed(0)}%.`}
               next={
                 r.suggestion && (
-                  <Button
-                    size="sm"
-                    onClick={() => {
-                      const at = draft.variants.findIndex((v) => v.name === r.name);
-                      if (at >= 0 && r.suggestion) setVariant(at, { kwargs: setKwarg(draft.variants[at]!.kwargs, r.suggestion.knob, r.suggestion.value) });
-                    }}
-                  >
-                    {`Use ${r.suggestion.knob} = ${r.suggestion.value} (${r.suggestion.delta >= 0 ? "+" : ""}${(r.suggestion.delta * 100).toFixed(1)}%)`}
-                  </Button>
+                  <>
+                    <span className="small">
+                      {r.suggestion.knob} = {r.suggestion.value} gives {r.suggestion.non_embedding_params.toLocaleString("en-US")} ({(Math.abs(r.suggestion.delta) * 100).toFixed(1)}% {r.suggestion.delta >= 0 ? "above" : "below"} {sizes.data?.reference}).
+                    </span>
+                    <Button
+                      size="sm"
+                      onClick={() => {
+                        const at = draft.variants.findIndex((v) => v.name === r.name);
+                        if (at >= 0 && r.suggestion) setVariant(at, { kwargs: setKwarg(draft.variants[at]!.kwargs, r.suggestion.knob, r.suggestion.value) });
+                      }}
+                    >
+                      {`Use ${r.suggestion.knob} = ${r.suggestion.value}`}
+                    </Button>
+                  </>
                 )
               }
             />

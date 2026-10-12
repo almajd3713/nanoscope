@@ -109,7 +109,9 @@ describe("StudyBuilder", () => {
       "GET /api/studies/toy/spec": { body: { name: "toy", path: "studies/toy.toml", spec, toml: TOML } },
       "GET /api/jobs/5": { body: job("done", realSizes) },
     });
-    await userEvent.click(await screen.findByRole("button", { name: "Use ffn_hidden = 384 (-0.7%)" }));
+    const button = await screen.findByRole("button", { name: "Use ffn_hidden = 384" });
+    expect(screen.getByText(/ffn_hidden = 384 gives 787,840 \(0\.7% below gpt2\)/)).toBeTruthy();
+    await userEvent.click(button);
     expect((screen.getByLabelText("Keywords of modern") as HTMLInputElement).value).toContain("ffn_hidden = 384");
     await waitFor(() => {
       const sent = seen.filter((s) => s.path === "/api/validate/study").at(-1)?.body as { spec: { variants: { kwargs: Record<string, unknown> }[] } };
