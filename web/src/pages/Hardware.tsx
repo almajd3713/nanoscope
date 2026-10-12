@@ -11,6 +11,7 @@ import { stampText } from "../format";
 import { useLevel } from "../app/level";
 import { Cpu, GraphicsCard, Play, Warning, X } from "../icons";
 import { shows } from "../levels";
+import { jobTarget, useWorkspaceRoot } from "../jobTarget";
 import styles from "./Hardware.module.css";
 
 type Device = { name: string; kind: string; memory_total: number | null; memory_free: number | null; label: string | null };
@@ -43,14 +44,10 @@ type Filter = (typeof FILTERS)[number];
 
 const gb = (n: number) => (n / 1024 ** 3).toFixed(1);
 
-function target(job: Job): string {
-  const p = job.payload;
-  return job.ref ?? (p["lesson"] as string | undefined) ?? (p["model"] as string | undefined) ?? (p["file"] as string | undefined) ?? "";
-}
-
 // What this machine can train on, who is working, what is queued, and how fast each device is.
 export function Hardware() {
   const level = useLevel();
+  const workspace = useWorkspaceRoot();
   const canBench = shows("bench", level);
   const queryClient = useQueryClient();
   const [filter, setFilter] = useState<Filter>("All");
@@ -228,8 +225,8 @@ export function Hardware() {
               <li key={j.id} className={styles.job}>
                 <StateTag state={j.state} />
                 <span className={`value ${styles.muted}`}>{j.kind}</span>
-                <span className={`value ${styles.target}`} title={target(j)}>
-                  {j.kind === "run" && j.ref ? <Link to={`/runs/${j.ref}`} className={styles.link}>{j.ref}</Link> : target(j)}
+                <span className={`value ${styles.target}`} title={jobTarget(j, workspace)}>
+                  {j.kind === "run" && j.ref ? <Link to={`/runs/${j.ref}`} className={styles.link}>{j.ref}</Link> : jobTarget(j, workspace)}
                 </span>
                 <span className={`value ${styles.muted}`}>{j.device ?? ""}</span>
                 {j.state === "queued" || j.state === "running" ? (
