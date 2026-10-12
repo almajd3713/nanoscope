@@ -1,5 +1,30 @@
 # Changelog
 
+## 0.6.1 (2026-10-12)
+
+Fixes and polish for the app after comparing the built screens with the mockups, and a new release workflow.
+
+### Added
+- Lessons: courses follow a catalog `order`, and a lesson page has previous and next links.
+- Study builder: a variant outside the size tolerance gets a one-click suggestion ("Use ffn_hidden = N").
+- Models page: file, class, last trace and edited columns, and a New model dialog. The model page has a
+  Train button and an inspector column.
+- Phone layout: a menu bar, runs as cards, the lesson before its outline, and notices for the model page
+  and the study builder.
+
+### Changed
+- Levels: below Research the study builder, card export and benchmark controls are hidden (the pages stay).
+- Run page: the header says when and how far a run finished. Compare and the forest plot fit long labels;
+  the new-run form puts data-set fields last.
+- Study page: verdict statements, a primary bundle button, and the report beside the bundle. The Hardware
+  devices table fits its panel.
+- Jobs show workspace files relative to the workspace.
+- Releases: `tag.yml` is the only way to publish (it bumps the version, tags `main`, creates the GitHub
+  release from this file and starts the publish workflows). Pull requests build only the CUDA image.
+
+### Fixed
+- E2E checks no longer trip on Monaco's empty alert nodes.
+
 ## 0.6.0 (2026-10-10)
 
 Phases 15, 16 and 17: studies and hardware in the app, the inspect and authoring tools, and the rest of the curriculum.
