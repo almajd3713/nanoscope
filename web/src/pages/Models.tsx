@@ -16,7 +16,7 @@ import { Check, Circle, Plus, SealCheck, Warning, X } from "../icons";
 import { shows } from "../levels";
 import styles from "./Models.module.css";
 
-type Model = { name: string; ref: string; doc: string; shipped: boolean; source?: string | null };
+type Model = { name: string; ref: string; doc: string; shipped: boolean; source?: string | null; graph?: boolean };
 type Job = {
   id: number;
   kind: string;
@@ -106,6 +106,7 @@ export function Models() {
                 <tr>
                   <th className="label" scope="col">File</th>
                   <th className="label" scope="col">Class</th>
+                  <th className="label" scope="col">View</th>
                   <th className={`label ${styles.right}`} scope="col">Params</th>
                   <th className={`label ${styles.right}`} scope="col">FLOPs/token</th>
                   <th className="label" scope="col">Last trace</th>
@@ -126,6 +127,7 @@ export function Models() {
                         </Link>
                       </td>
                       <td className="value">{m.name}</td>
+                      <td>{m.graph ? <Tag tone="good" icon={Check}>graph and code</Tag> : <Tag tone="muted" icon={Circle}>code only</Tag>}</td>
                       <td className={`value ${styles.right}`}>{done?.params ? countText(done.params.total) : "–"}</td>
                       <td className={`value ${styles.right}`}>{done?.flops_per_token !== undefined ? countText(done.flops_per_token) : "–"}</td>
                       <td>

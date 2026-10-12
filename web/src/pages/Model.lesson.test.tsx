@@ -120,7 +120,8 @@ describe("Model page for a lesson file", () => {
 
   it("a lesson file that is plain PyTorch has no graph but keeps the lesson's actions and an editable file", async () => {
     open({ [`POST /api/files/${FILE}/graph`]: { body: { ...graph, path: FILE, etag: "e1", classes: [] } } });
-    expect(await screen.findByText("No graph for this file")).toBeTruthy();
+    expect(await screen.findByText("This lesson is plain PyTorch")).toBeTruthy();
+    expect(screen.queryByRole("button", { name: "Start a model from blocks" })).toBeNull();
     const bar = await screen.findByRole("region", { name: "Lesson" });
     expect(within(bar).getByRole("button", { name: "Run the check" })).toBeTruthy();
     expect(((await screen.findByLabelText(`Source of ${FILE}`)) as HTMLTextAreaElement).value).toBe(SOURCE);

@@ -52,6 +52,19 @@ class NotAModel:
 '''
 
 
+def test_models_say_which_the_model_page_can_draw(client, tmp_path, monkeypatch):
+    monkeypatch.setenv("NANOSCOPE_WORKSPACE", str(tmp_path / "ws"))
+    (tmp_path / "ws").mkdir()
+    (tmp_path / "ws" / "plain.py").write_text(
+        "import torch.nn as nn\n\n\nclass Plain(nn.Module):\n    pass\n")
+    (tmp_path / "ws" / "drawn.py").write_text(
+        "from nanoscope.blocks import Decoder\n\n\nclass Drawn(Decoder):\n"
+        "    def __init__(self, vocab_size: int, context_length: int = 64):\n"
+        "        super().__init__(vocab_size, context_length, d_model=32, n_layers=2)\n")
+    mine = {m["name"]: m["graph"] for m in client.get("/api/models").json() if not m["shipped"]}
+    assert mine == {"Drawn": True, "Plain": False}
+
+
 def test_models(client, tmp_path, monkeypatch):
     monkeypatch.setenv("NANOSCOPE_WORKSPACE", str(tmp_path / "ws"))
     (tmp_path / "ws" / "sub").mkdir(parents=True)

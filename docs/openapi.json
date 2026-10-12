@@ -1596,6 +1596,11 @@
             "title": "Doc",
             "type": "string"
           },
+          "graph": {
+            "default": false,
+            "title": "Graph",
+            "type": "boolean"
+          },
           "name": {
             "title": "Name",
             "type": "string"

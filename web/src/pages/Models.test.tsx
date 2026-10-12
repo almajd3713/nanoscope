@@ -122,6 +122,37 @@ describe("Models page", () => {
     expect((seen.find((x) => x.method === "PUT")!.body as { content: string }).content).toContain("class MyModel(Decoder):");
   });
 
+  it("offers a block model first once it can be built, and says why not before", async () => {
+    open();
+    await userEvent.click(await screen.findByRole("button", { name: "New model" }));
+    const blockOption = (await screen.findByRole("radio", { name: /Built from blocks/ })) as HTMLInputElement;
+    expect(blockOption.disabled).toBe(true);
+    expect(screen.getByText(/Locked until their lessons are passed: .*Decoder/)).toBeTruthy();
+    expect((screen.getByRole("radio", { name: /Plain PyTorch/ }) as HTMLInputElement).checked).toBe(true);
+  });
+
+  it("lets a learner with the blocks unlocked still choose plain PyTorch", async () => {
+    const open_ = { ...blocks, blocks: blocks.blocks.map((b) => ({ ...b, lock: { ...b.lock, locked: false } })) };
+    const seen = open({
+      "GET /api/blocks": { body: open_ },
+      "PUT /api/files/models/my_model.py": { body: { path: "models/my_model.py", content: "", etag: "x", size: 1, modified: 1 } },
+    });
+    await userEvent.click(await screen.findByRole("button", { name: "New model" }));
+    expect(((await screen.findByRole("radio", { name: /Built from blocks/ })) as HTMLInputElement).checked).toBe(true);
+    await userEvent.click(screen.getByRole("radio", { name: /Plain PyTorch/ }));
+    await userEvent.click(screen.getByRole("button", { name: "Create models/my_model.py" }));
+    await screen.findByText("The model page");
+    expect((seen.find((x) => x.method === "PUT")!.body as { content: string }).content).toContain("class MyModel(nn.Module):");
+  });
+
+  it("marks each model as graph and code, or code only", async () => {
+    const drawn = { ...models.find((m) => !m.shipped)!, name: "Drawn", ref: "models/drawn.py:Drawn", source: "models/drawn.py", graph: true };
+    open({ "GET /api/models": { body: [...models, drawn] } });
+    const row = (await screen.findByText("Drawn")).closest("tr")!;
+    expect(within(row).getByText("graph and code")).toBeTruthy();
+    expect(screen.getAllByText("code only").length).toBeGreaterThan(0);
+  });
+
   it("refuses a class name that is not one", async () => {
     open();
     await userEvent.click(await screen.findByRole("button", { name: "New model" }));

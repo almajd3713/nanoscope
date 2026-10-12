@@ -8,6 +8,7 @@ from pydantic import BaseModel
 
 from nanoscope import paths
 from nanoscope.blocks.discover import discover_models
+from nanoscope.blocks.graph import parse
 from nanoscope.models import GPT2, Bigram, Modern
 from nanoscope.server.jobs import submit
 from nanoscope.server.models import JobDoc, ModelSpecDoc, ParamSpecDoc
@@ -29,14 +30,25 @@ def workspace_models() -> list[ModelSpecDoc]:
     if not root.exists():
         return []
     out = []
+    drawn: dict[str, set[str]] = {}
     for found in discover_models(root):
         file = Path(found["file"])
         relative = file.relative_to(root).as_posix() if file.is_relative_to(root) else str(file)
+        if relative not in drawn:
+            drawn[relative] = _drawable(file)
         out.append(ModelSpecDoc(
             name=found["name"], ref=f"{relative}:{found['name']}", doc=found["doc"],
             params=[ParamSpecDoc(**p, from_data=p["name"] in FROM_DATA) for p in found["params"]],
-            source=relative))
+            source=relative, graph=found["name"] in drawn[relative]))
     return out
+
+
+def _drawable(file: Path) -> set[str]:
+    """The classes in `file` the model page draws as a graph (read, never imported)."""
+    try:
+        return {c["name"] for c in parse(file)["classes"]}
+    except (OSError, ValueError):
+        return set()
 
 
 @router.get("/models")

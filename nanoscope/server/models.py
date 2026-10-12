@@ -214,6 +214,7 @@ class ModelSpecDoc(BaseModel):
     params: list[ParamSpecDoc]
     shipped: bool = False
     source: str | None = None  # the workspace file a model was found in, if any
+    graph: bool = False  # the model page can draw it (a Decoder or Composite class)
 
 
 class JobDoc(BaseModel):
