@@ -20,7 +20,11 @@ export type CompletionItem = {
   detail?: string;
   documentation?: string | { value: string };
   insertText?: string;
-  textEdit?: { newText: string; range: Range };
+  filterText?: string;
+  sortText?: string;
+  // a plain range, or the insert/replace pair of a server that offers both
+  textEdit?: { newText: string; range?: Range; replace?: Range };
+  data?: unknown;
 };
 export type SignatureHelp = {
   signatures: { label: string; documentation?: string | { value: string }; parameters?: { label: string | [number, number] }[] }[];
@@ -100,7 +104,7 @@ export class LspClient {
               textDocument: {
                 synchronization: { didSave: false },
                 hover: { contentFormat: ["markdown", "plaintext"] },
-                completion: { completionItem: { documentationFormat: ["markdown", "plaintext"], snippetSupport: false } },
+                completion: { completionItem: { documentationFormat: ["markdown", "plaintext"], snippetSupport: false, resolveSupport: { properties: ["documentation", "detail"] } } },
                 signatureHelp: { signatureInformation: { documentationFormat: ["markdown", "plaintext"], parameterInformation: { labelOffsetSupport: true } } },
                 publishDiagnostics: {},
               },
@@ -217,6 +221,11 @@ export class LspClient {
   async completion(uri: string, position: Position): Promise<CompletionItem[]> {
     const result = (await this.request("textDocument/completion", { textDocument: { uri }, position })) as CompletionItem[] | { items: CompletionItem[] } | null;
     return Array.isArray(result) ? result : (result?.items ?? []);
+  }
+
+  // a completion item with its documentation and detail, which a server fills in on request
+  resolveCompletion(item: CompletionItem): Promise<CompletionItem> {
+    return this.request("completionItem/resolve", item) as Promise<CompletionItem>;
   }
 
   signatureHelp(uri: string, position: Position): Promise<SignatureHelp> {
