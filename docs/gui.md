@@ -88,8 +88,10 @@ changed.
 |---|---|
 | Learn | lessons, training from a lesson, the live run page, the baseline range, samples |
 | Tinker | the run form, seeds, duplicate and change one thing, compare, predictions |
-| Research | the queue's per-device workers, the forest plot, studies and record mode as they arrive |
+| Research | the queue's per-device workers, the forest plot, the study builder (New study, Open in builder), record mode and ablation-card export, the bench controls on Hardware |
 | Extend | the workspace tree, your own blocks and their certification (Models page), as they arrive |
+
+The Studies and Hardware pages stay in the nav at every level and show what exists; only the controls that create or change things are hidden below Research.
 
 The single table is `web/src/levels.ts`. A test checks that a level only ever adds controls.
 
