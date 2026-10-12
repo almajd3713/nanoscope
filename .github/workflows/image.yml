@@ -2,19 +2,18 @@ name: image
 
 on:
   pull_request:
-  push:
-    tags: ["v*"]
-  workflow_dispatch:
+  workflow_dispatch:  # on a tag (started by tag.yml, the only way to publish): builds and pushes
 
 jobs:
   build:
     # Each variant builds from its own Dockerfile. The runner has no GPU, so the CUDA image is
     # checked for building, starting and importing torch; `POST /api/bench` on a GPU is by hand.
+    # PRs build only CUDA: the compose job in ci.yml already builds and runs the CPU image.
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
       matrix:
-        variant: [cpu, cuda]
+        variant: ${{ fromJSON(github.event_name == 'pull_request' && '["cuda"]' || '["cpu","cuda"]') }}
     steps:
       - uses: actions/checkout@v4
       - name: Free disk space

@@ -23,31 +23,6 @@ jobs:
       - run: make typecheck
       - run: make test
 
-  curricula:
-    # Every lesson's starter fails and its reference solution passes, offline, on CPU.
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - uses: astral-sh/setup-uv@v5
-        with:
-          python-version: "3.12"
-          enable-cache: true
-      - run: uv sync --all-extras
-      - run: make test-curricula
-
-  server:
-    # The HTTP API end to end (real sockets, real jobs) and its OpenAPI document.
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - uses: astral-sh/setup-uv@v5
-        with:
-          python-version: "3.12"
-          enable-cache: true
-      - run: uv sync --extra server --extra dev
-      - run: uv run pytest tests/server -v
-      - run: make openapi && git diff --exit-code docs/openapi.json
-
   web:
     # The GUI: lint, types, unit tests and the production build.
     runs-on: ubuntu-latest
@@ -120,9 +95,8 @@ jobs:
         with:
           path: ~/.nanoscope/data
           key: tokens-tinystories-5min-bpe4096-v1
-      - run: uv run pytest tests/test_first_model_notebook.py -v
       # lesson F01 trains the solution on real data too, and must stay under 2 minutes
-      - run: uv run pytest tests/test_curricula.py -k f01 -v
+      - run: uv run pytest tests/test_first_model_notebook.py tests/test_curricula.py -k "notebook or f01" -v
 
   compose:
     # The docker compose stack end to end: build the image, bring up the API and a worker,

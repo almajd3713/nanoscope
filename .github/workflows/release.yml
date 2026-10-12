@@ -1,9 +1,7 @@
 name: release
 
 on:
-  push:
-    tags: ["v*"]
-  workflow_dispatch:  # from a branch: a dry run that publishes nothing; from a tag (tag.yml): publishes
+  workflow_dispatch:  # from a branch: a dry run that publishes nothing; from a tag (started by tag.yml, the only way to publish): publishes
 
 jobs:
   build:
