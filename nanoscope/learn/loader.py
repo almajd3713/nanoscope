@@ -123,6 +123,7 @@ class PathSpec:
     prerequisites: list[str]
     compute: dict[str, Compute]
     lessons: list[LessonSpec] = field(default_factory=list)
+    order: int = 1000  # place in the catalog (lower first); a course without one goes last
 
 
 class _Problems:
@@ -279,7 +280,7 @@ def _depth(doc: dict[str, Any], problems: _Problems) -> dict[str, dict[str, Any]
 
 LESSON_FIELDS = {"title", "level", "summary", "prerequisites", "experiment", "checks", "depth",
                  "unlocks", "forbid", "compute"}
-PATH_FIELDS = {"title", "level", "summary", "prerequisites", "compute"}
+PATH_FIELDS = {"title", "level", "order", "summary", "prerequisites", "compute"}
 
 
 def parse_lesson_md(text: str, problems: _Problems | None = None) -> LessonText:
@@ -387,6 +388,10 @@ def load_path(ref: str | Path, root: Path | None = None) -> PathSpec:
     summary = _str(doc, "summary", problems, required=False)
     prerequisites = _str_list(doc, "prerequisites", problems)
     compute = _compute(doc, problems, required=False)
+    order = doc.get("order", 1000)
+    if isinstance(order, bool) or not isinstance(order, int):
+        problems.add("order", "must be a whole number (lower comes first in the catalog)")
+        order = 1000
     errors = list(problems.items)
     lessons: list[LessonSpec] = []
     folders = sorted(p for p in directory.iterdir() if p.is_dir() and (p / "lesson.toml").exists()
@@ -404,9 +409,23 @@ def load_path(ref: str | Path, root: Path | None = None) -> PathSpec:
                                       f"{pre!r} is not a lesson of this path"))
     if errors:
         raise CurriculumError(errors)
-    return PathSpec(path_id, directory, title, level, summary, prerequisites, compute, lessons)
+    return PathSpec(path_id, directory, title, level, summary, prerequisites, compute, lessons,
+                    order)
+
+
+def _order_key(directory: Path) -> tuple[int, str]:
+    """(`order` from path.toml, name). An unreadable file sorts last; load_path reports it."""
+    try:
+        doc = tomllib.loads((directory / "path.toml").read_text(encoding="utf-8"))
+        order = doc.get("order", 1000)
+        ok = isinstance(order, int) and not isinstance(order, bool)
+        return (order if ok else 1000, directory.name)
+    except (OSError, ValueError):
+        return (1000, directory.name)
 
 
 def list_path_ids(root: Path | None = None) -> list[str]:
+    """Course ids in catalog order: the `order` of path.toml, then by name."""
     base = root or curricula_dir()
-    return sorted(p.name for p in base.iterdir() if p.is_dir() and (p / "path.toml").exists())
+    found = [p for p in base.iterdir() if p.is_dir() and (p / "path.toml").exists()]
+    return [p.name for p in sorted(found, key=_order_key)]

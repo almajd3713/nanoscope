@@ -1,4 +1,5 @@
 title = "Foundations"
+order = 10
 level = 0
 summary = "Build a GPT-2 style language model from the smallest part up: a bigram, an MLP, one attention head, many heads, a transformer block, and the whole stack."
 

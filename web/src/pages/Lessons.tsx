@@ -43,6 +43,43 @@ export function Lessons() {
       {error && <ProblemFromError error={error} />}
       {!error && !curricula.data && <p className={`body ${styles.muted}`}>Loading lessons…</p>}
 
+      {curricula.data && (
+        <section className={styles.path} aria-labelledby="catalog">
+          <h2 className="heading" id="catalog">
+            Courses
+          </h2>
+          <p className={`small ${styles.muted} ${styles.prose}`}>
+            In the order to take them: each course assumes the ones before it that it names.
+          </p>
+          <ol className={styles.catalog}>
+            {curricula.data.map((path, i) => {
+              const passed = path.lessons.filter((l) => l.state === "passed").length;
+              return (
+                <li key={path.id} className={styles.course}>
+                  <span className={`value ${styles.muted}`}>{i + 1}</span>
+                  <div className={styles.courseText}>
+                    <a href={`#path-${path.id}`} className={`body-strong ${styles.link}`}>
+                      {path.title}
+                    </a>
+                    <span className={`small ${styles.muted}`}>{path.summary}</span>
+                    {path.prerequisites.length > 0 && (
+                      <span className={`small ${styles.muted}`}>
+                        After: <span className="value">{path.prerequisites.join(", ")}</span>
+                      </span>
+                    )}
+                  </div>
+                  <span className={`small ${styles.muted} ${styles.courseMeta}`}>
+                    level {path.level}
+                    <br />
+                    {passed} of {path.lessons.length} passed
+                  </span>
+                </li>
+              );
+            })}
+          </ol>
+        </section>
+      )}
+
       {curricula.data?.map((path) => {
         const passed = path.lessons.filter((l) => l.state === "passed").length;
         return (

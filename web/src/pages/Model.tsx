@@ -81,7 +81,7 @@ export function Model() {
           title="No graph for this file"
           body="It has no Decoder or Composite class, so there is nothing to draw: it is plain PyTorch. Edit it in your editor or below."
         />
-        {shows("editor", level) ? (
+        {shows("editor", level) || lesson.ids ? (
           <Editor path={path} markers={checked} />
         ) : (
           <pre className="code" aria-label="Your file">{source}</pre>
@@ -97,7 +97,8 @@ export function Model() {
     const extra = b as { reference?: string | null; user?: boolean; certification?: { state: string } };
     return { reference: extra.reference ?? null, user: extra.user === true, certification: extra.certification?.state, locked: b.lock?.locked === true, lesson: b.lock?.lesson ?? null };
   };
-  const editor = shows("editor", level);
+  // a lesson's file is the exercise: it must be editable at every level
+  const editor = shows("editor", level) || Boolean(lesson.ids);
   return (
     <div className={styles.page}>
       <header className={styles.head}>

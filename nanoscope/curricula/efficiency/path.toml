@@ -1,4 +1,5 @@
 title = "Efficiency"
+order = 70
 level = 2
 summary = "Measure how fast a model trains, find out whether the GPU or Python is the bottleneck, decide when torch.compile pays for itself, and read a model against the roofline."
 prerequisites = ["foundations"]

@@ -75,4 +75,13 @@ describe("Lessons", () => {
     expect((await screen.findByRole("alert")).textContent).toContain("lesson foundations/02: bad toml");
     expect(screen.getByText("guided")).toBeTruthy();
   });
+
+  it("lists the courses as a catalog in the order the API sends them, each after its prerequisites", async () => {
+    mockApi({ "GET /api/learn/unlocks": { body: guided }, "GET /api/curricula": { body: curricula } });
+    renderPage();
+    const catalog = await screen.findByRole("region", { name: "Courses" });
+    const rows = within(catalog).getAllByRole("listitem");
+    expect(rows).toHaveLength(curricula.length);
+    expect(within(rows[0]!).getByRole("link", { name: curricula[0]!.title })).toBeTruthy();
+  });
 });

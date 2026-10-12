@@ -1734,6 +1734,10 @@
             "title": "Level",
             "type": "integer"
           },
+          "order": {
+            "title": "Order",
+            "type": "integer"
+          },
           "prerequisites": {
             "items": {
               "type": "string"
@@ -1754,6 +1758,7 @@
           "id",
           "title",
           "level",
+          "order",
           "summary",
           "prerequisites",
           "compute",
