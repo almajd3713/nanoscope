@@ -1,0 +1,236 @@
+[
+  {
+    "id": 1,
+    "kind": "prereg-preview",
+    "lane": "interactive",
+    "state": "done",
+    "ref": null,
+    "owner": "local",
+    "device": "cpu",
+    "worker_id": "w",
+    "attempts": 0,
+    "payload": {
+      "spec": "/tmp/pytest-of-reeler/pytest-11/test_dump0/ws/studies/toy.toml"
+    },
+    "result": {
+      "root": "/tmp/pytest-of-reeler/pytest-11/test_dump0/ws",
+      "files": [
+        "studies/toy.toml"
+      ],
+      "diff": "diff --git a/studies/toy.toml b/studies/toy.toml\nnew file mode 100644\nindex 0000000..f9aac64\n--- /dev/null\n+++ b/studies/toy.toml\n@@ -0,0 +1,24 @@\n+schema = 1\n+name = \"toy\"\n+preset = \"test-tiny\"\n+baseline = \"small\"\n+seeds = [0, 1, 2]\n+mode = \"record\"\n+tolerance = 0.02\n+\n+[predictions.wide]\n+val_bpb = 1.2\n+\n+[[variants]]\n+name = \"small\"\n+model = \"nanoscope.models.bigram:Bigram\"\n+\n+[variants.kwargs]\n+d_model = 8\n+\n+[[variants]]\n+name = \"wide\"\n+model = \"nanoscope.models.bigram:Bigram\"\n+\n+[variants.kwargs]\n+d_model = 32\n",
+      "message": "Preregister study toy\n\nmode: record; preset: test-tiny; seeds: 0, 1, 2\nvariants: small, wide\npredictions: wide val_bpb=1.2\n\nCommitted by nanoscope before the first record run.\n\nCommitted-via: nanoscope",
+      "unrelated": [],
+      "identity": true,
+      "nothing_to_commit": false,
+      "head": null,
+      "hash": "78f06b2698467eab"
+    },
+    "error": null,
+    "created_at": 1791811021.0448387,
+    "started_at": 1791811021.0586793,
+    "finished_at": 1791811021.1887314
+  },
+  {
+    "id": 2,
+    "kind": "commit",
+    "lane": "interactive",
+    "state": "done",
+    "ref": null,
+    "owner": "local",
+    "device": "cpu",
+    "worker_id": "w",
+    "attempts": 0,
+    "payload": {
+      "spec": "/tmp/pytest-of-reeler/pytest-11/test_dump0/ws/studies/toy.toml",
+      "preview_hash": "78f06b2698467eab"
+    },
+    "result": {
+      "commit": "fac364bc5ccc93b751098452cb83937393c98225"
+    },
+    "error": null,
+    "created_at": 1791811021.2176542,
+    "started_at": 1791811021.2318408,
+    "finished_at": 1791811021.3719714
+  },
+  {
+    "id": 3,
+    "kind": "study",
+    "lane": "interactive",
+    "state": "done",
+    "ref": "studies/late",
+    "owner": "local",
+    "device": "cpu",
+    "worker_id": "w",
+    "attempts": 0,
+    "payload": {
+      "spec": "/tmp/pytest-of-reeler/pytest-11/test_dump0/ws/studies/late.toml"
+    },
+    "result": {
+      "study": "late",
+      "runs": 4,
+      "jobs": [
+        4,
+        5,
+        6,
+        7
+      ]
+    },
+    "error": null,
+    "created_at": 1791811030.3654585,
+    "started_at": 1791811030.380579,
+    "finished_at": 1791811030.4641237
+  },
+  {
+    "id": 4,
+    "kind": "run",
+    "lane": "batch",
+    "state": "running",
+    "ref": "studies/late/small/seed-0",
+    "owner": "local",
+    "device": "cuda:0",
+    "worker_id": "almajd3713-61586-cuda:0",
+    "attempts": 0,
+    "payload": {
+      "model": "nanoscope.models.bigram:Bigram",
+      "seed": 0,
+      "kwargs": {
+        "d_model": 8
+      },
+      "compile": false,
+      "study": {
+        "name": "late",
+        "variant": "small",
+        "mode": "explore"
+      },
+      "preset": "test-tiny",
+      "overrides": {
+        "sample_interval": 20
+      }
+    },
+    "result": null,
+    "error": null,
+    "created_at": 1791811030.411462,
+    "started_at": 1791811030.5086522,
+    "finished_at": null
+  },
+  {
+    "id": 5,
+    "kind": "run",
+    "lane": "batch",
+    "state": "running",
+    "ref": "studies/late/wide/seed-0",
+    "owner": "local",
+    "device": "cuda:0",
+    "worker_id": "almajd3713-61586-cuda:0",
+    "attempts": 0,
+    "payload": {
+      "model": "nanoscope.models.bigram:Bigram",
+      "seed": 0,
+      "kwargs": {
+        "d_model": 32
+      },
+      "compile": false,
+      "study": {
+        "name": "late",
+        "variant": "wide",
+        "mode": "explore"
+      },
+      "preset": "test-tiny",
+      "overrides": {
+        "sample_interval": 20
+      }
+    },
+    "result": null,
+    "error": null,
+    "created_at": 1791811030.422623,
+    "started_at": 1791811030.5199337,
+    "finished_at": null
+  },
+  {
+    "id": 6,
+    "kind": "run",
+    "lane": "batch",
+    "state": "queued",
+    "ref": "studies/late/small/seed-1",
+    "owner": "local",
+    "device": null,
+    "worker_id": null,
+    "attempts": 0,
+    "payload": {
+      "model": "nanoscope.models.bigram:Bigram",
+      "seed": 1,
+      "kwargs": {
+        "d_model": 8
+      },
+      "compile": false,
+      "study": {
+        "name": "late",
+        "variant": "small",
+        "mode": "explore"
+      },
+      "preset": "test-tiny",
+      "overrides": {
+        "sample_interval": 20
+      }
+    },
+    "result": null,
+    "error": null,
+    "created_at": 1791811030.4334588,
+    "started_at": null,
+    "finished_at": null
+  },
+  {
+    "id": 7,
+    "kind": "run",
+    "lane": "batch",
+    "state": "queued",
+    "ref": "studies/late/wide/seed-1",
+    "owner": "local",
+    "device": null,
+    "worker_id": null,
+    "attempts": 0,
+    "payload": {
+      "model": "nanoscope.models.bigram:Bigram",
+      "seed": 1,
+      "kwargs": {
+        "d_model": 32
+      },
+      "compile": false,
+      "study": {
+        "name": "late",
+        "variant": "wide",
+        "mode": "explore"
+      },
+      "preset": "test-tiny",
+      "overrides": {
+        "sample_interval": 20
+      }
+    },
+    "result": null,
+    "error": null,
+    "created_at": 1791811030.443573,
+    "started_at": null,
+    "finished_at": null
+  },
+  {
+    "id": 8,
+    "kind": "bench",
+    "lane": "interactive",
+    "state": "done",
+    "ref": null,
+    "owner": "local",
+    "device": "cpu",
+    "worker_id": "w",
+    "attempts": 0,
+    "payload": {
+      "model": "nanoscope.models.bigram:Bigram",
+      "preset": "tinystories-5min",
+      "steps": 6
+    },
+    "result": null,
+    "error": null,
+    "created_at": 1791811030.4786606,
+    "started_at": 1791811030.4911346,
+    "finished_at": 1791811030.5000603
+  }
+]

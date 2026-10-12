@@ -1,0 +1,99 @@
+{
+  "schema": 1,
+  "nanoscope": "0.6.0",
+  "study": "toy",
+  "mode": "record",
+  "spec": {
+    "schema": 1,
+    "name": "toy",
+    "preset": "test-tiny",
+    "baseline": "small",
+    "seeds": [
+      0,
+      1,
+      2
+    ],
+    "mode": "record",
+    "tolerance": 0.02,
+    "variants": [
+      {
+        "name": "small",
+        "model": "nanoscope.models.bigram:Bigram",
+        "kwargs": {
+          "d_model": 8
+        }
+      },
+      {
+        "name": "wide",
+        "model": "nanoscope.models.bigram:Bigram",
+        "kwargs": {
+          "d_model": 32
+        }
+      }
+    ],
+    "predictions": {
+      "wide": {
+        "val_bpb": 1.2
+      }
+    }
+  },
+  "eval": {
+    "preset": "test-tiny",
+    "dataset": "fake/stories",
+    "eval_docs": 10,
+    "tokenizer": "bpe-300-100"
+  },
+  "baseline": "small",
+  "finals": {
+    "small": {
+      "0": {
+        "val_bpb": 2.706507411123682,
+        "val_loss": 5.01809031420415
+      },
+      "1": {
+        "val_bpb": 2.767027231658364,
+        "val_loss": 5.1302991055025915
+      },
+      "2": {
+        "val_bpb": 2.721111232672014,
+        "val_loss": 5.045167016510916
+      }
+    },
+    "wide": {
+      "0": {
+        "val_bpb": 1.6438660112273773,
+        "val_loss": 3.047864592901551
+      },
+      "1": {
+        "val_bpb": 1.7406092208266863,
+        "val_loss": 3.2272345665657873
+      },
+      "2": {
+        "val_bpb": 1.7632643004779325,
+        "val_loss": 3.2692389724278215
+      }
+    }
+  },
+  "provenance": {
+    "schema": 1,
+    "nanoscope": "0.6.0",
+    "commit": "fac364bc5ccc93b751098452cb83937393c98225",
+    "study_file": "studies/toy.toml",
+    "study_file_commit": "fac364bc5ccc93b751098452cb83937393c98225",
+    "study_file_committed_at": "2026-10-12T14:17:01+01:00",
+    "preregistration_commit": "fac364bc5ccc93b751098452cb83937393c98225",
+    "committed_via": "nanoscope",
+    "started_at": "2026-10-12T13:17:01+00:00",
+    "predictions": {
+      "wide": {
+        "val_bpb": 1.2
+      }
+    },
+    "seeds": [
+      0,
+      1,
+      2
+    ]
+  },
+  "exported_at": "2026-10-12T13:17:09+00:00"
+}

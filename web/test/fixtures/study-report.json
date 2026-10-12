@@ -1,0 +1,303 @@
+{
+  "schema": 1,
+  "nanoscope": "0.6.0",
+  "study": "toy",
+  "mode": "record",
+  "manifest": {
+    "schema": 1,
+    "nanoscope": "0.6.0",
+    "commit": "fac364bc5ccc93b751098452cb83937393c98225",
+    "study_file": "studies/toy.toml",
+    "study_file_commit": "fac364bc5ccc93b751098452cb83937393c98225",
+    "study_file_committed_at": "2026-10-12T14:17:01+01:00",
+    "preregistration_commit": "fac364bc5ccc93b751098452cb83937393c98225",
+    "committed_via": "nanoscope",
+    "started_at": "2026-10-12T13:17:01+00:00",
+    "predictions": {
+      "wide": {
+        "val_bpb": 1.2
+      }
+    },
+    "seeds": [
+      0,
+      1,
+      2
+    ]
+  },
+  "rows": [
+    {
+      "label": "small",
+      "source": "studies/toy/small",
+      "seeds": [
+        0,
+        1,
+        2
+      ],
+      "params": 2400,
+      "params_kind": "non-embedding",
+      "tokens": 2560,
+      "summary": {
+        "n": 3,
+        "mean": 2.7315486251513534,
+        "sample_sd": 0.03158111050475206,
+        "ci95_low": 2.653096797567544,
+        "ci95_high": 2.8100004527351627,
+        "status": "estimated"
+      },
+      "delta": null,
+      "verdict": "baseline",
+      "text": {
+        "params": "0.00M",
+        "tokens": "0.0M",
+        "value": "2.732 \u00b1 0.078",
+        "delta": "(baseline)",
+        "verdict": "",
+        "statement": null
+      }
+    },
+    {
+      "label": "wide",
+      "source": "studies/toy/wide",
+      "seeds": [
+        0,
+        1,
+        2
+      ],
+      "params": 9600,
+      "params_kind": "non-embedding",
+      "tokens": 2560,
+      "summary": {
+        "n": 3,
+        "mean": 1.7159131775106653,
+        "sample_sd": 0.06341457865183603,
+        "ci95_low": 1.558382631206882,
+        "ci95_high": 1.8734437238144486,
+        "status": "estimated"
+      },
+      "delta": {
+        "n": 3,
+        "mean": -1.0156354476406881,
+        "sample_sd": 0.053222813407164324,
+        "ci95_low": -1.147848245550876,
+        "ci95_high": -0.8834226497305002,
+        "status": "estimated",
+        "paired": true
+      },
+      "verdict": "better",
+      "text": {
+        "params": "0.01M",
+        "tokens": "0.0M",
+        "value": "1.716 \u00b1 0.158",
+        "delta": "\u22121.016 [\u22121.148, \u22120.883]",
+        "verdict": "better",
+        "statement": "wide vs small: \u22121.016 [\u22121.148, \u22120.883] bpb, 3 seeds each, paired"
+      }
+    }
+  ],
+  "notes": [],
+  "predictions": [
+    {
+      "variant": "wide",
+      "metric": "val_bpb",
+      "predicted": 1.2,
+      "actual": {
+        "n": 3,
+        "mean": 1.7159131775106653,
+        "sample_sd": 0.06341457865183603,
+        "ci95_low": 1.558382631206882,
+        "ci95_high": 1.8734437238144486,
+        "status": "estimated"
+      },
+      "error": 0.4299276479255545
+    }
+  ],
+  "comparison": {
+    "schema": 1,
+    "nanoscope": "0.6.0",
+    "metric": "val_bpb",
+    "baseline": "small",
+    "rows": [
+      {
+        "label": "small",
+        "source": "studies/toy/small",
+        "seeds": [
+          0,
+          1,
+          2
+        ],
+        "params": 2400,
+        "params_kind": "non-embedding",
+        "tokens": 2560,
+        "summary": {
+          "n": 3,
+          "mean": 2.7315486251513534,
+          "sample_sd": 0.03158111050475206,
+          "ci95_low": 2.653096797567544,
+          "ci95_high": 2.8100004527351627,
+          "status": "estimated"
+        },
+        "delta": null,
+        "verdict": "baseline",
+        "text": {
+          "params": "0.00M",
+          "tokens": "0.0M",
+          "value": "2.732 \u00b1 0.078",
+          "delta": "(baseline)",
+          "verdict": "",
+          "statement": null
+        }
+      },
+      {
+        "label": "wide",
+        "source": "studies/toy/wide",
+        "seeds": [
+          0,
+          1,
+          2
+        ],
+        "params": 9600,
+        "params_kind": "non-embedding",
+        "tokens": 2560,
+        "summary": {
+          "n": 3,
+          "mean": 1.7159131775106653,
+          "sample_sd": 0.06341457865183603,
+          "ci95_low": 1.558382631206882,
+          "ci95_high": 1.8734437238144486,
+          "status": "estimated"
+        },
+        "delta": {
+          "n": 3,
+          "mean": -1.0156354476406881,
+          "sample_sd": 0.053222813407164324,
+          "ci95_low": -1.147848245550876,
+          "ci95_high": -0.8834226497305002,
+          "status": "estimated",
+          "paired": true
+        },
+        "verdict": "better",
+        "text": {
+          "params": "0.01M",
+          "tokens": "0.0M",
+          "value": "1.716 \u00b1 0.158",
+          "delta": "\u22121.016 [\u22121.148, \u22120.883]",
+          "verdict": "better",
+          "statement": "wide vs small: \u22121.016 [\u22121.148, \u22120.883] bpb, 3 seeds each, paired"
+        }
+      }
+    ],
+    "notes": [],
+    "title": "bits per byte on the first 10 validation documents of fake/stories (lower is better)",
+    "params_header": "non-emb params",
+    "curves": [
+      {
+        "label": "small",
+        "source": "studies/toy/small",
+        "seeds": [
+          {
+            "seed": 0,
+            "points": [
+              [
+                1280,
+                2.801240057177746
+              ],
+              [
+                2560,
+                2.706507411123682
+              ]
+            ]
+          },
+          {
+            "seed": 1,
+            "points": [
+              [
+                1280,
+                2.8616678421484107
+              ],
+              [
+                2560,
+                2.767027231658364
+              ]
+            ]
+          },
+          {
+            "seed": 2,
+            "points": [
+              [
+                1280,
+                2.8144482911972415
+              ],
+              [
+                2560,
+                2.721111232672014
+              ]
+            ]
+          }
+        ]
+      },
+      {
+        "label": "wide",
+        "source": "studies/toy/wide",
+        "seeds": [
+          {
+            "seed": 0,
+            "points": [
+              [
+                1280,
+                1.9639177193104786
+              ],
+              [
+                2560,
+                1.6438660112273773
+              ]
+            ]
+          },
+          {
+            "seed": 1,
+            "points": [
+              [
+                1280,
+                2.0410623548211593
+              ],
+              [
+                2560,
+                1.7406092208266863
+              ]
+            ]
+          },
+          {
+            "seed": 2,
+            "points": [
+              [
+                1280,
+                2.0702890548611923
+              ],
+              [
+                2560,
+                1.7632643004779325
+              ]
+            ]
+          }
+        ]
+      }
+    ],
+    "precision_plan": {
+      "metric": "val_bpb",
+      "preset": "test-tiny",
+      "n_seeds": 3,
+      "sd": null,
+      "half_width": null,
+      "source": null,
+      "models": [],
+      "note": "no shipped baselines with 3 or more seeds for preset 'test-tiny'"
+    },
+    "noise_floor": {
+      "metric": "val_bpb",
+      "preset": "test-tiny",
+      "sd": null,
+      "source": null,
+      "models": [],
+      "note": "no shipped baselines with 3 or more seeds for preset 'test-tiny'"
+    }
+  }
+}

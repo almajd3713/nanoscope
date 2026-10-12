@@ -1,0 +1,39 @@
+{
+  "name": "toy",
+  "path": "studies/toy.toml",
+  "spec": {
+    "schema": 1,
+    "name": "toy",
+    "preset": "test-tiny",
+    "baseline": "small",
+    "seeds": [
+      0,
+      1,
+      2
+    ],
+    "mode": "record",
+    "tolerance": 0.02,
+    "variants": [
+      {
+        "name": "small",
+        "model": "nanoscope.models.bigram:Bigram",
+        "kwargs": {
+          "d_model": 8
+        }
+      },
+      {
+        "name": "wide",
+        "model": "nanoscope.models.bigram:Bigram",
+        "kwargs": {
+          "d_model": 32
+        }
+      }
+    ],
+    "predictions": {
+      "wide": {
+        "val_bpb": 1.2
+      }
+    }
+  },
+  "toml": "schema = 1\nname = \"toy\"\npreset = \"test-tiny\"\nbaseline = \"small\"\nseeds = [0, 1, 2]\nmode = \"record\"\ntolerance = 0.02\n\n[predictions.wide]\nval_bpb = 1.2\n\n[[variants]]\nname = \"small\"\nmodel = \"nanoscope.models.bigram:Bigram\"\n\n[variants.kwargs]\nd_model = 8\n\n[[variants]]\nname = \"wide\"\nmodel = \"nanoscope.models.bigram:Bigram\"\n\n[variants.kwargs]\nd_model = 32\n"
+}

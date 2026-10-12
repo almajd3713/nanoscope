@@ -1,0 +1,74 @@
+[
+  {
+    "ref": "studies/toy/small/seed-0",
+    "state": "done",
+    "step": 20,
+    "max_steps": 20,
+    "val_bpb": 2.706507411123682,
+    "updated": 1.8303747177124023,
+    "stale": false,
+    "error": null,
+    "model": "Bigram",
+    "started_at": "2026-10-12T13:17:03+00:00"
+  },
+  {
+    "ref": "studies/toy/small/seed-1",
+    "state": "done",
+    "step": 20,
+    "max_steps": 20,
+    "val_bpb": 2.767027231658364,
+    "updated": -0.3294084072113037,
+    "stale": false,
+    "error": null,
+    "model": "Bigram",
+    "started_at": "2026-10-12T13:17:08+00:00"
+  },
+  {
+    "ref": "studies/toy/small/seed-2",
+    "state": "done",
+    "step": 20,
+    "max_steps": 20,
+    "val_bpb": 2.721111232672014,
+    "updated": 0.286557674407959,
+    "stale": false,
+    "error": null,
+    "model": "Bigram",
+    "started_at": "2026-10-12T13:17:09+00:00"
+  },
+  {
+    "ref": "studies/toy/wide/seed-0",
+    "state": "done",
+    "step": 20,
+    "max_steps": 20,
+    "val_bpb": 1.6438660112273773,
+    "updated": 0.3043503761291504,
+    "stale": false,
+    "error": null,
+    "model": "Bigram",
+    "started_at": "2026-10-12T13:17:06+00:00"
+  },
+  {
+    "ref": "studies/toy/wide/seed-1",
+    "state": "done",
+    "step": 20,
+    "max_steps": 20,
+    "val_bpb": 1.7406092208266863,
+    "updated": -0.8672695159912109,
+    "stale": false,
+    "error": null,
+    "model": "Bigram",
+    "started_at": "2026-10-12T13:17:08+00:00"
+  },
+  {
+    "ref": "studies/toy/wide/seed-2",
+    "state": "done",
+    "step": 20,
+    "max_steps": 20,
+    "val_bpb": 1.7632643004779325,
+    "updated": 0.03222012519836426,
+    "stale": false,
+    "error": null,
+    "model": "Bigram",
+    "started_at": "2026-10-12T13:17:08+00:00"
+  }
+]

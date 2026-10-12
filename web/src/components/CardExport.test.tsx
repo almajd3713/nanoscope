@@ -1,13 +1,15 @@
 import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import realPlan from "../../test/fixtures/study-card-upload.json";
 import { mockApi } from "../../test/fetch";
 import { resetLevelCache } from "../app/level";
 import { Providers } from "../app/providers";
 import { CardExport, PROJECT_CARDS } from "./CardExport";
 
-const content = JSON.stringify({ schema: 1, study: "toy", finals: {}, exported_at: "2026-10-08T21:04:26+00:00" }, null, 2);
-const plan = { repo: PROJECT_CARDS, repo_type: "dataset", path_in_repo: "cards/toy.json", content, commit_message: "nanoscope: ablation card for toy", exported_at: "2026-10-08T21:04:26+00:00" };
+// A real upload plan for a finished record study (web/test/fixtures/study-card-upload.json).
+const plan = realPlan;
+const content = plan.content;
 const job = (state: string, result: unknown = null) => ({ id: 3, kind: "card-push", state, lane: "interactive", owner: "local", payload: {}, result, error: null, created_at: 1 });
 
 beforeEach(() => {
@@ -49,7 +51,7 @@ describe("CardExport", () => {
     await userEvent.click(screen.getByLabelText(/Also push it to a public Hugging Face dataset/));
     expect(await screen.findByText("What uploads")).toBeTruthy();
     expect(screen.getByText("cards/toy.json")).toBeTruthy();
-    expect(screen.getByText("nanoscope: ablation card for toy")).toBeTruthy();
+    expect(screen.getByText(plan.commit_message)).toBeTruthy();
     expect(screen.getByText(/Anyone can read a public dataset/)).toBeTruthy();
     expect(screen.getByText(/the text above, byte for byte/)).toBeTruthy();
     await userEvent.click(screen.getByRole("button", { name: "Push card" }));
