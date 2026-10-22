@@ -22,7 +22,7 @@ item is one line, so scripts and agents can grep and edit it.
 | P15 | GUI Research (10-13 d) | 31 / 31 | done |
 | P16 | Extend + depth (8-10 d) | 18 / 18 | done |
 | P17 | Remaining curriculum paths (18-26 d) | 33 / 34 | done except P17.30 (user, GPU runs) |
-| P18 | Every lesson reaches the model page's views | 7 / 10 | in progress |
+| P18 | Every lesson reaches the model page's views | 8 / 11 | in progress |
 
 MVP = P6-P14 (about 77-96 focused days). Recount a row with
 `grep -c '^- \[x\] P6\.' docs/checklist.md` (done) and `grep -c '^- \[.\] P6\.' docs/checklist.md`
@@ -728,6 +728,7 @@ Order: P13.01 and P13.02 first (these items live in `web/` and run in its CI job
 - [ ] P18.07 Lesson 5 (`BlockTemplate`) blocks way in: its `equivalent` check names `ln1.*`, `attn.*`, `ln2.*`, `fc.weight`, `proj.weight`; a filled `BlockTemplate` has `norm1.*`, `attn.*`, `norm2.*`, `mlp.*`, so the check needs a name mapping per way in (a `[template]` `call` override, or aliases in `resolve_param`) before a template can ship. · files: nanoscope/learn/checks.py, nanoscope/curricula/foundations/05-block/* · deps: P18.03 · done: a filled BlockTemplate solution in tests/solutions/templates/05-block.py passes `uv run pytest tests/test_curricula.py -k f05`
 - [ ] P18.08 **USER ACTION** Look over the structure view and the lesson page's blocks buttons in the app. No mockup was drawn (user, 2026-10-22: "use your judgement"); they are built from existing components and tokens (EmptyState/Note/Button, node box styling). · files: — · deps: P18.02, P18.04 · done: the user's notes are fixed, or the user approves
 - [x] P18.09 Found by P18.06: the model page of a plain file opened seven SSE streams (`/api/files/events` five times, `/api/learn/events` twice), one per hook, so Chrome's six HTTP/1.1 connections per host were all held and the structure POST waited forever (the graph page sits at the same edge, so its describe POST could stall too). `useEvents` shares one EventSource per url between subscribers (refcounted, listeners per event type); streams that resume from a row id keep one each. · files: web/src/hooks/useEvents.ts, web/src/hooks/useEvents.test.ts · deps: — · done: `pnpm -C web test -- useEvents` passes and P18.06 passes ✓ 2026-10-22 c28e588
+- [x] P18.10 Found by the user on the e2e stack: the run page flashed "Loading run…" every second while a run was preparing. TanStack Query v5 clears a query's error at the start of each refetch, and the page polled a 404 as an error; a missing folder is now the query's answer (`{ missing }`), polled until the run exists. · files: web/src/pages/Run.tsx, web/src/pages/Run.header.test.tsx, web/test/fetch.ts (`delay`) · deps: — · done: `pnpm -C web test -- Run.header` passes, and fails on the old Run.tsx ✓ 2026-10-22 b07f2f2
 - [ ] P18.99 PHASE GATE P18. · files: — · deps: P18.* · done: `make check` passes; web lint, typecheck, stylelint and vitest pass; the e2e job is green; **USER ACTION** merge the PR
 
 ---
