@@ -80,6 +80,16 @@ class Check:
 
 
 @dataclass(frozen=True)
+class Template:
+    """The same exercise built from blocks: `file` (in the lesson's folder) fills the slots of a
+    template block where the starter has you write the code. Starting from it gives the learner
+    a graph to edit instead of code to write; the checks are the same."""
+
+    file: str
+    summary: str
+
+
+@dataclass(frozen=True)
 class LessonText:
     intro: str
     surface: str
@@ -106,6 +116,7 @@ class LessonSpec:
     text: LessonText
     has_starter: bool
     has_notebook: bool
+    template: Template | None = None
 
     @property
     def estimate_minutes(self) -> float | None:
@@ -279,8 +290,27 @@ def _depth(doc: dict[str, Any], problems: _Problems) -> dict[str, dict[str, Any]
 
 
 LESSON_FIELDS = {"title", "level", "summary", "prerequisites", "experiment", "checks", "depth",
-                 "unlocks", "forbid", "compute"}
+                 "unlocks", "forbid", "compute", "template"}
 PATH_FIELDS = {"title", "level", "order", "summary", "prerequisites", "compute"}
+
+
+def _template(doc: dict[str, Any], directory: Path, problems: _Problems) -> Template | None:
+    table = doc.get("template")
+    if table is None:
+        return None
+    if not isinstance(table, dict):
+        problems.add("template", "must be a table with file and summary")
+        return None
+    _unknown(table, {"file", "summary"}, problems, "template.")
+    file = _str(table, "file", problems, "template.")
+    summary = _str(table, "summary", problems, "template.")
+    if file:
+        if Path(file).name != file or not file.endswith(".py") or file == "starter.py":
+            problems.add("template.file", "must name a .py file in the lesson's folder, other "
+                         "than starter.py (it is copied as the learner's starter.py)")
+        elif not (directory / file).exists():
+            problems.add("template.file", f"{file} is not in the lesson's folder")
+    return Template(file, summary) if file and summary else None
 
 
 def parse_lesson_md(text: str, problems: _Problems | None = None) -> LessonText:
@@ -354,6 +384,7 @@ def _load_lesson_dir(directory: Path, lesson_id: str) -> LessonSpec:
     depth = _depth(doc, problems)
     forbid = _str_list(doc, "forbid", problems)
     compute = _compute(doc, problems, required=True)
+    template = _template(doc, directory, problems)
     md_problems = _Problems(f"{lesson_id}/lesson.md")
     md = directory / "lesson.md"
     if md.exists():
@@ -372,7 +403,7 @@ def _load_lesson_dir(directory: Path, lesson_id: str) -> LessonSpec:
         title=title, level=level, summary=summary, prerequisites=prerequisites,
         experiment=experiment, checks=checks, depth=depth, unlocks=unlocks, forbid=forbid,
         compute=compute, text=text, has_starter=(directory / "starter.py").exists(),
-        has_notebook=(directory / "notebook.py").exists())
+        has_notebook=(directory / "notebook.py").exists(), template=template)
 
 
 def load_path(ref: str | Path, root: Path | None = None) -> PathSpec:

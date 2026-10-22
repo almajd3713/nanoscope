@@ -1389,6 +1389,16 @@
             "title": "Summary",
             "type": "string"
           },
+          "template": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/TemplateDoc"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
           "text": {
             "additionalProperties": {
               "type": "string"
@@ -1429,7 +1439,8 @@
           "depth",
           "text",
           "files",
-          "workspace"
+          "workspace",
+          "template"
         ],
         "title": "LessonDetail",
         "type": "object"
@@ -2431,6 +2442,15 @@
               }
             ],
             "title": "Gating"
+          },
+          "route": {
+            "default": "code",
+            "enum": [
+              "code",
+              "blocks"
+            ],
+            "title": "Route",
+            "type": "string"
           }
         },
         "title": "StartRequest",
@@ -2800,6 +2820,24 @@
           "problems"
         ],
         "title": "StudyValidationResult",
+        "type": "object"
+      },
+      "TemplateDoc": {
+        "properties": {
+          "file": {
+            "title": "File",
+            "type": "string"
+          },
+          "summary": {
+            "title": "Summary",
+            "type": "string"
+          }
+        },
+        "required": [
+          "file",
+          "summary"
+        ],
+        "title": "TemplateDoc",
         "type": "object"
       },
       "UnlockRequest": {
@@ -3665,7 +3703,7 @@
     },
     "/api/curricula/{path}/{lesson}/start": {
       "post": {
-        "description": "Copy the lesson's starter files into your workspace (never over your edits) and mark it\nstarted. The very first start turns gating on (`guided`) unless you ask for `open`.",
+        "description": "Copy the lesson's starter files into your workspace (never over your edits) and mark it\nstarted. The very first start turns gating on (`guided`) unless you ask for `open`.\n`route: \"blocks\"` starts from the lesson's template (slots to fill with blocks) instead of\nits starter; a starter.py you have not edited is replaced, so you can switch.",
         "operationId": "start_api_curricula__path___lesson__start_post",
         "parameters": [
           {

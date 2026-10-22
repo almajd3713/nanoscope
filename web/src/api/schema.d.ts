@@ -246,6 +246,8 @@ export interface paths {
          * Start
          * @description Copy the lesson's starter files into your workspace (never over your edits) and mark it
          *     started. The very first start turns gating on (`guided`) unless you ask for `open`.
+         *     `route: "blocks"` starts from the lesson's template (slots to fill with blocks) instead of
+         *     its starter; a starter.py you have not edited is replaced, so you can switch.
          */
         post: operations["start_api_curricula__path___lesson__start_post"];
         delete?: never;
@@ -2072,6 +2074,7 @@ export interface components {
             state: string;
             /** Summary */
             summary: string;
+            template: components["schemas"]["TemplateDoc"] | null;
             /** Text */
             text: {
                 [key: string]: string;
@@ -2492,6 +2495,12 @@ export interface components {
         StartRequest: {
             /** Gating */
             gating?: string | null;
+            /**
+             * Route
+             * @default code
+             * @enum {string}
+             */
+            route: "code" | "blocks";
         };
         /** StartResult */
         StartResult: {
@@ -2643,6 +2652,13 @@ export interface components {
             refs: string[];
             /** Toml */
             toml?: string | null;
+        };
+        /** TemplateDoc */
+        TemplateDoc: {
+            /** File */
+            file: string;
+            /** Summary */
+            summary: string;
         };
         /** UnlockRequest */
         UnlockRequest: {

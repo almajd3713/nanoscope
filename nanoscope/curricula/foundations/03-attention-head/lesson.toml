@@ -4,6 +4,10 @@ summary = "Let every token look back at the earlier ones and take a weighted ave
 prerequisites = ["foundations/02-mlp"]
 forbid = ["torch.nn.MultiheadAttention", "F.scaled_dot_product_attention"]
 
+[template]
+file = "template.py"
+summary = "The same head as an AttentionTemplate with eight empty slots: you drag a block into each step instead of writing forward()."
+
 [experiment]
 kind = "check"
 

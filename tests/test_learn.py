@@ -302,6 +302,60 @@ def test_learn_start_copies_the_marimo_notebook(curricula, home, capsys, monkeyp
     assert target.read_text() == MARIMO_NOTEBOOK and f"copied {target}" in capsys.readouterr().out
 
 
+def test_learn_start_from_blocks_and_switching(curricula, home, capsys, monkeypatch, tmp_path):
+    from nanoscope import paths
+    from nanoscope.cli import main
+    from nanoscope.learn import unlocks
+
+    lesson = curricula / "foundations" / "01-bigram"
+    (lesson / "template.py").write_text("# your bigram, from blocks\n")
+    toml = lesson / "lesson.toml"
+    toml.write_text(toml.read_text() + '\n[template]\nfile = "template.py"\n'
+                    'summary = "The same bigram as slots."\n')
+    monkeypatch.setenv("NANOSCOPE_WORKSPACE", str(tmp_path / "ws"))
+    target = paths.workspace_dir() / "lessons" / "foundations" / "01-bigram" / "starter.py"
+    main(["learn", "start", "foundations/01-bigram", "--blocks"])
+    assert target.read_text() == "# your bigram, from blocks\n"
+    assert f"copied {target}" in capsys.readouterr().out
+    # not edited yet: the other way in replaces it, and back again
+    main(["learn", "start", "foundations/01-bigram"])
+    assert target.read_text() == "# your bigram\n"
+    main(["learn", "start", "foundations/01-bigram", "--blocks"])
+    assert target.read_text() == "# your bigram, from blocks\n"
+    # edited: kept, whichever way you ask for
+    target.write_text("# my slots\n")
+    main(["learn", "start", "foundations/01-bigram"])
+    assert target.read_text() == "# my slots\n"
+    assert f"kept your {target} (not overwritten)" in capsys.readouterr().out
+    # a lesson with no template says so, and a refused first start sets no policy
+    unlocks.unlocks_path().unlink()
+    with pytest.raises(SystemExit) as refused:
+        main(["learn", "start", "foundations/02-mlp", "--blocks"])
+    assert refused.value.code == 1
+    assert "foundations/02-mlp has no template to build from blocks; start it in code" in (
+        capsys.readouterr().out)
+    assert not unlocks.exists()
+
+
+def test_loader_template_table(tmp_path):
+    at = "foundations/01-bigram/lesson.toml: template."
+    make(tmp_path, toml=LESSON + '\n[template]\nfile = "template.py"\nsummary = "x"\n')
+    problems = problems_of(lambda: load_lesson("foundations/01-bigram", tmp_path))
+    assert problems[at + "file"] == "template.py is not in the lesson's folder"
+    for bad in ('"starter.py"', '"../x.py"', '"notes.md"'):
+        make(tmp_path, toml=LESSON + f'\n[template]\nfile = {bad}\nsummary = "x"\n')
+        found = problems_of(lambda: load_lesson("foundations/01-bigram", tmp_path))
+        assert "must name a .py file in the lesson's folder" in found[at + "file"]
+    make(tmp_path, toml=LESSON + '\n[template]\nfile = "t.py"\nwhy = "x"\n')
+    (tmp_path / "foundations" / "01-bigram" / "t.py").write_text("")
+    found = problems_of(lambda: load_lesson("foundations/01-bigram", tmp_path))
+    assert found[at + "summary"] == "is required" and at + "why" in found
+    make(tmp_path, toml=LESSON + '\n[template]\nfile = "t.py"\nsummary = "Slots."\n')
+    lesson = load_lesson("foundations/01-bigram", tmp_path)
+    assert lesson.template is not None
+    assert (lesson.template.file, lesson.template.summary) == ("t.py", "Slots.")
+
+
 def test_learn_start(curricula, home, capsys, monkeypatch, tmp_path):
     from nanoscope import paths
     from nanoscope.cli import main

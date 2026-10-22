@@ -57,6 +57,9 @@ def add_parsers(sub: argparse._SubParsersAction) -> None:  # type: ignore[type-a
     start.add_argument("lesson", help="e.g. foundations/01-bigram")
     start.add_argument("--open", action="store_true",
                        help="don't gate blocks (policy open) when starting for the first time")
+    start.add_argument("--blocks", action="store_true",
+                       help="start from the lesson's template: the exercise as slots to fill "
+                            "with blocks (lessons that have one)")
 
 
 def _minutes(minutes: float) -> str:
@@ -111,22 +114,38 @@ def workspace_lesson_dir(lesson: LessonSpec) -> Path:
     return paths.workspace_dir() / "lessons" / lesson.path / lesson.slug
 
 
-def start_lesson(lesson: LessonSpec, owner: str = "local") -> tuple[Path, list[Path], list[Path]]:
-    """Copy starter.py (and notebook.py) into the workspace; never overwrite an existing file.
-    Returns (folder, copied, kept)."""
+ROUTES = ("code", "blocks")
+
+
+def start_lesson(lesson: LessonSpec, owner: str = "local",
+                 route: str = "code") -> tuple[Path, list[Path], list[Path]]:
+    """Copy starter.py (and notebook.py) into the workspace; never overwrite your edits.
+    `route="blocks"` copies the lesson's template as starter.py instead (a lesson with a
+    [template] table): the same exercise as a graph to fill. Either one replaces a starter.py
+    you have not edited, so you can switch until you start writing. Returns (folder, copied,
+    kept)."""
+    if route not in ROUTES:
+        raise ValueError(f"route must be one of {', '.join(ROUTES)}, got {route!r}")
+    if route == "blocks" and lesson.template is None:
+        raise ValueError(f"{lesson.id} has no template to build from blocks; start it in code")
+    template = lesson.dir / lesson.template.file if lesson.template else None
+    shipped = [p.read_bytes() for p in (lesson.dir / "starter.py", template)
+               if p is not None and p.exists()]
     folder = workspace_lesson_dir(lesson)
     folder.mkdir(parents=True, exist_ok=True)
     copied, kept = [], []
     for name in ("starter.py", "notebook.py"):
-        source = lesson.dir / name
-        if not source.exists():
+        source = template if name == "starter.py" and route == "blocks" else lesson.dir / name
+        if source is None or not source.exists():
             continue
         target = folder / name
         if target.exists():
-            kept.append(target)
-        else:
-            shutil.copyfile(source, target)
-            copied.append(target)
+            mine = target.read_bytes()
+            if name != "starter.py" or mine == source.read_bytes() or mine not in shipped:
+                kept.append(target)
+                continue
+        shutil.copyfile(source, target)
+        copied.append(target)
     if progress.state(lesson.id, owner) == "not-started":
         progress.mark(lesson.id, "started", owner=owner)
     return folder, copied, kept
@@ -270,10 +289,13 @@ def _run(args: argparse.Namespace) -> int:
         return 0
     if command == "start":
         lesson = loader.load_lesson(args.lesson)
+        if args.blocks and lesson.template is None:
+            print(f"{lesson.id} has no template to build from blocks; start it in code")
+            return 1
         first = not unlocks.exists()
         if first:
             unlocks.set_policy("open" if args.open else "guided")
-        folder, copied, kept = start_lesson(lesson)
+        folder, copied, kept = start_lesson(lesson, route="blocks" if args.blocks else "code")
         print(f"started {lesson.id}: {lesson.title}")
         for path in copied:
             print(f"  copied {path}")

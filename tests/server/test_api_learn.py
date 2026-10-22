@@ -72,6 +72,27 @@ def test_start_never_overwrites_and_turns_gating_on(client, tmp_path):
         "state"] == "started"
 
 
+def test_start_from_blocks(client, tmp_path):
+    detail = client.get("/api/curricula/foundations/03-attention-head").json()
+    assert detail["template"]["file"] == "template.py"
+    assert detail["template"]["summary"].startswith("The same head as an AttentionTemplate")
+    assert client.get("/api/curricula/foundations/04-multi-head").json()["template"] is None
+    starter = tmp_path / "ws" / "lessons" / "foundations" / "03-attention-head" / "starter.py"
+    client.post("/api/curricula/foundations/03-attention-head/start")
+    assert "class OneHead(nn.Module)" in starter.read_text()
+    # not edited yet, so the blocks way in replaces it
+    blocks = client.post("/api/curricula/foundations/03-attention-head/start",
+                         json={"route": "blocks"}).json()
+    assert blocks["copied"] == ["lessons/foundations/03-attention-head/starter.py"]
+    assert "class OneHead(AttentionTemplate)" in starter.read_text()
+    refused = client.post("/api/curricula/foundations/04-multi-head/start",
+                          json={"route": "blocks"})
+    assert refused.status_code == 422
+    assert "has no template to build from blocks" in refused.json()["detail"]
+    assert client.post("/api/curricula/foundations/03-attention-head/start",
+                       json={"route": "graph"}).status_code == 422
+
+
 def test_check_is_a_job(client, tmp_path, monkeypatch):
     from nanoscope.learn import checks
     from nanoscope.learn.checks import Result

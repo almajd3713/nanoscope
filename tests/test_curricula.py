@@ -150,7 +150,19 @@ def test_f03_attention_head():
 def test_f03_template_route():
     """The graph route: OneHead filled from the attention template with primitive blocks passes
     the same check (its `Linear` slots keep their weights one level down, `q.linear.weight`)."""
+    from nanoscope.blocks.graph import parse
+
     lesson = load_lesson("foundations/03-attention-head")
+    # the lesson's own way in: its template, as shipped, is a graph with every slot empty
+    assert lesson.template is not None
+    start_lesson(lesson, route="blocks")
+    file = workspace_lesson_dir(lesson) / "starter.py"
+    assert file.read_bytes() == (lesson.dir / lesson.template.file).read_bytes()
+    (head,) = parse(file)["classes"]
+    assert head["name"] == "OneHead" and head["representable"]
+    shipped = run_lesson_checks(lesson)
+    assert verdicts(shipped) == {"built": True, "same-as-reference": False,
+                                 "built-by-hand": True}
     code = (SOLUTIONS / "templates" / "03-attention-head.py").read_text(encoding="utf-8")
     doc = attempt(lesson, code)
     assert doc["passed"], reasons(doc)
