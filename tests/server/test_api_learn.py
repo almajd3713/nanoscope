@@ -77,14 +77,22 @@ def test_start_from_blocks(client, tmp_path):
     assert detail["template"]["file"] == "template.py"
     assert detail["template"]["summary"].startswith("The same head as an AttentionTemplate")
     assert client.get("/api/curricula/foundations/04-multi-head").json()["template"] is None
+    assert detail["starter"] is None  # not started
     starter = tmp_path / "ws" / "lessons" / "foundations" / "03-attention-head" / "starter.py"
     client.post("/api/curricula/foundations/03-attention-head/start")
     assert "class OneHead(nn.Module)" in starter.read_text()
+
+    def starter_of():
+        return client.get("/api/curricula/foundations/03-attention-head").json()["starter"]
+
+    assert starter_of() == "code"
     # not edited yet, so the blocks way in replaces it
     blocks = client.post("/api/curricula/foundations/03-attention-head/start",
                          json={"route": "blocks"}).json()
     assert blocks["copied"] == ["lessons/foundations/03-attention-head/starter.py"]
-    assert "class OneHead(AttentionTemplate)" in starter.read_text()
+    assert "class OneHead(AttentionTemplate)" in starter.read_text() and starter_of() == "blocks"
+    starter.write_text(starter.read_text() + "# mine\n")
+    assert starter_of() == "edited"
     refused = client.post("/api/curricula/foundations/04-multi-head/start",
                           json={"route": "blocks"})
     assert refused.status_code == 422

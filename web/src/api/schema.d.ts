@@ -2070,6 +2070,8 @@ export interface components {
             prerequisites: string[];
             /** Slug */
             slug: string;
+            /** Starter */
+            starter: string | null;
             /** State */
             state: string;
             /** Summary */

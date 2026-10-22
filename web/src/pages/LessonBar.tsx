@@ -24,6 +24,7 @@ type Detail = {
   checks: { id: string; kind: string; class?: string; args?: unknown; inputs?: unknown }[];
   experiment?: { kind?: string; model?: string };
   template?: { summary: string } | null;
+  starter?: string | null; // "code" or "blocks" as shipped, "edited", null before the start
 };
 
 // What the model page knows about the lesson its file belongs to: the lesson, its check job and

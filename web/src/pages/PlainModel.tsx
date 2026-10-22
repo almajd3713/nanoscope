@@ -60,7 +60,7 @@ export function PlainModel({ path, etag, lesson, markers }: Props) {
   const footer = lesson.ids ? (
     <>
       <p className={`small ${styles.muted}`}>This lesson is written in plain PyTorch, so there is no graph to edit: you change the structure in the code.</p>
-      {lesson.detail?.template && (
+      {lesson.detail?.template && lesson.detail.starter === "code" && (
         <div>
           <ButtonLink size="sm" to={`/learn/${lesson.id}`}>
             Build it from blocks on the lesson page

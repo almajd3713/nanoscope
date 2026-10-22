@@ -141,4 +141,16 @@ describe("Model page for a lesson file", () => {
     expect(within(bar).getByRole("button", { name: "Run the check" })).toBeTruthy();
     expect(((await screen.findByLabelText(`Source of ${FILE}`)) as HTMLTextAreaElement).value).toBe(SOURCE);
   });
+
+  it("a plain lesson file that has a blocks way in links to it while the file is as shipped", async () => {
+    open({
+      [`POST /api/files/${FILE}/graph`]: { body: { ...graph, path: FILE, etag: "e1", classes: [] } },
+      "GET /api/curricula/foundations/04-multi-head": { body: { ...lesson04, state: "started", template: { file: "template.py", summary: "Slots." }, starter: "code" } },
+      "GET /api/models": { body: [{ name: "MultiHead", ref: `${FILE}:MultiHead`, source: FILE, graph: false }] },
+      [`POST /api/models/${FILE}:MultiHead/structure`]: { status: 202, body: { id: 9, state: "queued" } },
+      "GET /api/jobs/9": { body: { id: 9, state: "done", result: starterStructure } },
+    });
+    const link = await screen.findByRole("link", { name: "Build it from blocks on the lesson page" });
+    expect(link.getAttribute("href")).toBe("/learn/foundations/04-multi-head");
+  });
 });

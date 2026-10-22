@@ -11,7 +11,7 @@ from pydantic import BaseModel
 
 from nanoscope import paths, queue
 from nanoscope.learn import gating, loader, progress, unlocks
-from nanoscope.learn.cli import locked_by, start_lesson, workspace_lesson_dir
+from nanoscope.learn.cli import locked_by, start_lesson, starter_route, workspace_lesson_dir
 from nanoscope.learn.loader import LessonSpec
 from nanoscope.server import sse
 from nanoscope.server.jobs import job_doc
@@ -64,6 +64,7 @@ class LessonDetail(LessonSummary):
     files: list[str]  # the starter files the lesson ships
     workspace: str  # where `start` puts them, relative to the workspace
     template: TemplateDoc | None  # the same exercise built from blocks, when the lesson has one
+    starter: str | None  # your starter.py: "code" or "blocks" as shipped, "edited", None if absent
 
 
 def _compute(compute: dict[str, Any]) -> dict[str, ComputeDoc]:
@@ -105,7 +106,7 @@ def lesson_detail(path: str, lesson: str) -> LessonDetail:
         files=files,
         workspace=workspace_lesson_dir(spec).relative_to(paths.workspace_dir()).as_posix(),
         template=TemplateDoc(file=spec.template.file, summary=spec.template.summary)
-        if spec.template else None)
+        if spec.template else None, starter=starter_route(spec))
 
 
 class StartRequest(BaseModel):

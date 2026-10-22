@@ -117,6 +117,20 @@ def workspace_lesson_dir(lesson: LessonSpec) -> Path:
 ROUTES = ("code", "blocks")
 
 
+def starter_route(lesson: LessonSpec) -> str | None:
+    """Which way in your starter.py is: "code" or "blocks" while it is still the shipped
+    starter or template, "edited" once you changed it, None before you start."""
+    target = workspace_lesson_dir(lesson) / "starter.py"
+    if not target.exists():
+        return None
+    mine = target.read_bytes()
+    if (lesson.dir / "starter.py").exists() and mine == (lesson.dir / "starter.py").read_bytes():
+        return "code"
+    if lesson.template and mine == (lesson.dir / lesson.template.file).read_bytes():
+        return "blocks"
+    return "edited"
+
+
 def start_lesson(lesson: LessonSpec, owner: str = "local",
                  route: str = "code") -> tuple[Path, list[Path], list[Path]]:
     """Copy starter.py (and notebook.py) into the workspace; never overwrite your edits.

@@ -70,6 +70,16 @@ The page is one file seen four ways, and every edit in any of them is an edit to
   before touching one with unsaved edits. ruff's findings and nanoscope's own (a locked use, a shape
   error from a describe job, a failed equivalence check) sit on their source lines.
 
+A file with no `Decoder` or `Composite` class (plain PyTorch, like most lesson starters) has no graph
+to edit. The page shows its code beside its **structure** instead: one read-only box per module,
+nested as the code nests them, layers of a `ModuleList` folded into the first ("×4"), with shapes
+and parameters and a link to the line that makes each one. It comes from a `structure` job a worker
+runs after each save (`POST /api/models/<ref>/structure`), built on the meta device with small sizes,
+or a lesson's own `args` and `inputs` for a lesson's file. Unfinished code is expected: a class whose
+`__init__` makes nothing yet says so, and a `forward` that raises (a starter's `NotImplementedError`)
+keeps the boxes and says where it stopped. A plain file outside a lesson offers **Start a model from
+blocks**; a lesson file whose lesson has a blocks way in links to it.
+
 **Undo** and **Redo** re-send an earlier version of the file with the ETag it has now, so the file on
 the server is always the model. For a file in a lesson's folder the page also has **Train** and **Run
 the check**, and a lesson's **Start** opens its starter here.

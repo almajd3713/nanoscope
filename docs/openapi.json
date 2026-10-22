@@ -1381,6 +1381,17 @@
             "title": "Slug",
             "type": "string"
           },
+          "starter": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Starter"
+          },
           "state": {
             "title": "State",
             "type": "string"
@@ -1440,7 +1451,8 @@
           "text",
           "files",
           "workspace",
-          "template"
+          "template",
+          "starter"
         ],
         "title": "LessonDetail",
         "type": "object"
