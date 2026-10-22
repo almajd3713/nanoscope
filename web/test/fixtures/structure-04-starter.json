@@ -1,0 +1,41 @@
+{
+  "schema": 1,
+  "nanoscope": "0.6.1",
+  "model": "MultiHead",
+  "file": "nanoscope/curricula/foundations/04-multi-head/starter.py",
+  "line": 13,
+  "args": {
+    "d_model": 16,
+    "context_length": 8,
+    "n_heads": 4
+  },
+  "inputs": [
+    [
+      2,
+      6,
+      16
+    ]
+  ],
+  "built": true,
+  "traced": false,
+  "error": {
+    "stage": "forward",
+    "type": "NotImplementedError",
+    "message": "multi-head attention",
+    "module": "",
+    "line": 30
+  },
+  "params": 0,
+  "modules": [
+    {
+      "path": "",
+      "type": "MultiHead",
+      "block": null,
+      "depth": 0,
+      "params": 0,
+      "input_shapes": null,
+      "output_shapes": null,
+      "line": 13
+    }
+  ]
+}

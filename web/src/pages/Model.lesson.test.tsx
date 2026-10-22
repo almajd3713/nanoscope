@@ -5,6 +5,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import blocks from "../../test/fixtures/blocks-guided.json";
 import graph from "../../test/fixtures/graph-modern_like.json";
 import lesson04 from "../../test/fixtures/lesson-04.json";
+import starterStructure from "../../test/fixtures/structure-04-starter.json";
 import { installEventSource } from "../../test/eventsource";
 import { mockApi } from "../../test/fetch";
 import { resetLevelCache, setLevel } from "../app/level";
@@ -118,10 +119,24 @@ describe("Model page for a lesson file", () => {
     expect(await screen.findByText(`nanoscope 4:1 ${REASON}`)).toBeTruthy();
   });
 
-  it("a lesson file that is plain PyTorch has no graph but keeps the lesson's actions and an editable file", async () => {
-    open({ [`POST /api/files/${FILE}/graph`]: { body: { ...graph, path: FILE, etag: "e1", classes: [] } } });
-    expect(await screen.findByText("This lesson is plain PyTorch")).toBeTruthy();
-    expect(screen.queryByRole("button", { name: "Start a model from blocks" })).toBeNull();
+  it("a lesson file that is plain PyTorch shows what its code builds, with the lesson's actions and an editable file", async () => {
+    const seen = open({
+      [`POST /api/files/${FILE}/graph`]: { body: { ...graph, path: FILE, etag: "e1", classes: [] } },
+      "GET /api/models": { body: [{ name: "MultiHead", ref: `${FILE}:MultiHead`, source: FILE, graph: false }] },
+      [`POST /api/models/${FILE}:MultiHead/structure`]: { status: 202, body: { id: 9, state: "queued" } },
+      "GET /api/jobs/9": { body: { id: 9, state: "done", result: starterStructure } },
+    });
+    const view = await screen.findByRole("region", { name: "Structure" });
+    // the starter as shipped: built with the lesson's sizes, nothing in it yet, forward not written
+    expect(await within(view).findByText("MultiHead has no layers yet.", { exact: false })).toBeTruthy();
+    expect(within(view).getByText("MultiHead(d_model=16, context_length=8, n_heads=4)")).toBeTruthy();
+    expect(within(view).getByText("NotImplementedError: multi-head attention", { exact: false })).toBeTruthy();
+    expect(within(view).getByRole("button", { name: "line 30" })).toBeTruthy();
+    // the lesson's own check says how to build the class: its first inputs go with the job
+    const sent = seen.find((x) => x.path === `/api/models/${FILE}:MultiHead/structure`);
+    expect(sent?.body).toEqual({ args: {}, inputs: lesson04.checks[1]!.inputs });
+    expect(within(view).queryByRole("button", { name: "Start a model from blocks" })).toBeNull();
+    expect(within(view).getByText("This lesson is written in plain PyTorch", { exact: false })).toBeTruthy();
     const bar = await screen.findByRole("region", { name: "Lesson" });
     expect(within(bar).getByRole("button", { name: "Run the check" })).toBeTruthy();
     expect(((await screen.findByLabelText(`Source of ${FILE}`)) as HTMLTextAreaElement).value).toBe(SOURCE);

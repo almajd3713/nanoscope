@@ -1,0 +1,1021 @@
+{
+  "schema": 1,
+  "nanoscope": "0.6.1",
+  "model": "MyGPT2",
+  "file": "tests/solutions/foundations/06-gpt2.py",
+  "line": 57,
+  "args": {
+    "vocab_size": 50,
+    "context_length": 256,
+    "d_model": 128,
+    "n_layers": 4,
+    "n_heads": 4
+  },
+  "inputs": [
+    [
+      2,
+      8
+    ]
+  ],
+  "built": true,
+  "traced": true,
+  "error": null,
+  "params": 827904,
+  "modules": [
+    {
+      "path": "",
+      "type": "MyGPT2",
+      "block": null,
+      "depth": 0,
+      "params": 827904,
+      "input_shapes": [
+        [
+          2,
+          8
+        ]
+      ],
+      "output_shapes": [
+        [
+          2,
+          8,
+          50
+        ]
+      ],
+      "line": 57
+    },
+    {
+      "path": "tok_emb",
+      "type": "Embedding",
+      "block": null,
+      "depth": 1,
+      "params": 6400,
+      "input_shapes": [
+        [
+          2,
+          8
+        ]
+      ],
+      "output_shapes": [
+        [
+          2,
+          8,
+          128
+        ]
+      ],
+      "line": 61
+    },
+    {
+      "path": "pos_emb",
+      "type": "Embedding",
+      "block": null,
+      "depth": 1,
+      "params": 32768,
+      "input_shapes": [
+        [
+          8
+        ]
+      ],
+      "output_shapes": [
+        [
+          8,
+          128
+        ]
+      ],
+      "line": 62
+    },
+    {
+      "path": "blocks",
+      "type": "ModuleList",
+      "block": null,
+      "depth": 1,
+      "params": 788480,
+      "input_shapes": null,
+      "output_shapes": null,
+      "line": 63
+    },
+    {
+      "path": "blocks.0",
+      "type": "MyBlock",
+      "block": null,
+      "depth": 2,
+      "params": 197120,
+      "input_shapes": [
+        [
+          2,
+          8,
+          128
+        ]
+      ],
+      "output_shapes": [
+        [
+          2,
+          8,
+          128
+        ]
+      ],
+      "line": 63
+    },
+    {
+      "path": "blocks.0.ln1",
+      "type": "LayerNorm",
+      "block": "LayerNorm",
+      "depth": 3,
+      "params": 256,
+      "input_shapes": [
+        [
+          2,
+          8,
+          128
+        ]
+      ],
+      "output_shapes": [
+        [
+          2,
+          8,
+          128
+        ]
+      ],
+      "line": 34
+    },
+    {
+      "path": "blocks.0.attn",
+      "type": "MultiHead",
+      "block": null,
+      "depth": 3,
+      "params": 65536,
+      "input_shapes": [
+        [
+          2,
+          8,
+          128
+        ]
+      ],
+      "output_shapes": [
+        [
+          2,
+          8,
+          128
+        ]
+      ],
+      "line": 35
+    },
+    {
+      "path": "blocks.0.attn.q",
+      "type": "Linear",
+      "block": null,
+      "depth": 4,
+      "params": 16384,
+      "input_shapes": [
+        [
+          2,
+          8,
+          128
+        ]
+      ],
+      "output_shapes": [
+        [
+          2,
+          8,
+          128
+        ]
+      ],
+      "line": 12
+    },
+    {
+      "path": "blocks.0.attn.k",
+      "type": "Linear",
+      "block": null,
+      "depth": 4,
+      "params": 16384,
+      "input_shapes": [
+        [
+          2,
+          8,
+          128
+        ]
+      ],
+      "output_shapes": [
+        [
+          2,
+          8,
+          128
+        ]
+      ],
+      "line": 13
+    },
+    {
+      "path": "blocks.0.attn.v",
+      "type": "Linear",
+      "block": null,
+      "depth": 4,
+      "params": 16384,
+      "input_shapes": [
+        [
+          2,
+          8,
+          128
+        ]
+      ],
+      "output_shapes": [
+        [
+          2,
+          8,
+          128
+        ]
+      ],
+      "line": 14
+    },
+    {
+      "path": "blocks.0.attn.out",
+      "type": "Linear",
+      "block": null,
+      "depth": 4,
+      "params": 16384,
+      "input_shapes": [
+        [
+          2,
+          8,
+          128
+        ]
+      ],
+      "output_shapes": [
+        [
+          2,
+          8,
+          128
+        ]
+      ],
+      "line": 15
+    },
+    {
+      "path": "blocks.0.ln2",
+      "type": "LayerNorm",
+      "block": "LayerNorm",
+      "depth": 3,
+      "params": 256,
+      "input_shapes": [
+        [
+          2,
+          8,
+          128
+        ]
+      ],
+      "output_shapes": [
+        [
+          2,
+          8,
+          128
+        ]
+      ],
+      "line": 36
+    },
+    {
+      "path": "blocks.0.fc",
+      "type": "Linear",
+      "block": null,
+      "depth": 3,
+      "params": 65536,
+      "input_shapes": [
+        [
+          2,
+          8,
+          128
+        ]
+      ],
+      "output_shapes": [
+        [
+          2,
+          8,
+          512
+        ]
+      ],
+      "line": 37
+    },
+    {
+      "path": "blocks.0.proj",
+      "type": "Linear",
+      "block": null,
+      "depth": 3,
+      "params": 65536,
+      "input_shapes": [
+        [
+          2,
+          8,
+          512
+        ]
+      ],
+      "output_shapes": [
+        [
+          2,
+          8,
+          128
+        ]
+      ],
+      "line": 38
+    },
+    {
+      "path": "blocks.1",
+      "type": "MyBlock",
+      "block": null,
+      "depth": 2,
+      "params": 197120,
+      "input_shapes": [
+        [
+          2,
+          8,
+          128
+        ]
+      ],
+      "output_shapes": [
+        [
+          2,
+          8,
+          128
+        ]
+      ],
+      "line": 63
+    },
+    {
+      "path": "blocks.1.ln1",
+      "type": "LayerNorm",
+      "block": "LayerNorm",
+      "depth": 3,
+      "params": 256,
+      "input_shapes": [
+        [
+          2,
+          8,
+          128
+        ]
+      ],
+      "output_shapes": [
+        [
+          2,
+          8,
+          128
+        ]
+      ],
+      "line": 34
+    },
+    {
+      "path": "blocks.1.attn",
+      "type": "MultiHead",
+      "block": null,
+      "depth": 3,
+      "params": 65536,
+      "input_shapes": [
+        [
+          2,
+          8,
+          128
+        ]
+      ],
+      "output_shapes": [
+        [
+          2,
+          8,
+          128
+        ]
+      ],
+      "line": 35
+    },
+    {
+      "path": "blocks.1.attn.q",
+      "type": "Linear",
+      "block": null,
+      "depth": 4,
+      "params": 16384,
+      "input_shapes": [
+        [
+          2,
+          8,
+          128
+        ]
+      ],
+      "output_shapes": [
+        [
+          2,
+          8,
+          128
+        ]
+      ],
+      "line": 12
+    },
+    {
+      "path": "blocks.1.attn.k",
+      "type": "Linear",
+      "block": null,
+      "depth": 4,
+      "params": 16384,
+      "input_shapes": [
+        [
+          2,
+          8,
+          128
+        ]
+      ],
+      "output_shapes": [
+        [
+          2,
+          8,
+          128
+        ]
+      ],
+      "line": 13
+    },
+    {
+      "path": "blocks.1.attn.v",
+      "type": "Linear",
+      "block": null,
+      "depth": 4,
+      "params": 16384,
+      "input_shapes": [
+        [
+          2,
+          8,
+          128
+        ]
+      ],
+      "output_shapes": [
+        [
+          2,
+          8,
+          128
+        ]
+      ],
+      "line": 14
+    },
+    {
+      "path": "blocks.1.attn.out",
+      "type": "Linear",
+      "block": null,
+      "depth": 4,
+      "params": 16384,
+      "input_shapes": [
+        [
+          2,
+          8,
+          128
+        ]
+      ],
+      "output_shapes": [
+        [
+          2,
+          8,
+          128
+        ]
+      ],
+      "line": 15
+    },
+    {
+      "path": "blocks.1.ln2",
+      "type": "LayerNorm",
+      "block": "LayerNorm",
+      "depth": 3,
+      "params": 256,
+      "input_shapes": [
+        [
+          2,
+          8,
+          128
+        ]
+      ],
+      "output_shapes": [
+        [
+          2,
+          8,
+          128
+        ]
+      ],
+      "line": 36
+    },
+    {
+      "path": "blocks.1.fc",
+      "type": "Linear",
+      "block": null,
+      "depth": 3,
+      "params": 65536,
+      "input_shapes": [
+        [
+          2,
+          8,
+          128
+        ]
+      ],
+      "output_shapes": [
+        [
+          2,
+          8,
+          512
+        ]
+      ],
+      "line": 37
+    },
+    {
+      "path": "blocks.1.proj",
+      "type": "Linear",
+      "block": null,
+      "depth": 3,
+      "params": 65536,
+      "input_shapes": [
+        [
+          2,
+          8,
+          512
+        ]
+      ],
+      "output_shapes": [
+        [
+          2,
+          8,
+          128
+        ]
+      ],
+      "line": 38
+    },
+    {
+      "path": "blocks.2",
+      "type": "MyBlock",
+      "block": null,
+      "depth": 2,
+      "params": 197120,
+      "input_shapes": [
+        [
+          2,
+          8,
+          128
+        ]
+      ],
+      "output_shapes": [
+        [
+          2,
+          8,
+          128
+        ]
+      ],
+      "line": 63
+    },
+    {
+      "path": "blocks.2.ln1",
+      "type": "LayerNorm",
+      "block": "LayerNorm",
+      "depth": 3,
+      "params": 256,
+      "input_shapes": [
+        [
+          2,
+          8,
+          128
+        ]
+      ],
+      "output_shapes": [
+        [
+          2,
+          8,
+          128
+        ]
+      ],
+      "line": 34
+    },
+    {
+      "path": "blocks.2.attn",
+      "type": "MultiHead",
+      "block": null,
+      "depth": 3,
+      "params": 65536,
+      "input_shapes": [
+        [
+          2,
+          8,
+          128
+        ]
+      ],
+      "output_shapes": [
+        [
+          2,
+          8,
+          128
+        ]
+      ],
+      "line": 35
+    },
+    {
+      "path": "blocks.2.attn.q",
+      "type": "Linear",
+      "block": null,
+      "depth": 4,
+      "params": 16384,
+      "input_shapes": [
+        [
+          2,
+          8,
+          128
+        ]
+      ],
+      "output_shapes": [
+        [
+          2,
+          8,
+          128
+        ]
+      ],
+      "line": 12
+    },
+    {
+      "path": "blocks.2.attn.k",
+      "type": "Linear",
+      "block": null,
+      "depth": 4,
+      "params": 16384,
+      "input_shapes": [
+        [
+          2,
+          8,
+          128
+        ]
+      ],
+      "output_shapes": [
+        [
+          2,
+          8,
+          128
+        ]
+      ],
+      "line": 13
+    },
+    {
+      "path": "blocks.2.attn.v",
+      "type": "Linear",
+      "block": null,
+      "depth": 4,
+      "params": 16384,
+      "input_shapes": [
+        [
+          2,
+          8,
+          128
+        ]
+      ],
+      "output_shapes": [
+        [
+          2,
+          8,
+          128
+        ]
+      ],
+      "line": 14
+    },
+    {
+      "path": "blocks.2.attn.out",
+      "type": "Linear",
+      "block": null,
+      "depth": 4,
+      "params": 16384,
+      "input_shapes": [
+        [
+          2,
+          8,
+          128
+        ]
+      ],
+      "output_shapes": [
+        [
+          2,
+          8,
+          128
+        ]
+      ],
+      "line": 15
+    },
+    {
+      "path": "blocks.2.ln2",
+      "type": "LayerNorm",
+      "block": "LayerNorm",
+      "depth": 3,
+      "params": 256,
+      "input_shapes": [
+        [
+          2,
+          8,
+          128
+        ]
+      ],
+      "output_shapes": [
+        [
+          2,
+          8,
+          128
+        ]
+      ],
+      "line": 36
+    },
+    {
+      "path": "blocks.2.fc",
+      "type": "Linear",
+      "block": null,
+      "depth": 3,
+      "params": 65536,
+      "input_shapes": [
+        [
+          2,
+          8,
+          128
+        ]
+      ],
+      "output_shapes": [
+        [
+          2,
+          8,
+          512
+        ]
+      ],
+      "line": 37
+    },
+    {
+      "path": "blocks.2.proj",
+      "type": "Linear",
+      "block": null,
+      "depth": 3,
+      "params": 65536,
+      "input_shapes": [
+        [
+          2,
+          8,
+          512
+        ]
+      ],
+      "output_shapes": [
+        [
+          2,
+          8,
+          128
+        ]
+      ],
+      "line": 38
+    },
+    {
+      "path": "blocks.3",
+      "type": "MyBlock",
+      "block": null,
+      "depth": 2,
+      "params": 197120,
+      "input_shapes": [
+        [
+          2,
+          8,
+          128
+        ]
+      ],
+      "output_shapes": [
+        [
+          2,
+          8,
+          128
+        ]
+      ],
+      "line": 63
+    },
+    {
+      "path": "blocks.3.ln1",
+      "type": "LayerNorm",
+      "block": "LayerNorm",
+      "depth": 3,
+      "params": 256,
+      "input_shapes": [
+        [
+          2,
+          8,
+          128
+        ]
+      ],
+      "output_shapes": [
+        [
+          2,
+          8,
+          128
+        ]
+      ],
+      "line": 34
+    },
+    {
+      "path": "blocks.3.attn",
+      "type": "MultiHead",
+      "block": null,
+      "depth": 3,
+      "params": 65536,
+      "input_shapes": [
+        [
+          2,
+          8,
+          128
+        ]
+      ],
+      "output_shapes": [
+        [
+          2,
+          8,
+          128
+        ]
+      ],
+      "line": 35
+    },
+    {
+      "path": "blocks.3.attn.q",
+      "type": "Linear",
+      "block": null,
+      "depth": 4,
+      "params": 16384,
+      "input_shapes": [
+        [
+          2,
+          8,
+          128
+        ]
+      ],
+      "output_shapes": [
+        [
+          2,
+          8,
+          128
+        ]
+      ],
+      "line": 12
+    },
+    {
+      "path": "blocks.3.attn.k",
+      "type": "Linear",
+      "block": null,
+      "depth": 4,
+      "params": 16384,
+      "input_shapes": [
+        [
+          2,
+          8,
+          128
+        ]
+      ],
+      "output_shapes": [
+        [
+          2,
+          8,
+          128
+        ]
+      ],
+      "line": 13
+    },
+    {
+      "path": "blocks.3.attn.v",
+      "type": "Linear",
+      "block": null,
+      "depth": 4,
+      "params": 16384,
+      "input_shapes": [
+        [
+          2,
+          8,
+          128
+        ]
+      ],
+      "output_shapes": [
+        [
+          2,
+          8,
+          128
+        ]
+      ],
+      "line": 14
+    },
+    {
+      "path": "blocks.3.attn.out",
+      "type": "Linear",
+      "block": null,
+      "depth": 4,
+      "params": 16384,
+      "input_shapes": [
+        [
+          2,
+          8,
+          128
+        ]
+      ],
+      "output_shapes": [
+        [
+          2,
+          8,
+          128
+        ]
+      ],
+      "line": 15
+    },
+    {
+      "path": "blocks.3.ln2",
+      "type": "LayerNorm",
+      "block": "LayerNorm",
+      "depth": 3,
+      "params": 256,
+      "input_shapes": [
+        [
+          2,
+          8,
+          128
+        ]
+      ],
+      "output_shapes": [
+        [
+          2,
+          8,
+          128
+        ]
+      ],
+      "line": 36
+    },
+    {
+      "path": "blocks.3.fc",
+      "type": "Linear",
+      "block": null,
+      "depth": 3,
+      "params": 65536,
+      "input_shapes": [
+        [
+          2,
+          8,
+          128
+        ]
+      ],
+      "output_shapes": [
+        [
+          2,
+          8,
+          512
+        ]
+      ],
+      "line": 37
+    },
+    {
+      "path": "blocks.3.proj",
+      "type": "Linear",
+      "block": null,
+      "depth": 3,
+      "params": 65536,
+      "input_shapes": [
+        [
+          2,
+          8,
+          512
+        ]
+      ],
+      "output_shapes": [
+        [
+          2,
+          8,
+          128
+        ]
+      ],
+      "line": 38
+    },
+    {
+      "path": "ln_f",
+      "type": "LayerNorm",
+      "block": "LayerNorm",
+      "depth": 1,
+      "params": 256,
+      "input_shapes": [
+        [
+          2,
+          8,
+          128
+        ]
+      ],
+      "output_shapes": [
+        [
+          2,
+          8,
+          128
+        ]
+      ],
+      "line": 65
+    },
+    {
+      "path": "head",
+      "type": "Linear",
+      "block": null,
+      "depth": 1,
+      "params": 6400,
+      "input_shapes": [
+        [
+          2,
+          8,
+          128
+        ]
+      ],
+      "output_shapes": [
+        [
+          2,
+          8,
+          50
+        ]
+      ],
+      "line": 66
+    }
+  ]
+}

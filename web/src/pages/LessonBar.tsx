@@ -17,7 +17,14 @@ export function lessonOfFile(file: string): { path: string; lesson: string } | n
   return m ? { path: m[1]!, lesson: m[2]! } : null;
 }
 
-type Detail = { id: string; title: string; unlocks: string[]; checks: { id: string; kind: string; class?: string }[]; experiment?: { kind?: string; model?: string } };
+type Detail = {
+  id: string;
+  title: string;
+  unlocks: string[];
+  checks: { id: string; kind: string; class?: string; args?: unknown; inputs?: unknown }[];
+  experiment?: { kind?: string; model?: string };
+  template?: { summary: string } | null;
+};
 
 // What the model page knows about the lesson its file belongs to: the lesson, its check job and
 // the checks as the lesson declares them (so a failed one can be put on its class).
