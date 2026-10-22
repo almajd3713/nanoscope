@@ -2544,6 +2544,30 @@
         "title": "StatusDoc",
         "type": "object"
       },
+      "StructureRequest": {
+        "properties": {
+          "args": {
+            "additionalProperties": true,
+            "default": {},
+            "title": "Args",
+            "type": "object"
+          },
+          "inputs": {
+            "anyOf": [
+              {
+                "items": {},
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Inputs"
+          }
+        },
+        "title": "StructureRequest",
+        "type": "object"
+      },
       "StudyEntry": {
         "properties": {
           "mode": {
@@ -5046,6 +5070,76 @@
           }
         },
         "summary": "Describe Model",
+        "tags": [
+          "models"
+        ]
+      }
+    },
+    "/api/models/{ref}/structure": {
+      "post": {
+        "description": "The modules a model class builds, with the line that makes each one, for any nn.Module\n(finished or not). A job for a worker, like describe: it runs the file's code.",
+        "operationId": "structure_model_api_models__ref__structure_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "ref",
+            "required": true,
+            "schema": {
+              "title": "Ref",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "anyOf": [
+                  {
+                    "$ref": "#/components/schemas/StructureRequest"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "title": "Body"
+              }
+            }
+          }
+        },
+        "responses": {
+          "202": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/JobDoc"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "The request cannot be done as asked"
+          },
+          "4XX": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "An error (RFC 9457)"
+          }
+        },
+        "summary": "Structure Model",
         "tags": [
           "models"
         ]

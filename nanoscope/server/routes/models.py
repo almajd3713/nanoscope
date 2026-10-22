@@ -96,6 +96,22 @@ def describe_model(ref: str, body: DescribeRequest | None = None) -> JobDoc:
                                "kwargs": body.kwargs})
 
 
+class StructureRequest(BaseModel):
+    args: dict[str, Any] = {}  # constructor arguments; small sizes fill the other required ones
+    inputs: list[Any] | None = None  # input specs as a lesson check writes them
+
+
+@router.post("/models/{ref:path}/structure", status_code=202)
+def structure_model(ref: str, body: StructureRequest | None = None) -> JobDoc:
+    """The modules a model class builds, with the line that makes each one, for any nn.Module
+    (finished or not). A job for a worker, like describe: it runs the file's code."""
+    body = body or StructureRequest()
+    payload: dict[str, Any] = {"model": resolve_ref(ref), "args": body.args}
+    if body.inputs is not None:
+        payload["inputs"] = body.inputs
+    return submit("structure", payload)
+
+
 @router.get("/models/{ref:path}")
 def model(ref: str) -> ModelSpecDoc:
     for spec in models():

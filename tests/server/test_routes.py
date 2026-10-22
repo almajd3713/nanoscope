@@ -126,6 +126,37 @@ def test_describe_job(client, tmp_path, monkeypatch):
     assert client.post("/api/models/nope/describe").status_code == 404
 
 
+def test_structure_job(client, tmp_path, monkeypatch):
+    import json
+
+    from nanoscope import queue
+    from nanoscope.cli import main
+
+    monkeypatch.setenv("NANOSCOPE_WORKSPACE", str(tmp_path / "ws"))
+    (tmp_path / "ws").mkdir()
+    (tmp_path / "ws" / "head.py").write_text(
+        "import torch.nn as nn\n\n\nclass Head(nn.Module):\n"
+        "    def __init__(self, d_model):\n        super().__init__()\n"
+        "        self.q = nn.Linear(d_model, d_model)\n\n"
+        "    def forward(self, x):\n        raise NotImplementedError('scores')\n")
+    response = client.post("/api/models/head.py:Head/structure",
+                           json={"args": {"d_model": 4}, "inputs": [[1, 3, 4]]})
+    assert response.status_code == 202
+    job = response.json()
+    assert (job["kind"], job["lane"]) == ("structure", "interactive")
+    assert job["payload"] == {"model": f"{(tmp_path / 'ws').resolve() / 'head.py'}:Head",
+                              "args": {"d_model": 4}, "inputs": [[1, 3, 4]]}
+    queue.claim("w", "cpu")
+    with pytest.raises(SystemExit) as stopped:
+        main(["run-job", str(job["id"])])
+    assert stopped.value.code == 0  # an unfinished forward is a result, not a failed job
+    result = json.loads(queue.get(job["id"])["result"])
+    assert [r["path"] for r in result["modules"]] == ["", "q"]
+    assert result["error"]["message"] == "scores" and result["error"]["line"] == 10
+    assert client.post("/api/models/head.py:Head/structure").json()["payload"] == {
+        "model": f"{(tmp_path / 'ws').resolve() / 'head.py'}:Head", "args": {}}
+
+
 def test_blocks_lock_state(client, tmp_path, monkeypatch):
     from nanoscope.learn import unlocks
 

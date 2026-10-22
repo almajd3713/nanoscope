@@ -747,6 +747,27 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/models/{ref}/structure": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Structure Model
+         * @description The modules a model class builds, with the line that makes each one, for any nn.Module
+         *     (finished or not). A job for a worker, like describe: it runs the file's code.
+         */
+        post: operations["structure_model_api_models__ref__structure_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/presets": {
         parameters: {
             query?: never;
@@ -2511,6 +2532,18 @@ export interface components {
         } & {
             [key: string]: unknown;
         };
+        /** StructureRequest */
+        StructureRequest: {
+            /**
+             * Args
+             * @default {}
+             */
+            args: {
+                [key: string]: unknown;
+            };
+            /** Inputs */
+            inputs?: unknown[] | null;
+        };
         /** StudyEntry */
         StudyEntry: {
             /** Mode */
@@ -4181,6 +4214,50 @@ export interface operations {
         requestBody?: {
             content: {
                 "application/json": components["schemas"]["DescribeRequest"] | null;
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            202: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["JobDoc"];
+                };
+            };
+            /** @description The request cannot be done as asked */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description An error (RFC 9457) */
+            "4XX": {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    structure_model_api_models__ref__structure_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                ref: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: {
+            content: {
+                "application/json": components["schemas"]["StructureRequest"] | null;
             };
         };
         responses: {
