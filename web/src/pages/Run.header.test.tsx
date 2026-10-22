@@ -116,11 +116,12 @@ describe("Run header", () => {
   it("shows a queued run as queued while it has no folder yet, then follows it once it does", async () => {
     let started = false;
     const job = { id: 4, kind: "run", state: "queued", ref: REF, payload: {}, created_at: 1 };
-    mockApi({
+    const seen = mockApi({
       [`GET /api/runs/${REF}`]: {
         status: () => (started ? 200 : 404),
         body: () => (started ? running : { title: "Not found", status: 404, detail: `no run at ref '${REF}'` }),
         problem: true,
+        delay: 50,
       },
       "GET /api/jobs": { body: () => [job] },
     });
@@ -137,6 +138,18 @@ describe("Run header", () => {
     expect(screen.getByText("queued")).toBeTruthy();
     expect(screen.getByRole("button", { name: "Stop run" })).toBeTruthy();
     expect(screen.queryByRole("alert")).toBeNull();
+    // it asks again every second, and the page holds still meanwhile (a refetch clears a
+    // query's error, which used to show "Loading run…" for a moment at every poll)
+    let flashed = false;
+    const watch = new MutationObserver(() => {
+      if (document.body.textContent?.includes("Loading run…")) flashed = true;
+    });
+    watch.observe(document.body, { childList: true, subtree: true, characterData: true });
+    const asked = () => seen.filter((r) => r.path === `/api/runs/${REF}`).length;
+    const before = asked();
+    await waitFor(() => expect(asked()).toBeGreaterThanOrEqual(before + 2), { timeout: 4000 });
+    watch.disconnect();
+    expect(flashed).toBe(false);
     started = true; // the worker made the folder
     expect(await screen.findByText("step 300", {}, { timeout: 4000 })).toBeTruthy();
   });

@@ -64,11 +64,22 @@ export function Run() {
   const queryClient = useQueryClient();
   const detail = useQuery({
     queryKey: ["run", ref],
-    queryFn: () => unwrap(api.GET("/api/runs/{ref}", { params: { path: { ref } } })),
-    // A queued run has no folder yet: ask again until its worker makes one.
-    refetchInterval: (q) => (q.state.error instanceof ApiProblem && q.state.error.status === 404 ? 1000 : false),
+    queryFn: async () => {
+      try {
+        return await unwrap(api.GET("/api/runs/{ref}", { params: { path: { ref } } }));
+      } catch (error) {
+        // A queued run has no folder yet. That is an answer, not an error: a refetch clears a
+        // query's error, so polling a 404 showed "Loading run…" for a moment every second.
+        if (error instanceof ApiProblem && error.status === 404) return { missing: error };
+        throw error;
+      }
+    },
+    // ask again until its worker makes the folder
+    refetchInterval: (q) => (q.state.data && "missing" in q.state.data ? 1000 : false),
   });
-  const missing = detail.error instanceof ApiProblem && detail.error.status === 404;
+  const absent = detail.data && "missing" in detail.data ? detail.data.missing : null;
+  const found = detail.data && !("missing" in detail.data) ? detail.data : undefined;
+  const missing = absent !== null;
   const queued = useQuery({
     queryKey: ["jobs", "run", ref],
     queryFn: () => unwrap(api.GET("/api/jobs", { params: { query: { kind: "run", limit: 50 } } })),
@@ -84,7 +95,7 @@ export function Run() {
     queryKey: ["run", ref, "samples"],
     queryFn: () => unwrap(api.GET("/api/runs/{ref}/samples", { params: { path: { ref } } })),
   });
-  const baselineInfo = detail.data?.baseline as Baseline | null | undefined;
+  const baselineInfo = found?.baseline as Baseline | null | undefined;
   const seedRefs = baselineInfo ? Array.from({ length: baselineInfo.n_seeds }, (_, i) => `${baselineInfo.ref}/seed-${i}`) : [];
   const seeds = useQueries({
     queries: seedRefs.map((seedRef) => ({
@@ -105,9 +116,9 @@ export function Run() {
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ["run", ref] }),
   });
 
-  const state = live.state ?? detail.data?.status?.state;
+  const state = live.state ?? found?.status?.state;
   // A run with no status.json (the shipped v0 baselines) has nothing to follow.
-  const watching = detail.data !== undefined && LIVE_STATES.includes(state ?? "");
+  const watching = found !== undefined && LIVE_STATES.includes(state ?? "");
 
   const refetch = useCallback(() => queryClient.invalidateQueries({ queryKey: ["run", ref] }), [queryClient, ref]);
   const onEvent = useCallback(
@@ -172,10 +183,11 @@ export function Run() {
       </div>
     );
   }
+  if (absent) return <ProblemFromError error={absent} />;
   if (detail.error) return <ProblemFromError error={detail.error} />;
-  if (!detail.data) return <p className={`body ${styles.muted}`}>Loading run…</p>;
+  if (!found) return <p className={`body ${styles.muted}`}>Loading run…</p>;
 
-  const run = detail.data;
+  const run = found;
   const status = run.status;
   const config = run.config;
   const summary = run.summary as Summary;

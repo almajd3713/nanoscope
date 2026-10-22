@@ -3,7 +3,8 @@ import { vi } from "vitest";
 export type Seen = { method: string; path: string; body: unknown };
 
 // Replace fetch with a table of "METHOD /path" -> response. Returns what was requested.
-export function mockApi(routes: Record<string, { status?: number | (() => number); body: unknown | ((sent: unknown) => unknown); problem?: boolean }>): Seen[] {
+// `delay` (ms) holds a response back, as a real server does, for what a page shows meanwhile.
+export function mockApi(routes: Record<string, { status?: number | (() => number); body: unknown | ((sent: unknown) => unknown); problem?: boolean; delay?: number }>): Seen[] {
   const seen: Seen[] = [];
   vi.stubGlobal(
     "fetch",
@@ -15,6 +16,7 @@ export function mockApi(routes: Record<string, { status?: number | (() => number
       seen.push({ method: request.method, path: pathname + url.search, body: text ? JSON.parse(text) : undefined });
       const hit = routes[`${request.method} ${pathname}`];
       if (!hit) return new Response(JSON.stringify({ title: "Not found", detail: `no mock for ${pathname}` }), { status: 404 });
+      if (hit.delay) await new Promise((resolve) => setTimeout(resolve, hit.delay));
       const sent = text ? JSON.parse(text) : undefined;
       const body = typeof hit.body === "function" ? (hit.body as (sent: unknown) => unknown)(sent) : hit.body;
       if (typeof body === "string") return new Response(body, { status: 200, headers: { "content-type": "text/markdown" } });
