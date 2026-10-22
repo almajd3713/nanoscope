@@ -24,3 +24,18 @@ globalThis.ResizeObserver = class {
   unobserve() {}
   disconnect() {}
 };
+
+// Pages connect to the language server when the setting is on (the default). No test may reach a
+// real one, such as the lsp service of a local stack: every socket is refused unless a test stubs
+// its own. (Assigned for the same reason as ResizeObserver.)
+globalThis.WebSocket = class {
+  onopen: (() => void) | null = null;
+  onmessage: (() => void) | null = null;
+  onerror: (() => void) | null = null;
+  onclose: (() => void) | null = null;
+  constructor() {
+    setTimeout(() => this.onerror?.(), 0);
+  }
+  send() {}
+  close() {}
+} as unknown as typeof WebSocket;
