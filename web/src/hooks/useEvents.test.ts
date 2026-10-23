@@ -108,4 +108,38 @@ describe("useEvents", () => {
     renderHook(() => useEvents(null, { ...OPTS, onEvent: () => {} }));
     expect(MockEventSource.all).toHaveLength(0);
   });
+
+  it("shares one stream per url between subscribers, each with its own events", () => {
+    // a browser keeps six connections per host: one stream per panel used them all up
+    const changes = vi.fn();
+    const both = vi.fn();
+    const a = renderHook(() => useEvents("/api/files/events", { events: ["change"], onEvent: changes }));
+    const b = renderHook(() => useEvents("/api/files/events", { events: ["change", "deleted"], onEvent: both }));
+    expect(MockEventSource.all).toHaveLength(1);
+    act(() => last().open());
+    expect(b.result.current).toBe("open");
+    act(() => last().emit("change", { path: "a.py" }));
+    act(() => last().emit("deleted", { path: "b.py" }));
+    expect(changes.mock.calls).toEqual([["change", { path: "a.py" }, null]]);
+    expect(both.mock.calls.map((c) => c[0])).toEqual(["change", "deleted"]);
+    // a late subscriber joins the open stream and reads as open at once
+    const c = renderHook(() => useEvents("/api/files/events", { events: ["change"], onEvent: () => {} }));
+    expect(MockEventSource.all).toHaveLength(1);
+    expect(c.result.current).toBe("open");
+    a.unmount();
+    c.unmount();
+    expect(last().closed).toBe(false);
+    b.unmount();
+    expect(last().closed).toBe(true);
+    // the next subscriber opens a fresh one
+    renderHook(() => useEvents("/api/files/events", { events: ["change"], onEvent: () => {} }));
+    expect(MockEventSource.all).toHaveLength(2);
+  });
+
+  it("keeps a resuming stream to each subscriber (its url carries the row id)", () => {
+    const opts = { ...OPTS, onEvent: () => {}, resumeParam: "since_step" };
+    renderHook(() => useEvents("/api/runs/r/events", opts));
+    renderHook(() => useEvents("/api/runs/r/events", opts));
+    expect(MockEventSource.all).toHaveLength(2);
+  });
 });
