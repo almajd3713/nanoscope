@@ -9,6 +9,7 @@ import { usePhone } from "../hooks/usePhone";
 import { Button } from "../components/Button";
 import { Editor } from "../components/Editor";
 import { EmptyState } from "../components/EmptyState";
+import { NewModelDialog } from "../components/NewModelDialog";
 import { ProblemFromError, ProblemView } from "../components/ProblemView";
 import type { CatalogBlock } from "../editor/completions";
 import { fromChecks, useDescribeMarkers } from "../editor/diagnostics";
@@ -46,6 +47,7 @@ export function Model() {
   const [note, setNote] = useState<string | null>(null);
   const [chosenDepth, setDepth] = useState<Depth | null>(null);
   const [reveal, setReveal] = useState<number | null>(null);
+  const [creating, setCreating] = useState(false);
   const depth = chosenDepth ?? defaultDepth(level);
   const patch = usePatchGraph(path, graph.data?.etag ?? null);
   const history = useHistory(path);
@@ -90,10 +92,19 @@ export function Model() {
       <div className={styles.page}>
         <h1 className="title">{path}</h1>
         {lesson.ids && <LessonBar file={path} lesson={lesson} />}
-        <EmptyState
-          title="No graph for this file"
-          body="It has no Decoder or Composite class, so there is nothing to draw: it is plain PyTorch. Edit it in your editor or below."
-        />
+        {lesson.ids ? (
+          <EmptyState
+            title="This lesson is plain PyTorch"
+            body="You write the layers yourself, so there is nothing to draw."
+          />
+        ) : (
+          <EmptyState
+            title="No graph for this file"
+            body="It is plain PyTorch: it has no Decoder or Composite class, so there is nothing to draw. A model built from blocks gets a graph, and you swap its blocks by dragging."
+            action={<Button onClick={() => setCreating(true)}>Start a model from blocks</Button>}
+          />
+        )}
+        <NewModelDialog open={creating} onOpenChange={setCreating} />
         {shows("editor", level) || lesson.ids ? (
           <Editor path={path} markers={checked} />
         ) : (

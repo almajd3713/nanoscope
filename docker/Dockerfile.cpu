@@ -35,6 +35,10 @@ ENV UV_HTTP_TIMEOUT=120 UV_LINK_MODE=copy
 RUN --mount=from=build,source=/usr/local/bin/uv,target=/usr/local/bin/uv \
     --mount=type=cache,target=/root/.cache/uv \
     uv pip install --system -r /tmp/requirements.txt
+# the editor's language server (the `lsp` service runs from this image); its wheel brings its own Node
+RUN --mount=from=build,source=/usr/local/bin/uv,target=/usr/local/bin/uv \
+    --mount=type=cache,target=/root/.cache/uv \
+    uv pip install --system basedpyright==1.40.2
 # git: the workspace is a git repository (preregistration commits); safe.directory because a bind
 # mount is owned by whoever made it. The directories exist so named volumes start owned by uid 1000.
 RUN apt-get update && apt-get install -y --no-install-recommends git \

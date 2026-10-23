@@ -2126,6 +2126,11 @@ export interface components {
         ModelSpecDoc: {
             /** Doc */
             doc: string;
+            /**
+             * Graph
+             * @default false
+             */
+            graph: boolean;
             /** Name */
             name: string;
             /** Params */

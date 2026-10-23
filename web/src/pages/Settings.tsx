@@ -75,7 +75,7 @@ function EditorSetting() {
               {service.server?.version ? ` ${service.server.version}` : ""}
             </span>{" "}
             <span className={styles.muted}>
-              · profile <span className="value">editor-lsp</span>
+              · service <span className="value">lsp</span>
             </span>
           </dd>
           <dt className={styles.muted}>Checks</dt>
@@ -93,9 +93,9 @@ function EditorSetting() {
           <span className={`small ${styles.warn}`}>
             <Warning size={14} aria-hidden="true" /> The lsp service is not running, so the editor checks with ruff only.
           </span>
-          <span className={`small ${styles.muted}`}>Start it next to the others, then reload this page:</span>
+          <span className={`small ${styles.muted}`}>Start it, then reload this page:</span>
           {showCommands ? (
-            <code className="code-small">docker compose --profile editor-lsp up -d lsp</code>
+            <code className="code-small">docker compose up -d lsp</code>
           ) : (
             <span className={`caption ${styles.muted}`}>The command is shown when command-line equivalents are on.</span>
           )}

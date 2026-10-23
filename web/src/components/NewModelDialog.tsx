@@ -19,6 +19,15 @@ export function fileFor(name: string): string {
 
 const COMPOSED = ["Decoder", "Block", "Attention", "RMSNorm", "RoPE", "SwiGLU"];
 
+type Known = { name: string; lock?: { locked?: boolean } | null }[];
+
+// Whether a model written with blocks can be started: every block the starter names is unlocked.
+// `locked` lists the ones still waiting on a lesson (what the empty states and this dialog say).
+export function blockModelAccess(known: Known): { available: boolean; locked: string[] } {
+  const locked = COMPOSED.filter((n) => known.some((b) => b.name === n && b.lock?.locked));
+  return { available: COMPOSED.every((n) => known.some((b) => b.name === n)) && locked.length === 0, locked };
+}
+
 // Where the starter begins: the Modern composition when every block it names is unlocked (the model
 // page then draws it), else a bigram written with primitives, which builds under any gating policy.
 export function starterFor(name: string, composed: boolean): string {
@@ -63,8 +72,9 @@ export function NewModelDialog({ open, onOpenChange }: Props) {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const blocks = useBlocks();
-  const known = blocks.data?.blocks ?? [];
-  const composed = COMPOSED.every((n) => known.some((b) => b.name === n && !b.lock?.locked));
+  const access = blockModelAccess(blocks.data?.blocks ?? []);
+  const [picked, setPicked] = useState<"blocks" | "plain" | null>(null);
+  const composed = (picked ?? (access.available ? "blocks" : "plain")) === "blocks" && access.available;
   const valid = CLASS_NAME.test(name);
   const file = fileFor(name);
   const create = useMutation({
@@ -82,7 +92,32 @@ export function NewModelDialog({ open, onOpenChange }: Props) {
         <Dialog.Content className={styles.dialog} aria-describedby={undefined}>
           <Dialog.Title className="heading">New model</Dialog.Title>
           <div className={styles.body}>
-            <p className="body">{composed ? "A small modern model, built from blocks, in your workspace." : "A small bigram model in your workspace. The bigger blocks unlock as you pass lessons."} Open it on the model page to change it in code or in the graph.</p>
+            <p className="body">A starter in your workspace. Open it on the model page to change it.</p>
+            <fieldset className={styles.choice}>
+              <legend className="label">Starting point</legend>
+              <label className={`small ${styles.option}`}>
+                <input type="radio" name="kind" checked={composed} disabled={!access.available} onChange={() => setPicked("blocks")} />
+                <span>
+                  <span className="body-strong">Built from blocks</span>
+                  <br />
+                  A small modern model. The model page draws it as a graph, and you can drag a block onto another to swap it.
+                  {!access.available && access.locked.length > 0 && (
+                    <>
+                      {" "}
+                      <span className={styles.note}>Locked until their lessons are passed: {access.locked.join(", ")}. Settings can open them all.</span>
+                    </>
+                  )}
+                </span>
+              </label>
+              <label className={`small ${styles.option}`}>
+                <input type="radio" name="kind" checked={!composed} onChange={() => setPicked("plain")} />
+                <span>
+                  <span className="body-strong">Plain PyTorch</span>
+                  <br />
+                  A bigram written with nn.Module. Code only: there is no graph to draw.
+                </span>
+              </label>
+            </fieldset>
             <Field label="Class name" value={name} onChange={setName} problem={valid ? undefined : "Start with a capital letter; letters and digits only."} />
             <p className="small">
               {valid ? <>Creates <span className="value">{file}</span>.</> : null}

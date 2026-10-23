@@ -1,5 +1,5 @@
 import { useEffect, useRef } from "react";
-import { markdownOf, type Position } from "./lsp";
+import { type CompletionItem, markdownOf, type Position } from "./lsp";
 import { monaco, followTheme, THEME } from "./monaco";
 import { resolvedTheme } from "../styles/theme";
 import type { Marker, SurfaceProps } from "./types";
@@ -98,13 +98,22 @@ export default function MonacoSurface({ path, value, onChange, onSave, markers, 
     const at = (p: monaco.Position): Position => ({ line: p.lineNumber - 1, character: p.column - 1 });
     client.open(uri, model.getValue());
     let timer: ReturnType<typeof setTimeout> | undefined;
+    // the server must have the text the cursor is in before it is asked about it: a completion
+    // after "self." would otherwise be answered for the text without the dot
+    const flush = () => {
+      if (timer === undefined) return;
+      clearTimeout(timer);
+      timer = undefined;
+      client.change(uri, model.getValue());
+    };
     const changes = model.onDidChangeContent(() => {
       clearTimeout(timer);
-      timer = setTimeout(() => client.change(uri, model.getValue()), 200);
+      timer = setTimeout(flush, 200);
     });
     const hover = monaco.languages.registerHoverProvider("python", {
       provideHover: async (m, position) => {
         if (!here(m)) return null;
+        flush();
         const found = await client.hover(uri, at(position)).catch(() => null);
         const text = markdownOf(found?.contents);
         return text ? { contents: [{ value: text }] } : null;
@@ -112,22 +121,45 @@ export default function MonacoSurface({ path, value, onChange, onSave, markers, 
     });
     const kinds = monaco.languages.CompletionItemKind;
     const KIND = [0, kinds.Text, kinds.Method, kinds.Function, kinds.Constructor, kinds.Field, kinds.Variable, kinds.Class, kinds.Interface, kinds.Module, kinds.Property, kinds.Unit, kinds.Value, kinds.Enum, kinds.Keyword, kinds.Snippet, kinds.Color, kinds.File, kinds.Reference, kinds.Folder, kinds.EnumMember, kinds.Constant, kinds.Struct, kinds.Event, kinds.Operator, kinds.TypeParameter];
+    // the server's item behind each suggestion, for the documentation it fills in on request
+    const raws = new WeakMap<object, CompletionItem>();
     const completion = monaco.languages.registerCompletionItemProvider("python", {
       triggerCharacters: [".", "("],
+      resolveCompletionItem: async (suggestion) => {
+        const raw = raws.get(suggestion);
+        if (!raw || suggestion.documentation) return suggestion;
+        const full = await client.resolveCompletion(raw).catch(() => null);
+        const docs = markdownOf(full?.documentation);
+        if (docs) suggestion.documentation = { value: docs };
+        if (full?.detail && !suggestion.detail) suggestion.detail = full.detail;
+        return suggestion;
+      },
       provideCompletionItems: async (m, position) => {
         if (!here(m)) return { suggestions: [] };
         const word = m.getWordUntilPosition(position);
         const range = { startLineNumber: position.lineNumber, endLineNumber: position.lineNumber, startColumn: word.startColumn, endColumn: word.endColumn };
+        flush();
         const items = await client.completion(uri, at(position)).catch(() => []);
+        const toRange = (r: { start: Position; end: Position }) => ({
+          startLineNumber: r.start.line + 1, startColumn: r.start.character + 1,
+          endLineNumber: r.end.line + 1, endColumn: r.end.character + 1,
+        });
         return {
-          suggestions: items.map((item) => ({
-            label: item.label,
-            kind: KIND[item.kind ?? 1] ?? kinds.Text,
-            insertText: item.textEdit?.newText ?? item.insertText ?? item.label,
-            detail: item.detail,
-            documentation: markdownOf(item.documentation) ? { value: markdownOf(item.documentation) } : undefined,
-            range,
-          })),
+          suggestions: items.map((item) => {
+            const edit = item.textEdit?.range ?? item.textEdit?.replace;
+            const suggestion = {
+              label: item.label,
+              kind: KIND[item.kind ?? 1] ?? kinds.Text,
+              insertText: item.textEdit?.newText ?? item.insertText ?? item.label,
+              filterText: item.filterText,
+              sortText: item.sortText,
+              detail: item.detail,
+              documentation: markdownOf(item.documentation) ? { value: markdownOf(item.documentation) } : undefined,
+              range: edit ? toRange(edit) : range,
+            };
+            raws.set(suggestion, item);
+            return suggestion;
+          }),
         };
       },
     });
@@ -135,6 +167,7 @@ export default function MonacoSurface({ path, value, onChange, onSave, markers, 
       signatureHelpTriggerCharacters: ["(", ","],
       provideSignatureHelp: async (m, position) => {
         if (!here(m)) return null;
+        flush();
         const help = await client.signatureHelp(uri, at(position)).catch(() => null);
         if (!help || help.signatures.length === 0) return null;
         return {

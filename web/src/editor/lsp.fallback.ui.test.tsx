@@ -125,7 +125,7 @@ describe("the setting", () => {
     mockApi(ROUTES);
     settings();
     expect(await screen.findByText("The lsp service is not running, so the editor checks with ruff only.")).toBeTruthy();
-    expect(screen.getByText("docker compose --profile editor-lsp up -d lsp")).toBeTruthy();
+    expect(screen.getByText("docker compose up -d lsp")).toBeTruthy();
   });
 
   it("shows the service's name, version and read-only workspace when connected, and keeps the choice", async () => {

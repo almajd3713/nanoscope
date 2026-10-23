@@ -98,11 +98,13 @@ describe("language server client", () => {
       if (message.method === "textDocument/hover") reply({ id: message.id, result: { contents: { kind: "markdown", value: "(method) def norm()" } } });
       if (message.method === "textDocument/completion") reply({ id: message.id, result: { items: [{ label: "norm" }] } });
       if (message.method === "textDocument/signatureHelp") reply({ id: message.id, result: null });
+      if (message.method === "completionItem/resolve") reply({ id: message.id, result: { label: "norm", documentation: { kind: "markdown", value: "the norm" } } });
     });
     const attempt = LspClient.connect("ws://x/lsp", "file:///w", () => socket);
     socket.onopen?.({});
     const client = await attempt;
     const at = { line: 26, character: 19 };
+    expect(markdownOf((await client.resolveCompletion({ label: "norm" })).documentation)).toBe("the norm");
     expect(markdownOf((await client.hover("file:///w/a.py", at))?.contents)).toBe("(method) def norm()");
     expect((await client.completion("file:///w/a.py", at)).map((i) => i.label)).toEqual(["norm"]);
     expect(await client.signatureHelp("file:///w/a.py", at)).toBeNull();

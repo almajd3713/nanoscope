@@ -101,7 +101,7 @@ page through the workspace watcher.
 
 ## Running it
 
-`docker compose up` starts the API, a worker, and (profiles) a notebook server and a GPU worker, all
+`docker compose up` starts the API, a worker and the editor's language server, and (profiles) a notebook server and a GPU worker (`./up.sh` adds the GPU worker when it finds a usable GPU), all
 hardened (non-root, no capabilities, read-only root, no Docker socket) and bound to loopback. The
 supported use is one person on their own machine. Hosting for other people is a non-goal until there
 is a sandbox for user code ([deploy.md](deploy.md), plan section 8). `pip install nanoscope-lab` gives
