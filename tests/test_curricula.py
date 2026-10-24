@@ -219,6 +219,27 @@ def test_f05_block(home):
     assert "output differs" in reasons(attempt(lesson, post_norm))["same-as-reference"]
 
 
+def test_f05_template_route(home):
+    """The graph route: MyBlock filled from BlockTemplate passes the same check, whose weight
+    names have an alternative per way in (`ln1` or `norm1`, `attn.out` or `attn.proj`)."""
+    from nanoscope.blocks.graph import parse
+
+    lesson = load_lesson("foundations/05-block")
+    assert lesson.template is not None
+    start_lesson(lesson, route="blocks")
+    file = workspace_lesson_dir(lesson) / "starter.py"
+    assert file.read_bytes() == (lesson.dir / lesson.template.file).read_bytes()
+    (block,) = parse(file)["classes"]
+    assert block["name"] == "MyBlock" and block["representable"]
+    assert not verdicts(run_lesson_checks(lesson))["same-as-reference"]
+    code = (SOLUTIONS / "templates" / "05-block.py").read_text(encoding="utf-8")
+    doc = attempt(lesson, code)
+    assert doc["passed"], reasons(doc)
+    # a slot filled differently from the reference (2 heads, not 4) is caught with numbers
+    wrong = attempt(lesson, code.replace("n_heads=4", "n_heads=2"))
+    assert not wrong["passed"]
+
+
 @pytest.mark.usefixtures("fake_data")
 def test_f06_gpt2(monkeypatch):
     lesson = load_lesson("foundations/06-gpt2")

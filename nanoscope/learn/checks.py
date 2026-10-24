@@ -403,6 +403,13 @@ def resolve_param(params: dict[str, Any], key: str) -> str:
     return found[0] if len(found) == 1 else key
 
 
+def resolve_param_any(params: dict[str, Any], spec: str) -> str:
+    """`a.weight|b.weight` names the same weight under each way in (the code route's `ln1`, the
+    template route's `norm1`): the first alternative the module has, else the first as written."""
+    names = [resolve_param(params, alt) for alt in spec.split("|")]
+    return next((name for name in names if name in params), names[0])
+
+
 @checker("equivalent")
 def check_equivalent(ctx: Context, check: Check) -> Result:
     """The learner's module matches a naive reference on random inputs. Weights are copied
@@ -444,7 +451,7 @@ def check_equivalent(ctx: Context, check: Check) -> Result:
                     if isinstance(item, str) and item.startswith("input:"):
                         call.append(inputs[int(item[6:])])
                     elif isinstance(item, str) and item.startswith("param:"):
-                        key = resolve_param(params, item[6:])
+                        key = resolve_param_any(params, item[6:])
                         if key not in params:
                             return Result(
                                 check.id, check.kind, False,
