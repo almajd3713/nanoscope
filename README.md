@@ -33,7 +33,7 @@ docker compose logs api | grep login
 Open the link that grep prints. The app is at `http://127.0.0.1:8765` and trains on one CPU worker.
 `./up.sh` also starts a GPU worker when Docker can use an NVIDIA GPU (`./up.sh --cpu` skips it).
 
-Without Docker, on Python 3.10 to 3.12:
+Without Docker, on Python 3.10 to 3.13:
 
 ```bash
 pip install torch --index-url https://download.pytorch.org/whl/cpu   # optional: CPU-only torch
