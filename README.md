@@ -19,6 +19,36 @@ It has three parts that share one code path:
 - **Experiments** with seeds, paired comparisons, 95% intervals, preregistered studies and baselines
   for the shipped models.
 
+## Screenshots
+
+A lesson's check says why it fails:
+
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="https://raw.githubusercontent.com/almajd3713/nanoscope/main/docs/images/lesson-check-dark.png">
+  <img alt="The multi-head attention lesson with a failed check: MultiHead has no parameter named q.weight" src="https://raw.githubusercontent.com/almajd3713/nanoscope/main/docs/images/lesson-check-light.png">
+</picture>
+
+Dragging RMSNorm onto LayerNorm in the graph changes one line of the file:
+
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="https://raw.githubusercontent.com/almajd3713/nanoscope/main/docs/images/model-swap-dark.png">
+  <img alt="The model page with the block palette, the graph with RMSNorm selected, the inspector and the code" src="https://raw.githubusercontent.com/almajd3713/nanoscope/main/docs/images/model-swap-light.png">
+</picture>
+
+Compare reports each difference with a 95% interval over seeds:
+
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="https://raw.githubusercontent.com/almajd3713/nanoscope/main/docs/images/compare-dark.png">
+  <img alt="Compare: Modern, Bigram and GPT-2 baselines with intervals and a forest plot" src="https://raw.githubusercontent.com/almajd3713/nanoscope/main/docs/images/compare-light.png">
+</picture>
+
+A study trains every variant with several seeds under one budget:
+
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="https://raw.githubusercontent.com/almajd3713/nanoscope/main/docs/images/study-dark.png">
+  <img alt="The m1-ablation study: eight variants, three seeds each" src="https://raw.githubusercontent.com/almajd3713/nanoscope/main/docs/images/study-light.png">
+</picture>
+
 ## Installation
 
 With Docker:
