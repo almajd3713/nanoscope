@@ -4,7 +4,7 @@ The build list for [`plan-tool.md`](plan-tool.md), sections 4-10, with the decis
 2026-10-05 (plan section 11) applied. Phase numbers follow the plan's section 10. Every
 item is one line, so scripts and agents can grep and edit it.
 
-**Current focus:** P19 (presentable: cleanup) on branch chore/presentable, built on P18 (PR #23; its CI runs, the user merges). Then P20 (screenshots, video, case study; user, 2026-10-30: packaging only, no new features). P17.30 stays open by decision (GPU estimates declared, not measured).
+**Current focus:** P18 and P19 are merged (PRs #23, #24); the CHANGELOG has its 0.7.0 section; left: the user's P19.07 (GitHub settings) and P19.08 (release). P20 (screenshots, recording, case study) is being built on feat/show-it. P17.30 stays open by decision (GPU estimates declared, not measured).
 
 ## Progress
 
@@ -23,7 +23,7 @@ item is one line, so scripts and agents can grep and edit it.
 | P16 | Extend + depth (8-10 d) | 18 / 18 | done |
 | P17 | Remaining curriculum paths (18-26 d) | 33 / 34 | done except P17.30 (user, GPU runs) |
 | P18 | Every lesson reaches the model page's views | 10 / 11 | PR #23, the gate waits on CI and the merge |
-| P19 | Presentable: cleanup | 5 / 9 | in progress |
+| P19 | Presentable: cleanup | 6 / 9 | PR #24 merged; P19.07 and P19.08 are the user's |
 | P20 | Presentable: show it | 0 / 4 | not started |
 
 MVP = P6-P14 (about 77-96 focused days). Recount a row with
@@ -740,9 +740,9 @@ Order: P13.01 and P13.02 first (these items live in `web/` and run in its CI job
 - [x] P19.03 A favicon: the reticle in each theme's ink and accent. · files: web/public/favicon.svg (new), web/index.html · deps: — · done: `pnpm -C web build` puts `favicon.svg` in `nanoscope/server/static`, served as `image/svg+xml`, and it renders in light and dark ✓ 2026-10-30 07cf63a: rendering caught an XML comment holding `--`
 - [x] P19.04 A `docs/README.md` index; the plans, this checklist and the archive move to `docs/dev/` (history, not guides) and leave the sdist; two lessons link to the M1 milestone on GitHub, since installs have no `docs/`. · files: docs/README.md (new), docs/dev/ (moved), docs/architecture.md, docs/design-system.md, .github/pull_request_template.md, pyproject.toml, tests/test_packaging.py, nanoscope/curricula/{honest-ablations/05-capstone,modern-block/07-assemble}/lesson.md · deps: — · done: `uv run pytest tests/test_packaging.py tests/test_curricula.py tests/test_learn.py -m "not network and not gpu"` passes ✓ 2026-10-30 00c97e0
 - [x] P19.05 README: badges, the clone step, `./up.sh -d`, a CPU-only torch line, all 33 lessons, absolute links (PyPI shows the README without the repo); the package summary says the same thing. · files: README.md, pyproject.toml · deps: — · done: in a clean venv, CPU torch then `nanoscope-lab[server]` keeps the `+cpu` torch and installs no `nvidia` packages ✓ 2026-10-30 f5971fc: 1.4 GB instead of 5.7 GB
-- [ ] P19.06 Python 3.13: `requires-python`, classifiers, the CI matrix and the README. · files: pyproject.toml, uv.lock, .github/workflows/ci.yml, README.md · deps: — · done: the offline suite passes on 3.13 locally and in CI
+- [x] P19.06 Python 3.13: `requires-python`, classifiers, the CI matrix and the README. · files: pyproject.toml, uv.lock, .github/workflows/ci.yml, README.md · deps: — · done: the offline suite passes on 3.13 locally and in CI ✓ 2026-10-30 018a643: the offline suite passed on 3.13 here (676 passed) and in CI (check (3.13) on PR #24)
 - [ ] P19.07 **USER ACTION** GitHub settings: a description, topics and a homepage for the repo; delete the merged branches still on GitHub (chore/test-config-layout, feat/editor-and-launch, feat/model-inference, feat/phase-1-vertical-slice, feat/phase-5-speed, feat/phase-6-servable, feat/phase-15-research, m1-baseline, starter). · files: — · deps: — · done: `gh repo view --json description` is not empty; `gh api repos/almajd3713/nanoscope/branches --jq '.[].name'` lists main and open PR branches only
-- [ ] P19.08 **USER ACTION** Release 0.7.0 once P18 and P19 are merged (the agent prepares the version, CHANGELOG and openapi; the user runs `tag.yml`). Until then a fresh clone's `lsp` service runs from the 0.6.1 `:cpu` image, which has no basedpyright. · files: nanoscope/__init__.py, CHANGELOG.md, docs/openapi.json · deps: P18.99, P19.06 · done: PyPI lists 0.7.0 and `docker buildx imagetools inspect ghcr.io/almajd3713/nanoscope:cpu` shows an image built after it
+- [ ] P19.08 **USER ACTION** Release 0.7.0 once P18 and P19 are merged (the agent writes the `## 0.7.0 (unreleased)` CHANGELOG section; the user replaces `unreleased` with the release date and runs `tag.yml`, which bumps the version and openapi itself). Until then a fresh clone's `lsp` service runs from the 0.6.1 `:cpu` image, which has no basedpyright. · files: CHANGELOG.md · deps: P18.99, P19.06 · done: PyPI lists 0.7.0 and `docker buildx imagetools inspect ghcr.io/almajd3713/nanoscope:cpu` shows an image built after it
 - [ ] P19.99 PHASE GATE P19. · files: — · deps: P19.01-P19.06 (P19.07 and P19.08 are the user's and may follow) · done: `make check` and the web checks pass, CI is green; **USER ACTION** merge the PR
 
 ## P20 Presentable: show it

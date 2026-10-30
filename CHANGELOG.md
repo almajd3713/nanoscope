@@ -1,5 +1,29 @@
 # Changelog
 
+## 0.7.0 (unreleased)
+
+Every lesson reaches the model page, the editor's language server is on by default, Python 3.13 is supported, and the repo reads better on GitHub and PyPI.
+
+### Added
+- Model page: a model written in plain PyTorch shows the structure its code builds (one box per module, folded layers, shapes, parameters and a link to each line). An unfinished class still gets a report, with the error at its line. A new `structure` job and `POST /api/models/{ref}/structure`.
+- Lessons: a lesson can ship a `[template]` built from blocks. `nanoscope learn start --blocks` and the lesson page's "Build it from blocks" start from it, and lessons 3 and 5 have one. A check's `param:` names take alternatives (`ln1.weight|norm1.weight`), so one check judges both ways in.
+- New model asks for blocks or plain PyTorch, and the Models page says which models have a graph.
+- `nanoscope --version`.
+- Python 3.13.
+- A favicon.
+
+### Changed
+- The editor's language server (basedpyright) starts by default and runs from the CPU image. `./up.sh` adds the GPU worker when Docker can use an NVIDIA GPU (`--cpu` and `--gpu` override it).
+- The model page of a plain file says why it has no graph and offers a model built from blocks.
+- README: the clone step, a CPU-only torch install line, all 33 lessons, and links that work on PyPI.
+- Docs: an index in `docs/README.md`; the plans and the checklist moved to `docs/dev/`.
+
+### Fixed
+- Editor: pending edits are sent before hover, completion and signature help, so completions answer for the current text.
+- The model page opened one event stream per hook and could hold all of the browser's connections, so its requests waited forever. Streams are now shared per URL.
+- The run page no longer flashes "Loading run…" every second while a run is preparing.
+- Tests no longer write runs into the repository root.
+
 ## 0.6.1 (2026-10-12)
 
 Fixes and polish for the app after comparing the built screens with the mockups, and a new release workflow.
