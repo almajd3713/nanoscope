@@ -4,7 +4,7 @@ The build list for [`plan-tool.md`](plan-tool.md), sections 4-10, with the decis
 2026-10-05 (plan section 11) applied. Phase numbers follow the plan's section 10. Every
 item is one line, so scripts and agents can grep and edit it.
 
-**Current focus:** P18 (block editor reachable from every lesson) is built on branch feat/structure-view (PR #22, its base, is merged); `make check` and the web checks pass (2026-10-30); left: the e2e job and the user merges the PR. P17 is merged (PR #19, 07aa7aa); only P17.30 stays open (GPU estimates declared, not measured, by decision). Next: pick the next phase or the MISC FIXES PR. P16 is merged (PR #18, ebd63ea). Left for the user: P14.33 (tag v0.5.0).
+**Current focus:** P19 (presentable: cleanup) on branch chore/presentable, built on P18 (PR #23; its CI runs, the user merges). Then P20 (screenshots, video, case study; user, 2026-10-30: packaging only, no new features). P17.30 stays open by decision (GPU estimates declared, not measured).
 
 ## Progress
 
@@ -18,14 +18,16 @@ item is one line, so scripts and agents can grep and edit it.
 | P11 | Release prep: PyPI + GHCR (2-3 d) | 17 / 17 | done |
 | P12 | docker-compose (3-4 d) | 20 / 20 | done |
 | P13 | GUI MVP 1: shell, Learn/Tinker screens (12-15 d) | 50 / 50 | done |
-| P14 | GUI MVP 2: model page, drag-and-drop (14-17 d) | 35 / 36 | merged; P14.33 (tag v0.5.0) is the user's |
+| P14 | GUI MVP 2: model page, drag-and-drop (14-17 d) | 36 / 36 | done |
 | P15 | GUI Research (10-13 d) | 31 / 31 | done |
 | P16 | Extend + depth (8-10 d) | 18 / 18 | done |
 | P17 | Remaining curriculum paths (18-26 d) | 33 / 34 | done except P17.30 (user, GPU runs) |
-| P18 | Every lesson reaches the model page's views | 10 / 11 | in progress |
+| P18 | Every lesson reaches the model page's views | 10 / 11 | PR #23, the gate waits on CI and the merge |
+| P19 | Presentable: cleanup | 5 / 9 | in progress |
+| P20 | Presentable: show it | 0 / 4 | not started |
 
 MVP = P6-P14 (about 77-96 focused days). Recount a row with
-`grep -c '^- \[x\] P6\.' docs/checklist.md` (done) and `grep -c '^- \[.\] P6\.' docs/checklist.md`
+`grep -c '^- \[x\] P6\.' docs/dev/checklist.md` (done) and `grep -c '^- \[.\] P6\.' docs/dev/checklist.md`
 (total).
 
 ## How to use this file
@@ -596,7 +598,7 @@ Order: P13.01 and P13.02 first (these items live in `web/` and run in its CI job
 - [x] P14.30 Complete lesson F03 (one causal attention head; `AttentionTemplate` is single-head) through the template canvas and check that its `equivalent` check passes. · files: web/e2e/template.spec.ts (new) · deps: P14.20 · done: `pnpm -C web exec playwright test template` passes · done 2026-10-08 (ae5bde0)
 - [x] P14.31 Add the model page, palette, drag-and-drop and locks to `docs/gui.md`. · files: docs/gui.md · deps: P14.28 · done: `grep -c 'drag' docs/gui.md` prints at least 1 · done 2026-10-08 (ae5bde0)
 - [x] P14.32 Fold the agreed parts of the plan into `docs/architecture.md`, keeping `plan-tool.md` as the decision record (plan 13). · files: docs/architecture.md (new), docs/plan-tool.md · deps: P14.31 · done: `grep -c '^## ' docs/architecture.md` prints at least 6 · done 2026-10-08 (ae5bde0)
-- [ ] P14.33 (prepared 2026-10-08: version 0.5.0, CHANGELOG and openapi are on the branch; merge, tag and publish are the user's) **USER ACTION** Release the MVP as v0.4.0 to PyPI and GHCR (the agent prepares the version bump and CHANGELOG). · files: nanoscope/__init__.py, CHANGELOG.md · deps: P14.32 · done: `pip index versions nanoscope-lab` lists 0.4.0
+- [x] P14.33 (prepared 2026-10-08: version 0.5.0, CHANGELOG and openapi are on the branch; merge, tag and publish are the user's) **USER ACTION** Release the MVP as v0.4.0 to PyPI and GHCR (the agent prepares the version bump and CHANGELOG). · files: nanoscope/__init__.py, CHANGELOG.md · deps: P14.32 · done: `pip index versions nanoscope-lab` lists 0.4.0 ✓ 2026-10-30: PyPI lists 0.4.0 through 0.6.1 (the user tagged and published each)
 - [x] P14.99 PHASE GATE P14 (MVP complete). Exit criteria: plan section 10 phase 14. · files: — · deps: P14.* (P14.33 may follow the merge) · done: `make check` passes; `uv run pytest tests/test_graph.py -k property_all_ops` passes; the e2e job is green (P14.25-P14.30); `uv run pytest tests/test_first_model_notebook.py` passes; **USER ACTION** merge the PR · merged 2026-10-08 (PR #16, ab10de6)
 
 ---
@@ -731,6 +733,25 @@ Order: P13.01 and P13.02 first (these items live in `web/` and run in its CI job
 - [x] P18.10 Found by the user on the e2e stack: the run page flashed "Loading run…" every second while a run was preparing. TanStack Query v5 clears a query's error at the start of each refetch, and the page polled a 404 as an error; a missing folder is now the query's answer (`{ missing }`), polled until the run exists. · files: web/src/pages/Run.tsx, web/src/pages/Run.header.test.tsx, web/test/fetch.ts (`delay`) · deps: — · done: `pnpm -C web test -- Run.header` passes, and fails on the old Run.tsx ✓ 2026-10-22 3f553d7
 - [ ] P18.99 PHASE GATE P18. · files: — · deps: P18.* · done: `make check` passes; web lint, typecheck, stylelint and vitest pass; the e2e job is green; **USER ACTION** merge the PR
 
+## P19 Presentable: cleanup (user, 2026-10-30: the portfolio plan gives nanoscope packaging only, no new features)
+
+- [x] P19.01 Tests never write into the repo root: the GPU tests (`test_compile.py`, the CUDA resume test) and the Hub tests passed relative `output_dir`s; remove the `straight/` and `resumed/` runs committed by accident. · files: tests/test_compile.py, tests/test_study.py · deps: — · done: `git ls-files straight resumed` prints nothing; `uv run pytest tests/test_compile.py tests/test_study.py -k "hub or cuda" -m ""` passes on a GPU and leaves no folder in the repo ✓ 2026-10-30 1ae392d: 7 passed on the RTX 4070
+- [x] P19.02 `nanoscope --version` prints the version (it printed the usage). · files: nanoscope/cli.py, tests/test_packaging.py · deps: — · done: `uv run pytest tests/test_packaging.py -k version` passes ✓ 2026-10-30 12f25e0
+- [x] P19.03 A favicon: the reticle in each theme's ink and accent. · files: web/public/favicon.svg (new), web/index.html · deps: — · done: `pnpm -C web build` puts `favicon.svg` in `nanoscope/server/static`, served as `image/svg+xml`, and it renders in light and dark ✓ 2026-10-30 07cf63a: rendering caught an XML comment holding `--`
+- [x] P19.04 A `docs/README.md` index; the plans, this checklist and the archive move to `docs/dev/` (history, not guides) and leave the sdist; two lessons link to the M1 milestone on GitHub, since installs have no `docs/`. · files: docs/README.md (new), docs/dev/ (moved), docs/architecture.md, docs/design-system.md, .github/pull_request_template.md, pyproject.toml, tests/test_packaging.py, nanoscope/curricula/{honest-ablations/05-capstone,modern-block/07-assemble}/lesson.md · deps: — · done: `uv run pytest tests/test_packaging.py tests/test_curricula.py tests/test_learn.py -m "not network and not gpu"` passes ✓ 2026-10-30 00c97e0
+- [x] P19.05 README: badges, the clone step, `./up.sh -d`, a CPU-only torch line, all 33 lessons, absolute links (PyPI shows the README without the repo); the package summary says the same thing. · files: README.md, pyproject.toml · deps: — · done: in a clean venv, CPU torch then `nanoscope-lab[server]` keeps the `+cpu` torch and installs no `nvidia` packages ✓ 2026-10-30 f5971fc: 1.4 GB instead of 5.7 GB
+- [ ] P19.06 Python 3.13: `requires-python`, classifiers, the CI matrix and the README. · files: pyproject.toml, uv.lock, .github/workflows/ci.yml, README.md · deps: — · done: the offline suite passes on 3.13 locally and in CI
+- [ ] P19.07 **USER ACTION** GitHub settings: a description, topics and a homepage for the repo; delete the merged branches still on GitHub (chore/test-config-layout, feat/editor-and-launch, feat/model-inference, feat/phase-1-vertical-slice, feat/phase-5-speed, feat/phase-6-servable, feat/phase-15-research, m1-baseline, starter). · files: — · deps: — · done: `gh repo view --json description` is not empty; `gh api repos/almajd3713/nanoscope/branches --jq '.[].name'` lists main and open PR branches only
+- [ ] P19.08 **USER ACTION** Release 0.7.0 once P18 and P19 are merged (the agent prepares the version, CHANGELOG and openapi; the user runs `tag.yml`). Until then a fresh clone's `lsp` service runs from the 0.6.1 `:cpu` image, which has no basedpyright. · files: nanoscope/__init__.py, CHANGELOG.md, docs/openapi.json · deps: P18.99, P19.06 · done: PyPI lists 0.7.0 and `docker buildx imagetools inspect ghcr.io/almajd3713/nanoscope:cpu` shows an image built after it
+- [ ] P19.99 PHASE GATE P19. · files: — · deps: P19.01-P19.06 (P19.07 and P19.08 are the user's and may follow) · done: `make check` and the web checks pass, CI is green; **USER ACTION** merge the PR
+
+## P20 Presentable: show it
+
+- [ ] P20.01 Screenshots for the README: a lesson whose check fails and says why, the model page swapping a block (its one-line diff), compare with intervals and the forest plot, a study page; light and dark. Real data only: a seeded `nanoscope serve` with runs trained for it. · files: docs/images/ (new), README.md · deps: P19.99 · done: the README shows them; `git ls-files docs/images` lists them
+- [ ] P20.02 A 60-second recording of one flow (a check fails, the fix passes and unlocks a block, a swap on the model page, a comparison "within noise"), scripted with Playwright against the seeded server. **USER ACTION**: narration or captions, and where it is published. · files: — · deps: P20.01 · done: the user has the recording
+- [ ] P20.03 Case study draft (problem, what was built, results): the M1 ablation re-run on the current code (**USER ACTION**: its compute), the EX05 finding, the engineering facts, and the bugs the e2e and compose tests caught. · files: — · deps: P20.01 · done: the user has the draft
+- [ ] P20.99 PHASE GATE P20. · files: — · deps: P20.* · done: CI is green; **USER ACTION** merge the PR
+
 ---
 
 ## Decisions log
@@ -774,10 +795,10 @@ Append one line per decision: `- YYYY-MM-DD <item id or plan section>: <decision
 Things found while building that aren't items yet. Turn each into an item under the
 right phase, then tick it here as `[x] → P<n>.<id>`.
 
-- [ ] The template-canvas mockup writes a filled template as `class OneHead(AttentionTemplate)` with slots passed to `super().__init__` and `None` for an empty slot. Check that `graph.parse` represents that shape (the fixture `template_fill.py` nests the template inside a Decoder) before building P14.20.
+- [x] → P14.20 (`graph.parse` has a `filled` class kind, ae5bde0) The template-canvas mockup writes a filled template as `class OneHead(AttentionTemplate)` with slots passed to `super().__init__` and `None` for an empty slot. Check that `graph.parse` represents that shape (the fixture `template_fill.py` nests the template inside a Decoder) before building P14.20.
 - [ ] Not Linux: job children only die with their worker through PR_SET_PDEATHSIG (Linux). On macOS/Windows a killed worker leaves its child; add a pid check before requeue if those platforms matter.
-- [ ] The repo has no CI workflow yet. → covered by P6.04-P6.06.
-- [ ] `docs/plan-tool-landscape.md` still uses the old phase numbers ("Export (phase 13)") and calls questions "open". Fix it when folding into `docs/architecture.md` (P14.32).
+- [x] → P6.04-P6.06 The repo has no CI workflow yet.
+- [x] ✗ dropped 2026-10-30: the doc moved to `docs/dev/` as history, not kept in step (Decisions log). `docs/plan-tool-landscape.md` still uses the old phase numbers ("Export (phase 13)") and calls questions "open". Fix it when folding into `docs/architecture.md` (P14.32).
 - [ ] (P16.16 drawing) Authored lessons can only name references nanoscope ships (`nanoscope.reference.functional`); a lesson folder cannot bring its own `reference.py`. Decide with P16.13.
 - [ ] (P16.16 drawing) Curricula in the workspace (`curricula/<path>/`) are not listed for learners: the loader reads only the package's `curricula/`. P16.13 previews them; publishing an authored path is a separate decision.
 - [ ] (P16.16 drawing) `GET /api/models` lists lesson classes (`MyLayerNorm`, `MyRMSNorm`) as models: any `nn.Module` subclass in the workspace counts. The workspace tree labels files by what the API says.
@@ -823,3 +844,4 @@ right phase, then tick it here as `[x] → P<n>.<id>`.
 - 2026-10-08 P14.30 (discovered work, as AGENTS.md asked): `class OneHead(AttentionTemplate)` with its slots in `super().__init__(d_model, context_length, q=..., ...)` is a new graph class kind, `filled`: its slots are its arguments, edited with `fill_slot` at path `[]`. The `equivalent` check resolves `q.weight` to `q.linear.weight` when that is the only match, so a template filled with the `Linear` block passes lesson F03's check like the code route (solution in `tests/solutions/templates/`).
 - 2026-10-08 e2e: specs that need an untouched unlock state (`locked.spec.ts`) skip with a message when RoPE was already earned: run `e2e/stack.sh reset`. Drags need the source item on screen; the template spec uses a tall viewport.
 - 2026-10-09 P15.30: the user approved the row 7 mockups. Discovered work from map7, to do alongside the GUI items: `/report` counts running runs and 422s before a run's first eval; bench jobs don't append to `bench.jsonl`; `/api/validate/study` has no runs-per-device; `/api/hardware` has no GPU name; there is no sizes job yet (P15.16 needs it); card preview and push each stamp `exported_at` (the pushed file differs from the one shown); `report.md` mixes time zones.
+- 2026-10-30 P19/P20 (user, ~/_hsproject/roadmap/portfolio-plan.md): nanoscope gets packaging, not features: cleanup (P19), then screenshots, a short video and a case study (P20). The agent moved the plans and this checklist to `docs/dev/` as history that is not kept in step with the code, so `plan-tool-landscape.md` keeps its old phase numbers. `experiments/m1-ablation/` stays: its report (3 Oct, before the block rebuild) is the case study's starting point once re-run (P20.03).
