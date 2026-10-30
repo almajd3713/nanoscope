@@ -116,8 +116,6 @@ Tokens come from [TinyStories](https://huggingface.co/datasets/roneneldan/TinySt
 (CDLA-Sharing-1.0) and [FineWeb-Edu](https://huggingface.co/datasets/HuggingFaceFW/fineweb-edu)
 (ODC-By 1.0), cached under `~/.nanoscope/data`.
 
-What was built and what its experiments found: [docs/case-study.md](https://github.com/almajd3713/nanoscope/blob/main/docs/case-study.md).
-
 Architecture notes are in
 [docs/architecture.md](https://github.com/almajd3713/nanoscope/blob/main/docs/architecture.md).
 MIT licensed.
