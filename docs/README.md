@@ -1,5 +1,7 @@
 # Documentation
 
+[case-study.md](case-study.md): what nanoscope is for, how it is built, and what its experiments found.
+
 ## Guides
 
 - [learn.md](learn.md): the learning paths, what a lesson's checks do, and what passing unlocks.
