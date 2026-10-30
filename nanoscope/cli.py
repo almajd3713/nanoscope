@@ -10,7 +10,7 @@ import sys
 from pathlib import Path
 from typing import Any
 
-from nanoscope import paths
+from nanoscope import __version__, paths
 from nanoscope.compare import compare
 from nanoscope.modelref import load_class
 from nanoscope.presets import list_presets
@@ -62,6 +62,7 @@ def _parse_compile(value: str | None) -> bool | str:
 
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(prog="nanoscope", description="Nanoscope CLI")
+    parser.add_argument("--version", action="version", version=f"nanoscope {__version__}")
     sub = parser.add_subparsers(dest="command")
 
     run_parser = sub.add_parser("run", help="Train a model")

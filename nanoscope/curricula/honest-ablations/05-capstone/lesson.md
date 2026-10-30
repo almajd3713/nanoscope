@@ -113,7 +113,7 @@ seeds than the lesson needs, it says which.
 3. **Record it.** Add `mode="record"` to the study (a clean git tree and a committed study
    file), and a `study.predict(...)` for the gap. This is the research tier: the same code, with
    the guarantees that make a result citable.
-4. **The M1 milestone.** `docs/project-nanoscope.md` describes this ablation at full scale on
+4. **The M1 milestone.** [The project plan](https://github.com/almajd3713/nanoscope/blob/main/docs/dev/project-nanoscope.md#m1--the-modern-baseline-10-hrs) describes this ablation at full scale on
    FineWeb-Edu (several GPU-hours, record mode). Everything you did here is its small version.
 
 ## Reading

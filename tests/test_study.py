@@ -294,7 +294,7 @@ class FakeHub:
 
 
 @pytest.fixture
-def hub(tmp_path, monkeypatch):
+def hub(fake_data, tmp_path, monkeypatch):
     fake = FakeHub(tmp_path / "hub")
     fake.root.mkdir()
     monkeypatch.setattr("huggingface_hub.HfApi", fake.api())
@@ -315,7 +315,8 @@ def test_push_to_hub_mirrors_checkpoints_and_the_final_run(hub):
 
 def test_a_new_session_resumes_from_the_hub(hub, monkeypatch):
     monkeypatch.setattr("nanoscope.integrations.HubSync.__init__.__defaults__", (0,))  # push often
-    straight = run(Bigram, tiny(), device="cpu", output_dir="runs/straight", progress=False)
+    straight = run(Bigram, tiny(), device="cpu", output_dir=paths.runs_dir() / "straight",
+                   progress=False)
 
     def interrupt(step, row):
         if step == 7:
@@ -332,16 +333,16 @@ def test_a_new_session_resumes_from_the_hub(hub, monkeypatch):
 
 @pytest.mark.gpu
 @pytest.mark.skipif(not torch.cuda.is_available(), reason="needs CUDA")
-def test_interrupted_cuda_run_resumes_exactly():
+def test_interrupted_cuda_run_resumes_exactly(tmp_path):
     kw = dict(device="cuda", **SMALL)
-    straight = run(GPT2, tiny(), output_dir="straight", **kw)
+    straight = run(GPT2, tiny(), output_dir=tmp_path / "straight", **kw)
 
     def interrupt(step, row):
         if step == 7:
             os.kill(os.getpid(), signal.SIGINT)
 
-    run(GPT2, tiny(), output_dir="resumed", on_step=interrupt, **kw)
-    resumed = run(GPT2, tiny(), output_dir="resumed", **kw)
+    run(GPT2, tiny(), output_dir=tmp_path / "resumed", on_step=interrupt, **kw)
+    resumed = run(GPT2, tiny(), output_dir=tmp_path / "resumed", **kw)
     assert [r["loss"] for r in resumed.metrics] == [r["loss"] for r in straight.metrics]
 
 

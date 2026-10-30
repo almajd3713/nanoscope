@@ -374,7 +374,7 @@ How the system becomes code in `web/` (P13 onward), and how it is kept from drif
 
 1. Change it here first (tokens, a rule, a component's guideline), with the reason in the change note.
 2. Mirror it: copy `tokens.json`, regenerate `tokens.css`, update `docs/design-system.md`, in one commit titled `design: …`.
-3. Log the decision in `docs/checklist.md` (Decisions log) when it changes a rule rather than a value.
+3. Log the decision in `docs/dev/checklist.md` (Decisions log) when it changes a rule rather than a value.
 
 An agent that wants a value or pattern this system does not have stops and asks; it never adds a local one-off.
 

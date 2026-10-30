@@ -5,7 +5,7 @@ build-backend = "hatchling.build"
 [project]
 name = "nanoscope-lab"
 dynamic = ["version"]
-description = "See what your language model learns"
+description = "Learn how small language models work, and test changes to them with confidence intervals"
 readme = "README.md"
 license = "MIT"
 license-files = ["LICENSE"]
@@ -20,9 +20,10 @@ classifiers = [
   "Programming Language :: Python :: 3.10",
   "Programming Language :: Python :: 3.11",
   "Programming Language :: Python :: 3.12",
+  "Programming Language :: Python :: 3.13",
   "Topic :: Scientific/Engineering :: Artificial Intelligence",
 ]
-requires-python = ">=3.10,<3.13"
+requires-python = ">=3.10,<3.14"
 dependencies = [
   "datasets>=3.0,<5",
   "huggingface-hub>=0.27,<2",
@@ -74,7 +75,7 @@ path = "nanoscope/__init__.py"
 [tool.hatch.build.targets.sdist]
 include = ["/nanoscope", "/tests", "/docs", "/README.md", "/LICENSE", "/Makefile"]
 artifacts = ["nanoscope/server/static/**"]
-exclude = ["/docs/archive", "/data", "/runs", "/studies", "/experiments", "/.kaggle-outputs",
+exclude = ["/docs/dev", "/data", "/runs", "/studies", "/experiments", "/.kaggle-outputs",
            "*.pyc", "__pycache__"]
 
 [tool.hatch.build.targets.wheel]

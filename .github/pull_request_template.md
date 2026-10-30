@@ -5,7 +5,7 @@
 ## Checks
 
 - [ ] `make check` passes (Python changes), and `pnpm -C web lint && pnpm -C web lint:css && pnpm -C web typecheck && pnpm -C web test` pass (web changes)
-- [ ] The checklist item is ticked in `docs/checklist.md` with the date and commit
+- [ ] The checklist item is ticked in `docs/dev/checklist.md` with the date and commit
 
 ## UI changes: design system review
 
