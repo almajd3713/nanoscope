@@ -1,5 +1,7 @@
 // Writes the README screenshots, docs/images/<screen>-<light|dark>.png, from real data.
 // 1. Train the M1 study into a demo home (docs/dev/plans/2026-10-30-presentable-show-it.md, Step 2.1).
+//    The study page reads studies/m1-ablation.toml from the workspace, which `nanoscope study` does not write:
+//    uv run python -c "import runpy; print(runpy.run_path('studies/m1_ablation.py')['study'].to_spec().to_toml())" > $HOME/nanoscope-demo/ws/studies/m1-ablation.toml
 // 2. make web, then: NANOSCOPE_HOME=$HOME/nanoscope-demo/home NANOSCOPE_WORKSPACE=$HOME/nanoscope-demo/ws
 //    NANOSCOPE_DATA_DIR=$HOME/.nanoscope/data uv run nanoscope serve --port 18780 --worker cpu
 // 3. pnpm -C web exec tsx scripts/readme-shots.ts
