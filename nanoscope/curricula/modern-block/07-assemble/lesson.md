@@ -40,4 +40,4 @@ Tiers: **B** build it, **R** read closely, **S** skim, **K** know it exists.
 - **R**: [Chinchilla Scaling: A Replication Attempt](https://arxiv.org/pdf/2404.10102) (Besiroglu et al., 2024): scaling laws are curve fits with error bars
 - **R**: [T5](https://arxiv.org/pdf/1910.10683) (2019): ablation methodology.
 - **S**: [FineWeb](https://arxiv.org/pdf/2406.17557) (2024): read the ablation methodology for how to evaluate cheaply.
-- **K**: The M1 milestone in `docs/project-nanoscope.md`: this lesson is its small version.
+- **K**: [The M1 milestone](https://github.com/almajd3713/nanoscope/blob/main/docs/dev/project-nanoscope.md#m1--the-modern-baseline-10-hrs) in the project plan: this lesson is its small version.

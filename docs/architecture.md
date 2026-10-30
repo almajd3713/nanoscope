@@ -1,6 +1,6 @@
 # Architecture
 
-How nanoscope is put together today. [plan-tool.md](plan-tool.md) is the decision record (why each
+How nanoscope is put together today. [plan-tool.md](dev/plan-tool.md) is the decision record (why each
 choice was made, what was rejected, the user's answers in section 11); this page says what the code
 does now, so a new reader does not need the plan to find their way.
 
@@ -109,6 +109,6 @@ the library alone, and `nanoscope-lab[server]` adds the API.
 
 ## Where the plan and the checklist fit
 
-[plan-tool.md](plan-tool.md) holds the rationale and the user's decisions; it is not edited to match
-the code. [checklist.md](checklist.md) is the work list by phase, each item with the command that
+[plan-tool.md](dev/plan-tool.md) holds the rationale and the user's decisions; it is not edited to match
+the code. [checklist.md](dev/checklist.md) is the work list by phase, each item with the command that
 shows it done. This page and the other docs under `docs/` describe what is built.

@@ -40,7 +40,7 @@ def test_sdist_excludes(dist):
         names = [n.split("/", 1)[1] for n in tar.getnames() if "/" in n]
     assert "LICENSE" in names and "pyproject.toml" in names
     assert any(n.startswith("nanoscope/") for n in names)
-    for unwanted in ("data/", "runs/", "studies/", "experiments/", ".kaggle-outputs",
+    for unwanted in ("data/", "runs/", "studies/", "experiments/", "docs/dev/", ".kaggle-outputs",
                      ".env", "AGENTS.md", ".hypothesis", ".venv", "graphify-out"):
         assert not any(n == unwanted.rstrip("/") or n.startswith(unwanted) for n in names), unwanted
 
