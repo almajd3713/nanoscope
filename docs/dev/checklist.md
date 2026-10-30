@@ -4,7 +4,7 @@ The build list for [`plan-tool.md`](plan-tool.md), sections 4-10, with the decis
 2026-10-05 (plan section 11) applied. Phase numbers follow the plan's section 10. Every
 item is one line, so scripts and agents can grep and edit it.
 
-**Current focus:** P19 is merged (PR #24) and P20 is the PR from feat/show-it: it waits on CI and the user's merge. Then the user's P19.07 (GitHub settings) and P19.08 (release 0.7.0: date the CHANGELOG heading, run tag.yml). P17.30 stays open by decision (GPU estimates declared, not measured).
+**Current focus:** 0.7.0 is released. Left: P19.07 (delete the merged remote branches; the description, topics and homepage are set) and P17.30 (GPU estimates declared, not measured, open by decision). The demo recording (~/nanoscope-demo/out/nanoscope-demo.mp4) is kept aside.
 
 ## Progress
 
@@ -23,8 +23,8 @@ item is one line, so scripts and agents can grep and edit it.
 | P16 | Extend + depth (8-10 d) | 18 / 18 | done |
 | P17 | Remaining curriculum paths (18-26 d) | 33 / 34 | done except P17.30 (user, GPU runs) |
 | P18 | Every lesson reaches the model page's views | 10 / 11 | PR #23, the gate waits on CI and the merge |
-| P19 | Presentable: cleanup | 6 / 9 | PR #24 merged; P19.07 and P19.08 are the user's |
-| P20 | Presentable: show it | 3 / 4 | PR on feat/show-it (on main); the gate waits on CI and the merge |
+| P19 | Presentable: cleanup | 8 / 9 | released as 0.7.0; P19.07 has the repo settings done and the merged remote branches left to delete |
+| P20 | Presentable: show it | 4 / 4 | done; the recording is kept aside |
 
 MVP = P6-P14 (about 77-96 focused days). Recount a row with
 `grep -c '^- \[x\] P6\.' docs/dev/checklist.md` (done) and `grep -c '^- \[.\] P6\.' docs/dev/checklist.md`
@@ -742,15 +742,15 @@ Order: P13.01 and P13.02 first (these items live in `web/` and run in its CI job
 - [x] P19.05 README: badges, the clone step, `./up.sh -d`, a CPU-only torch line, all 33 lessons, absolute links (PyPI shows the README without the repo); the package summary says the same thing. · files: README.md, pyproject.toml · deps: — · done: in a clean venv, CPU torch then `nanoscope-lab[server]` keeps the `+cpu` torch and installs no `nvidia` packages ✓ 2026-10-30 f5971fc: 1.4 GB instead of 5.7 GB
 - [x] P19.06 Python 3.13: `requires-python`, classifiers, the CI matrix and the README. · files: pyproject.toml, uv.lock, .github/workflows/ci.yml, README.md · deps: — · done: the offline suite passes on 3.13 locally and in CI ✓ 2026-10-30 018a643: the offline suite passed on 3.13 here (676 passed) and in CI (check (3.13) on PR #24)
 - [ ] P19.07 **USER ACTION** GitHub settings: a description, topics and a homepage for the repo; delete the merged branches still on GitHub (chore/test-config-layout, feat/editor-and-launch, feat/model-inference, feat/phase-1-vertical-slice, feat/phase-5-speed, feat/phase-6-servable, feat/phase-15-research, m1-baseline, starter). · files: — · deps: — · done: `gh repo view --json description` is not empty; `gh api repos/almajd3713/nanoscope/branches --jq '.[].name'` lists main and open PR branches only
-- [ ] P19.08 **USER ACTION** Release 0.7.0 once P18 and P19 are merged (the agent writes the `## 0.7.0 (unreleased)` CHANGELOG section; the user replaces `unreleased` with the release date and runs `tag.yml`, which bumps the version and openapi itself). Until then a fresh clone's `lsp` service runs from the 0.6.1 `:cpu` image, which has no basedpyright. · files: CHANGELOG.md · deps: P18.99, P19.06 · done: PyPI lists 0.7.0 and `docker buildx imagetools inspect ghcr.io/almajd3713/nanoscope:cpu` shows an image built after it
-- [ ] P19.99 PHASE GATE P19. · files: — · deps: P19.01-P19.06 (P19.07 and P19.08 are the user's and may follow) · done: `make check` and the web checks pass, CI is green; **USER ACTION** merge the PR
+- [x] P19.08 **USER ACTION** Release 0.7.0 once P18 and P19 are merged (the agent writes the `## 0.7.0 (unreleased)` CHANGELOG section; the user replaces `unreleased` with the release date and runs `tag.yml`, which bumps the version and openapi itself). Until then a fresh clone's `lsp` service runs from the 0.6.1 `:cpu` image, which has no basedpyright. · files: CHANGELOG.md · deps: P18.99, P19.06 · done: PyPI lists 0.7.0 and `docker buildx imagetools inspect ghcr.io/almajd3713/nanoscope:cpu` shows an image built after it ✓ 2026-10-30 f1a940f: tag.yml v0.7.0; PyPI lists nanoscope-lab 0.7.0, the GitHub release exists, release.yml and image.yml succeeded
+- [x] P19.99 PHASE GATE P19. · files: — · deps: P19.01-P19.06 (P19.07 and P19.08 are the user's and may follow) · done: `make check` and the web checks pass, CI is green; **USER ACTION** merge the PR ✓ 2026-10-30: PR #23 and #24 merged, CI green, make check and the web checks passed
 
 ## P20 Presentable: show it
 
 - [x] P20.01 Screenshots for the README: a lesson whose check fails and says why, the model page swapping a block (its one-line diff), compare with intervals and the forest plot, a study page; light and dark. Real data only: a seeded `nanoscope serve` with runs trained for it. · files: docs/images/ (new), README.md · deps: P19.99 · done: the README shows them; `git ls-files docs/images` lists them ✓ 2026-10-30 829d99f: 8 PNGs from web/scripts/readme-shots.ts against a seeded nanoscope serve (real data: lesson 04's check, a drag swap, the shipped baselines, the M1 re-run)
 - [x] P20.02 A 60-second recording of one flow (a check fails, the fix passes and unlocks a block, a swap on the model page, a comparison "within noise"), scripted with Playwright against the seeded server. **USER ACTION**: narration or captions, and where it is published. · files: — · deps: P20.01 · done: the user has the recording ✓ 2026-10-30 cfb6c70: web/scripts/demo-video.ts; the MP4 (47 s) is ~/nanoscope-demo/out/nanoscope-demo.mp4, not committed; narration and publishing are the user's
 - [x] P20.03 Case study draft (problem, what was built, results): the M1 ablation re-run on the current code (**USER ACTION**: its compute), the EX05 finding, the engineering facts, and the bugs the e2e and compose tests caught. · files: — · deps: P20.01 · done: the user has the draft ✓ 2026-10-30 5ceab7d: docs/case-study.md, from the M1 re-run (25194c3) and measured counts (docs/case-study.md removed 2026-10-30: the portfolio page is written separately)
-- [ ] P20.99 PHASE GATE P20. · files: — · deps: P20.* · done: CI is green; **USER ACTION** merge the PR
+- [x] P20.99 PHASE GATE P20. · files: — · deps: P20.* · done: CI is green; **USER ACTION** merge the PR ✓ 2026-10-30: PR #25 merged with CI green; make test 676 passed, web 471 passed
 
 ---
 
