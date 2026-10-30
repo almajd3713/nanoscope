@@ -4,7 +4,7 @@ The build list for [`plan-tool.md`](plan-tool.md), sections 4-10, with the decis
 2026-10-05 (plan section 11) applied. Phase numbers follow the plan's section 10. Every
 item is one line, so scripts and agents can grep and edit it.
 
-**Current focus:** P18 and P19 are merged (PRs #23, #24); the CHANGELOG has its 0.7.0 section; left: the user's P19.07 (GitHub settings) and P19.08 (release). P20 (screenshots, recording, case study) is being built on feat/show-it. P17.30 stays open by decision (GPU estimates declared, not measured).
+**Current focus:** P19 is merged (PR #24) and P20 is the PR from feat/show-it: it waits on CI and the user's merge. Then the user's P19.07 (GitHub settings) and P19.08 (release 0.7.0: date the CHANGELOG heading, run tag.yml). P17.30 stays open by decision (GPU estimates declared, not measured).
 
 ## Progress
 
@@ -24,7 +24,7 @@ item is one line, so scripts and agents can grep and edit it.
 | P17 | Remaining curriculum paths (18-26 d) | 33 / 34 | done except P17.30 (user, GPU runs) |
 | P18 | Every lesson reaches the model page's views | 10 / 11 | PR #23, the gate waits on CI and the merge |
 | P19 | Presentable: cleanup | 6 / 9 | PR #24 merged; P19.07 and P19.08 are the user's |
-| P20 | Presentable: show it | 0 / 4 | not started |
+| P20 | Presentable: show it | 3 / 4 | PR on feat/show-it (on main); the gate waits on CI and the merge |
 
 MVP = P6-P14 (about 77-96 focused days). Recount a row with
 `grep -c '^- \[x\] P6\.' docs/dev/checklist.md` (done) and `grep -c '^- \[.\] P6\.' docs/dev/checklist.md`
@@ -747,9 +747,9 @@ Order: P13.01 and P13.02 first (these items live in `web/` and run in its CI job
 
 ## P20 Presentable: show it
 
-- [ ] P20.01 Screenshots for the README: a lesson whose check fails and says why, the model page swapping a block (its one-line diff), compare with intervals and the forest plot, a study page; light and dark. Real data only: a seeded `nanoscope serve` with runs trained for it. · files: docs/images/ (new), README.md · deps: P19.99 · done: the README shows them; `git ls-files docs/images` lists them
-- [ ] P20.02 A 60-second recording of one flow (a check fails, the fix passes and unlocks a block, a swap on the model page, a comparison "within noise"), scripted with Playwright against the seeded server. **USER ACTION**: narration or captions, and where it is published. · files: — · deps: P20.01 · done: the user has the recording
-- [ ] P20.03 Case study draft (problem, what was built, results): the M1 ablation re-run on the current code (**USER ACTION**: its compute), the EX05 finding, the engineering facts, and the bugs the e2e and compose tests caught. · files: — · deps: P20.01 · done: the user has the draft
+- [x] P20.01 Screenshots for the README: a lesson whose check fails and says why, the model page swapping a block (its one-line diff), compare with intervals and the forest plot, a study page; light and dark. Real data only: a seeded `nanoscope serve` with runs trained for it. · files: docs/images/ (new), README.md · deps: P19.99 · done: the README shows them; `git ls-files docs/images` lists them ✓ 2026-10-30 829d99f: 8 PNGs from web/scripts/readme-shots.ts against a seeded nanoscope serve (real data: lesson 04's check, a drag swap, the shipped baselines, the M1 re-run)
+- [x] P20.02 A 60-second recording of one flow (a check fails, the fix passes and unlocks a block, a swap on the model page, a comparison "within noise"), scripted with Playwright against the seeded server. **USER ACTION**: narration or captions, and where it is published. · files: — · deps: P20.01 · done: the user has the recording ✓ 2026-10-30 cfb6c70: web/scripts/demo-video.ts; the MP4 (47 s) is ~/nanoscope-demo/out/nanoscope-demo.mp4, not committed; narration and publishing are the user's
+- [x] P20.03 Case study draft (problem, what was built, results): the M1 ablation re-run on the current code (**USER ACTION**: its compute), the EX05 finding, the engineering facts, and the bugs the e2e and compose tests caught. · files: — · deps: P20.01 · done: the user has the draft ✓ 2026-10-30 5ceab7d: docs/case-study.md, from the M1 re-run (25194c3) and measured counts
 - [ ] P20.99 PHASE GATE P20. · files: — · deps: P20.* · done: CI is green; **USER ACTION** merge the PR
 
 ---

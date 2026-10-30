@@ -17,6 +17,7 @@ Every lesson reaches the model page, the editor's language server is on by defau
 - The model page of a plain file says why it has no graph and offers a model built from blocks.
 - README: the clone step, a CPU-only torch install line, all 33 lessons, and links that work on PyPI.
 - Docs: an index in `docs/README.md`; the plans and the checklist moved to `docs/dev/`.
+- README: screenshots of four screens in light and dark, and a case study in `docs/case-study.md`.
 
 ### Fixed
 - Editor: pending edits are sent before hover, completion and signature help, so completions answer for the current text.
