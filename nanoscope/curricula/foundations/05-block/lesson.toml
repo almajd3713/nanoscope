@@ -5,6 +5,10 @@ prerequisites = ["foundations/04-multi-head"]
 unlocks = ["block:Block"]
 forbid = ["torch.nn.MultiheadAttention", "F.scaled_dot_product_attention"]
 
+[template]
+file = "template.py"
+summary = "The same block as a BlockTemplate with four empty slots (two norms, attention, MLP): the residual connections are written for you, you drag a block into each part."
+
 [experiment]
 kind = "check"
 
@@ -20,9 +24,11 @@ class = "MyBlock"
 reference = "naive_block"
 inputs = [[[2, 6, 16]], [[1, 3, 16]]]
 call = [
-  "input:0", "param:ln1.weight", "param:ln1.bias",
-  "param:attn.q.weight", "param:attn.k.weight", "param:attn.v.weight", "param:attn.out.weight",
-  "param:ln2.weight", "param:ln2.bias", "param:fc.weight", "param:proj.weight", 4,
+  "input:0", "param:ln1.weight|norm1.weight", "param:ln1.bias|norm1.bias",
+  "param:attn.q.weight", "param:attn.k.weight", "param:attn.v.weight",
+  "param:attn.out.weight|attn.proj.weight",
+  "param:ln2.weight|norm2.weight", "param:ln2.bias|norm2.bias",
+  "param:fc.weight|mlp.fc.weight", "param:proj.weight|mlp.proj.weight", 4,
 ]
 randomize = true
 tolerance = 1e-4

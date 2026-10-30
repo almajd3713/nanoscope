@@ -13,14 +13,17 @@ export type Trace = { shape: string; params: string; flops: string };
 const shapeText = (shapes: number[][] | null): string => (shapes && shapes[0] ? shapes[0].join("x") : "");
 
 // "8x256x128" when a block keeps the shape, "8x256 → 8x256x128" when it changes it, as describe prints.
+export function shapeChange(inputs: number[][] | null, outputs: number[][] | null): string {
+  const input = shapeText(inputs);
+  const output = shapeText(outputs);
+  return input && output && input !== output ? `${input} → ${output}` : output || input;
+}
+
 export function traceOf(rows: TraceRow[] | null | undefined, module: string | null): Trace | null {
   if (!rows || !module) return null;
   const row = rows.find((r) => r.path === module);
   if (!row) return null;
-  const input = shapeText(row.input_shapes);
-  const output = shapeText(row.output_shapes);
-  const shape = input && output && input !== output ? `${input} → ${output}` : output || input;
-  return { shape, params: countText(row.params), flops: `${countText(row.flops_per_token)} FLOP/token` };
+  return { shape: shapeChange(row.input_shapes, row.output_shapes), params: countText(row.params), flops: `${countText(row.flops_per_token)} FLOP/token` };
 }
 
 // The span of a call as a person reads it: 1-based columns, "line 10, cols 30 to 41".

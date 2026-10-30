@@ -30,6 +30,18 @@
   grid-template-columns: var(--sidebar) minmax(0, 1fr) var(--inspector);
 }
 
+.plainBody {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: var(--space-3);
+  min-height: 0;
+}
+
+.plainCode {
+  margin: 0;
+  overflow: auto;
+}
+
 .side {
   min-height: 0;
   overflow: auto;
@@ -66,7 +78,8 @@
 
 @media (max-width: 1024px) {
   .body,
-  .bodyNoEditor {
+  .bodyNoEditor,
+  .plainBody {
     grid-template-columns: minmax(0, 1fr);
     overflow: auto;
   }

@@ -89,6 +89,12 @@ def _describe(job: Any, payload: dict[str, Any]) -> dict[str, Any]:
                     **payload.get("kwargs", {}))
 
 
+def _structure(job: Any, payload: dict[str, Any]) -> dict[str, Any]:
+    from nanoscope.inspect import structure
+
+    return structure(model_class(payload["model"]), payload.get("args"), payload.get("inputs"))
+
+
 def _inspect(job: Any, payload: dict[str, Any]) -> dict[str, Any]:
     from nanoscope.inspect import DEFAULT_PROMPT, inspect_checkpoint
 
@@ -200,8 +206,8 @@ def _sync_hub(job: Any, payload: dict[str, Any]) -> dict[str, Any]:
 
 HANDLERS: dict[str, Callable[[Any, dict[str, Any]], dict[str, Any]]] = {
     "run": _run, "prepare-data": _prepare_data, "bench": _bench, "check": _check,
-    "describe": _describe, "study": _study, "sync-hub": _sync_hub, "certify": _certify,
-    "sizes": _sizes, "study-spec": _study_spec, "inspect": _inspect,
+    "describe": _describe, "structure": _structure, "study": _study, "sync-hub": _sync_hub,
+    "certify": _certify, "sizes": _sizes, "study-spec": _study_spec, "inspect": _inspect,
     "author-check": _author_check, "prereg-preview": _prereg_preview, "commit": _commit,
     "card-push": _card_push,
 }

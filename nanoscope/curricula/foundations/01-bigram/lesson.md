@@ -15,6 +15,14 @@ You will write `MyBigram` in `starter.py`, in two layers:
 `(batch, time, vocab_size)`. Nothing looks at neighbouring tokens: each position is
 predicted on its own.
 
+In the app, starting the lesson opens `starter.py` on the **model page**: your code, and beside
+it the **structure** of what the code builds, one box per layer with the shapes going through
+it. It is drawn again each time you save, so it starts empty and fills in as you write
+`__init__`; until `forward` runs, it says where it stopped. The structure is a picture of your
+code. Later, once you build models from nanoscope's **blocks** (the parts you unlock by passing
+lessons), the same page shows a **graph** instead, which you can also edit by dragging blocks
+into it. Lesson 3 is the first one you can do that way.
+
 Then run `nanoscope learn check foundations/01-bigram`. It builds your class, trains it for a
 few hundred steps on TinyStories on your CPU, and checks that it learned (bits per byte well
 below 2) and that it lands where the shipped bigram does.

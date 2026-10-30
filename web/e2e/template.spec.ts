@@ -1,21 +1,10 @@
 import { expect, test } from "@playwright/test";
-import { readFile, saveFile } from "./helpers";
+import { readFile } from "./helpers";
 
 const FILE = "lessons/foundations/03-attention-head/starter.py";
 
 // The graph route of lesson F03: the same OneHead, built by filling the eight slots of the
-// attention template instead of writing forward().
-const SKELETON = `from nanoscope.blocks import AttentionTemplate
-
-
-class OneHead(AttentionTemplate):
-    def __init__(self, d_model, context_length):
-        super().__init__(
-            d_model, context_length,
-            q=None, k=None, v=None, scores=None, mask=None, normalize=None, mix=None, out=None,
-        )
-`;
-
+// attention template instead of writing forward(). The lesson page starts it from the template.
 const FILLS: [slot: string, block: string][] = [
   ["q", "Linear"], ["k", "Linear"], ["v", "Linear"], ["scores", "ScaledDotScores"],
   ["mask", "CausalMask"], ["normalize", "Softmax"], ["mix", "WeightedSum"], ["out", "Linear"],
@@ -29,11 +18,9 @@ test.use({ viewport: { width: 1280, height: 1500 } });
 // passes against the naive reference.
 test("lesson F03 through the template canvas passes its equivalent check", async ({ page, request }) => {
   await request.post("/api/learn/policy", { data: { policy: "open" } });
-  const started = await request.post("/api/curricula/foundations/03-attention-head/start", { data: {} });
-  expect(started.ok(), await started.text()).toBe(true);
-  await saveFile(request, FILE, SKELETON);
-
-  await page.goto(`/model/${FILE}`);
+  await page.goto("/learn/foundations/03-attention-head");
+  await page.getByRole("button", { name: "Build it from blocks" }).click();
+  await page.waitForURL(`**/model/${FILE}`);
   await expect(page.getByRole("region", { name: "AttentionTemplate template" })).toBeVisible();
   const palette = page.getByRole("navigation", { name: "Block palette" });
   for (const [slot, block] of FILLS) {

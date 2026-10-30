@@ -3,7 +3,7 @@ from __future__ import annotations
 import asyncio
 from collections.abc import AsyncIterator
 from pathlib import Path
-from typing import Any
+from typing import Any, Literal
 
 from fastapi import APIRouter
 from fastapi.responses import StreamingResponse
@@ -11,7 +11,7 @@ from pydantic import BaseModel
 
 from nanoscope import paths, queue
 from nanoscope.learn import gating, loader, progress, unlocks
-from nanoscope.learn.cli import locked_by, start_lesson, workspace_lesson_dir
+from nanoscope.learn.cli import locked_by, start_lesson, starter_route, workspace_lesson_dir
 from nanoscope.learn.loader import LessonSpec
 from nanoscope.server import sse
 from nanoscope.server.jobs import job_doc
@@ -49,6 +49,11 @@ class PathSummary(BaseModel):
     lessons: list[LessonSummary]
 
 
+class TemplateDoc(BaseModel):
+    file: str  # in the lesson's folder; starting from blocks copies it as starter.py
+    summary: str
+
+
 class LessonDetail(LessonSummary):
     prerequisites: list[str]
     forbid: list[str]
@@ -58,6 +63,8 @@ class LessonDetail(LessonSummary):
     text: dict[str, str]  # intro, surface, deep, reading (Markdown)
     files: list[str]  # the starter files the lesson ships
     workspace: str  # where `start` puts them, relative to the workspace
+    template: TemplateDoc | None  # the same exercise built from blocks, when the lesson has one
+    starter: str | None  # your starter.py: "code" or "blocks" as shipped, "edited", None if absent
 
 
 def _compute(compute: dict[str, Any]) -> dict[str, ComputeDoc]:
@@ -97,11 +104,14 @@ def lesson_detail(path: str, lesson: str) -> LessonDetail:
         text={"intro": spec.text.intro, "surface": spec.text.surface, "deep": spec.text.deep,
               "reading": spec.text.reading},
         files=files,
-        workspace=workspace_lesson_dir(spec).relative_to(paths.workspace_dir()).as_posix())
+        workspace=workspace_lesson_dir(spec).relative_to(paths.workspace_dir()).as_posix(),
+        template=TemplateDoc(file=spec.template.file, summary=spec.template.summary)
+        if spec.template else None, starter=starter_route(spec))
 
 
 class StartRequest(BaseModel):
     gating: str | None = None  # "guided" or "open": only used the very first time
+    route: Literal["code", "blocks"] = "code"  # blocks: from the lesson's template
 
 
 class StartResult(BaseModel):
@@ -117,13 +127,18 @@ class StartResult(BaseModel):
 @router.post("/curricula/{path}/{lesson}/start")
 def start(path: str, lesson: str, body: StartRequest | None = None) -> StartResult:
     """Copy the lesson's starter files into your workspace (never over your edits) and mark it
-    started. The very first start turns gating on (`guided`) unless you ask for `open`."""
+    started. The very first start turns gating on (`guided`) unless you ask for `open`.
+    `route: "blocks"` starts from the lesson's template (slots to fill with blocks) instead of
+    its starter; a starter.py you have not edited is replaced, so you can switch."""
     spec = loader.load_lesson(f"{path}/{lesson}")
+    route = body.route if body else "code"
+    if route == "blocks" and spec.template is None:
+        raise ValueError(f"{spec.id} has no template to build from blocks; start it in code")
     first = not unlocks.exists()
     if first:
         choice = (body.gating if body and body.gating else "guided")
         unlocks.set_policy(choice)  # a ValueError for anything else: a 422
-    folder, copied, kept = start_lesson(spec)
+    folder, copied, kept = start_lesson(spec, route=route)
     root = paths.workspace_dir()
     return StartResult(
         lesson=spec.id, workspace=folder.relative_to(root).as_posix(),

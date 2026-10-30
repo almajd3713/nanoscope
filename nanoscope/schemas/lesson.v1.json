@@ -113,6 +113,25 @@
       "items": {
         "type": "string"
       }
+    },
+    "template": {
+      "type": "object",
+      "description": "The same exercise built from blocks: `file` (in the lesson's folder, not starter.py) fills the slots of a template block. Starting from it copies it as the learner's starter.py; the checks are the same.",
+      "required": [
+        "file",
+        "summary"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "file": {
+          "type": "string",
+          "pattern": "^[^/\\\\]+\\.py$"
+        },
+        "summary": {
+          "type": "string",
+          "minLength": 1
+        }
+      }
     }
   },
   "$defs": {

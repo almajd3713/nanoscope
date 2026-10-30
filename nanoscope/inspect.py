@@ -123,9 +123,10 @@ def _flops(module: nn.Module, context_length: int) -> tuple[int, str]:
     return 6 * count_params(module)[1], "6N"
 
 
-def _trace(model: nn.Module, preset: Preset, model_cls: type[nn.Module]) -> list[dict[str, Any]]:
-    """One forward pass on meta tensors with a hook on every module: a row per module, with
-    the shapes of its first call (None for a module the pass never called, like a ModuleList)."""
+def _record(model: nn.Module, *inputs: torch.Tensor
+            ) -> tuple[dict[str, dict[str, Any]], str | None, Exception | None]:
+    """One forward pass with a hook on every module: the shapes of each module's first call by
+    path, and, when the pass raised, the module that was running and the exception."""
     names = {id(m): n for n, m in model.named_modules()}
     rows: dict[str, dict[str, Any]] = {}
 
@@ -148,17 +149,25 @@ def _trace(model: nn.Module, preset: Preset, model_cls: type[nn.Module]) -> list
     handles = [m.register_forward_pre_hook(enter) for m in model.modules()]
     handles += [m.register_forward_hook(leave) for m in model.modules()]
     try:
-        idx = torch.zeros(preset.batch_size, preset.context_length, dtype=torch.long,
-                          device="meta")
         with torch.no_grad():
-            model(idx)
+            model(*inputs)
     except Exception as exc:
-        module = active[-1] if active else ""
-        file, line = _locate(model_cls, module, exc)
-        raise ShapeError(module, f"{type(exc).__name__}: {exc}", file, line) from exc
+        return rows, active[-1] if active else "", exc
     finally:
         for h in handles:
             h.remove()
+    return rows, None, None
+
+
+def _trace(model: nn.Module, preset: Preset, model_cls: type[nn.Module]) -> list[dict[str, Any]]:
+    """One forward pass on meta tensors with a hook on every module: a row per module, with
+    the shapes of its first call (None for a module the pass never called, like a ModuleList)."""
+    idx = torch.zeros(preset.batch_size, preset.context_length, dtype=torch.long, device="meta")
+    rows, failed, exc = _record(model, idx)
+    if exc is not None:
+        failed = failed or ""
+        file, line = _locate(model_cls, failed, exc)
+        raise ShapeError(failed, f"{type(exc).__name__}: {exc}", file, line) from exc
 
     blocks = {info.name: info for info in all_blocks()}
     out = []
@@ -207,12 +216,17 @@ def _locate(model_cls: type[nn.Module], module: str,
         span = _span_of(cls, module)
         if span is not None:
             return file, span["line"]
+    return file, _line_in(file, exc)
+
+
+def _line_in(file: str, exc: BaseException) -> int | None:
+    """The innermost line of the traceback that is in `file`."""
     tb, line = exc.__traceback__, None
     while tb is not None:
         if tb.tb_frame.f_code.co_filename == file:
             line = tb.tb_lineno
         tb = tb.tb_next
-    return file, line
+    return line
 
 
 def _span_of(cls: dict[str, Any], module: str) -> dict[str, int] | None:
@@ -244,6 +258,149 @@ def _span_of(cls: dict[str, Any], module: str) -> dict[str, int] | None:
             break
         node, span = child, child["span"]
     return span or cls["span"]
+
+
+# -- structure: any nn.Module, finished or not -----------------------------------------------
+
+STRUCTURE_BATCH, STRUCTURE_TIME = 2, 8  # the default input: 2 sequences of 8 positions
+
+
+def structure(model_cls: type[nn.Module], args: dict[str, Any] | None = None,
+              inputs: list[Any] | None = None) -> dict[str, Any]:
+    """What `model_cls` builds, for a file the model page cannot draw as a graph: one row per
+    module with the line of the file that makes it, and shapes when a forward pass runs.
+
+    It is built on the meta device with `args` plus small sizes for the required arguments
+    (as a lesson's checks build it), and called on `inputs` (a lesson check's specs: a shape is
+    a float tensor, {shape, ints} token ids), else on token ids when it takes a vocab_size,
+    else on (2, 8, d_model) floats. Unfinished code is expected (a lesson's starter): a
+    constructor or a forward that raises still gives a report, with the error and its line
+    (`structure.v1`)."""
+    from nanoscope.learn.checks import _input_sets, constructor_args
+
+    try:
+        file: str | None = _inspect.getsourcefile(model_cls)
+        line = _inspect.getsourcelines(model_cls)[1]
+    except (TypeError, OSError):
+        file, line = None, None
+    report: dict[str, Any] = {
+        "schema": 1, "nanoscope": __version__, "model": model_cls.__name__, "file": file,
+        "line": line, "args": {}, "inputs": None, "built": False, "traced": False,
+        "error": None, "params": 0, "modules": [],
+    }
+
+    def failed(stage: str, exc: BaseException, module: str | None = None) -> dict[str, Any]:
+        report["error"] = {"stage": stage, "type": type(exc).__name__, "message": str(exc),
+                           "module": module, "line": _line_in(file, exc) if file else None}
+        return report
+
+    try:
+        kwargs = constructor_args(model_cls, args)
+    except TypeError as exc:
+        return failed("build", exc)
+    report["args"] = _shown_args(model_cls, kwargs)
+    try:
+        with torch.device("meta"):
+            model = model_cls(**kwargs)
+    except Exception as exc:
+        return failed("build", exc)
+    report["built"] = True
+    report["params"] = count_params(model)[0]
+
+    specs = _input_sets(inputs)[0] if inputs else _default_inputs(kwargs)
+    rows: dict[str, dict[str, Any]] = {}
+    if specs is not None:
+        tensors = [torch.empty(tuple(s["shape"]), dtype=torch.long, device="meta")
+                   if isinstance(s, dict) else torch.empty(tuple(s), device="meta")
+                   for s in specs]
+        report["inputs"] = [list(t.shape) for t in tensors]
+        rows, module, exc = _record(model, *tensors)
+        if exc is not None:
+            failed("forward", exc, module)
+        else:
+            report["traced"] = True
+
+    blocks = {info.name: info for info in all_blocks()}
+    lines = _built_at(model, file)
+    for name, sub in model.named_modules():
+        seen = rows.get(name)
+        info = blocks.get(type(sub).__name__)
+        report["modules"].append({
+            "path": name, "type": type(sub).__name__, "block": info.name if info else None,
+            "depth": name.count(".") + 1 if name else 0, "params": count_params(sub)[0],
+            "input_shapes": seen["in"] if seen else None,
+            "output_shapes": seen["out"] if seen else None, "line": lines.get(name),
+        })
+    return report
+
+
+def _default_inputs(kwargs: dict[str, Any]) -> list[Any] | None:
+    if isinstance(kwargs.get("vocab_size"), int):
+        time = min(kwargs.get("context_length", STRUCTURE_TIME), STRUCTURE_TIME)
+        return [{"shape": [STRUCTURE_BATCH, time], "ints": kwargs["vocab_size"]}]
+    if isinstance(kwargs.get("d_model"), int):
+        return [[STRUCTURE_BATCH, STRUCTURE_TIME, kwargs["d_model"]]]
+    return None
+
+
+def _shown_args(model_cls: type[nn.Module], kwargs: dict[str, Any]) -> dict[str, Any]:
+    """The arguments it was built with, its own plain defaults included, in signature order."""
+    from nanoscope.blocks.spec import BlockModule
+
+    init = model_cls.__init__ if issubclass(model_cls, BlockModule) else model_cls
+    out: dict[str, Any] = {}
+    for name, param in _inspect.signature(init).parameters.items():
+        if name in kwargs:
+            out[name] = kwargs[name]
+        elif param.default is None or isinstance(param.default, (int, float, str, bool)):
+            out[name] = param.default
+    return {k: (v if isinstance(v, (int, float, str, bool, list)) or v is None else repr(v))
+            for k, v in out.items()}
+
+
+def _built_at(model: nn.Module, file: str | None) -> dict[str, int | None]:
+    """The line of `file` that makes each module: the `self.<name> = ...` in the class that owns
+    it, when that class is written in `file`; else (a ModuleList's items, a module made by a
+    library class) the line of the nearest owner that has one."""
+    import ast
+    from pathlib import Path
+
+    if file is None:
+        return {}
+    try:
+        tree = ast.parse(Path(file).read_text(encoding="utf-8"))
+    except (OSError, SyntaxError):
+        return {}
+    classes = {node.name: node for node in ast.walk(tree) if isinstance(node, ast.ClassDef)}
+
+    def own(owner: nn.Module, attr: str) -> int | None:
+        node = classes.get(type(owner).__name__)
+        try:
+            if node is None or _inspect.getsourcefile(type(owner)) != file:
+                return None
+        except TypeError:
+            return None
+        for sub in ast.walk(node):
+            if isinstance(sub, ast.Assign):
+                targets = sub.targets
+            elif isinstance(sub, ast.AnnAssign):
+                targets = [sub.target]
+            else:
+                continue
+            for target in targets:
+                if (isinstance(target, ast.Attribute) and target.attr == attr
+                        and isinstance(target.value, ast.Name) and target.value.id == "self"):
+                    return sub.lineno
+        return None
+
+    root = classes.get(type(model).__name__)
+    lines: dict[str, int | None] = {"": root.lineno if root else None}
+    for name, _ in model.named_modules():
+        if not name:
+            continue
+        parent, _, attr = name.rpartition(".")
+        lines[name] = own(model.get_submodule(parent), attr) or lines.get(parent)
+    return lines
 
 
 # -- text -----------------------------------------------------------------------------------

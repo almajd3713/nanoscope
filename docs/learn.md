@@ -63,6 +63,22 @@ check of that lesson: once the experiment has run, the CLI refuses a prediction,
 when its interval contains the result and is not far wider than the run's own uncertainty
 (an interval that covers everything predicts nothing).
 
+### A second way in: built from blocks
+
+A lesson can also be done by filling the slots of a template block instead of writing the code.
+`[template]` names the file in the lesson's folder and says in one sentence what it is:
+
+```toml
+[template]
+file = "template.py"
+summary = "The same head as an AttentionTemplate with eight empty slots: ..."
+```
+
+`nanoscope learn start <lesson> --blocks` (or **Build it from blocks** on the lesson page) copies
+it as your `starter.py`, so the model page shows it as a graph and the checks are the same. Either
+way in replaces a `starter.py` you have not edited, so you can switch until you start writing;
+after that your file is kept. `foundations/03-attention-head` has one (`AttentionTemplate`).
+
 ### Compute: a CPU variant and a GPU variant
 
 A lesson that needs GPU hours has two variants. `[compute.cpu]` is a modest version that runs

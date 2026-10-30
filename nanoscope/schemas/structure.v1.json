@@ -1,0 +1,216 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://nanoscope.dev/schemas/structure.v1.json",
+  "title": "structure.v1",
+  "description": "What a model class builds, for a file the model page cannot draw as a graph: one row per module with the line of the file that makes it, and shapes when a forward pass on small inputs ran. Built on the meta device. Unfinished code is expected: a constructor or forward that raised is reported in `error`, with what was built so far.",
+  "type": "object",
+  "required": [
+    "schema",
+    "nanoscope",
+    "model",
+    "file",
+    "line",
+    "args",
+    "inputs",
+    "built",
+    "traced",
+    "error",
+    "params",
+    "modules"
+  ],
+  "additionalProperties": false,
+  "properties": {
+    "schema": {
+      "const": 1
+    },
+    "nanoscope": {
+      "type": "string"
+    },
+    "model": {
+      "type": "string"
+    },
+    "file": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "description": "The file the class is written in."
+    },
+    "line": {
+      "type": [
+        "integer",
+        "null"
+      ],
+      "minimum": 1,
+      "description": "The line of its class statement."
+    },
+    "args": {
+      "type": "object",
+      "description": "The arguments it was built with: the ones asked for, small sizes for the other required ones, and its own plain defaults."
+    },
+    "inputs": {
+      "oneOf": [
+        {
+          "type": "null"
+        },
+        {
+          "type": "array",
+          "items": {
+            "type": "array",
+            "items": {
+              "type": "integer",
+              "minimum": 0
+            }
+          }
+        }
+      ],
+      "description": "The shapes of the forward pass's inputs; null when it was not built or no input could be chosen."
+    },
+    "built": {
+      "type": "boolean"
+    },
+    "traced": {
+      "type": "boolean",
+      "description": "The forward pass ran to the end."
+    },
+    "error": {
+      "oneOf": [
+        {
+          "type": "null"
+        },
+        {
+          "type": "object",
+          "required": [
+            "stage",
+            "type",
+            "message",
+            "module",
+            "line"
+          ],
+          "additionalProperties": false,
+          "properties": {
+            "stage": {
+              "enum": [
+                "build",
+                "forward"
+              ]
+            },
+            "type": {
+              "type": "string",
+              "description": "The exception's class, e.g. NotImplementedError."
+            },
+            "message": {
+              "type": "string"
+            },
+            "module": {
+              "type": [
+                "string",
+                "null"
+              ],
+              "description": "The module running when the forward pass raised (\"\" is the model itself)."
+            },
+            "line": {
+              "type": [
+                "integer",
+                "null"
+              ],
+              "minimum": 1,
+              "description": "The innermost line of `file` in the traceback."
+            }
+          }
+        }
+      ]
+    },
+    "params": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "modules": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/row"
+      }
+    }
+  },
+  "$defs": {
+    "row": {
+      "type": "object",
+      "required": [
+        "path",
+        "type",
+        "block",
+        "depth",
+        "params",
+        "input_shapes",
+        "output_shapes",
+        "line"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "path": {
+          "type": "string"
+        },
+        "type": {
+          "type": "string"
+        },
+        "block": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "description": "The block's name when the module is a registered block."
+        },
+        "depth": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "params": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "input_shapes": {
+          "oneOf": [
+            {
+              "type": "null"
+            },
+            {
+              "type": "array",
+              "items": {
+                "type": "array",
+                "items": {
+                  "type": "integer",
+                  "minimum": 0
+                }
+              }
+            }
+          ]
+        },
+        "output_shapes": {
+          "oneOf": [
+            {
+              "type": "null"
+            },
+            {
+              "type": "array",
+              "items": {
+                "type": "array",
+                "items": {
+                  "type": "integer",
+                  "minimum": 0
+                }
+              }
+            }
+          ]
+        },
+        "line": {
+          "type": [
+            "integer",
+            "null"
+          ],
+          "minimum": 1,
+          "description": "The `self.<name> = ...` line that makes it, or its nearest owner's."
+        }
+      }
+    }
+  }
+}

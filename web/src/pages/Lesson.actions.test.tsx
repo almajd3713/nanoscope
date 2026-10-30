@@ -1,4 +1,4 @@
-import { act, render, screen, waitFor } from "@testing-library/react";
+import { act, cleanup, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { MemoryRouter, Route, Routes, useParams } from "react-router-dom";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
@@ -60,6 +60,46 @@ describe("Lesson actions", () => {
     await userEvent.click(screen.getByRole("button", { name: "Start lesson" }));
     expect(await screen.findByText("model page lessons/foundations/01-bigram/starter.py")).toBeTruthy();
     expect(seen.some((r) => r.method === "POST" && r.path.endsWith("/start"))).toBe(true);
+  });
+
+  it("a lesson with a template can be started from blocks, and switched while the file is as shipped", async () => {
+    const template = { file: "template.py", summary: "The same model as slots to fill." };
+    let detail: Record<string, unknown> = { ...lesson01, template, starter: null };
+    const seen = renderPage({
+      "GET /api/curricula/foundations/01-bigram": { body: () => detail },
+      "GET /api/files/lessons/foundations/01-bigram/starter.py": {
+        body: { path: "lessons/foundations/01-bigram/starter.py", content: STARTER, etag: "e1" },
+      },
+      "POST /api/curricula/foundations/01-bigram/start": {
+        body: (sent: unknown) => {
+          detail = { ...detail, state: "started", starter: (sent as { route: string }).route };
+          return { lesson: "foundations/01-bigram", copied: ["lessons/foundations/01-bigram/starter.py"], kept: [], state: "started", policy: "guided", first_start: false, workspace: "lessons/foundations/01-bigram" };
+        },
+      },
+    });
+    expect(await screen.findByText("From blocks: The same model as slots to fill.")).toBeTruthy();
+    await userEvent.click(screen.getByRole("button", { name: "Build it from blocks" }));
+    expect(await screen.findByText("model page lessons/foundations/01-bigram/starter.py")).toBeTruthy();
+    expect(seen.filter((r) => r.path.endsWith("/start")).map((r) => r.body)).toEqual([{ route: "blocks" }]);
+  });
+
+  it("a started lesson offers the other way in only while its file is as shipped", async () => {
+    const template = { file: "template.py", summary: "The same model as slots to fill." };
+    const file = { body: { path: "lessons/foundations/01-bigram/starter.py", content: STARTER, etag: "e1" } };
+    renderPage({
+      "GET /api/curricula/foundations/01-bigram": { body: { ...lesson01, state: "started", template, starter: "blocks" } },
+      "GET /api/files/lessons/foundations/01-bigram/starter.py": file,
+    });
+    expect(await screen.findByRole("button", { name: "Write it in code instead" })).toBeTruthy();
+    expect(screen.queryByRole("button", { name: "Build it from blocks" })).toBeNull();
+    cleanup();
+    renderPage({
+      "GET /api/curricula/foundations/01-bigram": { body: { ...lesson01, state: "started", template, starter: "edited" } },
+      "GET /api/files/lessons/foundations/01-bigram/starter.py": file,
+    });
+    await screen.findByRole("region", { name: "Your file" });
+    expect(screen.queryByRole("button", { name: "Write it in code instead" })).toBeNull();
+    expect(screen.queryByRole("button", { name: "Build it from blocks instead" })).toBeNull();
   });
 
   it("a started lesson shows its starter file and a way into the model page", async () => {

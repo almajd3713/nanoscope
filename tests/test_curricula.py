@@ -150,7 +150,19 @@ def test_f03_attention_head():
 def test_f03_template_route():
     """The graph route: OneHead filled from the attention template with primitive blocks passes
     the same check (its `Linear` slots keep their weights one level down, `q.linear.weight`)."""
+    from nanoscope.blocks.graph import parse
+
     lesson = load_lesson("foundations/03-attention-head")
+    # the lesson's own way in: its template, as shipped, is a graph with every slot empty
+    assert lesson.template is not None
+    start_lesson(lesson, route="blocks")
+    file = workspace_lesson_dir(lesson) / "starter.py"
+    assert file.read_bytes() == (lesson.dir / lesson.template.file).read_bytes()
+    (head,) = parse(file)["classes"]
+    assert head["name"] == "OneHead" and head["representable"]
+    shipped = run_lesson_checks(lesson)
+    assert verdicts(shipped) == {"built": True, "same-as-reference": False,
+                                 "built-by-hand": True}
     code = (SOLUTIONS / "templates" / "03-attention-head.py").read_text(encoding="utf-8")
     doc = attempt(lesson, code)
     assert doc["passed"], reasons(doc)
@@ -205,6 +217,27 @@ def test_f05_block(home):
     post_norm = solution("foundations/05-block").replace(
         "x = x + self.attn(self.ln1(x))", "x = self.ln1(x + self.attn(x))")
     assert "output differs" in reasons(attempt(lesson, post_norm))["same-as-reference"]
+
+
+def test_f05_template_route(home):
+    """The graph route: MyBlock filled from BlockTemplate passes the same check, whose weight
+    names have an alternative per way in (`ln1` or `norm1`, `attn.out` or `attn.proj`)."""
+    from nanoscope.blocks.graph import parse
+
+    lesson = load_lesson("foundations/05-block")
+    assert lesson.template is not None
+    start_lesson(lesson, route="blocks")
+    file = workspace_lesson_dir(lesson) / "starter.py"
+    assert file.read_bytes() == (lesson.dir / lesson.template.file).read_bytes()
+    (block,) = parse(file)["classes"]
+    assert block["name"] == "MyBlock" and block["representable"]
+    assert not verdicts(run_lesson_checks(lesson))["same-as-reference"]
+    code = (SOLUTIONS / "templates" / "05-block.py").read_text(encoding="utf-8")
+    doc = attempt(lesson, code)
+    assert doc["passed"], reasons(doc)
+    # a slot filled differently from the reference (2 heads, not 4) is caught with numbers
+    wrong = attempt(lesson, code.replace("n_heads=4", "n_heads=2"))
+    assert not wrong["passed"]
 
 
 @pytest.mark.usefixtures("fake_data")

@@ -8,8 +8,6 @@ import { PhoneNotice } from "../components/PhoneNotice";
 import { usePhone } from "../hooks/usePhone";
 import { Button } from "../components/Button";
 import { Editor } from "../components/Editor";
-import { EmptyState } from "../components/EmptyState";
-import { NewModelDialog } from "../components/NewModelDialog";
 import { ProblemFromError, ProblemView } from "../components/ProblemView";
 import type { CatalogBlock } from "../editor/completions";
 import { fromChecks, useDescribeMarkers } from "../editor/diagnostics";
@@ -30,6 +28,7 @@ import { Play } from "../icons";
 import { shows } from "../levels";
 import { RUN_DEFAULTS } from "../runDefaults";
 import { LessonBar, useLessonOfFile } from "./LessonBar";
+import { PlainModel } from "./PlainModel";
 import styles from "./Model.module.css";
 
 // A model file: the palette, its graph, the inspector for the selected box and (from Tinker up)
@@ -47,7 +46,6 @@ export function Model() {
   const [note, setNote] = useState<string | null>(null);
   const [chosenDepth, setDepth] = useState<Depth | null>(null);
   const [reveal, setReveal] = useState<number | null>(null);
-  const [creating, setCreating] = useState(false);
   const depth = chosenDepth ?? defaultDepth(level);
   const patch = usePatchGraph(path, graph.data?.etag ?? null);
   const history = useHistory(path);
@@ -86,32 +84,9 @@ export function Model() {
     );
   }
   if (graph.data && !cls) {
-    // a plain PyTorch model (most of the early lessons): nothing to draw, but it is still the
-    // lesson's file, so the lesson's actions and the code are here
-    return (
-      <div className={styles.page}>
-        <h1 className="title">{path}</h1>
-        {lesson.ids && <LessonBar file={path} lesson={lesson} />}
-        {lesson.ids ? (
-          <EmptyState
-            title="This lesson is plain PyTorch"
-            body="You write the layers yourself, so there is nothing to draw."
-          />
-        ) : (
-          <EmptyState
-            title="No graph for this file"
-            body="It is plain PyTorch: it has no Decoder or Composite class, so there is nothing to draw. A model built from blocks gets a graph, and you swap its blocks by dragging."
-            action={<Button onClick={() => setCreating(true)}>Start a model from blocks</Button>}
-          />
-        )}
-        <NewModelDialog open={creating} onOpenChange={setCreating} />
-        {shows("editor", level) || lesson.ids ? (
-          <Editor path={path} markers={checked} />
-        ) : (
-          <pre className="code" aria-label="Your file">{source}</pre>
-        )}
-      </div>
-    );
+    // a plain PyTorch model (most of the early lessons): no graph to edit, but a structure
+    // drawn from the code, and the lesson's actions when it is the lesson's file
+    return <PlainModel path={path} etag={graph.data.etag} lesson={lesson} markers={checked} />;
   }
 
   const catalog = (blocks.data?.blocks ?? []) as CatalogBlock[];

@@ -21,9 +21,15 @@ check copies your weights into a slow, obvious reference (loops over positions) 
 the outputs on random inputs of several shapes.
 
 **You must write it yourself.** The check refuses `F.scaled_dot_product_attention` and
-`torch.nn.MultiheadAttention`; they are the thing you are learning to build. (The primitives in
-`nanoscope.blocks.primitives` are fair game, and in the graph editor the
-`AttentionTemplate` has an empty slot for each of these steps.)
+`torch.nn.MultiheadAttention`; they are the thing you are learning to build. The primitives in
+`nanoscope.blocks.primitives` are fair game.
+
+**Or build it from blocks.** This lesson has a second way in: an `AttentionTemplate`, a block with
+an empty slot for each of the five steps. Start it with "Build it from blocks" on the lesson
+page (or `nanoscope learn start foundations/03-attention-head --blocks`): your `starter.py` is
+then a graph on the model page, and you fill each slot by dragging a primitive from the palette
+onto it. The check is the same. You can switch between the two ways until you edit the
+file.
 
 ## Deep
 

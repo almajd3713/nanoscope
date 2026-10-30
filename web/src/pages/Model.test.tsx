@@ -1,9 +1,10 @@
-import { act, fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { act, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { MemoryRouter, Route, Routes } from "react-router-dom";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import blocks from "../../test/fixtures/blocks-guided.json";
 import graph from "../../test/fixtures/graph-modern_like.json";
+import gptStructure from "../../test/fixtures/structure-06-solution.json";
 import { installEventSource } from "../../test/eventsource";
 import { mockApi } from "../../test/fetch";
 import { resetLevelCache, setLevel } from "../app/level";
@@ -134,12 +135,32 @@ describe("Model page", () => {
     expect((screen.getByRole("button", { name: "Redo" }) as HTMLButtonElement).disabled).toBe(true);
   });
 
-  it("says so when the file has no model", async () => {
-    open({ [`POST /api/files/${FILE}/graph`]: { body: { ...doc, classes: [] } } });
-    expect(await screen.findByText("No graph for this file")).toBeTruthy();
+  it("draws what a plain PyTorch file builds, and offers a model from blocks", async () => {
+    open({
+      [`POST /api/files/${FILE}/graph`]: { body: { ...doc, classes: [] } },
+      "GET /api/models": { body: [{ name: "MyGPT2", ref: `${FILE}:MyGPT2`, source: FILE, graph: false }] },
+      [`POST /api/models/${FILE}:MyGPT2/structure`]: { status: 202, body: { id: 9, state: "queued" } },
+      "GET /api/jobs/9": { body: { id: 9, state: "done", result: gptStructure } },
+    });
+    const tree = await screen.findByRole("list", { name: "Modules of MyGPT2" });
+    expect(within(tree).getByText("tok_emb")).toBeTruthy();
+    // the four layers fold into the first, as the graph folds a stack
+    expect(within(tree).getByText("×4", { exact: false })).toBeTruthy();
+    expect(within(tree).getAllByText("fc")).toHaveLength(1);
+    expect(within(tree).getByText("2x8x128 → 2x8x512 · 65.5k params")).toBeTruthy();
     // the way out is on the page: a model built from blocks, with the new-model dialog
     await userEvent.click(screen.getByRole("button", { name: "Start a model from blocks" }));
     expect(await screen.findByRole("heading", { name: "New model" })).toBeTruthy();
+  });
+
+  it("shows a failed structure job word for word", async () => {
+    open({
+      [`POST /api/files/${FILE}/graph`]: { body: { ...doc, classes: [] } },
+      "GET /api/models": { body: [{ name: "MyGPT2", ref: `${FILE}:MyGPT2`, source: FILE, graph: false }] },
+      [`POST /api/models/${FILE}:MyGPT2/structure`]: { status: 202, body: { id: 9, state: "queued" } },
+      "GET /api/jobs/9": { body: { id: 9, state: "failed", error: "NameError: name 'nn' is not defined" } },
+    });
+    expect(await screen.findByText("The structure job failed: NameError: name 'nn' is not defined")).toBeTruthy();
   });
 
   it("shows the library's message when the file cannot be read", async () => {

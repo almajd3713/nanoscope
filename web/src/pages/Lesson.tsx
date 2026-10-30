@@ -41,9 +41,11 @@ export function Lesson() {
   const starterPath = detail.data ? `${detail.data.workspace}/starter.py` : "";
   const hasStarter = detail.data?.files.includes("starter.py") ?? false;
 
+  // "blocks" starts from the lesson's template, when it has one; either replaces a starter.py
+  // that is still as shipped, so the learner can switch until they edit it
   const start = useMutation({
-    mutationFn: () =>
-      unwrap(api.POST("/api/curricula/{path}/{lesson}/start", { params: { path: { path, lesson } }, body: {} })),
+    mutationFn: (route: "code" | "blocks") =>
+      unwrap(api.POST("/api/curricula/{path}/{lesson}/start", { params: { path: { path, lesson } }, body: { route } })),
     onSuccess: async () => {
       await queryClient.invalidateQueries({ queryKey: ["curricula"] });
       await queryClient.invalidateQueries({ queryKey: ["learn"] });
@@ -150,8 +152,13 @@ export function Lesson() {
 
         <div className={styles.actions}>
           {!started && (
-            <Button variant="primary" size="lg" disabled={start.isPending} onClick={() => start.mutate()}>
+            <Button variant="primary" size="lg" disabled={start.isPending} onClick={() => start.mutate("code")}>
               Start lesson
+            </Button>
+          )}
+          {!started && d.template && (
+            <Button size="lg" disabled={start.isPending} onClick={() => start.mutate("blocks")}>
+              Build it from blocks
             </Button>
           )}
           {started && (
@@ -172,6 +179,7 @@ export function Lesson() {
             </span>
           )}
         </div>
+        {d.template && !started && <p className={`small ${styles.muted}`}>From blocks: {d.template.summary}</p>}
         {start.error && <ProblemFromError error={start.error} />}
         {train.error && <ProblemFromError error={train.error} />}
         {check.run.error && <ProblemFromError error={check.run.error} />}
@@ -186,6 +194,16 @@ export function Lesson() {
               <h2 className="heading">Your file</h2>
               <span className={`value ${styles.muted}`}>starter.py</span>
               <span className={styles.spacer} />
+              {d.template && d.starter === "code" && (
+                <Button size="sm" disabled={start.isPending} onClick={() => start.mutate("blocks")}>
+                  Build it from blocks instead
+                </Button>
+              )}
+              {d.template && d.starter === "blocks" && (
+                <Button size="sm" disabled={start.isPending} onClick={() => start.mutate("code")}>
+                  Write it in code instead
+                </Button>
+              )}
               <ButtonLink size="sm" to={`/model/${starterPath}`}>
                 Open in the model page
               </ButtonLink>

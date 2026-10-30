@@ -15,7 +15,7 @@ nanoscope serve --host 0.0.0.0        # reachable from other machines: needs the
 ```
 
 - The server itself never imports or runs your code. Anything that does (training, a study,
-  `describe`, a lesson check, `generate`, `bench`, data preparation) is a **job** that a worker
+  `describe`, `structure`, a lesson check, `generate`, `bench`, data preparation) is a **job** that a worker
   runs. Start a worker with `--worker DEVICE` (`cpu`, `cuda:0`) or separately with
   `nanoscope worker`. Without one, jobs stay `queued`; `GET /api/workers` shows who is there.
 - Your files live in the workspace (`$NANOSCOPE_WORKSPACE`, default under `$NANOSCOPE_HOME`).
@@ -46,7 +46,7 @@ library's own message word for word, and a block you have not unlocked is a 422 
 | Resource | Endpoints | CLI equivalent |
 |---|---|---|
 | Presets | `GET /presets`, `/presets/{name}` | `nanoscope presets` |
-| Models and blocks | `GET /models`, `/models/{ref}`, `/blocks`; `POST /models/{ref}/describe` (job) | `nanoscope describe`, `nanoscope blocks` |
+| Models and blocks | `GET /models`, `/models/{ref}`, `/blocks`; `POST /models/{ref}/describe`, `/models/{ref}/structure` (jobs) | `nanoscope describe`, `nanoscope blocks` |
 | Files | `GET/PUT /files/{path}`, `GET /files`, `POST /files/{path}/lint` | your editor |
 | Graph | `POST /files/{path}/graph`, `POST /files/{path}/graph/patch` | `nanoscope graph` |
 | Validation | `POST /validate/run`, `/validate/study` | the checks `run()` does before it starts |
