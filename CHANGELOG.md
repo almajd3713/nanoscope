@@ -1,6 +1,6 @@
 # Changelog
 
-## 0.7.0 (unreleased)
+## 0.7.0 (2026-10-30)
 
 Every lesson reaches the model page, the editor's language server is on by default, Python 3.13 is supported, and the repo reads better on GitHub and PyPI.
 
