@@ -7,6 +7,9 @@ from pathlib import Path
 
 import pytest
 
+from nanoscope import __version__
+from nanoscope.cli import main
+
 ROOT = Path(__file__).resolve().parent.parent
 
 
@@ -40,3 +43,10 @@ def test_sdist_excludes(dist):
     for unwanted in ("data/", "runs/", "studies/", "experiments/", ".kaggle-outputs",
                      ".env", "AGENTS.md", ".hypothesis", ".venv", "graphify-out"):
         assert not any(n == unwanted.rstrip("/") or n.startswith(unwanted) for n in names), unwanted
+
+
+def test_cli_prints_the_package_version(capsys):
+    with pytest.raises(SystemExit) as exit_:
+        main(["--version"])
+    assert exit_.value.code == 0
+    assert capsys.readouterr().out == f"nanoscope {__version__}\n"
