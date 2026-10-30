@@ -5,7 +5,7 @@ build-backend = "hatchling.build"
 [project]
 name = "nanoscope-lab"
 dynamic = ["version"]
-description = "See what your language model learns"
+description = "Learn how small language models work, and test changes to them with confidence intervals"
 readme = "README.md"
 license = "MIT"
 license-files = ["LICENSE"]
