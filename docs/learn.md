@@ -37,6 +37,11 @@ minutes; a GPU figure of "measured" is filled in once someone has run it on real
 Each lesson lists checks in its `lesson.toml`. A check prints one verdict and the reason, pass
 or fail, and the whole result is written to `learn/checks/<id>.json`.
 
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="images/lesson-check-dark.png">
+  <img alt="The multi-head attention lesson with a failed check: MultiHead has no parameter named q.weight" src="images/lesson-check-light.png">
+</picture>
+
 | Check | It asks |
 |---|---|
 | `defines` | Is the class in your file, and does it build (on the `meta` device, so no memory)? |

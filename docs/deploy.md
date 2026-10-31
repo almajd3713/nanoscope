@@ -123,6 +123,18 @@ are slow, and file watching (the GUI's live updates) can miss changes. Give Dock
 the NVIDIA container toolkit in WSL2 with a recent Windows driver. On macOS, Docker Desktop is CPU
 only.
 
+## Without Docker
+
+```bash
+pip install torch --index-url https://download.pytorch.org/whl/cpu   # optional: CPU-only torch
+pip install "nanoscope-lab[server]"
+nanoscope serve --worker cpu
+```
+
+On Linux, pip's default torch brings about 4 GB of CUDA libraries; the first line skips them when
+the machine has no NVIDIA GPU. `nanoscope serve` listens on `http://127.0.0.1:8000`. Python 3.10 to
+3.13 are supported.
+
 ## Apple silicon and AMD (native `serve`)
 
 The images are CPU (and NVIDIA CUDA). Docker on macOS cannot reach Metal (MPS), and the compose

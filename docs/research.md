@@ -117,6 +117,11 @@ study opens a saved one. The builder is a form over the same TOML spec as above:
 *finished* runs only, the predictions scored, `report.md` and the evidence **bundle** (a zip with
 `report.md`, `results.json`, the spec, `study.json`, `plan.json` and every seed's finals).
 
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="images/study-dark.png">
+  <img alt="The m1-ablation study: eight variants, three seeds each" src="images/study-light.png">
+</picture>
+
 ## Preregistration
 
 `mode = "record"` makes the study a claim. The read-only git line on the builder says whether it can
@@ -177,6 +182,11 @@ compare runs scored on different evaluation text, and refuses `val_loss` across 
 `verdict` against the baseline: `better` or `worse` when the 95% interval excludes zero,
 `within noise` when it doesn't, `no CI` with fewer than three seeds. `comparison.to_dict()`
 gives the same table as plain data.
+
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="images/compare-dark.png">
+  <img alt="Compare: Modern, Bigram and GPT-2 baselines with intervals and a forest plot" src="images/compare-light.png">
+</picture>
 
 ## Speed and hardware
 
